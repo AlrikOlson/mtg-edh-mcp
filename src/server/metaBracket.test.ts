@@ -7,7 +7,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
-import { CacheStore, GameChangersClient } from "../meta/index.js";
+import { CacheStore, GameChangersClient, SpellbookClient } from "../meta/index.js";
 import { createServer } from "./createServer.js";
 import { staticSnapshotProvider } from "./snapshot.js";
 
@@ -48,6 +48,30 @@ const ORACLE = [
       "Return target nonland permanent you don't control to its owner's hand. Overload {6}{U}{U}.",
     legalities: { commander: "legal" },
     prices: { usd: "30.00" },
+  },
+  {
+    oracle_id: "o-oracle",
+    id: "p-oracle",
+    name: "Thassa's Oracle",
+    cmc: 2,
+    colors: ["U"],
+    color_identity: ["U"],
+    type_line: "Creature — Merfolk Wizard",
+    oracle_text: "When Thassa's Oracle enters, look at the top X cards of your library...",
+    legalities: { commander: "legal" },
+    prices: { usd: "5.00" },
+  },
+  {
+    oracle_id: "o-consult",
+    id: "p-consult",
+    name: "Demonic Consultation",
+    cmc: 1,
+    colors: ["B"],
+    color_identity: ["B"],
+    type_line: "Instant",
+    oracle_text: "Name a card. Exile the top six cards of your library...",
+    legalities: { commander: "legal" },
+    prices: { usd: "3.00" },
   },
 ];
 
@@ -124,6 +148,53 @@ describe("meta_classify_bracket tool", () => {
     });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+  });
+
+  it("factors a deck's two-card Spellbook combo into the bracket (P11)", async () => {
+    // Reconfigure deck-1 to hold an early two-card combo (Oracle MV2 + Consultation MV1).
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      commanders: [],
+      computed_color_identity: [],
+      cards: [
+        { oracle_id: "o-oracle", qty: 1 },
+        { oracle_id: "o-consult", qty: 1 },
+      ],
+    }));
+    const spellbook = new SpellbookClient(new CacheStore({ now: () => 1000 }), {
+      fetchJson: async () => ({
+        results: {
+          included: [
+            {
+              id: "1-2",
+              uses: [
+                { card: { name: "Thassa's Oracle" } },
+                { card: { name: "Demonic Consultation" } },
+              ],
+              produces: [{ feature: { name: "Win the game" } }],
+              description: "Exile your library, then win with the Oracle.",
+            },
+          ],
+          almostIncluded: [],
+        },
+      }),
+    });
+    const gc = new GameChangersClient(new CacheStore({ now: () => 1000 }), {
+      fetchJson: async () => [], // no Game Changers — the combo is the only pusher
+    });
+    const server = createServer({ index, deckStore, gameChangers: gc, spellbook });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    const c2 = new Client({ name: "t-combo", version: "0.0.0" });
+    await c2.connect(ct);
+    const res = await c2.callTool({
+      name: "meta_classify_bracket",
+      arguments: { deck_id: "deck-1" },
+    });
+    const r = res.structuredContent as { bracket: number; pushers: { combos: string[] } };
+    expect(r.pushers.combos).toContain("Thassa's Oracle + Demonic Consultation");
+    expect(r.bracket).toBe(4); // early combo (2 + 1 = 3 MV) → Optimized
+    await c2.close();
   });
 
   it("degrades to UPSTREAM_UNAVAILABLE when the Game Changers list is unreachable", async () => {

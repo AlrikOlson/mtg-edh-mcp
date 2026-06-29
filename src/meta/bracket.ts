@@ -39,7 +39,29 @@ export interface BracketPushers {
   fast_mana: string[];
   tutors: string[];
   mld: string[];
+  /** Two-card infinite combos present in the deck, as "Piece A + Piece B" labels. */
+  combos: string[];
+  /** Cards that grant an extra turn (a chain of these gates up a tier). */
+  extra_turns: string[];
 }
+
+/**
+ * A deck-reachable combo for bracket purposes, given as the oracle_ids of its
+ * pieces. The caller (the tool layer) resolves Commander Spellbook combos to
+ * the deck's cards and passes them in — classifyBracket stays pure + offline.
+ */
+export interface BracketCombo {
+  pieces: readonly string[];
+}
+
+/**
+ * A two-card combo counts as "early" — and so pushes to Optimized — when its
+ * pieces' combined mana value is this low (a proxy for "assembles by ~turn 3-4").
+ */
+export const EARLY_COMBO_MV = 5;
+
+/** This many extra-turn cards is treated as a chain (Upgraded forbids chaining). */
+export const EXTRA_TURN_CHAIN = 2;
 
 export interface BracketResult {
   /** 1 Exhibition · 2 Core · 3 Upgraded · 4 Optimized · 5 cEDH. */
@@ -63,6 +85,11 @@ function isFastMana(card: Card): boolean {
   return ramps && card.mv <= 1 && twoPlus;
 }
 
+/** A card that grants an extra turn (Time Warp "takes an extra turn", Temporal Manipulation "take an extra turn", …). */
+function isExtraTurn(card: Card): boolean {
+  return /takes? an extra turn/i.test(card.oracle_text);
+}
+
 /**
  * Classify a deck into a Commander bracket using a fetched Game Changers set.
  * Pure: the GC set is supplied by the caller (never hardcoded).
@@ -71,8 +98,16 @@ export function classifyBracket(
   deck: Deck,
   lookup: CardLookup,
   gameChangers: ReadonlySet<string>,
+  combos: readonly BracketCombo[] = [],
 ): BracketResult {
-  const pushers: BracketPushers = { game_changers: [], fast_mana: [], tutors: [], mld: [] };
+  const pushers: BracketPushers = {
+    game_changers: [],
+    fast_mana: [],
+    tutors: [],
+    mld: [],
+    combos: [],
+    extra_turns: [],
+  };
   const seen = new Set<string>();
   for (const oracleId of [...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]) {
     if (seen.has(oracleId)) continue;
@@ -83,19 +118,37 @@ export function classifyBracket(
     if (card.roles.includes("tutor")) pushers.tutors.push(card.name);
     if (isFastMana(card)) pushers.fast_mana.push(card.name);
     if (isMassLandDenial(card)) pushers.mld.push(card.name);
+    if (isExtraTurn(card)) pushers.extra_turns.push(card.name);
   }
 
+  // Two-card combos (the official "two-card infinite combo" the tiers gate on).
+  // A combo whose pieces' combined mana value is low assembles early.
+  const twoCard = combos.filter((c) => c.pieces.length === 2);
+  let earlyCombo = false;
+  for (const c of twoCard) {
+    const cards = c.pieces.map((id) => lookup(id)).filter((x): x is Card => x !== null);
+    const [first, second] = cards;
+    if (first && second) {
+      pushers.combos.push(`${first.name} + ${second.name}`);
+      if (first.mv + second.mv <= EARLY_COMBO_MV) earlyCombo = true;
+    }
+  }
+  const extraTurnChain = pushers.extra_turns.length >= EXTRA_TURN_CHAIN;
+
   const gc = pushers.game_changers.length;
-  let bracket: number;
-  if (gc >= 4 || pushers.mld.length > 0) bracket = 4;
-  else if (gc >= 1) bracket = 3;
-  else bracket = 2;
+  const base = gc >= 4 || pushers.mld.length > 0 ? 4 : gc >= 1 ? 3 : 2;
+  // Combos/extra-turns only RAISE the floor, never lower the GC/MLD verdict.
+  let comboFloor = 0;
+  if (twoCard.length > 0) comboFloor = 3; // a two-card combo can't be Core (bracket 2)
+  if (earlyCombo || extraTurnChain) comboFloor = 4; // early combo / extra-turn chain → Optimized
+  const bracket = Math.max(base, comboFloor);
 
   const rationale =
     `${gc} Game Changer(s), ${pushers.fast_mana.length} fast-mana, ${pushers.tutors.length} tutor(s), ` +
-    `${pushers.mld.length} mass-land-denial. Tiers: Core=0 GC, Upgraded=1–3 GC, ` +
-    `Optimized=4+ GC or any mass land denial (tutors don't gate). ` +
-    `cEDH (5) is a meta/intent call and is not auto-assigned.`;
+    `${pushers.mld.length} mass-land-denial, ${pushers.combos.length} two-card combo(s), ` +
+    `${pushers.extra_turns.length} extra-turn card(s). Tiers: Core=0 GC & no combo, ` +
+    `Upgraded=1–3 GC or a late two-card combo, Optimized=4+ GC / mass land denial / early combo / ` +
+    `extra-turn chain (tutors don't gate). cEDH (5) is a meta/intent call and is not auto-assigned.`;
   return { bracket, pushers, rationale };
 }
 

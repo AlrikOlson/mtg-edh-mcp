@@ -7,12 +7,54 @@
  */
 import { z } from "zod";
 import { StructuredError } from "../types/index.js";
-import type { Role } from "../types/index.js";
+import type { Deck, Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
 import { cheapestUsd, analyzeStats } from "../analyze/index.js";
-import type { EdhrecClient, SpellbookClient, GameChangersClient } from "../meta/index.js";
+import type {
+  EdhrecClient,
+  SpellbookClient,
+  GameChangersClient,
+  BracketCombo,
+} from "../meta/index.js";
 import { classifyBracket } from "../meta/index.js";
+
+/**
+ * Resolve a deck's reachable two-card Commander Spellbook combos to bracket
+ * combos (oracle_id pieces), for classifyBracket. Degrades to [] when Spellbook
+ * is unavailable — the bracket still computes from Game Changers / MLD / extra
+ * turns. The live fetch stays here (the tool layer); classifyBracket stays pure.
+ */
+async function deckTwoCardCombos(
+  deck: Deck,
+  index: CardIndex,
+  spellbook: SpellbookClient,
+): Promise<BracketCombo[]> {
+  try {
+    const named = [...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]
+      .map((id) => ({ id, name: index.getCard(id)?.name }))
+      .filter((x): x is { id: string; name: string } => typeof x.name === "string");
+    const idByName = new Map(named.map((x) => [x.name, x.id]));
+    const commanderNames = deck.commanders
+      .map((id) => index.getCard(id)?.name)
+      .filter((n): n is string => typeof n === "string");
+    const results = await spellbook.findMyCombos(
+      commanderNames,
+      named.map((x) => x.name),
+    );
+    const out: BracketCombo[] = [];
+    for (const combo of results.included) {
+      if (combo.pieces.length !== 2) continue;
+      const pieces = combo.pieces
+        .map((n) => idByName.get(n))
+        .filter((x): x is string => typeof x === "string");
+      if (pieces.length === 2) out.push({ pieces });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 import type { ToolDefinition } from "./registry.js";
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -457,6 +499,7 @@ function metaClassifyBracketTool(
   store: DeckStore,
   index: CardIndex,
   gameChangers: GameChangersClient,
+  spellbook: SpellbookClient,
   session: string,
 ): ToolDefinition {
   return {
@@ -465,8 +508,9 @@ function metaClassifyBracketTool(
       title: "Classify bracket",
       description:
         "Classify a deck into the official Commander brackets (1 Exhibition … 5 cEDH) and " +
-        "report what pushes it up: Game Changers, fast mana, tutors, mass land denial. The " +
-        "Game Changers list is fetched live (never hardcoded). cEDH (5) is not auto-assigned.",
+        "report what pushes it up: Game Changers, fast mana, tutors, mass land denial, two-card " +
+        "combos, and extra turns. Game Changers come from the live list; combos from Commander " +
+        "Spellbook (degrades gracefully). cEDH (5) is not auto-assigned.",
       inputSchema: { deck_id: z.string() },
     },
     handler: async (args) => {
@@ -474,7 +518,8 @@ function metaClassifyBracketTool(
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const set = await gameChangers.list();
-      const result = classifyBracket(deck, (id) => index.getCard(id), set);
+      const combos = await deckTwoCardCombos(deck, index, spellbook);
+      const result = classifyBracket(deck, (id) => index.getCard(id), set, combos);
       return {
         content: [{ type: "text", text: `bracket ${result.bracket}: ${result.rationale}` }],
         structuredContent: { deck_id: deckId, ...result },
@@ -487,6 +532,7 @@ function metaDeckSummaryTool(
   store: DeckStore,
   index: CardIndex,
   gameChangers: GameChangersClient,
+  spellbook: SpellbookClient,
   session: string,
 ): ToolDefinition {
   return {
@@ -512,7 +558,8 @@ function metaDeckSummaryTool(
       let bracket: ReturnType<typeof classifyBracket> | null = null;
       let bracketUnavailable = false;
       try {
-        bracket = classifyBracket(deck, lookup, await gameChangers.list());
+        const combos = await deckTwoCardCombos(deck, index, spellbook);
+        bracket = classifyBracket(deck, lookup, await gameChangers.list(), combos);
       } catch {
         bracketUnavailable = true;
       }
@@ -554,7 +601,7 @@ export function makeMetaTools(
     metaMissingStaplesTool(store, index, edhrec, session),
     metaBudgetSwapsTool(store, index, edhrec, session),
     metaCombosTool(store, index, spellbook, session),
-    metaClassifyBracketTool(store, index, gameChangers, session),
-    metaDeckSummaryTool(store, index, gameChangers, session),
+    metaClassifyBracketTool(store, index, gameChangers, spellbook, session),
+    metaDeckSummaryTool(store, index, gameChangers, spellbook, session),
   ];
 }

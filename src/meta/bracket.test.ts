@@ -161,6 +161,81 @@ describe("classifyBracket tier boundaries (Feb 2026 Brackets Beta)", () => {
   });
 });
 
+describe("classifyBracket combos + extra turns (P11)", () => {
+  const noGc = new Set<string>();
+  const oracle = card({
+    oracle_id: "ora",
+    name: "Thassa's Oracle",
+    mv: 2,
+    type_line: "Creature — God",
+  });
+  const consult = card({
+    oracle_id: "con",
+    name: "Demonic Consultation",
+    mv: 1,
+    type_line: "Instant",
+  });
+  const bigA = card({ oracle_id: "ba", name: "Heavy Piece A", mv: 4, type_line: "Creature" });
+  const bigB = card({ oracle_id: "bb", name: "Heavy Piece B", mv: 5, type_line: "Creature" });
+  const warp1 = card({
+    oracle_id: "tw1",
+    name: "Time Warp",
+    mv: 5,
+    type_line: "Sorcery",
+    oracle_text: "Target player takes an extra turn after this one.",
+  });
+  const warp2 = card({
+    oracle_id: "tw2",
+    name: "Temporal Manipulation",
+    mv: 5,
+    type_line: "Sorcery",
+    oracle_text: "Take an extra turn after this one.",
+  });
+  const CC: Record<string, Card> = {
+    ora: oracle,
+    con: consult,
+    ba: bigA,
+    bb: bigB,
+    tw1: warp1,
+    tw2: warp2,
+  };
+  const look: CardLookup = (id) => CC[id] ?? null;
+  const mk = (ids: string[]): Deck =>
+    deck(
+      ids.map((oracle_id) => ({ oracle_id, qty: 1 })),
+      [],
+    );
+
+  it("a late two-card combo (combined MV > 5) blocks Core but stays Upgraded (3)", () => {
+    const r = classifyBracket(mk(["ba", "bb"]), look, noGc, [{ pieces: ["ba", "bb"] }]);
+    expect(r.bracket).toBe(3);
+    expect(r.pushers.combos).toEqual(["Heavy Piece A + Heavy Piece B"]);
+  });
+
+  it("an early two-card combo (combined MV <= 5) reaches Optimized (4)", () => {
+    const r = classifyBracket(mk(["ora", "con"]), look, noGc, [{ pieces: ["ora", "con"] }]);
+    expect(r.bracket).toBe(4); // 2 + 1 = 3 <= EARLY_COMBO_MV
+  });
+
+  it("a chain of extra-turn cards reaches Optimized (4)", () => {
+    const r = classifyBracket(mk(["tw1", "tw2"]), look, noGc);
+    expect(r.pushers.extra_turns).toHaveLength(2);
+    expect(r.bracket).toBe(4);
+  });
+
+  it("a single extra-turn card is reported but does not gate (stays Core)", () => {
+    const r = classifyBracket(mk(["tw1"]), look, noGc);
+    expect(r.pushers.extra_turns).toEqual(["Time Warp"]);
+    expect(r.bracket).toBe(2);
+  });
+
+  it("no combos passed → back-compatible, no combo pushers", () => {
+    const r = classifyBracket(mk(["ba"]), look, noGc);
+    expect(r.bracket).toBe(2);
+    expect(r.pushers.combos).toEqual([]);
+  });
+});
+
 describe("parseGameChangers", () => {
   it("accepts arrays of names, {cards:[{name}]}, and is defensive", () => {
     expect([...parseGameChangers(["Sol Ring", "Mana Crypt"])]).toEqual(["Sol Ring", "Mana Crypt"]);

@@ -26,8 +26,11 @@ export {
   classifyBracket,
   parseGameChangers,
   GAME_CHANGERS_TTL_MS,
+  EARLY_COMBO_MV,
+  EXTRA_TURN_CHAIN,
   type BracketResult,
   type BracketPushers,
+  type BracketCombo,
   type GameChangersClientOptions,
   type CardLookup,
 } from "./bracket.js";
