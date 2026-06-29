@@ -1,4 +1,4 @@
-think-and-ship: loaded roadmap with 53 chunk(s) from disk
+think-and-ship: loaded roadmap with 54 chunk(s) from disk
 # Roadmap — mtg-edh-mcp-4d66ba
 
 ## Done
@@ -256,6 +256,11 @@ think-and-ship: loaded roadmap with 53 chunk(s) from disk
   - acceptance: Per-deck role overrides supported
   - acceptance: Overrides feed analyze_composition/role_coverage
   - acceptance: Classifier remains the default source
+- [ ] **Strategic · Extract the analysis engine as a reusable library / hosted-API surface** — Business-intel bet (think:107-108). The moat is the PURE analysis core — src/validate/* (core/commander/companion rules), src/analyze/* (roles, stats, mana, sim, budget), src/meta/bracket.ts — all IO-free, deterministic, offline-testable. No competitor (6+ MTG MCP servers are shallow card-lookup; Moxfield/Archidekt are free consumer web apps, not AI-native, Patreon-funded). The MCP server is one delivery surface over that core. This chunk proposes packaging the engine independently of the MCP transport so it can be embedded elsewhere: (a) publish src/{validate,analyze,meta} as a standalone npm library with a clean public API (the pure functions already qualify — zero MCP/DeckStore coupling); and/or (b) a thin hosted HTTP/JSON API exposing validate/analyze/bracket/sim for a consumer product to embed. This is the ONLY identified path to monetization optionality (license/host the analysis other products lack) and de-risks the 'it's just a portfolio tool' verdict. Pure strategic bet — only worth doing if the user wants monetization or reuse; otherwise v1 stands as a finished portfolio/library asset. Prereq decision: business-vs-portfolio (the human's call, see briefing decision queue).
+  - deps: p4-tools, p5-mana, p6-bracket
+  - acceptance: The pure analysis core (validate/analyze/meta) builds + tests as a transport-independent library with a documented public API
+  - acceptance: At least one second consumption surface (npm export or a thin hosted JSON API) exercises the engine without the MCP server
+  - acceptance: No regression to the MCP server; the engine stays IO-free + deterministic
 
 ## Obsoleted
 
