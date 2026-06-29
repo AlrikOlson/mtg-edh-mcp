@@ -1,3 +1,4 @@
+think-and-ship: loaded roadmap with 52 chunk(s) from disk
 # Roadmap — mtg-edh-mcp-4d66ba
 
 ## Done
@@ -219,11 +220,22 @@
 
 ## Backlog
 
+- [ ] **P10 · Legendary Vehicle/Spacecraft commander eligibility (rules change)** — Refresh 2026 (think:92), code-confirmed correctness bug. Edge of Eternities changed Commander rule 903.3 (~Jul 25, 2025): legendary Vehicles and legendary Spacecraft WITH A PRINTED POWER/TOUGHNESS are eligible commanders — retroactive, ~21-22 new commanders (Parhelion II, The Last Ride, etc.). Current isCommanderEligible accepts only `Legendary Creature` OR oracle text 'can be your commander'; Vehicles/Spacecraft are neither, so the server wrongly rejects them AND computes an empty color identity (same failure class as the P8 name-resolution bug). Two copies must change in lockstep: the authoritative gate src/validate/commanderRules.ts::isCommanderEligible(card) and the ingest heuristic src/index/map.ts::isCommanderEligible(typeLine,oracleText) that feeds card.is_commander_eligible in mapScryfallCard. Fix: eligible = legendary AND has a printed front-face power & toughness (we already store power/toughness), keeping the existing creature + 'can be your commander' paths. Source: magic.wizards.com/en/news/feature/edge-of-eternities-mechanics.
+  - deps: p4-commander-rules, p1-index
+  - acceptance: A Legendary Vehicle with printed P/T (e.g. Parhelion II) is accepted as a sole commander and yields its correct color identity, not an empty one
+  - acceptance: Both isCommanderEligible copies updated consistently; ingest sets is_commander_eligible=true for legendary P/T permanents
+  - acceptance: A legendary permanent with no printed P/T (e.g. a legendary artifact that isn't a vehicle/creature) is still rejected
+  - acceptance: Partner/background pairing that includes an eligible vehicle validates; a regression test covers a vehicle commander end-to-end
 - [ ] **P4 · Companion deckbuilding-condition validation** — Spec §6. Validate a declared companion's deckbuilding condition (the COMPANION ViolationRule). Deferred from p4-commander-rules because the Deck model has no companion slot — needs a deck-model field (companion oracle_id) + a per-companion condition checker (e.g. Jegantha colored-pip uniqueness, Lutri singleton, Gyruda even-MV). Checked only when a companion is declared.
   - deps: p4-commander-rules
   - acceptance: Deck model carries a declared companion
   - acceptance: Companion condition validated only when declared
   - acceptance: At least one real companion condition (e.g. Lutri/Jegantha) enforced
+- [ ] **P10 · Validate bracket criteria vs Feb 2026 Brackets Beta** — Refresh 2026 (think:92), low-urgency verification. The Commander Brackets Beta updated Oct 21 2025 + Feb 9 2026: tutor restrictions removed, Bracket 2 'Core' no longer tied to precons, Game Changers grew to ~53 cards, hybrid-mana topic. Our classifyBracket (src/meta/bracket.ts) is broadly aligned already: it does NOT gate brackets on tutor count (only reports tutors as pushers) — coincidentally matching 'tutor restrictions removed' — and the Game Changers list is fetched LIVE (never hardcoded), so the 53-card update auto-applies; no staleness there. This chunk is to (a) re-read the current official bracket DEFINITIONS and confirm our gc>=4||MLD→4, gc>=1→3, else 2 thresholds still match (esp. the Bracket 3 'up to 3 Game Changers' boundary), and (b) decide whether the rationale string should reflect the 2026 wording. Honest scope: likely a small criteria tweak + test, possibly a no-op confirmation. NOT about the GC list (live) or hybrid mana / color identity (we trust Scryfall color_identity — no gap).
+  - deps: p6-bracket
+  - acceptance: classifyBracket thresholds re-checked against the current official Bracket 1-5 definitions; any drift corrected with a test
+  - acceptance: Confirmed (or fixed) that tutors do not gate the bracket, per the removed tutor restriction
+  - acceptance: No change to the live Game Changers fetch; no hardcoded list introduced
 - [ ] **Backlog · Format generalization (Brawl/Oathbreaker/…)** — Spec §12. Parameterize the rules engine (count, command-zone kind, banlist source) so the same primitives generalize to Brawl, Oathbreaker, and other singleton/identity formats. Keep `format` a first-class field. Post-v1.
   - deps: p4-tools
   - acceptance: Rules engine parameterized by format profile
