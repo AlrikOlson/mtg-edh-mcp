@@ -72,6 +72,39 @@ describe("isCommanderEligible", () => {
     });
     expect(isCommanderEligible(pw)).toBe(true);
   });
+
+  it("accepts a legendary Vehicle or Spacecraft with a printed power/toughness", () => {
+    // Edge of Eternities (rule 903.3): a legendary permanent with a printed
+    // P/T box is command-zone eligible. Flag forced false to isolate the path.
+    const vehicle = card({
+      oracle_id: "par",
+      name: "Parhelion II",
+      type_line: "Legendary Artifact — Vehicle",
+      power: "5",
+      toughness: "5",
+      is_commander_eligible: false,
+    });
+    const spacecraft = card({
+      oracle_id: "sc",
+      name: "Eternal Voyager",
+      type_line: "Legendary Artifact — Spacecraft",
+      power: "3",
+      toughness: "4",
+      is_commander_eligible: false,
+    });
+    expect(isCommanderEligible(vehicle)).toBe(true);
+    expect(isCommanderEligible(spacecraft)).toBe(true);
+  });
+
+  it("rejects a legendary permanent with no printed power/toughness", () => {
+    const artifact = card({
+      oracle_id: "lp",
+      name: "Legendary Relic",
+      type_line: "Legendary Artifact",
+      is_commander_eligible: false,
+    });
+    expect(isCommanderEligible(artifact)).toBe(false);
+  });
 });
 
 describe("checkCommanderEligibility", () => {
@@ -85,6 +118,22 @@ describe("checkCommanderEligibility", () => {
     const v = checkCommanderEligibility(deck({ commanders: ["s"] }), lookupOf(sol));
     expect(v).toHaveLength(1);
     expect(v[0]).toMatchObject({ rule: "COMMANDER_ELIGIBILITY", severity: "error" });
+  });
+
+  it("accepts a legendary Vehicle commander and yields its real color identity", () => {
+    const vehicle = card({
+      oracle_id: "par",
+      name: "Parhelion II",
+      type_line: "Legendary Artifact — Vehicle",
+      power: "5",
+      toughness: "5",
+      color_identity: ["W"] as Color[],
+      is_commander_eligible: false,
+    });
+    const d = deck({ commanders: ["par"], command_zone_kind: "single" });
+    expect(checkCommanderEligibility(d, lookupOf(vehicle))).toEqual([]);
+    // The regression: a rejected commander used to collapse to an empty identity.
+    expect(commanderColorIdentity(d, lookupOf(vehicle))).toEqual(["W"]);
   });
 
   it("exempts a Background enchantment in a Background command zone", () => {

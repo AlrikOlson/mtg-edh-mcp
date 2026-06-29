@@ -50,9 +50,16 @@ function classify(card: Card): CommanderShape {
 
 /** A card can be a sole commander if eligible by the server flag, type, or text. */
 export function isCommanderEligible(card: Card): boolean {
+  // Legendary + a printed power/toughness box is command-zone eligible: a
+  // creature (matched by type, since DFC/meld faces may lack a top-level P/T),
+  // or — since Edge of Eternities broadened rule 903.3 — a Vehicle or Spacecraft
+  // (a non-creature with a printed P/T). The server flag and "can be your
+  // commander" text cover the rest.
+  const legendary = /Legendary/i.test(card.type_line);
+  const hasPrintedPT = card.power !== undefined && card.toughness !== undefined;
   return (
     card.is_commander_eligible ||
-    (/Legendary/i.test(card.type_line) && /Creature/i.test(card.type_line)) ||
+    (legendary && (/Creature/i.test(card.type_line) || hasPrintedPT)) ||
     /can be your commander/i.test(card.oracle_text)
   );
 }

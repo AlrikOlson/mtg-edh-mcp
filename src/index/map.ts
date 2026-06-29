@@ -43,9 +43,21 @@ function flattenTypeLine(raw: ScryfallCardRaw): string {
 }
 
 /** Heuristic command-zone eligibility; refined by the commander rules (p4). */
-export function isCommanderEligible(typeLine: string, oracleText: string): boolean {
-  const legendaryCreature = /Legendary/.test(typeLine) && /Creature/.test(typeLine);
-  return legendaryCreature || /can be your commander/i.test(oracleText);
+export function isCommanderEligible(
+  typeLine: string,
+  oracleText: string,
+  power?: string,
+  toughness?: string,
+): boolean {
+  // A legendary permanent with a printed power/toughness box — a creature, or
+  // (since Edge of Eternities broadened rule 903.3) a Vehicle or Spacecraft —
+  // is command-zone eligible. Creatures are matched by type, since our data may
+  // not carry a top-level power/toughness for DFC/meld faces; non-creatures need
+  // a printed P/T. The "... can be your commander" text path covers the rest.
+  const legendary = /Legendary/i.test(typeLine);
+  const hasPrintedPT = power !== undefined && toughness !== undefined;
+  const legendaryPermanent = legendary && (/Creature/i.test(typeLine) || hasPrintedPT);
+  return legendaryPermanent || /can be your commander/i.test(oracleText);
 }
 
 /** Map a raw oracle_cards entry to a canonical Card (printings filled separately). */
@@ -67,7 +79,7 @@ export function mapScryfallCard(raw: ScryfallCardRaw): Card {
     keywords: raw.keywords ?? [],
     legalities: (raw.legalities ?? {}) as Legalities,
     prices: (raw.prices ?? {}) as Prices,
-    is_commander_eligible: isCommanderEligible(type_line, oracle_text),
+    is_commander_eligible: isCommanderEligible(type_line, oracle_text, raw.power, raw.toughness),
     roles: classifyRoles({
       name: raw.name,
       type_line,
