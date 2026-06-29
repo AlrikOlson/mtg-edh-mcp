@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    // tsup's .d.ts builder injects a deprecated `baseUrl`; silence the TS 6.0
+    // deprecation error until the toolchain stops emitting it.
+    "ignoreDeprecations": "6.0",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // Pin node ambient types so the tsup per-entry dts program resolves Node
+    // host globals (Buffer, process, NodeJS.*) — tsc's auto-include doesn't
+    // reach that worker. We rely on no other ambient (vitest is imported).
+    "types": ["node"],
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

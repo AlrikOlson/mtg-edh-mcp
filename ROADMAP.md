@@ -1,145 +1,149 @@
-<!-- Generated view of native roadmap_* state (think-and-ship). Do not hand-edit; regenerate with `roadmap_export`. -->
-# Roadmap — mtg-edh-mcp
+# Roadmap — mtg-edh-mcp-4d66ba
 
-## Pending
+## Done
 
-- [ ] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
+- [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
   - acceptance: npm run build, test, and lint all green on an empty skeleton
   - acceptance: Directory layout matches the spec's engine groupings
   - acceptance: @modelcontextprotocol/sdk and better-sqlite3 installed and importable
-
-## Backlog
-
-- [ ] **P0 · Canonical data model & error taxonomy** — Spec §4 + §8. Define CardRef, Card, Deck, Violation types and the structured error-code enum (UNKNOWN_CARD, AMBIGUOUS_NAME, INVALID_QUERY, COLOR_IDENTITY_VIOLATION, SINGLETON_VIOLATION, BANNED_CARD, INELIGIBLE_COMMANDER, DECK_NOT_FOUND, UPSTREAM_UNAVAILABLE, STALE_CARD). Provide a typed structured-error helper for MCP isError responses.
+- [x] **P0 · Canonical data model & error taxonomy** — Spec §4 + §8. Define CardRef, Card, Deck, Violation types and the structured error-code enum (UNKNOWN_CARD, AMBIGUOUS_NAME, INVALID_QUERY, COLOR_IDENTITY_VIOLATION, SINGLETON_VIOLATION, BANNED_CARD, INELIGIBLE_COMMANDER, DECK_NOT_FOUND, UPSTREAM_UNAVAILABLE, STALE_CARD). Provide a typed structured-error helper for MCP isError responses.
   - deps: p0-scaffold
   - acceptance: All §4 types exported and used by downstream modules
   - acceptance: Error-code enum complete per §8 with a typed helper
   - acceptance: Unit tests cover the error helper shape
-- [ ] **P0 · MCP server core (dual transport)** — Spec §2/§3/§11. Tool-registration framework, BOTH transports (stdio + streamable HTTP) per user decision, data_snapshot stamping on every response, structured isError mapping from the §8 taxonomy. Foundation that every tool registers against.
+- [x] **P0 · MCP server core (dual transport)** — Spec §2/§3/§11. Tool-registration framework, BOTH transports (stdio + streamable HTTP) per user decision, data_snapshot stamping on every response, structured isError mapping from the §8 taxonomy. Foundation that every tool registers against.
   - deps: p0-scaffold, p0-types
   - acceptance: Server boots on both stdio and streamable HTTP
   - acceptance: A ping/echo tool round-trips with data_snapshot stamped
   - acceptance: Thrown typed errors surface as MCP isError with code
-- [ ] **P1 · Scryfall bulk ingestion** — Spec §3. Fetch /bulk-data, follow download_uri for oracle_cards + default_cards, atomic build-new -> swap -> drop-old so queries never see a half-loaded index. oracle_cards is the gameplay base (one object per oracle_id), default_cards supplies printings/prices (~525MB) (think:2).
+- [x] **P1 · Scryfall bulk ingestion** — Spec §3. Fetch /bulk-data, follow download_uri for oracle_cards + default_cards, atomic build-new -> swap -> drop-old so queries never see a half-loaded index. oracle_cards is the gameplay base (one object per oracle_id), default_cards supplies printings/prices (~525MB) (think:2).
   - deps: p0-server
   - acceptance: One ingest run populates a fresh store from both bulk files
   - acceptance: Swap is atomic — a partial load is never visible to queries
   - acceptance: Ingest is re-runnable and idempotent
-- [ ] **P1 · Local card index (SQLite + FTS5)** — Spec §5A/§9. SQLite schema + FTS5 over oracle text/name; oracle_cards as gameplay base joined to default_cards for printings/prices; secondary indexes for color_identity, mv, type_line, legalities. Lean storage to support token-economy CardRef projections.
+- [x] **P1 · Local card index (SQLite + FTS5)** — Spec §5A/§9. SQLite schema + FTS5 over oracle text/name; oracle_cards as gameplay base joined to default_cards for printings/prices; secondary indexes for color_identity, mv, type_line, legalities. Lean storage to support token-economy CardRef projections.
   - deps: p1-ingest
   - acceptance: Lookup by oracle_id returns the full Card
   - acceptance: Basic name FTS query returns correct rows
   - acceptance: Indexes present for ci/mv/type/legalities
-- [ ] **P1 · Freshness, price refresh & snapshot provenance** — Spec §3/§11. Daily price refresh + scheduled bulk cadence (~12h) + data_snapshot (ISO date of the card index) surfaced on every tool response. Price-only refresh path that updates prices without a full rebuild.
+- [x] **P1 · Freshness, price refresh & snapshot provenance** — Spec §3/§11. Daily price refresh + scheduled bulk cadence (~12h) + data_snapshot (ISO date of the card index) surfaced on every tool response. Price-only refresh path that updates prices without a full rebuild.
   - deps: p1-index
   - acceptance: data_snapshot reflects the last atomic swap
   - acceptance: Price-only refresh updates prices without rebuilding the index
   - acceptance: Scheduled cadence documented and configurable
-- [ ] **P1 · Live Scryfall fallback client** — Spec §3/§8. Rate-limited live client (<2 req/s search-class, >=100ms spacing otherwise, mandatory descriptive User-Agent) used only as fallback. STALE_CARD (card newer than snapshot) triggers a live fetch path. Research: only 429 throttling upstream, User-Agent required (think:2).
+- [x] **P1 · Live Scryfall fallback client** — Spec §3/§8. Rate-limited live client (<2 req/s search-class, >=100ms spacing otherwise, mandatory descriptive User-Agent) used only as fallback. STALE_CARD (card newer than snapshot) triggers a live fetch path. Research: only 429 throttling upstream, User-Agent required (think:2).
   - deps: p1-index
   - acceptance: A card newer than the snapshot resolves via live fallback
   - acceptance: Rate limiter + spacing enforced in tests
   - acceptance: Every request sends a descriptive User-Agent
-- [ ] **P2 · Scryfall query grammar parser** — Spec §5A (the cornerstone primitive). Lexer/parser of Scryfall query syntax to an AST. Cover o:/fo:, t:, mv/pow/tou, id<= (color identity), is:, kw:, regex //, usd/eur, plus boolean and/or/not + grouping. Reference open-source prior art jbylund/arcane_tutor instead of reinventing (think:2).
+- [x] **P2 · Scryfall query grammar parser** — Spec §5A (the cornerstone primitive). Lexer/parser of Scryfall query syntax to an AST. Cover o:/fo:, t:, mv/pow/tou, id<= (color identity), is:, kw:, regex //, usd/eur, plus boolean and/or/not + grouping. Reference open-source prior art jbylund/arcane_tutor instead of reinventing (think:2).
   - deps: p1-index
   - acceptance: Parses every §10 worked-example query into a correct AST
   - acceptance: Malformed input -> INVALID_QUERY with parse-error position
   - acceptance: Operator coverage unit-tested across each predicate family
-- [ ] **P2 · Query evaluator over the local index** — Spec §5A/§9/§11. Lower the AST to SQL/FTS against the local index. Support order: keys (name/mv/price/edhrec_rank/released), opaque pagination cursors, total + returned window. Deterministic stable-sort tiebreakers (§11).
+- [x] **P2 · Query evaluator over the local index** — Spec §5A/§9/§11. Lower the AST to SQL/FTS against the local index. Support order: keys (name/mv/price/edhrec_rank/released), opaque pagination cursors, total + returned window. Deterministic stable-sort tiebreakers (§11).
   - deps: p2-grammar, p1-index
   - acceptance: Evaluator results match Scryfall for a fixture query set
   - acceptance: Pagination cursors are opaque and stable
   - acceptance: Identical query + snapshot yields identical ordering
-- [ ] **P2 · Card knowledge tools** — Spec §5A. card_search (field projection defaulting to CardRef; deck_id auto-constrains id<={deck_ci} and excludes -in_deck), card_get (batch by oracle_id), card_resolve_name (fuzzy/exact -> oracle_id with AMBIGUOUS_NAME candidates; the anti-hallucination gateway), card_printings.
+- [x] **P2 · Card knowledge tools** — Spec §5A. card_search (field projection defaulting to CardRef; deck_id auto-constrains id<={deck_ci} and excludes -in_deck), card_get (batch by oracle_id), card_resolve_name (fuzzy/exact -> oracle_id with AMBIGUOUS_NAME candidates; the anti-hallucination gateway), card_printings.
   - deps: p2-eval
   - acceptance: All four tools pass schema + behavior tests
   - acceptance: card_resolve_name returns candidates on ambiguity
   - acceptance: card_search deck_id scoping and field projection verified
-- [ ] **P3 · Versioned deck store & resources** — Spec §2/§4. Long-lived server-side deck objects: versioned (optimistic version), session-scoped. Addressable resources card://{oracle_id} and deck://{deck_id} (read-only), with subscription updates so a UI re-renders on mutation.
+- [x] **P3 · Versioned deck store & resources** — Spec §2/§4. Long-lived server-side deck objects: versioned (optimistic version), session-scoped. Addressable resources card://{oracle_id} and deck://{deck_id} (read-only), with subscription updates so a UI re-renders on mutation.
   - deps: p0-server, p1-index
   - acceptance: Mutating a deck bumps version
   - acceptance: deck:// subscribers are notified on change
   - acceptance: card:// and deck:// resolve to canonical objects
-- [ ] **P3 · Deck lifecycle tools** — Spec §5B. deck_create (name/format/initial commanders -> deck_id), deck_get (lean ids+names+qty by default; fields/expand for full card data), deck_list, deck_delete.
+- [x] **P3 · Deck lifecycle tools** — Spec §5B. deck_create (name/format/initial commanders -> deck_id), deck_get (lean ids+names+qty by default; fields/expand for full card data), deck_list, deck_delete.
   - deps: p3-state
   - acceptance: Create -> get -> list -> delete lifecycle round-trips
   - acceptance: deck_get lean vs expanded projection verified
   - acceptance: deck_create returns a usable deck_id
-- [ ] **P3 · Set commander(s)** — Spec §5B/§6. deck_set_commander: set/replace commander(s); validate partner/background/companion eligibility and recompute the deck's combined color identity. Depends on the commander rules engine.
+- [x] **P3 · Set commander(s)** — Spec §5B/§6. deck_set_commander: set/replace commander(s); validate partner/background/companion eligibility and recompute the deck's combined color identity. Depends on the commander rules engine.
   - deps: p3-crud, p4-commander-rules
   - acceptance: Legal and illegal commander/pairings handled
   - acceptance: Combined identity recomputed on change
   - acceptance: Eligibility delegated to p4-commander-rules
-- [ ] **P3 · Add / remove cards (pre-check verdict)** — Spec §5B. deck_add / deck_remove (batch, idempotent on (deck_id, oracle_id)). deck_add returns an inline pre-check verdict (ok | rejected with Violation); identity/legality/singleton violations rejected by default, force:true marks the card illegal in state rather than silently dropping it.
+- [x] **P3 · Add / remove cards (pre-check verdict)** — Spec §5B. deck_add / deck_remove (batch, idempotent on (deck_id, oracle_id)). deck_add returns an inline pre-check verdict (ok | rejected with Violation); identity/legality/singleton violations rejected by default, force:true marks the card illegal in state rather than silently dropping it.
   - deps: p3-crud, p4-core-rules
   - acceptance: Illegal add rejected with an inline Violation
   - acceptance: force:true tags the card illegal rather than dropping
   - acceptance: Adds are idempotent and batched
-- [ ] **P3 · Snapshot / diff / restore** — Spec §5B. deck_snapshot / deck_diff / deck_restore so the agent can try a variant, compare, and roll back.
+- [x] **P3 · Snapshot / diff / restore** — Spec §5B. deck_snapshot / deck_diff / deck_restore so the agent can try a variant, compare, and roll back.
   - deps: p3-state
   - acceptance: snapshot -> mutate -> diff shows the delta
   - acceptance: restore rolls the deck back to a snapshot
   - acceptance: Versioning interoperates with optimistic version checks
-- [ ] **P3 · Import / export decklists** — Spec §5B. deck_import parses Moxfield/Archidekt/MTGO/Arena/plaintext into a resolved deck with an unresolved-lines report (never silently drop). deck_export emits a decklist in a chosen text format. Resolution via card_resolve_name.
+- [x] **P3 · Import / export decklists** — Spec §5B. deck_import parses Moxfield/Archidekt/MTGO/Arena/plaintext into a resolved deck with an unresolved-lines report (never silently drop). deck_export emits a decklist in a chosen text format. Resolution via card_resolve_name.
   - deps: p3-crud, p2-card-tools
   - acceptance: Round-trip import -> export preserves the deck
   - acceptance: Unresolved lines reported, not dropped
   - acceptance: All listed input formats parse
-- [ ] **P4 · Core validation rules** — Spec §6. Exact card count (100 incl. command zone; report the delta), singleton (unlimited basics + curated 'any number' allowlist + oracle-text regex fallback), color-identity subset (trust Scryfall color_identity; card.ci must be subset of deck.ci), banlist via legalities.commander == banned (never hardcoded).
+- [x] **P4 · Core validation rules** — Spec §6. Exact card count (100 incl. command zone; report the delta), singleton (unlimited basics + curated 'any number' allowlist + oracle-text regex fallback), color-identity subset (trust Scryfall color_identity; card.ci must be subset of deck.ci), banlist via legalities.commander == banned (never hardcoded).
   - deps: p1-index, p0-types
   - acceptance: Unit tests cover count delta, singleton edge cases, identity subset, banlist
   - acceptance: Banlist derives purely from legalities.commander
   - acceptance: Any-number allowlist + regex fallback both exercised
-- [ ] **P4 · Commander & multi-commander rules** — Spec §6. Structural validation of Partner, Partner with [name], Friends forever, Choose a Background (commander + Background enchantment), Doctor's companion (Doctor + Time Lord). Combined identity = union of commanders. Companion deckbuilding condition checked only when declared. Illegal pairings are hard errors.
+- [x] **P4 · Commander & multi-commander rules** — Spec §6. Structural validation of Partner, Partner with [name], Friends forever, Choose a Background (commander + Background enchantment), Doctor's companion (Doctor + Time Lord). Combined identity = union of commanders. Companion deckbuilding condition checked only when declared. Illegal pairings are hard errors.
   - deps: p4-core-rules
   - acceptance: Each pairing type validated correctly
   - acceptance: Illegal pairings (e.g. two non-partners) -> hard error
   - acceptance: Companion condition checked when a companion is declared
-- [ ] **P4 · Validation tools** — Spec §5C/§6. validate_deck (authoritative gate; ordered checks; severity separates hard errors from warnings), validate_card (cheap precheck without mutating), validate_commander (legal commander? legal pairing?). Output is fully structured Violation[].
+- [x] **P4 · Validation tools** — Spec §5C/§6. validate_deck (authoritative gate; ordered checks; severity separates hard errors from warnings), validate_card (cheap precheck without mutating), validate_commander (legal commander? legal pairing?). Output is fully structured Violation[].
   - deps: p4-core-rules, p4-commander-rules, p3-state
   - acceptance: validate_deck returns structured Violation[] with severity
   - acceptance: validate_card precheck does not mutate
   - acceptance: Error vs warning separation verified (e.g. count error vs ramp-count advisory)
-- [ ] **P5 · Functional role taxonomy classifier** — Spec §7. Classify each card into zero-or-more roles (ramp, mana_rock, mana_dork, land, fixing, card_draw, card_advantage, tutor, spot_removal, board_wipe, counterspell, protection, recursion, graveyard_hate, stax, combo_piece, payoff, wincon, utility) via oracle-text/keyword/type-line heuristics. Advisory only (never feeds validation); taxonomy + target bands configurable.
+- [x] **P5 · Functional role taxonomy classifier** — Spec §7. Classify each card into zero-or-more roles (ramp, mana_rock, mana_dork, land, fixing, card_draw, card_advantage, tutor, spot_removal, board_wipe, counterspell, protection, recursion, graveyard_hate, stax, combo_piece, payoff, wincon, utility) via oracle-text/keyword/type-line heuristics. Advisory only (never feeds validation); taxonomy + target bands configurable.
   - deps: p1-index, p0-types
   - acceptance: Classifier labels a fixture card set within tolerance
   - acceptance: Roles attach to Card and feed composition/coverage
   - acceptance: Roles never influence validation
-- [ ] **P5 · Curve / composition / stats** — Spec §5D. analyze_curve (MV distribution; filter by lands/role/color), analyze_composition (counts by card type and by functional role), analyze_stats (avg MV, color-pip distribution, total price, EDHREC-rank summary). Chart-friendly bucketed output. Exists because LLMs miscount/mis-sum.
+- [x] **P5 · Curve / composition / stats** — Spec §5D. analyze_curve (MV distribution; filter by lands/role/color), analyze_composition (counts by card type and by functional role), analyze_stats (avg MV, color-pip distribution, total price, EDHREC-rank summary). Chart-friendly bucketed output. Exists because LLMs miscount/mis-sum.
   - deps: p3-state, p5-roles
   - acceptance: Counts and sums exact on a known deck fixture
   - acceptance: Output is bucketed/chart-friendly
   - acceptance: Filters (exclude lands, by role, by color) work
-- [ ] **P5 · Mana base & role coverage** — Spec §5D. analyze_mana_base (color-source counts per color, untapped vs tapped, fixing density, fetch/dual coverage; flags under-supported colors) and analyze_role_coverage (role counts vs configurable target bands -> gaps).
+- [x] **P5 · Mana base & role coverage** — Spec §5D. analyze_mana_base (color-source counts per color, untapped vs tapped, fixing density, fetch/dual coverage; flags under-supported colors) and analyze_role_coverage (role counts vs configurable target bands -> gaps).
   - deps: p5-basic
   - acceptance: Mana-base report matches a hand-computed fixture
   - acceptance: Under-supported colors flagged
   - acceptance: role_coverage reports gaps against configurable bands
-- [ ] **P6 · Enrichment cache & graceful degradation** — Spec §3/§8/§11. Cache layer for enrichment sources (EDHREC, Spellbook, bracket list) + graceful UPSTREAM_UNAVAILABLE degradation: core build keeps working local-only when upstream is down.
+- [x] **P6 · Enrichment cache & graceful degradation** — Spec §3/§8/§11. Cache layer for enrichment sources (EDHREC, Spellbook, bracket list) + graceful UPSTREAM_UNAVAILABLE degradation: core build keeps working local-only when upstream is down.
   - deps: p1-fallback
   - acceptance: Cached hits served offline
   - acceptance: Upstream-down path returns UPSTREAM_UNAVAILABLE and degrades, never crashes
   - acceptance: Cache cadence per source documented
-- [ ] **P6 · EDHREC recommendations & profiles** — Spec §5E. meta_commander_profile (EDHREC average deck: top cards by category, inclusion %, synergy, salt, themes), meta_recommendations (commander + current cards -> scored what-fits-next, identity-filtered, exclude_lands), meta_themes. Source json.edhrec.com.
+- [x] **P6 · EDHREC recommendations & profiles** — Spec §5E. meta_commander_profile (EDHREC average deck: top cards by category, inclusion %, synergy, salt, themes), meta_recommendations (commander + current cards -> scored what-fits-next, identity-filtered, exclude_lands), meta_themes. Source json.edhrec.com.
   - deps: p6-cache, p3-state
   - acceptance: Recommendations scoped to deck color identity
   - acceptance: Profile parses inclusion %, synergy, salt, themes
   - acceptance: exclude_lands honored
-- [ ] **P6 · Combo database (Commander Spellbook)** — Spec §5E/§12. meta_combos: combos within a card set or reachable from a commander (pieces, result, steps) via Commander Spellbook. Expose source/confidence per combo since coverage is good but not exhaustive. Essential for combo/cEDH builds.
+- [x] **P6 · Combo database (Commander Spellbook)** — Spec §5E/§12. meta_combos: combos within a card set or reachable from a commander (pieces, result, steps) via Commander Spellbook. Expose source/confidence per combo since coverage is good but not exhaustive. Essential for combo/cEDH builds.
   - deps: p6-cache, p3-state
   - acceptance: Combos reachable from a commander fixture returned
   - acceptance: Each combo carries source + confidence
   - acceptance: Pieces/result/steps populated
-- [ ] **P6 · Bracket / power-level classification** — Spec §5E/§12. meta_classify_bracket: classify the current deck into the official power brackets and report which Game Changers / fast-mana / tutors / mass-land-denial / combos push it up. Uses the LIVE Game Changers list (treated strictly as fetched data, never hardcoded).
+- [x] **P6 · Bracket / power-level classification** — Spec §5E/§12. meta_classify_bracket: classify the current deck into the official power brackets and report which Game Changers / fast-mana / tutors / mass-land-denial / combos push it up. Uses the LIVE Game Changers list (treated strictly as fetched data, never hardcoded).
   - deps: p6-cache, p4-tools, p5-roles
   - acceptance: A known cEDH-ish deck classifies high with pushers listed
   - acceptance: Game Changers list fetched live, never hardcoded
   - acceptance: Pushers categorized (game changers/fast mana/tutors/MLD/combos)
-- [ ] **P7 · Determinism & latency gate** — Spec §11. Enforce non-functional requirements: deterministic outputs (stable sort tiebreakers, no randomness unless explicitly requested) and latency (<50ms typical for local search/validation/analysis). Benchmark suite wired into CI.
+- [x] **P7 · Determinism & latency gate** — Spec §11. Enforce non-functional requirements: deterministic outputs (stable sort tiebreakers, no randomness unless explicitly requested) and latency (<50ms typical for local search/validation/analysis). Benchmark suite wired into CI.
   - deps: p2-eval, p4-tools, p5-mana
   - acceptance: Benchmark suite enforces the <50ms budget in CI
   - acceptance: Identical inputs vs a given data_snapshot yield identical outputs
   - acceptance: Enrichment calls are async with cached fallback
+
+## Backlog
+
+- [ ] **P4 · Companion deckbuilding-condition validation** — Spec §6. Validate a declared companion's deckbuilding condition (the COMPANION ViolationRule). Deferred from p4-commander-rules because the Deck model has no companion slot — needs a deck-model field (companion oracle_id) + a per-companion condition checker (e.g. Jegantha colored-pip uniqueness, Lutri singleton, Gyruda even-MV). Checked only when a companion is declared.
+  - deps: p4-commander-rules
+  - acceptance: Deck model carries a declared companion
+  - acceptance: Companion condition validated only when declared
+  - acceptance: At least one real companion condition (e.g. Lutri/Jegantha) enforced
 - [ ] **P7 · HTTP multi-tenancy & concurrency** — Spec §2/§11. Streamable-HTTP session/auth-principal scoping of deck state; bulk card data shared read-only. Deck mutations versioned, last-write-wins per deck_id with optimistic version checks; deck_add/remove idempotent.
   - deps: p3-state, p0-server
   - acceptance: Two principals' decks are isolated
@@ -170,3 +174,5 @@
   - acceptance: Per-deck role overrides supported
   - acceptance: Overrides feed analyze_composition/role_coverage
   - acceptance: Classifier remains the default source
+
+

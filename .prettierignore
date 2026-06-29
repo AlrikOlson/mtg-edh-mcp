@@ -1,0 +1,20 @@
+dist
+node_modules
+coverage
+*.sqlite
+*.sqlite3
+data
+
+# Pre-existing tooling, editor configs, and authored docs — not owned by this
+# project's source; ROADMAP.md is a generated view (think-and-ship export).
+.claude
+.continue
+.cursor
+.github
+.vscode
+.windsurf
+windsurf
+.mcp.json
+AGENTS.md
+commander-deckbuilder-mcp-spec.md
+ROADMAP.md

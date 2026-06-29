@@ -1,0 +1,110 @@
+/**
+ * Bulk ingestion orchestrator (spec §3).
+ *
+ * Resolves the oracle_cards + default_cards bulk entries, and — unless they are
+ * unchanged since the last run (idempotency, keyed on upstream `updated_at`) —
+ * downloads both into a fresh version directory, writes a manifest, then
+ * atomically publishes the new version. A mid-run failure removes the partial
+ * version and leaves the published pointer untouched (atomic build->swap->drop).
+ */
+import { StructuredError } from "../types/errors.js";
+import { BULK_TYPES, BulkClient, type BulkDataEntry, type BulkType } from "./scryfall.js";
+import { VersionedStore, type Manifest, type ManifestFile } from "./store.js";
+
+export interface IngestOptions {
+  store: VersionedStore;
+  client: BulkClient;
+  /** Re-download even if upstream updated_at is unchanged. */
+  force?: boolean;
+  /** Number of versions to retain after a successful publish (default 1). */
+  retain?: number;
+  /** Injectable clock for the version id + created_at (deterministic tests). */
+  clock?: () => Date;
+}
+
+export interface IngestResult {
+  version: string;
+  /** data_snapshot (ISO date) derived from the oracle_cards bulk updated_at. */
+  snapshot: string;
+  /** True when upstream was unchanged and nothing was re-downloaded. */
+  skipped: boolean;
+  files: readonly BulkType[];
+}
+
+function fileName(type: BulkType): string {
+  return `${type}.json`;
+}
+
+function versionId(now: Date): string {
+  return now.toISOString().replace(/[:.]/g, "-");
+}
+
+function unchanged(manifest: Manifest, entries: Record<BulkType, BulkDataEntry>): boolean {
+  return BULK_TYPES.every((type) => manifest.files[type].updated_at === entries[type].updated_at);
+}
+
+export async function ingestBulk(options: IngestOptions): Promise<IngestResult> {
+  const { store, client, force = false, retain = 1 } = options;
+  const clock = options.clock ?? (() => new Date());
+
+  // Resolve both bulk entries up front (rate-limited inside the client).
+  const oracle = await client.getEntry("oracle_cards");
+  const defaultCards = await client.getEntry("default_cards");
+  const entries: Record<BulkType, BulkDataEntry> = {
+    oracle_cards: oracle,
+    default_cards: defaultCards,
+  };
+
+  // Idempotency: skip when the published version already matches upstream.
+  const currentId = await store.readCurrent();
+  if (!force && currentId) {
+    const currentManifest = await store.readManifest(currentId);
+    if (currentManifest && unchanged(currentManifest, entries)) {
+      return {
+        version: currentId,
+        snapshot: currentManifest.snapshot,
+        skipped: true,
+        files: BULK_TYPES,
+      };
+    }
+  }
+
+  const id = versionId(clock());
+  const snapshot = oracle.updated_at.slice(0, 10);
+  await store.createVersion(id);
+
+  try {
+    const files = {} as Record<BulkType, ManifestFile>;
+    for (const type of BULK_TYPES) {
+      const entry = entries[type];
+      const body = await client.openDownload(entry.download_uri);
+      const bytes = await store.writeStream(id, fileName(type), body);
+      files[type] = {
+        name: fileName(type),
+        updated_at: entry.updated_at,
+        bytes,
+        source_uri: entry.download_uri,
+      };
+    }
+
+    const manifest: Manifest = {
+      version: id,
+      snapshot,
+      created_at: clock().toISOString(),
+      files,
+    };
+    await store.writeManifest(id, manifest);
+    await store.publish(id);
+  } catch (err) {
+    // Drop the half-built version; the published pointer is untouched.
+    await store.removeVersion(id).catch(() => undefined);
+    throw err instanceof StructuredError
+      ? err
+      : new StructuredError("UPSTREAM_UNAVAILABLE", "Bulk ingestion failed", {
+          reason: err instanceof Error ? err.message : String(err),
+        });
+  }
+
+  await store.retain(retain);
+  return { version: id, snapshot, skipped: false, files: BULK_TYPES };
+}

@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Local card index & Scryfall data snapshots
+data/
+*.sqlite
+*.sqlite3
+
+# Logs & env
+*.log
+.env
+.env.*
+!.env.example
+
+# OS / editor cruft
+.DS_Store
+*.tsbuildinfo
