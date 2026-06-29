@@ -128,6 +128,11 @@ think-and-ship: loaded roadmap with 53 chunk(s) from disk
   - acceptance: Mana-base report matches a hand-computed fixture
   - acceptance: Under-supported colors flagged
   - acceptance: role_coverage reports gaps against configurable bands
+- [x] **P11 · Bracket combo/extra-turn pushers (2↔3↔4 gating)** — Discovered in p10-bracket-criteria-2026 (think:100). The official Commander brackets separate tiers by more than Game Changers + mass land denial: Bracket 2 (Core) forbids two-card infinite combos entirely; Bracket 3 (Upgraded) forbids EARLY two-card combos and chained extra turns; Bracket 4 (Optimized) allows them. classifyBracket (src/meta/bracket.ts) currently models only Game Changers + MLD, so a deck with an early two-card combo but few Game Changers can read one tier low. Add combo + extra-turn detection as additional bracket pushers: reuse the existing Commander Spellbook integration (meta_combos / SpellbookClient) to detect two-card infinite combos reachable in the deck, and a heuristic for chained extra-turn cards (oracle text 'take an extra turn'). Gate: any two-card combo → at least bracket 3 and block bracket 2; an EARLY combo or extra-turn engine → bracket 4. Keep classifyBracket pure (pass combo data in as a parameter, like the Game Changers set) so it stays unit-testable offline.
+  - deps: p6-bracket, p6-combos
+  - acceptance: classifyBracket accepts combo + extra-turn signal (passed in, not fetched inside) and factors it into the tier
+  - acceptance: A deck with a two-card infinite combo cannot classify as Core (bracket 2); an early combo or extra-turn engine reaches bracket 4
+  - acceptance: Pure + deterministic; unit-tested with fixed inputs; the live Spellbook/GC fetches stay outside the pure function
 - [x] **P6 · Enrichment cache & graceful degradation** — Spec §3/§8/§11. Cache layer for enrichment sources (EDHREC, Spellbook, bracket list) + graceful UPSTREAM_UNAVAILABLE degradation: core build keeps working local-only when upstream is down.
   - deps: p1-fallback
   - acceptance: Cached hits served offline
@@ -236,11 +241,6 @@ think-and-ship: loaded roadmap with 53 chunk(s) from disk
 
 ## Backlog
 
-- [ ] **P11 · Bracket combo/extra-turn pushers (2↔3↔4 gating)** — Discovered in p10-bracket-criteria-2026 (think:100). The official Commander brackets separate tiers by more than Game Changers + mass land denial: Bracket 2 (Core) forbids two-card infinite combos entirely; Bracket 3 (Upgraded) forbids EARLY two-card combos and chained extra turns; Bracket 4 (Optimized) allows them. classifyBracket (src/meta/bracket.ts) currently models only Game Changers + MLD, so a deck with an early two-card combo but few Game Changers can read one tier low. Add combo + extra-turn detection as additional bracket pushers: reuse the existing Commander Spellbook integration (meta_combos / SpellbookClient) to detect two-card infinite combos reachable in the deck, and a heuristic for chained extra-turn cards (oracle text 'take an extra turn'). Gate: any two-card combo → at least bracket 3 and block bracket 2; an EARLY combo or extra-turn engine → bracket 4. Keep classifyBracket pure (pass combo data in as a parameter, like the Game Changers set) so it stays unit-testable offline.
-  - deps: p6-bracket, p6-combos
-  - acceptance: classifyBracket accepts combo + extra-turn signal (passed in, not fetched inside) and factors it into the tier
-  - acceptance: A deck with a two-card infinite combo cannot classify as Core (bracket 2); an early combo or extra-turn engine reaches bracket 4
-  - acceptance: Pure + deterministic; unit-tested with fixed inputs; the live Spellbook/GC fetches stay outside the pure function
 - [ ] **Backlog · Format generalization (Brawl/Oathbreaker/…)** — Spec §12. Parameterize the rules engine (count, command-zone kind, banlist source) so the same primitives generalize to Brawl, Oathbreaker, and other singleton/identity formats. Keep `format` a first-class field. Post-v1.
   - deps: p4-tools
   - acceptance: Rules engine parameterized by format profile
