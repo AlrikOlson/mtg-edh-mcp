@@ -7,9 +7,21 @@
  * hardcoded here. `classifyBracket` is pure: it takes the fetched set as a
  * parameter, so it's fully unit-testable offline.
  *
- * Classification is heuristic and deliberately conservative: Game-Changer count
- * is the primary signal; mass land denial bumps to Optimized. cEDH (5) is a
- * meta/intent judgment we don't auto-assign — the ceiling here is 4.
+ * Classification is heuristic and deliberately conservative. Game-Changer count
+ * is the primary signal, mapped to the official tiers (verified against the
+ * Commander Brackets Beta, incl. the Feb 2026 update):
+ *   · Bracket 2 (Core)      — 0 Game Changers, no mass land denial
+ *   · Bracket 3 (Upgraded)  — 1–3 Game Changers, no mass land denial
+ *   · Bracket 4 (Optimized) — 4+ Game Changers, OR any mass land denial
+ * Tutors do NOT gate the bracket — the beta removed tutor restrictions, so they
+ * are reported as pushers only, never moved up a tier. cEDH (5) is a meta/intent
+ * judgment we don't auto-assign — the ceiling here is 4.
+ *
+ * Honest scope: the official tiers also separate 2/3/4 by two-card combos and
+ * chained extra turns (Upgraded forbids EARLY two-card combos; Core forbids them
+ * entirely). Those are NOT modeled here — they need Spellbook combo data plus an
+ * "earliness" heuristic — so a deck with an early combo but few Game Changers may
+ * read one tier low. Tracked as a backlog chunk.
  */
 import type { Card, Deck } from "../types/index.js";
 import { USER_AGENT } from "../types/index.js";
@@ -81,7 +93,9 @@ export function classifyBracket(
 
   const rationale =
     `${gc} Game Changer(s), ${pushers.fast_mana.length} fast-mana, ${pushers.tutors.length} tutor(s), ` +
-    `${pushers.mld.length} mass-land-denial. cEDH (5) is a meta/intent call and is not auto-assigned.`;
+    `${pushers.mld.length} mass-land-denial. Tiers: Core=0 GC, Upgraded=1–3 GC, ` +
+    `Optimized=4+ GC or any mass land denial (tutors don't gate). ` +
+    `cEDH (5) is a meta/intent call and is not auto-assigned.`;
   return { bracket, pushers, rationale };
 }
 

@@ -118,6 +118,49 @@ describe("classifyBracket", () => {
   });
 });
 
+/**
+ * Boundary guard for the official tier thresholds (Commander Brackets Beta,
+ * verified incl. the Feb 2026 update): Core=0 GC, Upgraded=1–3 GC, Optimized=4+
+ * GC or any mass land denial; tutors never gate. If WotC changes these, this
+ * test should fail rather than the classifier drifting silently.
+ */
+describe("classifyBracket tier boundaries (Feb 2026 Brackets Beta)", () => {
+  const gcCards = ["A", "B", "C", "D"].map((n) =>
+    card({ oracle_id: `gc-${n}`, name: `Changer ${n}` }),
+  );
+  const look: CardLookup = (id) => gcCards.find((c) => c.oracle_id === id) ?? null;
+  const mk = (ids: string[]): Deck =>
+    deck(
+      ids.map((oracle_id) => ({ oracle_id, qty: 1 })),
+      [],
+    );
+
+  it("3 Game Changers stays Upgraded (bracket 3)", () => {
+    const gc = new Set(["Changer A", "Changer B", "Changer C"]);
+    expect(classifyBracket(mk(["gc-A", "gc-B", "gc-C"]), look, gc).bracket).toBe(3);
+  });
+
+  it("4 Game Changers crosses to Optimized (bracket 4)", () => {
+    const gc = new Set(["Changer A", "Changer B", "Changer C", "Changer D"]);
+    expect(classifyBracket(mk(["gc-A", "gc-B", "gc-C", "gc-D"]), look, gc).bracket).toBe(4);
+  });
+
+  it("tutors alone never gate — a tutor-heavy, GC-free deck stays Core (bracket 2)", () => {
+    const tutors = [0, 1, 2, 3, 4].map((i) =>
+      card({
+        oracle_id: `t-${i}`,
+        name: `Tutor ${i}`,
+        type_line: "Sorcery",
+        roles: ["tutor"] as Role[],
+      }),
+    );
+    const tlook: CardLookup = (id) => tutors.find((c) => c.oracle_id === id) ?? null;
+    const r = classifyBracket(mk(tutors.map((t) => t.oracle_id)), tlook, new Set<string>());
+    expect(r.bracket).toBe(2);
+    expect(r.pushers.tutors).toHaveLength(5);
+  });
+});
+
 describe("parseGameChangers", () => {
   it("accepts arrays of names, {cards:[{name}]}, and is defensive", () => {
     expect([...parseGameChangers(["Sol Ring", "Mana Crypt"])]).toEqual(["Sol Ring", "Mana Crypt"]);
