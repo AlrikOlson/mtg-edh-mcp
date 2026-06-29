@@ -98,6 +98,11 @@ think-and-ship: loaded roadmap with 52 chunk(s) from disk
   - acceptance: Each pairing type validated correctly
   - acceptance: Illegal pairings (e.g. two non-partners) -> hard error
   - acceptance: Companion condition checked when a companion is declared
+- [x] **P4 · Companion deckbuilding-condition validation** — Spec §6. Validate a declared companion's deckbuilding condition (the COMPANION ViolationRule). Deferred from p4-commander-rules because the Deck model has no companion slot — needs a deck-model field (companion oracle_id) + a per-companion condition checker (e.g. Jegantha colored-pip uniqueness, Lutri singleton, Gyruda even-MV). Checked only when a companion is declared.
+  - deps: p4-commander-rules
+  - acceptance: Deck model carries a declared companion
+  - acceptance: Companion condition validated only when declared
+  - acceptance: At least one real companion condition (e.g. Lutri/Jegantha) enforced
 - [x] **P4 · Validation tools** — Spec §5C/§6. validate_deck (authoritative gate; ordered checks; severity separates hard errors from warnings), validate_card (cheap precheck without mutating), validate_commander (legal commander? legal pairing?). Output is fully structured Violation[].
   - deps: p4-core-rules, p4-commander-rules, p3-state
   - acceptance: validate_deck returns structured Violation[] with severity
@@ -226,11 +231,6 @@ think-and-ship: loaded roadmap with 52 chunk(s) from disk
 
 ## Backlog
 
-- [ ] **P4 · Companion deckbuilding-condition validation** — Spec §6. Validate a declared companion's deckbuilding condition (the COMPANION ViolationRule). Deferred from p4-commander-rules because the Deck model has no companion slot — needs a deck-model field (companion oracle_id) + a per-companion condition checker (e.g. Jegantha colored-pip uniqueness, Lutri singleton, Gyruda even-MV). Checked only when a companion is declared.
-  - deps: p4-commander-rules
-  - acceptance: Deck model carries a declared companion
-  - acceptance: Companion condition validated only when declared
-  - acceptance: At least one real companion condition (e.g. Lutri/Jegantha) enforced
 - [ ] **P10 · Validate bracket criteria vs Feb 2026 Brackets Beta** — Refresh 2026 (think:92), low-urgency verification. The Commander Brackets Beta updated Oct 21 2025 + Feb 9 2026: tutor restrictions removed, Bracket 2 'Core' no longer tied to precons, Game Changers grew to ~53 cards, hybrid-mana topic. Our classifyBracket (src/meta/bracket.ts) is broadly aligned already: it does NOT gate brackets on tutor count (only reports tutors as pushers) — coincidentally matching 'tutor restrictions removed' — and the Game Changers list is fetched LIVE (never hardcoded), so the 53-card update auto-applies; no staleness there. This chunk is to (a) re-read the current official bracket DEFINITIONS and confirm our gc>=4||MLD→4, gc>=1→3, else 2 thresholds still match (esp. the Bracket 3 'up to 3 Game Changers' boundary), and (b) decide whether the rationale string should reflect the 2026 wording. Honest scope: likely a small criteria tweak + test, possibly a no-op confirmation. NOT about the GC list (live) or hybrid mana / color identity (we trust Scryfall color_identity — no gap).
   - deps: p6-bracket
   - acceptance: classifyBracket thresholds re-checked against the current official Bracket 1-5 definitions; any drift corrected with a test
