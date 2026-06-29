@@ -201,6 +201,11 @@
   - acceptance: budget_plan reports default vs min-buy totals + total reprint savings
   - acceptance: Ranked reprint_suggestions (default>cheapest) and cost_drivers (by cheapest*qty, with roles)
   - acceptance: Reports the over-target gap when target_usd given; pure + deterministic (oracle_id tiebreak); advisory
+- [x] **P9 · Budget functional-replacement suggester** — Review #10, part 2 of 2 (split from p9-budget-optimizer). For each expensive card, suggest a CHEAPER functional REPLACEMENT of the same functional role within the deck's color identity, to hit a $ target — beyond the zero-change reprint savings of p9-budget-reprints. Needs role+identity matching (local role-indexed search and/or EDHREC recommendations); the hard, heuristic part. Builds on p9-budget-reprints + EDHREC.
+  - deps: p9-budget-reprints, p6-edhrec
+  - acceptance: Suggests cheaper same-role, in-identity replacements for expensive cards
+  - acceptance: Respects color identity + functional role when substituting
+  - acceptance: Reports projected min-buy after suggested swaps
 - [x] **P9 · Missing-staples diff vs EDHREC typical list** — Review #11 (split from p9-archetype-diff-bracket). A meta_missing_staples tool: diff a deck against its commander's TYPICAL EDHREC list and report the high-inclusion staples the deck is MISSING — distinct from meta_recommendations ('what fits') by ranking on inclusion (prevalence: how often typical decks run the card) and exposing each card's inclusion %, with a min_inclusion threshold. Resolves names→oracle_ids, filters to the deck's identity, excludes in-deck cards. EDHREC-backed (cached/degrading). Advisory.
   - deps: p6-edhrec, p3-state
   - acceptance: meta_missing_staples lists in-identity, not-in-deck staples ranked by inclusion with each card's inclusion %
@@ -229,11 +234,6 @@
   - acceptance: Per-deck role overrides supported
   - acceptance: Overrides feed analyze_composition/role_coverage
   - acceptance: Classifier remains the default source
-- [ ] **P9 · Budget functional-replacement suggester** — Review #10, part 2 of 2 (split from p9-budget-optimizer). For each expensive card, suggest a CHEAPER functional REPLACEMENT of the same functional role within the deck's color identity, to hit a $ target — beyond the zero-change reprint savings of p9-budget-reprints. Needs role+identity matching (local role-indexed search and/or EDHREC recommendations); the hard, heuristic part. Builds on p9-budget-reprints + EDHREC.
-  - deps: p9-budget-reprints, p6-edhrec
-  - acceptance: Suggests cheaper same-role, in-identity replacements for expensive cards
-  - acceptance: Respects color identity + functional role when substituting
-  - acceptance: Reports projected min-buy after suggested swaps
 - [ ] **P9 · Surface bracket verdict in the analyze flow** — Review #12 (split from p9-archetype-diff-bracket). The power-level verdict already exists via meta_classify_bracket; this is the cosmetic 'surface it during tuning' part — e.g. a combined meta_deck_summary bundling analyze_stats + min_buy + bracket verdict, or otherwise making the bracket discoverable in the analyze flow. Low value / low urgency since the verdict is already a tool; kept as backlog.
   - deps: p6-bracket, p3-state
   - acceptance: The bracket verdict is reachable within a combined analyze/summary flow (not only via an explicit meta_classify_bracket call)

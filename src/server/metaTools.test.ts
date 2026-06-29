@@ -247,3 +247,45 @@ describe("meta_missing_staples (review #11)", () => {
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
 });
+
+describe("meta_budget_swaps (review #10 part 2)", () => {
+  it("is registered", async () => {
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain("meta_budget_swaps");
+  });
+
+  it("suggests a cheaper same-role, in-identity replacement for an expensive card", async () => {
+    // Make the deck's Sol Ring 'expensive' relative to the Arcane Signet candidate.
+    deckStore.update("deck-1", (d) => ({ ...d, cards: [{ oracle_id: "o-sol", qty: 1 }] }));
+    const res = await client.callTool({
+      name: "meta_budget_swaps",
+      arguments: { deck_id: "deck-1" },
+    });
+    const r = res.structuredContent as {
+      commander: string;
+      swaps: Array<{
+        out: { name: string };
+        in: { name: string; cheapest_usd: number };
+        roles_matched: string[];
+        savings: number;
+      }>;
+      current_min_buy_usd: number;
+      projected_min_buy_usd: number;
+    };
+    expect(r.swaps).toHaveLength(1);
+    expect(r.swaps[0]?.out.name).toBe("Sol Ring");
+    expect(r.swaps[0]?.in.name).toBe("Arcane Signet"); // cheaper ($1.00 < $1.50), shares a mana role, on-color
+    expect(r.swaps[0]?.roles_matched.length).toBeGreaterThan(0);
+    expect(r.swaps[0]?.savings).toBe(0.5);
+    expect(r.current_min_buy_usd).toBe(1.5);
+    expect(r.projected_min_buy_usd).toBe(1.0);
+    // Lightning Bolt (off-color R) is never proposed.
+    expect(r.swaps.every((s) => s.in.name !== "Lightning Bolt")).toBe(true);
+  });
+
+  it("returns DECK_NOT_FOUND for an unknown deck", async () => {
+    const res = await client.callTool({ name: "meta_budget_swaps", arguments: { deck_id: "x" } });
+    expect(res.isError).toBe(true);
+    expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+  });
+});

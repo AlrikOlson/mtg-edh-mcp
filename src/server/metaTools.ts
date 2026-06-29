@@ -7,11 +7,15 @@
  */
 import { z } from "zod";
 import { StructuredError } from "../types/index.js";
+import type { Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
+import { cheapestUsd } from "../analyze/index.js";
 import type { EdhrecClient, SpellbookClient, GameChangersClient } from "../meta/index.js";
 import { classifyBracket } from "../meta/index.js";
 import type { ToolDefinition } from "./registry.js";
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
   return {
@@ -243,6 +247,161 @@ function metaMissingStaplesTool(
   };
 }
 
+interface SwapCandidate {
+  oracle_id: string;
+  name: string;
+  roles: Role[];
+  cheapest: number;
+}
+
+function metaBudgetSwapsTool(
+  store: DeckStore,
+  index: CardIndex,
+  edhrec: EdhrecClient,
+  session: string,
+): ToolDefinition {
+  return {
+    name: "meta_budget_swaps",
+    config: {
+      title: "Budget swaps (EDHREC)",
+      description:
+        "Suggest cheaper functional REPLACEMENTS for a deck's most expensive cards: candidates are " +
+        "drawn from the commander's EDHREC profile (in color identity, not already in the deck), and " +
+        "a swap is proposed when a candidate shares a functional role and is cheaper (by cheapest " +
+        "printing). Reports per-swap savings + the projected min-buy. Pass target_usd to stop once " +
+        "the floor is under budget. Heuristic + advisory: role match is coarse (shares any role, not " +
+        "semantic equivalence) and prices are conservative local-index floors — review before swapping. " +
+        "For zero-change reprint savings (no swaps) use budget_plan.",
+      inputSchema: {
+        deck_id: z.string(),
+        target_usd: z.number().nonnegative().optional(),
+        limit: z.number().int().positive().max(50).optional(),
+      },
+    },
+    handler: async (args) => {
+      const deckId = String(args.deck_id ?? "");
+      const target = typeof args.target_usd === "number" ? args.target_usd : null;
+      const limit = typeof args.limit === "number" ? args.limit : 10;
+      const deck = store.get(deckId, session);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+
+      const commanderId = deck.commanders[0];
+      const commanderCard = commanderId ? index.getCard(commanderId) : null;
+      if (!commanderCard) {
+        throw new StructuredError(
+          "INELIGIBLE_COMMANDER",
+          `deck '${deckId}' has no resolvable commander`,
+        );
+      }
+
+      const profile = await edhrec.profile(commanderCard.name);
+      const identity = new Set(deck.computed_color_identity.map((c) => c.toUpperCase()));
+      const inDeck = new Set<string>([...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]);
+
+      // Candidate pool: priced, in-identity, not-in-deck cards from the EDHREC profile.
+      const candidates: SwapCandidate[] = [];
+      const seenCand = new Set<string>();
+      for (const pc of profile.cards) {
+        const matches = index.resolveName(pc.name, { exact: true });
+        const ref = matches.length === 1 ? matches[0] : undefined;
+        if (!ref || inDeck.has(ref.oracle_id) || seenCand.has(ref.oracle_id)) continue;
+        if (ref.ci.some((c) => c !== "C" && !identity.has(c))) continue;
+        const full = index.getCard(ref.oracle_id);
+        if (!full) continue;
+        const cheap = cheapestUsd(full);
+        if (cheap === null) continue;
+        seenCand.add(ref.oracle_id);
+        candidates.push({
+          oracle_id: ref.oracle_id,
+          name: ref.name,
+          roles: [...full.roles],
+          cheapest: cheap,
+        });
+      }
+
+      // Deck cost drivers (cheapest × qty), most expensive first.
+      const drivers: Array<{
+        oracle_id: string;
+        name: string;
+        roles: readonly Role[];
+        cheapest: number;
+        qty: number;
+        contribution: number;
+      }> = [];
+      let deckMinBuy = 0;
+      for (const e of deck.cards) {
+        const full = index.getCard(e.oracle_id);
+        if (!full) continue;
+        const cheap = cheapestUsd(full) ?? 0;
+        deckMinBuy += cheap * e.qty;
+        drivers.push({
+          oracle_id: full.oracle_id,
+          name: full.name,
+          roles: full.roles,
+          cheapest: cheap,
+          qty: e.qty,
+          contribution: cheap * e.qty,
+        });
+      }
+      drivers.sort(
+        (a, b) => b.contribution - a.contribution || a.oracle_id.localeCompare(b.oracle_id),
+      );
+
+      const swaps: Record<string, unknown>[] = [];
+      const usedCand = new Set<string>();
+      let savings = 0;
+      for (const d of drivers) {
+        if (swaps.length >= limit) break;
+        if (target !== null && deckMinBuy - savings <= target) break;
+        let best: (SwapCandidate & { shared: Role[] }) | null = null;
+        for (const c of candidates) {
+          if (usedCand.has(c.oracle_id) || c.cheapest >= d.cheapest) continue;
+          const shared = c.roles.filter((r) => d.roles.includes(r));
+          if (shared.length === 0) continue;
+          if (
+            !best ||
+            c.cheapest < best.cheapest ||
+            (c.cheapest === best.cheapest && c.oracle_id.localeCompare(best.oracle_id) < 0)
+          ) {
+            best = { ...c, shared };
+          }
+        }
+        if (!best) continue;
+        usedCand.add(best.oracle_id);
+        savings += (d.cheapest - best.cheapest) * d.qty;
+        swaps.push({
+          out: {
+            oracle_id: d.oracle_id,
+            name: d.name,
+            cheapest_usd: round2(d.cheapest),
+            qty: d.qty,
+          },
+          in: { oracle_id: best.oracle_id, name: best.name, cheapest_usd: round2(best.cheapest) },
+          roles_matched: best.shared,
+          savings: round2((d.cheapest - best.cheapest) * d.qty),
+        });
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${swaps.length} budget swap(s); min buy $${round2(deckMinBuy)} → $${round2(deckMinBuy - savings)}`,
+          },
+        ],
+        structuredContent: {
+          deck_id: deckId,
+          commander: commanderCard.name,
+          swaps,
+          current_min_buy_usd: round2(deckMinBuy),
+          projected_min_buy_usd: round2(deckMinBuy - savings),
+          target_usd: target,
+        },
+      };
+    },
+  };
+}
+
 function metaCombosTool(
   store: DeckStore,
   index: CardIndex,
@@ -338,6 +497,7 @@ export function makeMetaTools(
     metaThemesTool(edhrec),
     metaRecommendationsTool(store, index, edhrec, session),
     metaMissingStaplesTool(store, index, edhrec, session),
+    metaBudgetSwapsTool(store, index, edhrec, session),
     metaCombosTool(store, index, spellbook, session),
     metaClassifyBracketTool(store, index, gameChangers, session),
   ];
