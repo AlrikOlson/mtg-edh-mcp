@@ -10,13 +10,47 @@ strategic decisions of its own.
 See [`commander-deckbuilder-mcp-spec.md`](./commander-deckbuilder-mcp-spec.md) for
 the full design and [`ROADMAP.md`](./ROADMAP.md) for delivery status.
 
-> **Status:** early scaffold. Only the project skeleton exists today; the MCP
-> server and tools are being built phase by phase (see the roadmap).
+> **Status:** feature-complete v1. All seven phases have shipped — card knowledge,
+> versioned deck state, validation, analysis, meta enrichment, multi-tenancy, and
+> the determinism/latency gate — with 230 tests green. The three §10 worked-example
+> decks build end-to-end through the tools alone.
 
 ## Requirements
 
 - Node.js ≥ 18 (developed on Node 24)
 - npm
+
+## Running the server
+
+The server speaks the [Model Context Protocol](https://modelcontextprotocol.io)
+over two transports from one core (`createServer`):
+
+- **stdio** (default) — for local MCP clients (Claude Desktop, IDE extensions).
+  `mtg-edh-mcp` (the `bin`) launches it; point your client's MCP config at the
+  command.
+- **Streamable HTTP** — for hosted clients. Stateless: a fresh server is created
+  per POST, all sharing one card index (read-only) and one deck store.
+
+Both expose the same tools and resources. Deck state is scoped per **principal**:
+over HTTP the principal is read from the `x-mcp-principal` request header (so two
+callers get isolated decks); stdio and header-less requests use the single
+`local` session. Deck mutations are versioned — pass `expected_version` to
+`deck_add` / `deck_remove` / `deck_set_commander` for an optimistic-concurrency
+check that returns a conflict instead of clobbering a concurrent edit.
+
+## Tool catalog
+
+| Group        | Tools                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| Card         | `card_search`, `card_get`, `card_resolve_name`, `card_printings`                                        |
+| Deck (state) | `deck_create`, `deck_get`, `deck_list`, `deck_delete`, `deck_set_commander`, `deck_add`, `deck_remove`  |
+| Versioning   | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                              |
+| Validation   | `validate_deck`, `validate_card`, `validate_commander`                                                  |
+| Analysis     | `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`   |
+| Meta         | `meta_commander_profile`, `meta_themes`, `meta_recommendations`, `meta_combos`, `meta_classify_bracket` |
+
+The server makes **zero strategic decisions** — it answers questions, mutates
+state, computes statistics, and validates. The agent supplies the taste.
 
 ## Development
 
@@ -49,6 +83,31 @@ Refresh cadence (spec §3) is configurable via env vars:
 A **price-only refresh** (`refreshPrices`) re-downloads `default_cards` and
 updates the printings' prices in place — no rebuild of the cards table or FTS
 index. Oracle-level card prices refresh on a full bulk rebuild.
+
+## Observability & graceful degradation
+
+Every tool response is stamped with `data_snapshot` — the registry wrapper
+(`src/server/registry.ts`) applies it uniformly, so a client can always tell
+which card-data vintage produced an answer. Enrichment calls (EDHREC, Commander
+Spellbook, Game Changers) go through a TTL cache that **degrades gracefully**:
+on an upstream failure it serves the last good value if one is cached, and only
+surfaces `UPSTREAM_UNAVAILABLE` when there is nothing to fall back on. Core
+search / validation / analysis never touch the network, so the server stays
+fully functional local-only when upstreams are down.
+
+## Compliance (Scryfall Fan Content)
+
+This project honors [Scryfall's Fan Content terms](https://scryfall.com/docs/api):
+
+- Every outbound request sends one descriptive **User-Agent** (defined once in
+  `src/types/userAgent.ts`) identifying the app, version, and a contact URL.
+- Live Scryfall calls are a rate-limited fallback (≥100 ms spacing, <2 req/s for
+  search-class endpoints); the steady state is the local bulk index.
+- Card data is **not paywalled or re-sold** — the server adds genuine value
+  (state, validation, analysis) on top of it rather than proxying raw data.
+
+Portions of the data are © Wizards of the Coast. This is unofficial Fan Content;
+not approved/endorsed by Wizards. Card data via Scryfall.
 
 ## Project layout
 

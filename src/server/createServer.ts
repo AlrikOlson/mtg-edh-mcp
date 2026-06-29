@@ -36,6 +36,13 @@ export interface CreateServerOptions {
   spellbook?: SpellbookClient;
   /** Game Changers list client for bracket classification (tests inject a fake). Default-constructed. */
   gameChangers?: GameChangersClient;
+  /**
+   * Principal/session key that scopes deck state (spec §2/§11). Decks are isolated
+   * per session in the shared {@link DeckStore}; card data stays shared read-only.
+   * The HTTP transport resolves this per request from a principal header; stdio
+   * (and tests without a session) use the single default "local" session.
+   */
+  session?: string;
   /** Extra tools to register alongside the built-ins (used by tests + later engines). */
   tools?: readonly ToolDefinition[];
 }
@@ -43,25 +50,31 @@ export interface CreateServerOptions {
 /** Construct a fully wired (but not yet connected) MCP server. */
 export function createServer(options: CreateServerOptions = {}): McpServer {
   const snapshot = options.snapshot ?? staticSnapshotProvider();
+  // Per-principal deck scope; card data is shared read-only across sessions.
+  const session = options.session ?? "local";
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   // Resources (capabilities) must be registered before the transport connects.
   registerResources(server, { index: options.index, deckStore: options.deckStore });
   const cardTools = options.index ? makeCardTools(options.index) : [];
   const deckTools = options.deckStore
-    ? makeDeckTools(options.deckStore, options.index, snapshot)
+    ? makeDeckTools(options.deckStore, options.index, snapshot, session)
     : [];
   // Validation tools need both a deck store (to read decks) and an index (to look up cards).
   const validateTools =
-    options.deckStore && options.index ? makeValidateTools(options.deckStore, options.index) : [];
+    options.deckStore && options.index
+      ? makeValidateTools(options.deckStore, options.index, session)
+      : [];
   const analyzeTools =
-    options.deckStore && options.index ? makeAnalyzeTools(options.deckStore, options.index) : [];
+    options.deckStore && options.index
+      ? makeAnalyzeTools(options.deckStore, options.index, session)
+      : [];
   // Enrichment needs the index (name resolution) + deck store (deck context).
   const edhrec = options.edhrec ?? new EdhrecClient(new CacheStore());
   const spellbook = options.spellbook ?? new SpellbookClient(new CacheStore());
   const gameChangers = options.gameChangers ?? new GameChangersClient(new CacheStore());
   const metaTools =
     options.deckStore && options.index
-      ? makeMetaTools(options.deckStore, options.index, edhrec, spellbook, gameChangers)
+      ? makeMetaTools(options.deckStore, options.index, edhrec, spellbook, gameChangers, session)
       : [];
   registerTools(
     server,

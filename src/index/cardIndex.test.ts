@@ -170,3 +170,92 @@ describe("index schema", () => {
     }
   });
 });
+
+describe("CardIndex.resolveName — token disambiguation (review #6)", () => {
+  let r2: string;
+  let tokenIndex: CardIndex;
+  const ORACLE2 = [
+    {
+      oracle_id: "o-llan",
+      name: "Llanowar Elves",
+      cmc: 1,
+      color_identity: ["G"],
+      type_line: "Creature — Elf Druid",
+      oracle_text: "{T}: Add {G}.",
+      legalities: { commander: "legal" },
+      prices: {},
+    },
+    {
+      oracle_id: "o-llan-tok",
+      name: "Llanowar Elves",
+      cmc: 0,
+      color_identity: ["G"],
+      type_line: "Token Creature — Elf Druid",
+      oracle_text: "{T}: Add {G}.",
+      legalities: {},
+      prices: {},
+    },
+    {
+      oracle_id: "o-treasure-tok",
+      name: "Treasure",
+      cmc: 0,
+      color_identity: [],
+      type_line: "Token Artifact — Treasure",
+      oracle_text: "{T}, Sacrifice: Add one mana.",
+      legalities: {},
+      prices: {},
+    },
+    {
+      oracle_id: "o-gm1",
+      name: "Goblin Matron",
+      cmc: 2,
+      color_identity: ["R"],
+      type_line: "Creature — Goblin",
+      oracle_text: "Search for a Goblin.",
+      legalities: { commander: "legal" },
+      prices: {},
+    },
+    {
+      oracle_id: "o-gm2",
+      name: "Goblin Matriarch",
+      cmc: 5,
+      color_identity: ["R"],
+      type_line: "Creature — Goblin",
+      oracle_text: "Make Goblins.",
+      legalities: { commander: "legal" },
+      prices: {},
+    },
+  ];
+
+  beforeEach(async () => {
+    r2 = await mkdtemp(path.join(tmpdir(), "mtg-tok-"));
+    const s = new VersionedStore(r2);
+    await s.createVersion("v1");
+    await writeFile(s.filePath("v1", "oracle_cards.json"), JSON.stringify(ORACLE2), "utf8");
+    await writeFile(s.filePath("v1", "default_cards.json"), JSON.stringify([]), "utf8");
+    await s.publish("v1");
+    tokenIndex = CardIndex.open((await buildIndex({ store: s })).dbPath);
+  });
+  afterEach(async () => {
+    tokenIndex.close();
+    await rm(r2, { recursive: true, force: true });
+  });
+
+  it("prefers the real card over a token sharing the name", () => {
+    const refs = tokenIndex.resolveName("Llanowar Elves");
+    expect(refs).toHaveLength(1);
+    expect(refs[0]?.oracle_id).toBe("o-llan");
+    expect(refs[0]?.type).toBe("Creature — Elf Druid");
+  });
+
+  it("falls back to the token when no real card shares the name", () => {
+    const refs = tokenIndex.resolveName("Treasure");
+    expect(refs).toHaveLength(1);
+    expect(refs[0]?.oracle_id).toBe("o-treasure-tok");
+  });
+
+  it("still returns multiple candidates for genuinely ambiguous REAL cards", () => {
+    const refs = tokenIndex.resolveName("Goblin Mat"); // fuzzy: two real Goblin cards
+    expect(refs.map((r) => r.oracle_id).sort()).toEqual(["o-gm1", "o-gm2"]);
+  });
+});

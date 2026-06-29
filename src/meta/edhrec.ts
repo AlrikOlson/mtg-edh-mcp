@@ -8,6 +8,7 @@
  * is pure and defensive: EDHREC's shape is non-obvious (cardlists live under
  * container.json_dict, themes under panels.taglinks) and may drift.
  */
+import { USER_AGENT } from "../types/index.js";
 import type { CacheStore } from "./cache.js";
 
 /** EDHREC pages change slowly; cache a commander page for a week by default. */
@@ -84,9 +85,7 @@ export function parseThemes(json: unknown): string[] {
 }
 
 const defaultFetchJson: FetchJson = async (url) => {
-  const res = await fetch(url, {
-    headers: { "User-Agent": "mtg-edh-mcp (+https://github.com/; Scryfall Fan Content)" },
-  });
+  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
   if (!res.ok) throw new Error(`EDHREC HTTP ${res.status}`);
   return res.json();
 };

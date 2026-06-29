@@ -6,6 +6,8 @@ import {
   checkSingleton,
   checkColorIdentity,
   checkBanlist,
+  anyNumberReason,
+  anyNumberExemptions,
   type CardLookup,
 } from "./index.js";
 
@@ -192,5 +194,42 @@ describe("validateCore", () => {
     expect(rules).toContain("SINGLETON");
     expect(rules).toContain("COLOR_IDENTITY");
     expect(rules).toContain("BANLIST");
+  });
+});
+
+describe("anyNumberReason + anyNumberExemptions (review #14)", () => {
+  const plains = card({ oracle_id: "o-plains", name: "Plains", type_line: "Basic Land — Plains" });
+  // A NON-allowlisted card whose oracle text grants any number (tests the text branch;
+  // Relentless Rats etc. would hit the allowlist branch first).
+  const swarm = card({
+    oracle_id: "o-swarm",
+    name: "Endless Swarm",
+    type_line: "Creature — Insect",
+    oracle_text: "A deck can have any number of cards named Endless Swarm.",
+  });
+  const rats = card({ oracle_id: "o-rats", name: "Relentless Rats", type_line: "Creature — Rat" });
+  const sol = card({ oracle_id: "o-sol", name: "Sol Ring" });
+  const lookup = lookupOf(plains, swarm, rats, sol);
+
+  it("tags the exemption reason per card", () => {
+    expect(anyNumberReason(plains)).toBe("basic_land");
+    expect(anyNumberReason(swarm)).toBe("oracle_text");
+    expect(anyNumberReason(rats)).toBe("allowlist"); // allowlist wins over text/none
+    expect(anyNumberReason(sol)).toBeNull();
+  });
+
+  it("lists only qty>1 exempt entries, with reasons", () => {
+    const d = deck({
+      cards: [
+        { oracle_id: "o-swarm", qty: 15 },
+        { oracle_id: "o-plains", qty: 20 },
+        { oracle_id: "o-rats", qty: 1 }, // qty 1 → not listed (singleton wouldn't bite)
+        { oracle_id: "o-sol", qty: 1 },
+      ],
+    });
+    expect(anyNumberExemptions(d, lookup)).toEqual([
+      { oracle_id: "o-swarm", name: "Endless Swarm", qty: 15, reason: "oracle_text" },
+      { oracle_id: "o-plains", name: "Plains", qty: 20, reason: "basic_land" },
+    ]);
   });
 });

@@ -5,3 +5,4 @@ export * from "./card.js";
 export * from "./deck.js";
 export * from "./violation.js";
 export * from "./errors.js";
+export * from "./userAgent.js";

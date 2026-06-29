@@ -80,6 +80,22 @@ function rowToRef(r: CardRefRow): CardRef {
   };
 }
 
+/** A token / emblem row (its type_line carries the marker; real cards never do). */
+function isTokenType(typeLine: string): boolean {
+  return /\bToken\b/i.test(typeLine) || /^Emblem\b/i.test(typeLine);
+}
+
+/**
+ * De-rank token/emblem rows: when a name matches both a real card and its token
+ * (e.g. Llanowar Elves), return only the real card(s). Falls back to the full
+ * set when nothing real matched, so a token-only name still resolves rather than
+ * becoming UNKNOWN. Discriminates on type_line only — never on the card name.
+ */
+function preferRealCards(refs: CardRef[]): CardRef[] {
+  const real = refs.filter((r) => !isTokenType(r.type));
+  return real.length > 0 ? real : refs;
+}
+
 const REF_COLUMNS = "oracle_id, name, mv, type_line, color_identity";
 
 function rowToPrinting(row: PrintingRow): Printing {
@@ -261,13 +277,17 @@ export class CardIndex {
   /**
    * Resolve a card name to candidate CardRefs (the anti-hallucination gateway).
    * Returns exact (case-insensitive) matches; when none and not `exact`, falls
-   * back to a substring (fuzzy) match. The caller maps 0→UNKNOWN_CARD,
-   * >1→AMBIGUOUS_NAME.
+   * back to a substring (fuzzy) match. Token/emblem rows are de-ranked so a name
+   * shared by a real card and its token (e.g. Llanowar Elves, Mutavault) resolves
+   * to the real card instead of bouncing to AMBIGUOUS_NAME. The caller maps
+   * 0→UNKNOWN_CARD, >1→AMBIGUOUS_NAME.
    */
   resolveName(name: string, options: { exact?: boolean } = {}): CardRef[] {
     const exactRows = this.resolveExactStmt.all(name) as CardRefRow[];
-    if (options.exact || exactRows.length > 0) return exactRows.map(rowToRef);
-    return (this.resolveFuzzyStmt.all(`%${name}%`, 25) as CardRefRow[]).map(rowToRef);
+    if (options.exact || exactRows.length > 0) return preferRealCards(exactRows.map(rowToRef));
+    return preferRealCards(
+      (this.resolveFuzzyStmt.all(`%${name}%`, 25) as CardRefRow[]).map(rowToRef),
+    );
   }
 
   /** All printings for an oracle_id (newest first), or [] if the card is unknown. */

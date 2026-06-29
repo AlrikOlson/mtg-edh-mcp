@@ -2,9 +2,13 @@
  * Streamable HTTP transport (spec §2) — for hosted MCP clients.
  *
  * Stateless mode (`sessionIdGenerator: undefined`): a fresh server + transport
- * is created per POST, so there is no cross-request session state. Per-principal
- * deck-session scoping is a separate concern handled in p7-multitenancy; bulk
- * card data is shared and read-only (§2/§11).
+ * is created per POST, so there is no cross-request session state. Multi-tenancy
+ * (§2/§11) is achieved by resolving a *principal* from the `x-mcp-principal`
+ * request header and passing it as the `session` to {@link createServer}: the
+ * shared {@link DeckStore} (held in `options.deckStore` across all per-request
+ * servers) isolates each principal's decks, while the shared {@link CardIndex}
+ * serves bulk card data read-only to every session. Requests without the header
+ * fall back to the single default "local" session.
  */
 import http from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -37,6 +41,17 @@ function jsonRpcError(
   res.end(JSON.stringify({ jsonrpc: "2.0", error: { code, message }, id: null }));
 }
 
+/** HTTP header carrying the deck-scope principal (a single token, never trusted as auth). */
+export const PRINCIPAL_HEADER = "x-mcp-principal";
+
+/** Resolve the per-request principal/session from the principal header (fallback "local"). */
+function resolvePrincipal(req: http.IncomingMessage): string {
+  const raw = req.headers[PRINCIPAL_HEADER];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed.length > 0 ? trimmed : "local";
+}
+
 async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -58,7 +73,8 @@ async function handle(
     return;
   }
 
-  const server = createServer(options);
+  // Scope deck state to the request's principal; card data stays shared read-only.
+  const server = createServer({ ...options, session: resolvePrincipal(req) });
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on("close", () => {
     void transport.close();

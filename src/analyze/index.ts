@@ -6,6 +6,8 @@ export {
   analyzeCurve,
   analyzeComposition,
   analyzeStats,
+  cheapestUsd,
+  defaultUsd,
   type CardLookup,
   type CurveFilter,
 } from "./stats.js";
@@ -18,3 +20,11 @@ export {
   type RoleBands,
   type CoverageGap,
 } from "./mana.js";
+export { simulateDeck, type SimOptions, type SimResult } from "./sim.js";
+export {
+  budgetPlan,
+  type BudgetOptions,
+  type BudgetPlan,
+  type ReprintSaving,
+  type CostDriver,
+} from "./budget.js";

@@ -21,6 +21,34 @@ function isLand(card: Card): boolean {
   return /\bLand\b/.test(card.type_line);
 }
 
+/** Parse a price string to a finite number, or null (treats "" / undefined as missing). */
+function priceUsd(value: string | null | undefined): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+/** The card's default-printing USD (the chosen/oracle price), or null if unpriced. */
+export function defaultUsd(card: Card): number | null {
+  return priceUsd(card.prices.usd);
+}
+
+/**
+ * The cheapest USD across the card's printings (review #4 — budget builders want
+ * the real floor, not whatever printing happened to be chosen). Falls back to the
+ * default price when no printing carries a usable price (e.g. unpriced fixtures).
+ */
+export function cheapestUsd(card: Card): number | null {
+  let min: number | null = null;
+  for (const printing of card.printings) {
+    const usd = priceUsd(printing.prices.usd);
+    if (usd !== null && (min === null || usd < min)) min = usd;
+  }
+  return min ?? defaultUsd(card);
+}
+
 /** Card type tokens the composition report counts (a card counts under each it has). */
 const CARD_TYPES = [
   "Creature",
@@ -111,14 +139,18 @@ export function analyzeStats(
   avg_mv: number;
   avg_mv_nonland: number;
   color_pips: Record<string, number>;
+  /** Sum of each card's default-printing price (the chosen/oracle price). */
   total_price_usd: number;
+  /** Sum of each card's CHEAPEST printing — the realistic floor to buy the deck (review #4). */
+  min_buy_usd: number;
 } {
   const cards = resolved(entries, lookup);
   let total = 0;
   let nonland = 0;
   let mvSum = 0;
   let mvSumNonland = 0;
-  let priceUsd = 0;
+  let defaultTotal = 0;
+  let minBuyTotal = 0;
   const color_pips: Record<string, number> = {};
   for (const c of COLORS) color_pips[c] = 0;
 
@@ -129,20 +161,20 @@ export function analyzeStats(
       nonland += qty;
       mvSumNonland += card.mv * qty;
     }
-    const usd = Number(card.prices.usd);
-    if (Number.isFinite(usd)) priceUsd += usd * qty;
+    defaultTotal += (defaultUsd(card) ?? 0) * qty;
+    minBuyTotal += (cheapestUsd(card) ?? 0) * qty;
     for (const [color, n] of Object.entries(pipColor(card.mana_cost))) {
       color_pips[color] = (color_pips[color] ?? 0) + n * qty;
     }
   }
 
-  const round2 = (n: number): number => Math.round(n * 100) / 100;
   return {
     total_cards: total,
     nonland_cards: nonland,
     avg_mv: total > 0 ? round2(mvSum / total) : 0,
     avg_mv_nonland: nonland > 0 ? round2(mvSumNonland / nonland) : 0,
     color_pips,
-    total_price_usd: round2(priceUsd),
+    total_price_usd: round2(defaultTotal),
+    min_buy_usd: round2(minBuyTotal),
   };
 }

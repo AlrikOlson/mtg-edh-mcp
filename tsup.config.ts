@@ -1,8 +1,13 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  // `index` is the library barrel; `main` is the executable bin.
-  entry: { index: "src/server/index.ts", main: "src/server/main.ts" },
+  // `index` is the library barrel; `main` is the server bin; `ingest` is the
+  // one-shot data-ingestion CLI.
+  entry: {
+    index: "src/server/index.ts",
+    main: "src/server/main.ts",
+    ingest: "src/server/ingestMain.ts",
+  },
   format: ["esm"],
   target: "node18",
   platform: "node",

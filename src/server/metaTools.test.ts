@@ -169,6 +169,12 @@ describe("EDHREC meta tools", () => {
     ]);
   });
 
+  it("meta_themes rejects an empty commander with a clear error (review #7)", async () => {
+    const res = await client.callTool({ name: "meta_themes", arguments: { commander: "" } });
+    expect(res.isError).toBe(true);
+    expect(JSON.stringify(res.content)).toMatch(/commander name is required/);
+  });
+
   it("meta_recommendations returns DECK_NOT_FOUND for an unknown deck", async () => {
     const res = await client.callTool({
       name: "meta_recommendations",
@@ -196,5 +202,48 @@ describe("EDHREC meta tools", () => {
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
     await c2.close();
+  });
+});
+
+describe("meta_missing_staples (review #11)", () => {
+  it("is registered", async () => {
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain("meta_missing_staples");
+  });
+
+  it("lists in-identity staples not in the deck, ranked by inclusion; reports unresolved", async () => {
+    const res = await client.callTool({
+      name: "meta_missing_staples",
+      arguments: { deck_id: "deck-1" },
+    });
+    const r = res.structuredContent as {
+      commander: string;
+      missing: Array<{ oracle_id: string; name: string; inclusion: number }>;
+      unresolved: Array<{ name: string; reason: string }>;
+    };
+    expect(r.commander).toBe("Talrand, Sky Summoner");
+    // Sol Ring is in-deck (excluded); Lightning Bolt is off-color (excluded);
+    // Arcane Signet (colorless, on-color) is the missing staple. Nonexistent → unresolved.
+    expect(r.missing.map((m) => m.name)).toEqual(["Arcane Signet"]);
+    expect(r.missing[0]?.inclusion).toBe(800);
+    expect(r.unresolved).toEqual([{ name: "Nonexistent Card", reason: "UNKNOWN_CARD" }]);
+  });
+
+  it("honors the min_inclusion threshold", async () => {
+    const res = await client.callTool({
+      name: "meta_missing_staples",
+      arguments: { deck_id: "deck-1", min_inclusion: 850 },
+    });
+    const r = res.structuredContent as { missing: unknown[] };
+    expect(r.missing).toEqual([]); // Arcane Signet (800) is below the threshold
+  });
+
+  it("returns DECK_NOT_FOUND for an unknown deck", async () => {
+    const res = await client.callTool({
+      name: "meta_missing_staples",
+      arguments: { deck_id: "x" },
+    });
+    expect(res.isError).toBe(true);
+    expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
 });

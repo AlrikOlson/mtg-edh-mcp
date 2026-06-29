@@ -7,8 +7,12 @@ export {
   checkSingleton,
   checkColorIdentity,
   checkBanlist,
+  anyNumberReason,
+  anyNumberExemptions,
   COMMANDER_DECK_SIZE,
   type CardLookup,
+  type AnyNumberReason,
+  type AnyNumberExemption,
 } from "./coreRules.js";
 export {
   validateCommander,

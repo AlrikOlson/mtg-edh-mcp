@@ -41,8 +41,10 @@ function metaThemesTool(edhrec: EdhrecClient): ToolDefinition {
     name: "meta_themes",
     config: {
       title: "Commander themes (EDHREC)",
-      description: "The themes/archetypes EDHREC associates with a commander.",
-      inputSchema: { commander: z.string() },
+      description:
+        "The themes/archetypes EDHREC associates with a SPECIFIC commander (per-commander, " +
+        "not a global list) — pass the commander's name in `commander` (required).",
+      inputSchema: { commander: z.string().min(1, "commander name is required") },
     },
     handler: async (args) => {
       const commander = String(args.commander ?? "");
@@ -59,6 +61,7 @@ function metaRecommendationsTool(
   store: DeckStore,
   index: CardIndex,
   edhrec: EdhrecClient,
+  session: string,
 ): ToolDefinition {
   return {
     name: "meta_recommendations",
@@ -78,7 +81,7 @@ function metaRecommendationsTool(
       const deckId = String(args.deck_id ?? "");
       const excludeLands = args.exclude_lands === true;
       const limit = typeof args.limit === "number" ? args.limit : 50;
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
 
       const commanderId = deck.commanders[0];
@@ -140,10 +143,111 @@ function metaRecommendationsTool(
   };
 }
 
+function metaMissingStaplesTool(
+  store: DeckStore,
+  index: CardIndex,
+  edhrec: EdhrecClient,
+  session: string,
+): ToolDefinition {
+  return {
+    name: "meta_missing_staples",
+    config: {
+      title: "Missing staples (EDHREC)",
+      description:
+        "Diff a deck against its commander's typical EDHREC list: the in-identity cards NOT in the " +
+        "deck, ranked by inclusion (EDHREC's prevalence figure — higher = run by more typical decks; " +
+        "it is a raw figure, not a normalized %). Distinct from meta_recommendations ('what fits') — " +
+        "this is 'what conspicuous staples are you missing'. Optional min_inclusion threshold, " +
+        "exclude_lands, limit. Unresolved names are reported, not dropped.",
+      inputSchema: {
+        deck_id: z.string(),
+        min_inclusion: z.number().nonnegative().optional(),
+        exclude_lands: z.boolean().optional(),
+        limit: z.number().int().positive().optional(),
+      },
+    },
+    handler: async (args) => {
+      const deckId = String(args.deck_id ?? "");
+      const minInclusion = typeof args.min_inclusion === "number" ? args.min_inclusion : 0;
+      const excludeLands = args.exclude_lands === true;
+      const limit = typeof args.limit === "number" ? args.limit : 25;
+      const deck = store.get(deckId, session);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+
+      const commanderId = deck.commanders[0];
+      const commanderCard = commanderId ? index.getCard(commanderId) : null;
+      if (!commanderCard) {
+        throw new StructuredError(
+          "INELIGIBLE_COMMANDER",
+          `deck '${deckId}' has no resolvable commander`,
+        );
+      }
+
+      const profile = await edhrec.profile(commanderCard.name);
+      const identity = new Set(deck.computed_color_identity.map((c) => c.toUpperCase()));
+      const inDeck = new Set<string>([...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]);
+
+      const missing: Array<{
+        oracle_id: string;
+        name: string;
+        inclusion: number;
+        synergy: number;
+        category: string;
+      }> = [];
+      const unresolved: Record<string, unknown>[] = [];
+      const seen = new Set<string>();
+      for (const card of profile.cards) {
+        const inclusion = card.inclusion ?? 0;
+        const synergy = card.synergy ?? 0;
+        if (inclusion < minInclusion) continue;
+        const matches = index.resolveName(card.name, { exact: true });
+        const ref = matches.length === 1 ? matches[0] : undefined;
+        if (!ref) {
+          unresolved.push({
+            name: card.name,
+            reason: matches.length === 0 ? "UNKNOWN_CARD" : "AMBIGUOUS_NAME",
+          });
+          continue;
+        }
+        if (inDeck.has(ref.oracle_id) || seen.has(ref.oracle_id)) continue;
+        if (ref.ci.some((c) => c !== "C" && !identity.has(c))) continue;
+        if (excludeLands && /\bLand\b/.test(ref.type)) continue;
+        seen.add(ref.oracle_id);
+        missing.push({
+          oracle_id: ref.oracle_id,
+          name: ref.name,
+          inclusion,
+          synergy,
+          category: card.category,
+        });
+      }
+      // Rank by prevalence (inclusion) desc; deterministic oracle_id tiebreak.
+      missing.sort((a, b) => b.inclusion - a.inclusion || a.oracle_id.localeCompare(b.oracle_id));
+      const top = missing.slice(0, limit);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${top.length} missing staple(s) for ${commanderCard.name} (${unresolved.length} unresolved)`,
+          },
+        ],
+        structuredContent: {
+          deck_id: deckId,
+          commander: commanderCard.name,
+          missing: top,
+          unresolved,
+        },
+      };
+    },
+  };
+}
+
 function metaCombosTool(
   store: DeckStore,
   index: CardIndex,
   spellbook: SpellbookClient,
+  session: string,
 ): ToolDefinition {
   return {
     name: "meta_combos",
@@ -157,7 +261,7 @@ function metaCombosTool(
     },
     handler: async (args) => {
       const deckId = String(args.deck_id ?? "");
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
 
       const commanderNames = deck.commanders
@@ -194,6 +298,7 @@ function metaClassifyBracketTool(
   store: DeckStore,
   index: CardIndex,
   gameChangers: GameChangersClient,
+  session: string,
 ): ToolDefinition {
   return {
     name: "meta_classify_bracket",
@@ -207,7 +312,7 @@ function metaClassifyBracketTool(
     },
     handler: async (args) => {
       const deckId = String(args.deck_id ?? "");
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const set = await gameChangers.list();
       const result = classifyBracket(deck, (id) => index.getCard(id), set);
@@ -226,12 +331,14 @@ export function makeMetaTools(
   edhrec: EdhrecClient,
   spellbook: SpellbookClient,
   gameChangers: GameChangersClient,
+  session = "local",
 ): ToolDefinition[] {
   return [
     metaCommanderProfileTool(edhrec),
     metaThemesTool(edhrec),
-    metaRecommendationsTool(store, index, edhrec),
-    metaCombosTool(store, index, spellbook),
-    metaClassifyBracketTool(store, index, gameChangers),
+    metaRecommendationsTool(store, index, edhrec, session),
+    metaMissingStaplesTool(store, index, edhrec, session),
+    metaCombosTool(store, index, spellbook, session),
+    metaClassifyBracketTool(store, index, gameChangers, session),
   ];
 }

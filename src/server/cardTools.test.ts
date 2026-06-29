@@ -157,9 +157,38 @@ describe("card_get", () => {
       name: "card_get",
       arguments: { oracle_ids: ["o-sol", "o-nope"] },
     });
-    const sc = res.structuredContent as { cards: Array<{ name: string }>; missing: string[] };
+    const sc = res.structuredContent as {
+      cards: Array<{ name: string; default_usd: number | null; cheapest_usd: number | null }>;
+      missing: string[];
+    };
     expect(sc.cards.map((c) => c.name)).toEqual(["Sol Ring"]);
     expect(sc.missing).toEqual(["o-nope"]);
+    // Each card carries default + cheapest USD (review #4); keys are always present.
+    const sol = sc.cards[0]!;
+    expect(sol).toHaveProperty("default_usd");
+    expect(sol).toHaveProperty("cheapest_usd");
+    // Lean by default (review #2): the heavy printings array is omitted.
+    expect(sol).not.toHaveProperty("printings");
+  });
+
+  it("includes the full printings array only when include_printings is set", async () => {
+    const res = await client.callTool({
+      name: "card_get",
+      arguments: { oracle_ids: ["o-sol"], include_printings: true },
+    });
+    const sc = res.structuredContent as { cards: Array<{ printings: unknown[] }> };
+    expect(Array.isArray(sc.cards[0]?.printings)).toBe(true);
+  });
+
+  it("accepts a card NAME or oracle_id (review #3), reporting unresolved in missing[]", async () => {
+    const res = await client.callTool({
+      name: "card_get",
+      arguments: { oracle_ids: ["Sol Ring", "o-sol", "No Such Card"] },
+    });
+    const sc = res.structuredContent as { cards: Array<{ name: string }>; missing: string[] };
+    // "Sol Ring" (name) and "o-sol" (id) both resolve to the same card.
+    expect(sc.cards.map((c) => c.name)).toEqual(["Sol Ring", "Sol Ring"]);
+    expect(sc.missing).toEqual(["No Such Card"]);
   });
 });
 

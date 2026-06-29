@@ -12,6 +12,7 @@
  * meta/intent judgment we don't auto-assign — the ceiling here is 4.
  */
 import type { Card, Deck } from "../types/index.js";
+import { USER_AGENT } from "../types/index.js";
 import type { CacheStore } from "./cache.js";
 import type { FetchJson } from "./edhrec.js";
 
@@ -103,9 +104,7 @@ export function parseGameChangers(json: unknown): Set<string> {
 }
 
 const defaultFetchJson: FetchJson = async (url) => {
-  const res = await fetch(url, {
-    headers: { "User-Agent": "mtg-edh-mcp (+https://github.com/; Scryfall Fan Content)" },
-  });
+  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
   if (!res.ok) throw new Error(`Game Changers HTTP ${res.status}`);
   return res.json();
 };

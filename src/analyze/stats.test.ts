@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { Card, Color, DeckCardEntry, Role } from "../types/index.js";
-import { analyzeCurve, analyzeComposition, analyzeStats, type CardLookup } from "./index.js";
+import {
+  analyzeCurve,
+  analyzeComposition,
+  analyzeStats,
+  cheapestUsd,
+  defaultUsd,
+  type CardLookup,
+} from "./index.js";
 
 function card(p: Partial<Card> & { oracle_id: string; name: string }): Card {
   return {
@@ -95,5 +102,65 @@ describe("analyzeStats", () => {
     expect(r.avg_mv_nonland).toBe(1.5); // (1 + 2) / 2
     expect(r.color_pips).toEqual({ W: 0, U: 2, B: 0, R: 0, G: 0 });
     expect(r.total_price_usd).toBe(2.9); // 1.50 + 4*0.10 + 1.00
+  });
+});
+
+describe("cheapest-printing pricing + min buy (review #4)", () => {
+  // A budget reprint whose default/chosen price is a premium printing, but whose
+  // cheapest printing is far lower (the Relentless Rats situation).
+  const RAT = card({
+    oracle_id: "o-rat",
+    name: "Relentless Rats",
+    mv: 4,
+    type_line: "Creature — Rat",
+    mana_cost: "{3}{B}",
+    color_identity: ["B"] as Color[],
+    prices: { usd: "5.21" }, // default = a premium printing
+    printings: [
+      {
+        scryfall_id: "p1",
+        set: "a",
+        set_name: "A",
+        collector_number: "1",
+        rarity: "common",
+        prices: { usd: "5.21" },
+      },
+      {
+        scryfall_id: "p2",
+        set: "b",
+        set_name: "B",
+        collector_number: "2",
+        rarity: "common",
+        prices: { usd: "0.30" },
+      },
+      {
+        scryfall_id: "p3",
+        set: "c",
+        set_name: "C",
+        collector_number: "3",
+        rarity: "common",
+        prices: {},
+      }, // unpriced
+    ],
+  });
+
+  it("cheapestUsd picks the lowest priced printing; defaultUsd is the chosen price", () => {
+    expect(defaultUsd(RAT)).toBe(5.21);
+    expect(cheapestUsd(RAT)).toBe(0.3);
+  });
+
+  it("falls back to the default price when no printing carries a price", () => {
+    const noPrintings = card({ oracle_id: "o-x", name: "X", prices: { usd: "2.00" } });
+    expect(cheapestUsd(noPrintings)).toBe(2);
+    const unpriced = card({ oracle_id: "o-y", name: "Y", prices: {} });
+    expect(cheapestUsd(unpriced)).toBeNull();
+    expect(defaultUsd(unpriced)).toBeNull();
+  });
+
+  it("analyze_stats reports a default total AND a much lower min-buy total", () => {
+    const lookup2: CardLookup = (id) => (id === "o-rat" ? RAT : null);
+    const r = analyzeStats([{ oracle_id: "o-rat", qty: 10 }], lookup2);
+    expect(r.total_price_usd).toBe(52.1); // 10 * 5.21 (default)
+    expect(r.min_buy_usd).toBe(3); // 10 * 0.30 (cheapest)
   });
 });

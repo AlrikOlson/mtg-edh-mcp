@@ -60,6 +60,18 @@ const ORACLE = [
     legalities: { commander: "legal" },
     prices: { usd: "5.00" },
   },
+  {
+    oracle_id: "o-island",
+    id: "p-island",
+    name: "Island",
+    cmc: 0,
+    colors: [],
+    color_identity: ["U"],
+    type_line: "Basic Land — Island",
+    oracle_text: "",
+    legalities: { commander: "legal" },
+    prices: { usd: "0.10" },
+  },
 ];
 
 let root: string;
@@ -126,6 +138,19 @@ describe("validation tools", () => {
     // Every violation today is a hard error; warnings stay empty until P5 advisories.
     expect(r.violations.every((v) => v.severity === "error")).toBe(true);
     expect(r.warnings).toEqual([]);
+  });
+
+  it("validate_deck surfaces any-number exemptions for qty>1 exempt cards (review #14)", async () => {
+    deckStore.update("deck-1", (d) => ({ ...d, cards: [{ oracle_id: "o-island", qty: 12 }] }));
+    const res = await client.callTool({ name: "validate_deck", arguments: { deck_id: "deck-1" } });
+    const r = res.structuredContent as Result & {
+      exemptions: Array<{ oracle_id: string; reason: string; qty: number }>;
+    };
+    // 12 basic Islands: no SINGLETON violation, AND an explicit exemption note.
+    expect(r.violations.some((v) => v.rule === "SINGLETON")).toBe(false);
+    expect(r.exemptions).toEqual([
+      { oracle_id: "o-island", name: "Island", qty: 12, reason: "basic_land" },
+    ]);
   });
 
   it("validate_card is a read-only precheck that does not mutate the deck", async () => {

@@ -5,6 +5,12 @@
  * deck_get projects the deck's card entries lean by default ({oracle_id, qty,
  * name?}); expand:true includes the full Card per entry (via the index). Card
  * add/remove + commander setting are later P3 chunks; decks start empty here.
+ *
+ * Every store access is scoped to a `session` (the principal resolved by the HTTP
+ * transport, or "local" for stdio), so two principals see isolated decks (§2/§11).
+ * The mutators (deck_add/deck_remove/deck_set_commander) accept an optional
+ * `expected_version` for optimistic concurrency: on a version mismatch they return
+ * a conflict result without mutating, rather than blindly last-write-wins.
  */
 import { z } from "zod";
 import { StructuredError } from "../types/index.js";
@@ -19,6 +25,7 @@ import {
   validateCommander,
 } from "../validate/index.js";
 import type { CommandZoneKind } from "../types/index.js";
+import { resolveCardId, resolveCardIdLenient } from "./resolve.js";
 import type { SnapshotProvider } from "./snapshot.js";
 import type { ToolDefinition } from "./registry.js";
 
@@ -37,12 +44,38 @@ function projectDeck(
   return { ...deck, cards };
 }
 
-function deckCreateTool(store: DeckStore, snapshot?: SnapshotProvider): ToolDefinition {
+/** A conflict result for an optimistic-concurrency mismatch (no mutation applied). */
+function conflict(deckId: string, currentVersion: number, expected: number) {
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: `version conflict on ${deckId}: expected v${expected}, current v${currentVersion}`,
+      },
+    ],
+    structuredContent: {
+      ok: false,
+      conflict: true,
+      deck_id: deckId,
+      expected_version: expected,
+      current_version: currentVersion,
+    },
+  };
+}
+
+function deckCreateTool(
+  store: DeckStore,
+  session: string,
+  index?: CardIndex,
+  snapshot?: SnapshotProvider,
+): ToolDefinition {
   return {
     name: "deck_create",
     config: {
       title: "Create deck",
-      description: "Create a new versioned deck and return its deck_id.",
+      description:
+        "Create a new versioned deck and return its deck_id. Initial commanders may be " +
+        "given by oracle_id or card name.",
       inputSchema: {
         name: z.string(),
         format: z.literal("commander").optional(),
@@ -53,19 +86,29 @@ function deckCreateTool(store: DeckStore, snapshot?: SnapshotProvider): ToolDefi
       },
     },
     handler: (args) => {
-      const commanders = Array.isArray(args.commanders)
+      const rawCommanders = Array.isArray(args.commanders)
         ? args.commanders.filter((x): x is string => typeof x === "string")
         : undefined;
-      const deck = store.create({
-        name: String(args.name ?? ""),
-        format: args.format === "commander" ? "commander" : undefined,
-        commanders,
-        command_zone_kind:
-          typeof args.command_zone_kind === "string"
-            ? (args.command_zone_kind as "single" | "partner" | "background" | "doctor_companion")
-            : undefined,
-        dataSnapshot: snapshot?.(),
-      });
+      // Accept name-or-id: resolve names to oracle_ids when unambiguous. Lenient
+      // here — deck_create is a constructor, not the legality gate; unknown
+      // commanders are stored as-is and caught later by deck_set_commander.
+      const commanders =
+        rawCommanders && index
+          ? rawCommanders.map((c) => resolveCardIdLenient(index, c))
+          : rawCommanders;
+      const deck = store.create(
+        {
+          name: String(args.name ?? ""),
+          format: args.format === "commander" ? "commander" : undefined,
+          commanders,
+          command_zone_kind:
+            typeof args.command_zone_kind === "string"
+              ? (args.command_zone_kind as "single" | "partner" | "background" | "doctor_companion")
+              : undefined,
+          dataSnapshot: snapshot?.(),
+        },
+        session,
+      );
       return {
         content: [{ type: "text", text: `created deck ${deck.deck_id}` }],
         structuredContent: { deck_id: deck.deck_id, deck },
@@ -74,7 +117,7 @@ function deckCreateTool(store: DeckStore, snapshot?: SnapshotProvider): ToolDefi
   };
 }
 
-function deckGetTool(store: DeckStore, index?: CardIndex): ToolDefinition {
+function deckGetTool(store: DeckStore, session: string, index?: CardIndex): ToolDefinition {
   return {
     name: "deck_get",
     config: {
@@ -86,7 +129,7 @@ function deckGetTool(store: DeckStore, index?: CardIndex): ToolDefinition {
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       return {
         content: [{ type: "text", text: `${deck.name} (v${deck.version})` }],
@@ -96,7 +139,7 @@ function deckGetTool(store: DeckStore, index?: CardIndex): ToolDefinition {
   };
 }
 
-function deckListTool(store: DeckStore): ToolDefinition {
+function deckListTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_list",
     config: {
@@ -105,7 +148,7 @@ function deckListTool(store: DeckStore): ToolDefinition {
       inputSchema: {},
     },
     handler: () => {
-      const decks = store.list();
+      const decks = store.list(session);
       return {
         content: [{ type: "text", text: `${decks.length} decks` }],
         structuredContent: { decks },
@@ -114,7 +157,7 @@ function deckListTool(store: DeckStore): ToolDefinition {
   };
 }
 
-function deckDeleteTool(store: DeckStore): ToolDefinition {
+function deckDeleteTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_delete",
     config: {
@@ -124,7 +167,7 @@ function deckDeleteTool(store: DeckStore): ToolDefinition {
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      if (!store.delete(deckId)) {
+      if (!store.delete(deckId, session)) {
         throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       }
       return {
@@ -135,7 +178,7 @@ function deckDeleteTool(store: DeckStore): ToolDefinition {
   };
 }
 
-function deckSnapshotTool(store: DeckStore): ToolDefinition {
+function deckSnapshotTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_snapshot",
     config: {
@@ -147,7 +190,7 @@ function deckSnapshotTool(store: DeckStore): ToolDefinition {
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      const snap = store.snapshot(deckId);
+      const snap = store.snapshot(deckId, session);
       return {
         content: [
           { type: "text", text: `snapshot ${snap.snapshot_id} of ${deckId} (v${snap.version})` },
@@ -158,7 +201,7 @@ function deckSnapshotTool(store: DeckStore): ToolDefinition {
   };
 }
 
-function deckDiffTool(store: DeckStore): ToolDefinition {
+function deckDiffTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_diff",
     config: {
@@ -176,18 +219,18 @@ function deckDiffTool(store: DeckStore): ToolDefinition {
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
       const fromId = String(args.snapshot_id ?? "");
-      const from = store.getSnapshot(deckId, fromId);
+      const from = store.getSnapshot(deckId, fromId, session);
       if (!from) throw new StructuredError("DECK_NOT_FOUND", `unknown snapshot '${fromId}'`);
 
       let to: Deck;
       if (typeof args.to_snapshot_id === "string") {
-        const toSnap = store.getSnapshot(deckId, args.to_snapshot_id);
+        const toSnap = store.getSnapshot(deckId, args.to_snapshot_id, session);
         if (!toSnap) {
           throw new StructuredError("DECK_NOT_FOUND", `unknown snapshot '${args.to_snapshot_id}'`);
         }
         to = toSnap.deck;
       } else {
-        const deck = store.get(deckId);
+        const deck = store.get(deckId, session);
         if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
         to = deck;
       }
@@ -207,7 +250,7 @@ function deckDiffTool(store: DeckStore): ToolDefinition {
   };
 }
 
-function deckRestoreTool(store: DeckStore): ToolDefinition {
+function deckRestoreTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_restore",
     config: {
@@ -220,7 +263,7 @@ function deckRestoreTool(store: DeckStore): ToolDefinition {
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
       const snapshotId = String(args.snapshot_id ?? "");
-      const deck = store.restore(deckId, snapshotId);
+      const deck = store.restore(deckId, snapshotId, session);
       return {
         content: [
           { type: "text", text: `restored ${deckId} from ${snapshotId} (now v${deck.version})` },
@@ -249,6 +292,7 @@ function mergeEntries(
 
 function deckImportTool(
   store: DeckStore,
+  session: string,
   index?: CardIndex,
   snapshot?: SnapshotProvider,
 ): ToolDefinition {
@@ -292,14 +336,21 @@ function deckImportTool(
       let deckId: string;
       if (typeof args.deck_id === "string") {
         deckId = args.deck_id;
-        store.update(deckId, (deck) => ({ ...deck, cards: mergeEntries(deck.cards, additions) }));
+        store.update(
+          deckId,
+          (deck) => ({ ...deck, cards: mergeEntries(deck.cards, additions) }),
+          session,
+        );
       } else {
-        const deck = store.create({
-          name: typeof args.name === "string" ? args.name : "Imported deck",
-          dataSnapshot: snapshot?.(),
-        });
+        const deck = store.create(
+          {
+            name: typeof args.name === "string" ? args.name : "Imported deck",
+            dataSnapshot: snapshot?.(),
+          },
+          session,
+        );
         deckId = deck.deck_id;
-        store.update(deckId, (d) => ({ ...d, cards: additions }));
+        store.update(deckId, (d) => ({ ...d, cards: additions }), session);
       }
 
       return {
@@ -315,7 +366,7 @@ function deckImportTool(
   };
 }
 
-function deckExportTool(store: DeckStore, index?: CardIndex): ToolDefinition {
+function deckExportTool(store: DeckStore, session: string, index?: CardIndex): ToolDefinition {
   return {
     name: "deck_export",
     config: {
@@ -327,7 +378,7 @@ function deckExportTool(store: DeckStore, index?: CardIndex): ToolDefinition {
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const text = formatDecklist(deck.cards, (id) => index?.getCard(id)?.name);
       return {
@@ -352,7 +403,7 @@ function addVerdict(prospective: Deck, oracleId: string, index?: CardIndex): Vio
   ].filter((v) => v.card?.oracle_id === oracleId);
 }
 
-function deckAddTool(store: DeckStore, index?: CardIndex): ToolDefinition {
+function deckAddTool(store: DeckStore, session: string, index?: CardIndex): ToolDefinition {
   return {
     name: "deck_add",
     config: {
@@ -361,15 +412,24 @@ function deckAddTool(store: DeckStore, index?: CardIndex): ToolDefinition {
         "Add cards by oracle_id (batch, idempotent on (deck_id, oracle_id)). Returns a " +
         "per-card pre-check verdict: ok, or rejected with Violations (identity/legality/" +
         "singleton). Rejected cards are not applied unless force:true, which adds them " +
-        "flagged illegal in state.",
-      inputSchema: { deck_id: z.string(), cards: CARD_ENTRIES, force: z.boolean().optional() },
+        "flagged illegal in state. Pass expected_version for optimistic concurrency: a " +
+        "mismatch returns a conflict without mutating.",
+      inputSchema: {
+        deck_id: z.string(),
+        cards: CARD_ENTRIES,
+        force: z.boolean().optional(),
+        expected_version: z.number().int().nonnegative().optional(),
+      },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
       const force = args.force === true;
       const additions = CARD_ENTRIES.parse(args.cards);
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      if (typeof args.expected_version === "number" && deck.version !== args.expected_version) {
+        return conflict(deckId, deck.version, args.expected_version);
+      }
 
       let working: DeckCardEntry[] = deck.cards.map((e) => ({ ...e }));
       const verdicts: Record<string, unknown>[] = [];
@@ -389,7 +449,7 @@ function deckAddTool(store: DeckStore, index?: CardIndex): ToolDefinition {
         }
       }
 
-      const updated = store.update(deckId, (d) => ({ ...d, cards: working }));
+      const updated = store.update(deckId, (d) => ({ ...d, cards: working }), session);
       return {
         content: [{ type: "text", text: `${verdicts.length} add verdict(s) for ${deckId}` }],
         structuredContent: { deck_id: deckId, version: updated.version, verdicts },
@@ -398,21 +458,30 @@ function deckAddTool(store: DeckStore, index?: CardIndex): ToolDefinition {
   };
 }
 
-function deckRemoveTool(store: DeckStore): ToolDefinition {
+function deckRemoveTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_remove",
     config: {
       title: "Remove cards",
       description:
         "Remove cards by oracle_id (batch). Decrements quantity; an entry is dropped " +
-        "when its quantity reaches zero. Idempotent — removing more than present clears it.",
-      inputSchema: { deck_id: z.string(), cards: CARD_ENTRIES },
+        "when its quantity reaches zero. Idempotent — removing more than present clears it. " +
+        "Pass expected_version for optimistic concurrency: a mismatch returns a conflict " +
+        "without mutating.",
+      inputSchema: {
+        deck_id: z.string(),
+        cards: CARD_ENTRIES,
+        expected_version: z.number().int().nonnegative().optional(),
+      },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
       const removals = CARD_ENTRIES.parse(args.cards);
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      if (typeof args.expected_version === "number" && deck.version !== args.expected_version) {
+        return conflict(deckId, deck.version, args.expected_version);
+      }
 
       const remove = new Map<string, number>();
       for (const r of removals) remove.set(r.oracle_id, (remove.get(r.oracle_id) ?? 0) + r.qty);
@@ -420,7 +489,7 @@ function deckRemoveTool(store: DeckStore): ToolDefinition {
         .map((e) => ({ ...e, qty: e.qty - (remove.get(e.oracle_id) ?? 0) }))
         .filter((e) => e.qty > 0);
 
-      const updated = store.update(deckId, (d) => ({ ...d, cards }));
+      const updated = store.update(deckId, (d) => ({ ...d, cards }), session);
       return {
         content: [{ type: "text", text: `removed from ${deckId} (${cards.length} entries left)` }],
         structuredContent: { deck_id: deckId, version: updated.version },
@@ -445,28 +514,40 @@ function inferZoneKind(commanders: readonly string[], index?: CardIndex): Comman
   return "partner";
 }
 
-function deckSetCommanderTool(store: DeckStore, index?: CardIndex): ToolDefinition {
+function deckSetCommanderTool(
+  store: DeckStore,
+  session: string,
+  index?: CardIndex,
+): ToolDefinition {
   return {
     name: "deck_set_commander",
     config: {
       title: "Set commander(s)",
       description:
-        "Set or replace a deck's commander(s). Validates eligibility + partner/background/" +
-        "Doctor pairings and recomputes the deck's combined color identity. Rejects an " +
-        "illegal command zone with Violations rather than applying it.",
+        "Set or replace a deck's commander(s), given by oracle_id or card name. Validates " +
+        "eligibility + partner/background/Doctor pairings and recomputes the deck's combined " +
+        "color identity. Rejects an illegal command zone with Violations rather than applying " +
+        "it. Pass expected_version for optimistic concurrency: a mismatch returns a conflict " +
+        "without mutating.",
       inputSchema: {
         deck_id: z.string(),
         commanders: z.array(z.string()),
         command_zone_kind: z.enum(COMMAND_ZONE_KINDS).optional(),
+        expected_version: z.number().int().nonnegative().optional(),
       },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      const commanders = Array.isArray(args.commanders)
+      const rawCommanders = Array.isArray(args.commanders)
         ? args.commanders.filter((x): x is string => typeof x === "string")
         : [];
-      const deck = store.get(deckId);
+      // Accept name-or-id: resolve names to oracle_ids so identity computes correctly.
+      const commanders = index ? rawCommanders.map((c) => resolveCardId(index, c)) : rawCommanders;
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      if (typeof args.expected_version === "number" && deck.version !== args.expected_version) {
+        return conflict(deckId, deck.version, args.expected_version);
+      }
 
       const kind: CommandZoneKind =
         typeof args.command_zone_kind === "string"
@@ -490,12 +571,16 @@ function deckSetCommanderTool(store: DeckStore, index?: CardIndex): ToolDefiniti
         };
       }
 
-      const updated = store.update(deckId, (d) => ({
-        ...d,
-        commanders,
-        command_zone_kind: kind,
-        computed_color_identity: identity,
-      }));
+      const updated = store.update(
+        deckId,
+        (d) => ({
+          ...d,
+          commanders,
+          command_zone_kind: kind,
+          computed_color_identity: identity,
+        }),
+        session,
+      );
       return {
         content: [{ type: "text", text: `set ${commanders.length} commander(s) on ${deckId}` }],
         structuredContent: {
@@ -511,24 +596,25 @@ function deckSetCommanderTool(store: DeckStore, index?: CardIndex): ToolDefiniti
   };
 }
 
-/** Build the deck lifecycle tools bound to a DeckStore (+ optional index/snapshot). */
+/** Build the deck lifecycle tools bound to a DeckStore (+ optional index/snapshot), scoped to a session. */
 export function makeDeckTools(
   store: DeckStore,
   index?: CardIndex,
   snapshot?: SnapshotProvider,
+  session = "local",
 ): ToolDefinition[] {
   return [
-    deckCreateTool(store, snapshot),
-    deckGetTool(store, index),
-    deckListTool(store),
-    deckDeleteTool(store),
-    deckSnapshotTool(store),
-    deckDiffTool(store),
-    deckRestoreTool(store),
-    deckImportTool(store, index, snapshot),
-    deckExportTool(store, index),
-    deckAddTool(store, index),
-    deckRemoveTool(store),
-    deckSetCommanderTool(store, index),
+    deckCreateTool(store, session, index, snapshot),
+    deckGetTool(store, session, index),
+    deckListTool(store, session),
+    deckDeleteTool(store, session),
+    deckSnapshotTool(store, session),
+    deckDiffTool(store, session),
+    deckRestoreTool(store, session),
+    deckImportTool(store, session, index, snapshot),
+    deckExportTool(store, session, index),
+    deckAddTool(store, session, index),
+    deckRemoveTool(store, session),
+    deckSetCommanderTool(store, session, index),
   ];
 }

@@ -8,6 +8,7 @@
  * not exhaustive. Like the EDHREC client, the HTTP boundary is an injectable
  * fetcher so parsing is unit-testable offline.
  */
+import { USER_AGENT } from "../types/index.js";
 import type { CacheStore } from "./cache.js";
 
 /** Combo data changes less often than prices; cache a query for a day. */
@@ -75,7 +76,7 @@ const defaultFetchJson: FetchJson = async (url, init) => {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      "User-Agent": "mtg-edh-mcp (+https://github.com/; Scryfall Fan Content)",
+      "User-Agent": USER_AGENT,
       ...init?.headers,
     },
   });
@@ -112,9 +113,18 @@ export class SpellbookClient {
     const raw = await this.cache.fetch(SpellbookClient.key(commanders, cards), this.ttlMs, () =>
       this.fetchJson("https://backend.commanderspellbook.com/find-my-combos", {
         method: "POST",
-        body: JSON.stringify({ commanders, main: cards }),
+        // The API requires {card, quantity} objects per entry — bare name strings
+        // are rejected with HTTP 400 ("Expected a dictionary, but got str.").
+        body: JSON.stringify({ commanders: cardEntries(commanders), main: cardEntries(cards) }),
       }),
     );
     return parseCombos(raw);
   }
+}
+
+/** Collapse a name list to the API's {card, quantity} entries (dedupes, counts). */
+function cardEntries(names: readonly string[]): Array<{ card: string; quantity: number }> {
+  const counts = new Map<string, number>();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  return [...counts].map(([card, quantity]) => ({ card, quantity }));
 }

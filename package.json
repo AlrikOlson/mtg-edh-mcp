@@ -1,9 +1,28 @@
 {
   "name": "mtg-edh-mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Model Context Protocol server for Magic: The Gathering Commander/EDH deckbuilding.",
   "type": "module",
   "license": "MIT",
+  "author": "Alrik Olson",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "magic-the-gathering",
+    "mtg",
+    "commander",
+    "edh",
+    "deckbuilding",
+    "scryfall"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alrik/mtg-edh-mcp.git"
+  },
+  "homepage": "https://github.com/alrik/mtg-edh-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/alrik/mtg-edh-mcp/issues"
+  },
   "engines": {
     "node": ">=18"
   },
@@ -18,6 +37,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "ingest": "node dist/ingest.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

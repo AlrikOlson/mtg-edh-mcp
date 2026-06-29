@@ -42,13 +42,45 @@ function isBasicLand(card: Card): boolean {
   return card.type_line.includes("Basic") && card.type_line.includes("Land");
 }
 
+/** Why a card is exempt from the singleton rule (may appear in any quantity). */
+export type AnyNumberReason = "basic_land" | "allowlist" | "oracle_text";
+
+/** The singleton-exemption reason for a card, or null when the singleton rule applies. */
+export function anyNumberReason(card: Card): AnyNumberReason | null {
+  if (isBasicLand(card)) return "basic_land";
+  if (ANY_NUMBER_ALLOWLIST.has(card.name)) return "allowlist";
+  if (ANY_NUMBER_TEXT.test(card.oracle_text)) return "oracle_text";
+  return null;
+}
+
 /** True when a card may appear in any quantity (exempt from the singleton rule). */
 function isAnyNumberAllowed(card: Card): boolean {
-  return (
-    isBasicLand(card) ||
-    ANY_NUMBER_ALLOWLIST.has(card.name) ||
-    ANY_NUMBER_TEXT.test(card.oracle_text)
-  );
+  return anyNumberReason(card) !== null;
+}
+
+/** A qty>1 entry that is exempt from singleton, and why (advisory; not a violation). */
+export interface AnyNumberExemption {
+  oracle_id: string;
+  name: string;
+  qty: number;
+  reason: AnyNumberReason;
+}
+
+/**
+ * List the deck's qty>1 entries that are exempt from the singleton rule, with the
+ * reason. Advisory messaging (review #14) — confirms the "any number" exception
+ * applied so a multi-copy import (e.g. 15× Relentless Rats) isn't silently legal.
+ */
+export function anyNumberExemptions(deck: Deck, lookup: CardLookup): AnyNumberExemption[] {
+  const out: AnyNumberExemption[] = [];
+  for (const entry of deck.cards) {
+    if (entry.qty <= 1) continue;
+    const card = lookup(entry.oracle_id);
+    if (!card) continue;
+    const reason = anyNumberReason(card);
+    if (reason) out.push({ oracle_id: card.oracle_id, name: card.name, qty: entry.qty, reason });
+  }
+  return out;
 }
 
 /** A card-scoped violation's `card` field (oracle_id + name). */

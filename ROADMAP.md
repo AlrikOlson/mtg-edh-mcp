@@ -136,6 +136,76 @@
   - acceptance: Benchmark suite enforces the <50ms budget in CI
   - acceptance: Identical inputs vs a given data_snapshot yield identical outputs
   - acceptance: Enrichment calls are async with cached fallback
+- [x] **P7 · HTTP multi-tenancy & concurrency** — Spec §2/§11. Streamable-HTTP session/auth-principal scoping of deck state; bulk card data shared read-only. Deck mutations versioned, last-write-wins per deck_id with optimistic version checks; deck_add/remove idempotent.
+  - deps: p3-state, p0-server
+  - acceptance: Two principals' decks are isolated
+  - acceptance: Concurrent-edit optimistic version check works
+  - acceptance: Card data shared read-only across sessions
+- [x] **P7 · End-to-end worked-example acceptance** — Spec §10. Prove the primitives are sufficient by building all three worked-example decks purely by composing tools: (a) Thrasios/Tymna cEDH combo, (b) $75 Goblins budget tribal, (c) group-hug 'everyone draws' jank. The server makes zero strategic decisions and enforces every rule.
+  - deps: p2-card-tools, p3-importexport, p4-tools, p5-mana, p6-bracket
+  - acceptance: All three decks build to legal 100-card lists via tool calls only
+  - acceptance: Each passes validate_deck and is analyzable
+  - acceptance: No bespoke per-archetype code paths were needed
+- [x] **P7 · Compliance, observability & release** — Spec §11. Scryfall Fan Content compliance (descriptive User-Agent, no data paywalling, genuine value-add), observability (every response stamps data_snapshot; upstream failures logged + degrade gracefully), README + per-tool docs, packaging and publish.
+  - deps: p7-nfr, p7-multitenancy, p7-e2e
+  - acceptance: Compliance checklist met (User-Agent, no paywalling)
+  - acceptance: Package installs and runs from a clean clone
+  - acceptance: Docs cover every tool + both transports
+- [x] **P8 · Set-commander accepts names (identity bug)** — Review #1 (code-confirmed). deck_set_commander/validate_commander take oracle_ids only; passing a card NAME falls through index.getCard(name)->null and silently yields computed_color_identity [], which then rejects every colored card. Fix: resolve each commander arg as name-or-oracle_id (reuse CardIndex.resolveName), recompute identity from resolved cards, and reject unresolved/ambiguous inputs with UNKNOWN_CARD/AMBIGUOUS_NAME instead of producing an empty identity. Apply the same name-or-id acceptance to deck_create's commanders.
+  - deps: p3-commander, p2-card-tools
+  - acceptance: Setting a commander by name computes the correct color identity
+  - acceptance: An unknown/ambiguous commander name returns a structured error, never an empty identity
+  - acceptance: deck_create + validate_commander accept name or oracle_id
+- [x] **P8 · Cheapest-printing pricing + deck min-buy** — Review #4 (code-confirmed feasible). analyze_stats + card refs price off a single stored printing, overstating budget decks (Relentless Rats $5.21, Rat Colony $6.51 vs ~$0.30 real; an ~$80 deck reported as $335). The printings table ALREADY stores per-printing prices, so cheapest is computable with no re-ingest. Expose cheapest_usd and default_usd separately on card data, and have analyze_stats report both a default-printing total and a deck 'min buy' (sum of cheapest printings).
+  - deps: p1-index, p5-basic
+  - acceptance: Card data exposes cheapest-printing and default-printing USD separately
+  - acceptance: analyze_stats reports both a default total and a min-buy total
+  - acceptance: A known budget reprint (e.g. Relentless Rats) prices at its cheapest printing, not a premium one
+- [x] **P8 · Repair Commander Spellbook combos (HTTP 400)** — Review #5 (user-observed; honest test gap). meta_combos returned UPSTREAM_UNAVAILABLE on every call — Commander Spellbook find-my-combos responds HTTP 400, so combo detection never worked live. Root cause: our tests only ever exercised a FAKE fetcher, so a drifted request schema/URL went undetected. Fix the live request shape/URL against the current Commander Spellbook API, AND add a live (or recorded-fixture) integration smoke so a future drift fails CI rather than silently degrading.
+  - deps: p6-combos
+  - acceptance: meta_combos returns real combos for a known combo deck against the live API
+  - acceptance: A recorded-fixture or live smoke test guards the request contract
+  - acceptance: Graceful UPSTREAM_UNAVAILABLE still covers genuine outages
+- [x] **P8 · card_get field projection (payload overflow)** — Review #2 (code-confirmed). card_get returns the full Card including the entire printings array; a ~75-card batch returned ~396K chars and errored. Add an include_printings:false (default) / fields projection so batches stay lean by default, with printings fetched explicitly via card_printings or an opt-in flag. Honors the token-economy principle (spec §9).
+  - deps: p2-card-tools
+  - acceptance: card_get omits printings by default
+  - acceptance: An opt-in flag returns full printings for a single card
+  - acceptance: A 75-card batch returns without overflowing
+- [x] **P8 · Prefer real card over token in name resolution** — Review #6 (user-observed). deck_import/card_resolve_name half-fail on names that also have a token printing (Llanowar Elves, Mutavault, Iridescent Vinelasher, Birgi), bouncing the user to manual deck_add by oracle_id. Resolution should prefer the real, castable card over a token/emblem printing by default (e.g. de-rank funny/token layouts), only reporting AMBIGUOUS when there are genuinely multiple real cards.
+  - deps: p2-card-tools, p3-importexport
+  - acceptance: Importing 'Llanowar Elves' resolves to the real card, not the token
+  - acceptance: Genuinely ambiguous names still return AMBIGUOUS_NAME with candidates
+  - acceptance: deck_import no longer half-fails on token-shadowed names
+- [x] **P8 · Argument ergonomics + meta_themes bare call** — Review #3 + #7. Inconsistent arg styles trip callers: card_get/deck_set_commander require arrays and error verbosely on a singular/string; deck_add uses oracle_id+qty while deck_import uses names. Accept name-or-id and singular-or-array where sensible, with clear coercion. meta_themes requires a {commander} arg (metaTools.ts) but reads like a global theme list — either make the arg's purpose explicit in the description/error or support a bare global-themes mode.
+  - deps: p4-tools, p6-edhrec
+  - acceptance: Tools that take id lists also accept names and a singular value
+  - acceptance: meta_themes called bare returns a clear, actionable error or a global result
+  - acceptance: Error messages name the expected shape concisely
+- [x] **P8 · Quantity-aware 'any number' validation messaging** — Review #14. The singleton 'any number' exception (basic lands, Relentless Rats/Rat Colony allowlist + 'A deck can have any number of cards named' text) already works, but silently — importing 15 Relentless Rats validates with no explanation. Surface a positive, per-entry note confirming the any-number exception applied, so the user isn't left wondering whether the singleton rule will reject it.
+  - deps: p4-core-rules
+  - acceptance: validate_deck output explicitly notes when an entry is exempt from singleton (any-number)
+  - acceptance: The note identifies the reason (basic land / allowlist / oracle-text grant)
+  - acceptance: No false singleton error for any-number cards
+- [x] **P9 · Monte Carlo goldfish — pure sim core** — Review #8/#13, part 1 of 2 (split from p9-simulate-deck). Pure, deterministic Monte Carlo goldfish engine in src/analyze (no MCP, no network): given a deck's cards + lookup + {trials, seed, handSize, onThePlay}, run a seeded shuffle/draw simulation and report opening-hand keepable rate, mulligan rate, dead-on-arrival (mana-screw/flood) rate, avg opening lands, lands-available-by-turn, and turn-to-first-castable-spell. Seeded PRNG (mulberry32) — NO Math.random; identical seed -> identical stats (spec §11). Scope honesty: this is a MANA/CURVE goldfish (hand quality + castability), NOT full combat/wincon/expected-damage modeling.
+  - deps: p5-mana
+  - acceptance: Deterministic: same deck+seed yields identical stats (run-twice deepEqual test)
+  - acceptance: Reports keepable %, mulligan %, DOA %, avg opening lands, lands-by-turn, turn-to-first-spell
+  - acceptance: Pure + unit-tested with fixed-seed exact expected numbers; advisory only
+- [x] **P9 · simulate_deck MCP tool** — Review #8/#13, part 2 of 2 (split from p9-simulate-deck). Wrap the pure sim core (p9-sim-core) as a simulate_deck MCP tool: read the deck via the store, lookup via the index, accept {deck_id, trials?, seed?, on_the_play?}, return the goldfish stats. Registered in createServer (gated on index && deckStore), advisory only (never mutates the deck). Server test via in-process Client.
+  - deps: p9-sim-core, p3-state
+  - acceptance: simulate_deck returns the core's goldfish stats for a deck_id
+  - acceptance: Deterministic for a fixed seed through the tool boundary
+  - acceptance: DECK_NOT_FOUND for an unknown deck; advisory (no mutation)
+- [x] **P9 · Budget plan — reprint savings + cost drivers** — Review #10, part 1 of 2 (split from p9-budget-optimizer). Pure deterministic budget planner in src/analyze + a budget_plan MCP tool: given a deck (+ optional target_usd), report default_total_usd vs min_buy_usd, total reprint_savings (sum of default-cheapest per copy = buy the cheap printing, zero deck change), a ranked reprint_suggestions list, ranked cost_drivers (most expensive cards by cheapest*qty, with roles — what to consider cutting), and the gap over target. Builds on cheapestUsd/defaultUsd (p8-pricing-cheapest). NO functional-replacement suggestion here (that needs role/identity matching or EDHREC — deferred to p9-budget-replace). Honest: figures are MCP-data price floors, not street prices.
+  - deps: p8-pricing-cheapest
+  - acceptance: budget_plan reports default vs min-buy totals + total reprint savings
+  - acceptance: Ranked reprint_suggestions (default>cheapest) and cost_drivers (by cheapest*qty, with roles)
+  - acceptance: Reports the over-target gap when target_usd given; pure + deterministic (oracle_id tiebreak); advisory
+- [x] **P9 · Missing-staples diff vs EDHREC typical list** — Review #11 (split from p9-archetype-diff-bracket). A meta_missing_staples tool: diff a deck against its commander's TYPICAL EDHREC list and report the high-inclusion staples the deck is MISSING — distinct from meta_recommendations ('what fits') by ranking on inclusion (prevalence: how often typical decks run the card) and exposing each card's inclusion %, with a min_inclusion threshold. Resolves names→oracle_ids, filters to the deck's identity, excludes in-deck cards. EDHREC-backed (cached/degrading). Advisory.
+  - deps: p6-edhrec, p3-state
+  - acceptance: meta_missing_staples lists in-identity, not-in-deck staples ranked by inclusion with each card's inclusion %
+  - acceptance: Honors min_inclusion threshold + limit; unresolved names reported not dropped
+  - acceptance: DECK_NOT_FOUND for unknown deck; degrades to UPSTREAM_UNAVAILABLE when EDHREC is down with nothing cached
 
 ## Backlog
 
@@ -144,21 +214,6 @@
   - acceptance: Deck model carries a declared companion
   - acceptance: Companion condition validated only when declared
   - acceptance: At least one real companion condition (e.g. Lutri/Jegantha) enforced
-- [ ] **P7 · HTTP multi-tenancy & concurrency** — Spec §2/§11. Streamable-HTTP session/auth-principal scoping of deck state; bulk card data shared read-only. Deck mutations versioned, last-write-wins per deck_id with optimistic version checks; deck_add/remove idempotent.
-  - deps: p3-state, p0-server
-  - acceptance: Two principals' decks are isolated
-  - acceptance: Concurrent-edit optimistic version check works
-  - acceptance: Card data shared read-only across sessions
-- [ ] **P7 · End-to-end worked-example acceptance** — Spec §10. Prove the primitives are sufficient by building all three worked-example decks purely by composing tools: (a) Thrasios/Tymna cEDH combo, (b) $75 Goblins budget tribal, (c) group-hug 'everyone draws' jank. The server makes zero strategic decisions and enforces every rule.
-  - deps: p2-card-tools, p3-importexport, p4-tools, p5-mana, p6-bracket
-  - acceptance: All three decks build to legal 100-card lists via tool calls only
-  - acceptance: Each passes validate_deck and is analyzable
-  - acceptance: No bespoke per-archetype code paths were needed
-- [ ] **P7 · Compliance, observability & release** — Spec §11. Scryfall Fan Content compliance (descriptive User-Agent, no data paywalling, genuine value-add), observability (every response stamps data_snapshot; upstream failures logged + degrade gracefully), README + per-tool docs, packaging and publish.
-  - deps: p7-nfr, p7-multitenancy, p7-e2e
-  - acceptance: Compliance checklist met (User-Agent, no paywalling)
-  - acceptance: Package installs and runs from a clean clone
-  - acceptance: Docs cover every tool + both transports
 - [ ] **Backlog · Format generalization (Brawl/Oathbreaker/…)** — Spec §12. Parameterize the rules engine (count, command-zone kind, banlist source) so the same primitives generalize to Brawl, Oathbreaker, and other singleton/identity formats. Keep `format` a first-class field. Post-v1.
   - deps: p4-tools
   - acceptance: Rules engine parameterized by format profile
@@ -174,5 +229,33 @@
   - acceptance: Per-deck role overrides supported
   - acceptance: Overrides feed analyze_composition/role_coverage
   - acceptance: Classifier remains the default source
+- [ ] **P9 · Budget functional-replacement suggester** — Review #10, part 2 of 2 (split from p9-budget-optimizer). For each expensive card, suggest a CHEAPER functional REPLACEMENT of the same functional role within the deck's color identity, to hit a $ target — beyond the zero-change reprint savings of p9-budget-reprints. Needs role+identity matching (local role-indexed search and/or EDHREC recommendations); the hard, heuristic part. Builds on p9-budget-reprints + EDHREC.
+  - deps: p9-budget-reprints, p6-edhrec
+  - acceptance: Suggests cheaper same-role, in-identity replacements for expensive cards
+  - acceptance: Respects color identity + functional role when substituting
+  - acceptance: Reports projected min-buy after suggested swaps
+- [ ] **P9 · Surface bracket verdict in the analyze flow** — Review #12 (split from p9-archetype-diff-bracket). The power-level verdict already exists via meta_classify_bracket; this is the cosmetic 'surface it during tuning' part — e.g. a combined meta_deck_summary bundling analyze_stats + min_buy + bracket verdict, or otherwise making the bracket discoverable in the analyze flow. Low value / low urgency since the verdict is already a tool; kept as backlog.
+  - deps: p6-bracket, p3-state
+  - acceptance: The bracket verdict is reachable within a combined analyze/summary flow (not only via an explicit meta_classify_bracket call)
+  - acceptance: No duplication of the classifyBracket logic
+  - acceptance: Advisory; degrades gracefully when the Game Changers list is unavailable
+
+## Obsoleted
+
+- [-] **P9 · Monte Carlo goldfish / playtest simulator** — Review #8 + #13 — the user's #1 feature ask; they hand-wrote Python Monte Carlo sims for all 5 decks. Add a simulate_deck tool: opening-hand keep rate, mulligan + 'dead on arrival' stats, mana-curve playout, turn-to-first-spell / turn-to-combo, and expected damage/poison output over N trials. Must be deterministic given a seed (spec §11 determinism). Large — likely decompose into a pure sim core + the MCP tool when picked up.
+  - deps: p3-state, p5-mana
+  - acceptance: simulate_deck reports keepable-hand % and mulligan/DOA stats over N seeded trials
+  - acceptance: Reports a turn-to-win/turn-to-combo distribution and expected damage
+  - acceptance: Deterministic for a fixed seed; advisory only (never mutates the deck)
+- [-] **P9 · Budget optimizer / swap suggester** — Review #10. 'Get this deck under $75' — suggest cheaper functional reprints (same oracle, cheapest printing) and functional replacements (same role/identity, lower price) to hit a target, reporting the projected min-buy total. Builds on p8-pricing-cheapest (cheapest-printing data) and EDHREC role/recommendation data. The user did this by hand 3x.
+  - deps: p8-pricing-cheapest, p6-edhrec
+  - acceptance: Given a $ target, suggests reprints/replacements with projected savings
+  - acceptance: Respects color identity + functional role when substituting
+  - acceptance: Reports the resulting deck min-buy total
+- [-] **P9 · Archetype/bracket diff + surface bracket verdict** — Review #11 + #12. deck_diff currently only compares snapshots; add diffing a deck against an archetype/typical-list baseline ('what do typical Karumonix lists run that I'm missing', from EDHREC commander data) beyond raw recommendations. Also surface the existing meta_classify_bracket verdict within the analyze flow so power-level (casual vs cEDH bracket) shows up during tuning rather than only on an explicit call.
+  - deps: p6-edhrec, p6-bracket
+  - acceptance: A deck can be diffed against its commander's typical EDHREC list
+  - acceptance: The analyze flow surfaces the bracket verdict
+  - acceptance: Missing-staples report is distinct from raw recommendations
 
 

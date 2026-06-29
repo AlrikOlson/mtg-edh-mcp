@@ -8,10 +8,12 @@
  * StructuredError("UPSTREAM_UNAVAILABLE").
  */
 import { StructuredError } from "../types/errors.js";
+import { USER_AGENT } from "../types/index.js";
 import { Throttle } from "./throttle.js";
 
 export const BULK_DATA_URL = "https://api.scryfall.com/bulk-data";
-export const USER_AGENT = "mtg-edh-mcp/0.0.0 (+https://github.com/alrik/mtg-edh-mcp)";
+// One descriptive User-Agent for the whole codebase (spec §11); see src/types.
+export { USER_AGENT };
 export const MIN_REQUEST_SPACING_MS = 100;
 
 /** The two bulk exports this server ingests. */

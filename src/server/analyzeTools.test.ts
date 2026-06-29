@@ -149,3 +149,70 @@ describe("analysis tools", () => {
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
 });
+
+describe("simulate_deck (goldfish)", () => {
+  it("is registered", async () => {
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain("simulate_deck");
+  });
+
+  it("returns goldfish stats for a deck", async () => {
+    const res = await client.callTool({
+      name: "simulate_deck",
+      arguments: { deck_id: "deck-1", trials: 100, seed: 5 },
+    });
+    const r = res.structuredContent as {
+      deck_id: string;
+      trials: number;
+      keepable_rate: number;
+      dead_on_arrival_rate: number;
+      lands_by_turn: Record<string, number>;
+    };
+    expect(r.deck_id).toBe("deck-1");
+    expect(r.trials).toBe(100);
+    expect(r.keepable_rate).toBeGreaterThanOrEqual(0);
+    expect(r.keepable_rate).toBeLessThanOrEqual(1);
+    expect(Object.keys(r.lands_by_turn).length).toBeGreaterThan(0);
+  });
+
+  it("is deterministic through the tool boundary (same seed → identical output)", async () => {
+    const args = { deck_id: "deck-1", trials: 100, seed: 5 };
+    const a = await client.callTool({ name: "simulate_deck", arguments: args });
+    const b = await client.callTool({ name: "simulate_deck", arguments: args });
+    expect(b.structuredContent).toEqual(a.structuredContent);
+  });
+
+  it("returns DECK_NOT_FOUND for an unknown deck", async () => {
+    const res = await client.callTool({ name: "simulate_deck", arguments: { deck_id: "nope" } });
+    expect(res.isError).toBe(true);
+    expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+  });
+});
+
+describe("budget_plan", () => {
+  it("is registered and reports budget figures for a deck", async () => {
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain("budget_plan");
+    const res = await client.callTool({
+      name: "budget_plan",
+      arguments: { deck_id: "deck-1", target_usd: 1 },
+    });
+    const r = res.structuredContent as {
+      min_buy_usd: number;
+      default_total_usd: number;
+      reprint_savings_usd: number;
+      cost_drivers: unknown[];
+      over_min_buy_by_usd: number | null;
+    };
+    expect(typeof r.min_buy_usd).toBe("number");
+    expect(r.default_total_usd).toBeGreaterThanOrEqual(r.min_buy_usd);
+    expect(Array.isArray(r.cost_drivers)).toBe(true);
+    expect(r.over_min_buy_by_usd).not.toBeNull();
+  });
+
+  it("returns DECK_NOT_FOUND for an unknown deck", async () => {
+    const res = await client.callTool({ name: "budget_plan", arguments: { deck_id: "nope" } });
+    expect(res.isError).toBe(true);
+    expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+  });
+});

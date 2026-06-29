@@ -16,7 +16,9 @@ import {
   checkBanlist,
   checkColorIdentity,
   checkSingleton,
+  anyNumberExemptions,
 } from "../validate/index.js";
+import { resolveCardId } from "./resolve.js";
 import type { ToolDefinition } from "./registry.js";
 
 /** Partition violations into hard errors and advisory warnings by severity. */
@@ -27,7 +29,7 @@ function split(violations: Violation[]): { errors: Violation[]; warnings: Violat
   };
 }
 
-function validateDeckTool(store: DeckStore, index: CardIndex): ToolDefinition {
+function validateDeckTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
   return {
     name: "validate_deck",
     config: {
@@ -40,11 +42,14 @@ function validateDeckTool(store: DeckStore, index: CardIndex): ToolDefinition {
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const lookup = (id: string): Card | null => index.getCard(id);
       const violations = [...validateCore(deck, lookup), ...validateCommander(deck, lookup)];
       const { errors, warnings } = split(violations);
+      // Advisory (review #14): qty>1 cards legally exempt from singleton (basics,
+      // allowlist, "any number" oracle text) — confirms the exception applied.
+      const exemptions = anyNumberExemptions(deck, lookup);
       return {
         content: [
           { type: "text", text: `${errors.length} error(s), ${warnings.length} warning(s)` },
@@ -55,13 +60,14 @@ function validateDeckTool(store: DeckStore, index: CardIndex): ToolDefinition {
           violations,
           errors,
           warnings,
+          exemptions,
         },
       };
     },
   };
 }
 
-function validateCardTool(store: DeckStore, index: CardIndex): ToolDefinition {
+function validateCardTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
   return {
     name: "validate_card",
     config: {
@@ -79,7 +85,7 @@ function validateCardTool(store: DeckStore, index: CardIndex): ToolDefinition {
       const deckId = String(args.deck_id ?? "");
       const oracleId = String(args.oracle_id ?? "");
       const qty = typeof args.qty === "number" ? args.qty : 1;
-      const deck = store.get(deckId);
+      const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
 
       // Prospective deck = current cards with this card merged in (no persistence).
@@ -113,15 +119,19 @@ function validateCardTool(store: DeckStore, index: CardIndex): ToolDefinition {
   };
 }
 
-function validateCommanderTool(store: DeckStore, index: CardIndex): ToolDefinition {
+function validateCommanderTool(
+  store: DeckStore,
+  index: CardIndex,
+  session: string,
+): ToolDefinition {
   return {
     name: "validate_commander",
     config: {
       title: "Validate commander(s)",
       description:
         "Check command-zone legality: pass a deck_id to validate its commanders, or pass " +
-        "commanders + command_zone_kind directly. Returns legality, Violations, and the " +
-        "combined color identity.",
+        "commanders (by oracle_id or card name) + command_zone_kind directly. Returns " +
+        "legality, Violations, and the combined color identity.",
       inputSchema: {
         deck_id: z.string().optional(),
         commanders: z.array(z.string()).optional(),
@@ -134,13 +144,16 @@ function validateCommanderTool(store: DeckStore, index: CardIndex): ToolDefiniti
       const lookup = (id: string): Card | null => index.getCard(id);
       let deck: Deck;
       if (typeof args.deck_id === "string") {
-        const found = store.get(args.deck_id);
+        const found = store.get(args.deck_id, session);
         if (!found) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${args.deck_id}'`);
         deck = found;
       } else {
-        const commanders = Array.isArray(args.commanders)
-          ? args.commanders.filter((x): x is string => typeof x === "string")
-          : [];
+        // Accept name-or-id: resolve each commander to an oracle_id.
+        const commanders = (
+          Array.isArray(args.commanders)
+            ? args.commanders.filter((x): x is string => typeof x === "string")
+            : []
+        ).map((c) => resolveCardId(index, c));
         const kind: CommandZoneKind =
           typeof args.command_zone_kind === "string"
             ? (args.command_zone_kind as CommandZoneKind)
@@ -181,11 +194,15 @@ function validateCommanderTool(store: DeckStore, index: CardIndex): ToolDefiniti
   };
 }
 
-/** Build the validation tools bound to a DeckStore + CardIndex (both required). */
-export function makeValidateTools(store: DeckStore, index: CardIndex): ToolDefinition[] {
+/** Build the validation tools bound to a DeckStore + CardIndex (both required), scoped to a session. */
+export function makeValidateTools(
+  store: DeckStore,
+  index: CardIndex,
+  session = "local",
+): ToolDefinition[] {
   return [
-    validateDeckTool(store, index),
-    validateCardTool(store, index),
-    validateCommanderTool(store, index),
+    validateDeckTool(store, index, session),
+    validateCardTool(store, index, session),
+    validateCommanderTool(store, index, session),
   ];
 }

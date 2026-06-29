@@ -9,8 +9,10 @@
 import { z } from "zod";
 import { parseQuery } from "../query/index.js";
 import { CardIndex, type SearchOptions } from "../index/index.js";
+import { cheapestUsd, defaultUsd } from "../analyze/index.js";
 import { StructuredError } from "../types/index.js";
 import type { Card } from "../types/index.js";
+import { resolveCardIdLenient } from "./resolve.js";
 import type { ToolDefinition } from "./registry.js";
 
 function cardSearchTool(index: CardIndex): ToolDefinition {
@@ -53,18 +55,37 @@ function cardGetTool(index: CardIndex): ToolDefinition {
     name: "card_get",
     config: {
       title: "Card get",
-      description: "Fetch full Card objects by oracle_id (batch). Reports any unknown ids.",
-      inputSchema: { oracle_ids: z.array(z.string()) },
+      description:
+        "Fetch Card objects by oracle_id OR card name (batch). Unresolvable entries are " +
+        "reported in missing[]. Lean by default: the full printings[] array is omitted (it " +
+        "can overflow large batches) — each card instead carries default_usd (chosen " +
+        "printing's price) and cheapest_usd (floor across all printings) for budget-aware " +
+        "decisions. Set include_printings:true for the full printings array (or use " +
+        "card_printings for one card).",
+      inputSchema: { oracle_ids: z.array(z.string()), include_printings: z.boolean().optional() },
     },
     handler: (args) => {
       const raw = args.oracle_ids;
-      const ids = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
-      const cards: Card[] = [];
+      // Accept name-or-id: resolve each entry to an oracle_id (unknown/ambiguous stays
+      // as the original string and falls through to missing[] — no wholesale batch throw).
+      const ids = (
+        Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []
+      ).map((entry) => resolveCardIdLenient(index, entry));
+      const includePrintings = args.include_printings === true;
+      const cards: Array<
+        Partial<Card> & { default_usd: number | null; cheapest_usd: number | null }
+      > = [];
       const missing: string[] = [];
       for (const id of ids) {
         const card = index.getCard(id);
-        if (card) cards.push(card);
-        else missing.push(id);
+        if (!card) {
+          missing.push(id);
+          continue;
+        }
+        const pricing = { default_usd: defaultUsd(card), cheapest_usd: cheapestUsd(card) };
+        const lean: Partial<Card> = { ...card };
+        if (!includePrintings) delete lean.printings; // omit the heavy array by default
+        cards.push({ ...lean, ...pricing });
       }
       return {
         content: [{ type: "text", text: `${cards.length} found, ${missing.length} missing` }],
