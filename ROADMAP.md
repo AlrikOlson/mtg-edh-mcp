@@ -1,15 +1,6 @@
 think-and-ship: loaded roadmap with 52 chunk(s) from disk
 # Roadmap — mtg-edh-mcp-4d66ba
 
-## Pending
-
-- [ ] **P10 · Legendary Vehicle/Spacecraft commander eligibility (rules change)** — Refresh 2026 (think:92), code-confirmed correctness bug. Edge of Eternities changed Commander rule 903.3 (~Jul 25, 2025): legendary Vehicles and legendary Spacecraft WITH A PRINTED POWER/TOUGHNESS are eligible commanders — retroactive, ~21-22 new commanders (Parhelion II, The Last Ride, etc.). Current isCommanderEligible accepts only `Legendary Creature` OR oracle text 'can be your commander'; Vehicles/Spacecraft are neither, so the server wrongly rejects them AND computes an empty color identity (same failure class as the P8 name-resolution bug). Two copies must change in lockstep: the authoritative gate src/validate/commanderRules.ts::isCommanderEligible(card) and the ingest heuristic src/index/map.ts::isCommanderEligible(typeLine,oracleText) that feeds card.is_commander_eligible in mapScryfallCard. Fix: eligible = legendary AND has a printed front-face power & toughness (we already store power/toughness), keeping the existing creature + 'can be your commander' paths. Source: magic.wizards.com/en/news/feature/edge-of-eternities-mechanics.
-  - deps: p4-commander-rules, p1-index
-  - acceptance: A Legendary Vehicle with printed P/T (e.g. Parhelion II) is accepted as a sole commander and yields its correct color identity, not an empty one
-  - acceptance: Both isCommanderEligible copies updated consistently; ingest sets is_commander_eligible=true for legendary P/T permanents
-  - acceptance: A legendary permanent with no printed P/T (e.g. a legendary artifact that isn't a vehicle/creature) is still rejected
-  - acceptance: Partner/background pairing that includes an eligible vehicle validates; a regression test covers a vehicle commander end-to-end
-
 ## Done
 
 - [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
@@ -96,6 +87,12 @@ think-and-ship: loaded roadmap with 52 chunk(s) from disk
   - acceptance: Unit tests cover count delta, singleton edge cases, identity subset, banlist
   - acceptance: Banlist derives purely from legalities.commander
   - acceptance: Any-number allowlist + regex fallback both exercised
+- [x] **P10 · Legendary Vehicle/Spacecraft commander eligibility (rules change)** — Refresh 2026 (think:92), code-confirmed correctness bug. Edge of Eternities changed Commander rule 903.3 (~Jul 25, 2025): legendary Vehicles and legendary Spacecraft WITH A PRINTED POWER/TOUGHNESS are eligible commanders — retroactive, ~21-22 new commanders (Parhelion II, The Last Ride, etc.). Current isCommanderEligible accepts only `Legendary Creature` OR oracle text 'can be your commander'; Vehicles/Spacecraft are neither, so the server wrongly rejects them AND computes an empty color identity (same failure class as the P8 name-resolution bug). Two copies must change in lockstep: the authoritative gate src/validate/commanderRules.ts::isCommanderEligible(card) and the ingest heuristic src/index/map.ts::isCommanderEligible(typeLine,oracleText) that feeds card.is_commander_eligible in mapScryfallCard. Fix: eligible = legendary AND has a printed front-face power & toughness (we already store power/toughness), keeping the existing creature + 'can be your commander' paths. Source: magic.wizards.com/en/news/feature/edge-of-eternities-mechanics.
+  - deps: p4-commander-rules, p1-index
+  - acceptance: A Legendary Vehicle with printed P/T (e.g. Parhelion II) is accepted as a sole commander and yields its correct color identity, not an empty one
+  - acceptance: Both isCommanderEligible copies updated consistently; ingest sets is_commander_eligible=true for legendary P/T permanents
+  - acceptance: A legendary permanent with no printed P/T (e.g. a legendary artifact that isn't a vehicle/creature) is still rejected
+  - acceptance: Partner/background pairing that includes an eligible vehicle validates; a regression test covers a vehicle commander end-to-end
 - [x] **P4 · Commander & multi-commander rules** — Spec §6. Structural validation of Partner, Partner with [name], Friends forever, Choose a Background (commander + Background enchantment), Doctor's companion (Doctor + Time Lord). Combined identity = union of commanders. Companion deckbuilding condition checked only when declared. Illegal pairings are hard errors.
   - deps: p4-core-rules
   - acceptance: Each pairing type validated correctly
