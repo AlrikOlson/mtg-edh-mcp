@@ -23,6 +23,8 @@ import {
   checkSingleton,
   commanderColorIdentity,
   validateCommander,
+  validateCompanion,
+  isCompanionCard,
 } from "../validate/index.js";
 import type { CommandZoneKind } from "../types/index.js";
 import { resolveCardId, resolveCardIdLenient } from "./resolve.js";
@@ -596,6 +598,87 @@ function deckSetCommanderTool(
   };
 }
 
+function deckSetCompanionTool(
+  store: DeckStore,
+  session: string,
+  index?: CardIndex,
+): ToolDefinition {
+  return {
+    name: "deck_set_companion",
+    config: {
+      title: "Set companion",
+      description:
+        "Declare (or clear) the deck's companion, given by oracle_id or card name. Validates " +
+        "the card is actually a companion and reports — advisory — whether the deck currently " +
+        "meets its deckbuilding condition (the full check is run by validate_deck). Pass an " +
+        "empty/omitted companion to clear it. Pass expected_version for optimistic concurrency: " +
+        "a mismatch returns a conflict without mutating.",
+      inputSchema: {
+        deck_id: z.string(),
+        companion: z.string().optional(),
+        expected_version: z.number().int().nonnegative().optional(),
+      },
+    },
+    handler: (args) => {
+      const deckId = String(args.deck_id ?? "");
+      const deck = store.get(deckId, session);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      if (typeof args.expected_version === "number" && deck.version !== args.expected_version) {
+        return conflict(deckId, deck.version, args.expected_version);
+      }
+
+      const raw = typeof args.companion === "string" ? args.companion.trim() : "";
+      if (raw === "") {
+        const updated = store.update(deckId, (d) => ({ ...d, companion: undefined }), session);
+        return {
+          content: [{ type: "text", text: `cleared companion on ${deckId}` }],
+          structuredContent: {
+            ok: true,
+            deck_id: deckId,
+            companion: null,
+            version: updated.version,
+          },
+        };
+      }
+
+      const oracleId = index ? resolveCardId(index, raw) : raw;
+      const card = index?.getCard(oracleId) ?? null;
+      if (!card || !isCompanionCard(card)) {
+        return {
+          content: [{ type: "text", text: `rejected: ${card?.name ?? raw} is not a companion` }],
+          structuredContent: {
+            ok: false,
+            deck_id: deckId,
+            detail: `${card?.name ?? raw} is not a companion card`,
+          },
+        };
+      }
+
+      const lookup = (id: string): Card | null => index?.getCard(id) ?? null;
+      const violations = validateCompanion({ ...deck, companion: oracleId }, lookup);
+      const updated = store.update(deckId, (d) => ({ ...d, companion: oracleId }), session);
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `set companion ${card.name} on ${deckId}` +
+              (violations.length ? ` (${violations.length} condition issue(s))` : ""),
+          },
+        ],
+        structuredContent: {
+          ok: true,
+          deck_id: deckId,
+          companion: { oracle_id: oracleId, name: card.name },
+          condition_met: violations.length === 0,
+          violations,
+          version: updated.version,
+        },
+      };
+    },
+  };
+}
+
 /** Build the deck lifecycle tools bound to a DeckStore (+ optional index/snapshot), scoped to a session. */
 export function makeDeckTools(
   store: DeckStore,
@@ -616,5 +699,6 @@ export function makeDeckTools(
     deckAddTool(store, session, index),
     deckRemoveTool(store, session),
     deckSetCommanderTool(store, session, index),
+    deckSetCompanionTool(store, session, index),
   ];
 }

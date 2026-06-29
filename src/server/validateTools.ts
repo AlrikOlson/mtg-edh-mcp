@@ -12,6 +12,7 @@ import type { DeckStore } from "../deck/index.js";
 import {
   validateCore,
   validateCommander,
+  validateCompanion,
   commanderColorIdentity,
   checkBanlist,
   checkColorIdentity,
@@ -35,9 +36,9 @@ function validateDeckTool(store: DeckStore, index: CardIndex, session: string): 
     config: {
       title: "Validate deck",
       description:
-        "Authoritative legality gate: runs all core + commander rules over a deck and " +
-        "returns structured Violations split into hard errors and advisory warnings. " +
-        "ok is true only when there are no errors.",
+        "Authoritative legality gate: runs all core + commander rules (and a declared " +
+        "companion's deckbuilding condition) over a deck and returns structured Violations " +
+        "split into hard errors and advisory warnings. ok is true only when there are no errors.",
       inputSchema: { deck_id: z.string() },
     },
     handler: (args) => {
@@ -45,7 +46,11 @@ function validateDeckTool(store: DeckStore, index: CardIndex, session: string): 
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const lookup = (id: string): Card | null => index.getCard(id);
-      const violations = [...validateCore(deck, lookup), ...validateCommander(deck, lookup)];
+      const violations = [
+        ...validateCore(deck, lookup),
+        ...validateCommander(deck, lookup),
+        ...validateCompanion(deck, lookup),
+      ];
       const { errors, warnings } = split(violations);
       // Advisory (review #14): qty>1 cards legally exempt from singleton (basics,
       // allowlist, "any number" oracle text) — confirms the exception applied.

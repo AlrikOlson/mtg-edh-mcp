@@ -21,3 +21,4 @@ export {
   isCommanderEligible,
   commanderColorIdentity,
 } from "./commanderRules.js";
+export { validateCompanion, isCompanionCard } from "./companionRules.js";

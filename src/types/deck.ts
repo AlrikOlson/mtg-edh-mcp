@@ -36,6 +36,13 @@ export interface Deck {
   /** Commander oracle_id(s); 1 for single, 2 for partner/background/companion. */
   commanders: readonly string[];
   command_zone_kind: CommandZoneKind;
+  /**
+   * A declared companion's oracle_id (§6), when one is chosen. Its deckbuilding
+   * condition is checked by validate_deck only while declared; absent means no
+   * companion. The companion lives outside the 100-card deck (it is not in
+   * `cards`).
+   */
+  companion?: string;
   cards: readonly DeckCardEntry[];
   /** Union of the commanders' color identities (§6). */
   computed_color_identity: ColorIdentity;

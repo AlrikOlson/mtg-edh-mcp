@@ -66,4 +66,19 @@ describe("DeckStore mutation + notification", () => {
       expect.objectContaining({ code: "DECK_NOT_FOUND" }),
     );
   });
+
+  it("threads a declared companion through update, snapshot, and restore", () => {
+    const store = storeWithIds("d1");
+    store.create({ name: "Lutri deck" });
+
+    store.update("d1", (d) => ({ ...d, companion: "o-lutri" }));
+    expect(store.get("d1")?.companion).toBe("o-lutri");
+
+    const snap = store.snapshot("d1");
+    store.update("d1", (d) => ({ ...d, companion: undefined }));
+    expect(store.get("d1")?.companion).toBeUndefined();
+
+    store.restore("d1", snap.snapshot_id);
+    expect(store.get("d1")?.companion).toBe("o-lutri");
+  });
 });
