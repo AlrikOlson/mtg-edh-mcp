@@ -241,11 +241,11 @@ think-and-ship: loaded roadmap with 53 chunk(s) from disk
 
 ## Backlog
 
-- [ ] **Backlog · Format generalization (Brawl/Oathbreaker/…)** — Spec §12. Parameterize the rules engine (count, command-zone kind, banlist source) so the same primitives generalize to Brawl, Oathbreaker, and other singleton/identity formats. Keep `format` a first-class field. Post-v1.
+- [ ] **Backlog · Format generalization (Brawl/Oathbreaker/…)** — Spec §12. Parameterize the rules engine by a format profile so the same primitives validate Brawl, Oathbreaker, and other singleton/identity formats. Refresh 2026 (think:105) — the concrete code seams are now mapped: (1) src/validate/coreRules.ts hardcodes COMMANDER_DECK_SIZE=100 (checkCardCount) and checkBanlist reads card.legalities.commander — Card.legalities is already a full Record, so legalities.brawl / legalities.oathbreaker are ALREADY ingested; just parameterize the key; (2) src/types/deck.ts Format is the literal "commander" only — widen to a union + a FormatProfile {deckSize, banlistKey, commandZoneKind, singleton}; (3) command-zone eligibility (commanderRules.ts) already handles planeswalkers via "can be your commander" text (relevant to Oathbreaker). Honest strategic note (think:105): demand is LOW — Oathbreaker is widely called near-dead and Brawl is Arena-only — and the MTG-MCP field is already crowded on broad card-lookup/basic-deck; this server's differentiation is EDH-deep analysis. So format-generalization widens into low-demand formats and dilutes the moat. Kept post-v1; see the reprioritize proposal (collection ranked above this).
   - deps: p4-tools
-  - acceptance: Rules engine parameterized by format profile
-  - acceptance: At least one non-Commander format validates end-to-end
-  - acceptance: format remains first-class in Deck state
+  - acceptance: Rules engine parameterized by a FormatProfile (deck size, banlist legality key, command-zone kind, singleton rule)
+  - acceptance: At least one non-Commander format (Brawl or Oathbreaker) validates end-to-end via the existing tools
+  - acceptance: format stays first-class in Deck state; Commander behavior is unchanged (the default profile)
 - [ ] **Backlog · Collection awareness** — Spec §12. Optional `collection` resource so card_search can filter to owned cards. Explicitly out of scope for v1 to keep primitives clean; tracked for later.
   - deps: p2-card-tools
   - acceptance: collection resource defined
