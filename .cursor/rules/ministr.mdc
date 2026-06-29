@@ -1,0 +1,54 @@
+---
+description: ministr MCP codebase navigation — preferred for code search and exploration
+globs:
+  - "**/*"
+---
+
+# ministr MCP — Codebase Navigation
+
+ministr is an MCP server providing semantic code search. It is the
+**preferred** tool for codebase *exploration*. It does not restrict
+normal shell work.
+
+## Available Tools
+
+| Tool | Purpose |
+|------|---------|
+| `ministr_survey` | Semantic search across docs and code. **Start here.** |
+| `ministr_symbols` | Find structs, functions, traits, enums by name/kind/module. |
+| `ministr_definition` | Get full source of a symbol by ID. |
+| `ministr_references` | Find callers, implementors, importers of a symbol. |
+| `ministr_read` | Full content of a section by ID. |
+| `ministr_extract` | Get atomic claims from a section, optionally filtered by query. |
+| `ministr_toc` | Structural overview of the indexed corpus. |
+| `ministr_bridge` | Cross-language bridge links (Tauri, PyO3, NAPI, etc.). |
+
+## Policy
+
+- Prefer ministr for code discovery, search, and navigation. The
+  built-in Grep/Glob tools are not for exploration here — use
+  `ministr_survey` / `ministr_toc`.
+- The shell is unrestricted: builds, tests, `git`, dependency installs,
+  and filtering command output (`cargo test | grep`, `… | tail`) run
+  normally. A *leading* `grep`/`find` is auto-allowed with a one-line
+  hint to prefer ministr — it never prompts.
+- Read files only immediately before editing them.
+
+## Rules
+
+1. Prefer `ministr_survey` for discovering code and documentation.
+2. Prefer `ministr_symbols` for finding functions, structs, traits, enums.
+3. Prefer `ministr_definition` over reading whole files for a symbol's source.
+4. Run `ministr_references` before modifying any shared symbol.
+5. Run `ministr_bridge` before modifying any cross-language boundary.
+
+## Workflow
+
+`ministr_survey` → `ministr_symbols` → `ministr_definition` / `ministr_read` → `ministr_references` / `ministr_bridge`
+
+## Shell execution
+
+Prefer `ministr_run(command)` over the built-in shell when available:
+exit code + token-lean digest (every error line kept), full log via
+`ministr_run_logs(run_id)`. Prose guidance only — Cursor has no hook
+that can deny its built-in shell.

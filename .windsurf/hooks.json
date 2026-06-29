@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "pre_run_command": [
+      {
+        "command": "bash -c 'INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r \".tool_info.command_line // \\\"\\\"\"); case \"$CMD\" in grep\\ *|egrep\\ *|fgrep\\ *|rg\\ *|ag\\ *|ack\\ *) echo \"Hint: prefer ministr_survey for code search (this repo dogfoods ministr). Proceeding — ignore if filtering command output.\";; find\\ *|fd\\ *) echo \"Hint: prefer ministr_toc for discovery. Proceeding — ignore if this is a filesystem operation.\";; esac; exit 0'",
+        "show_output": true
+      }
+    ]
+  }
+}

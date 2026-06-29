@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "bash -c 'INPUT=$(cat); CMD=$(echo \"$INPUT\" | jq -r \".command // \\\"\\\"\"); case \"$CMD\" in grep\\ *|egrep\\ *|fgrep\\ *|rg\\ *|ag\\ *|ack\\ *) echo \"{\\\"permission\\\":\\\"allow\\\",\\\"agentMessage\\\":\\\"Allowed. Hint: ministr_survey is usually faster than shell grep here; filtering output is expected.\\\",\\\"userMessage\\\":\\\"\\\"}\"; exit 0;; find\\ *|fd\\ *) echo \"{\\\"permission\\\":\\\"allow\\\",\\\"agentMessage\\\":\\\"Allowed. Hint: ministr_toc is usually faster than shell find here.\\\",\\\"userMessage\\\":\\\"\\\"}\"; exit 0;; esac'"
+      }
+    ]
+  }
+}
