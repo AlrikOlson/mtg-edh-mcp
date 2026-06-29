@@ -1,4 +1,4 @@
-think-and-ship: loaded roadmap with 52 chunk(s) from disk
+think-and-ship: loaded roadmap with 53 chunk(s) from disk
 # Roadmap — mtg-edh-mcp-4d66ba
 
 ## Done
@@ -108,6 +108,11 @@ think-and-ship: loaded roadmap with 52 chunk(s) from disk
   - acceptance: validate_deck returns structured Violation[] with severity
   - acceptance: validate_card precheck does not mutate
   - acceptance: Error vs warning separation verified (e.g. count error vs ramp-count advisory)
+- [x] **P10 · Validate bracket criteria vs Feb 2026 Brackets Beta** — Refresh 2026 (think:92), low-urgency verification. The Commander Brackets Beta updated Oct 21 2025 + Feb 9 2026: tutor restrictions removed, Bracket 2 'Core' no longer tied to precons, Game Changers grew to ~53 cards, hybrid-mana topic. Our classifyBracket (src/meta/bracket.ts) is broadly aligned already: it does NOT gate brackets on tutor count (only reports tutors as pushers) — coincidentally matching 'tutor restrictions removed' — and the Game Changers list is fetched LIVE (never hardcoded), so the 53-card update auto-applies; no staleness there. This chunk is to (a) re-read the current official bracket DEFINITIONS and confirm our gc>=4||MLD→4, gc>=1→3, else 2 thresholds still match (esp. the Bracket 3 'up to 3 Game Changers' boundary), and (b) decide whether the rationale string should reflect the 2026 wording. Honest scope: likely a small criteria tweak + test, possibly a no-op confirmation. NOT about the GC list (live) or hybrid mana / color identity (we trust Scryfall color_identity — no gap).
+  - deps: p6-bracket
+  - acceptance: classifyBracket thresholds re-checked against the current official Bracket 1-5 definitions; any drift corrected with a test
+  - acceptance: Confirmed (or fixed) that tutors do not gate the bracket, per the removed tutor restriction
+  - acceptance: No change to the live Game Changers fetch; no hardcoded list introduced
 - [x] **P5 · Functional role taxonomy classifier** — Spec §7. Classify each card into zero-or-more roles (ramp, mana_rock, mana_dork, land, fixing, card_draw, card_advantage, tutor, spot_removal, board_wipe, counterspell, protection, recursion, graveyard_hate, stax, combo_piece, payoff, wincon, utility) via oracle-text/keyword/type-line heuristics. Advisory only (never feeds validation); taxonomy + target bands configurable.
   - deps: p1-index, p0-types
   - acceptance: Classifier labels a fixture card set within tolerance
@@ -231,11 +236,11 @@ think-and-ship: loaded roadmap with 52 chunk(s) from disk
 
 ## Backlog
 
-- [ ] **P10 · Validate bracket criteria vs Feb 2026 Brackets Beta** — Refresh 2026 (think:92), low-urgency verification. The Commander Brackets Beta updated Oct 21 2025 + Feb 9 2026: tutor restrictions removed, Bracket 2 'Core' no longer tied to precons, Game Changers grew to ~53 cards, hybrid-mana topic. Our classifyBracket (src/meta/bracket.ts) is broadly aligned already: it does NOT gate brackets on tutor count (only reports tutors as pushers) — coincidentally matching 'tutor restrictions removed' — and the Game Changers list is fetched LIVE (never hardcoded), so the 53-card update auto-applies; no staleness there. This chunk is to (a) re-read the current official bracket DEFINITIONS and confirm our gc>=4||MLD→4, gc>=1→3, else 2 thresholds still match (esp. the Bracket 3 'up to 3 Game Changers' boundary), and (b) decide whether the rationale string should reflect the 2026 wording. Honest scope: likely a small criteria tweak + test, possibly a no-op confirmation. NOT about the GC list (live) or hybrid mana / color identity (we trust Scryfall color_identity — no gap).
-  - deps: p6-bracket
-  - acceptance: classifyBracket thresholds re-checked against the current official Bracket 1-5 definitions; any drift corrected with a test
-  - acceptance: Confirmed (or fixed) that tutors do not gate the bracket, per the removed tutor restriction
-  - acceptance: No change to the live Game Changers fetch; no hardcoded list introduced
+- [ ] **P11 · Bracket combo/extra-turn pushers (2↔3↔4 gating)** — Discovered in p10-bracket-criteria-2026 (think:100). The official Commander brackets separate tiers by more than Game Changers + mass land denial: Bracket 2 (Core) forbids two-card infinite combos entirely; Bracket 3 (Upgraded) forbids EARLY two-card combos and chained extra turns; Bracket 4 (Optimized) allows them. classifyBracket (src/meta/bracket.ts) currently models only Game Changers + MLD, so a deck with an early two-card combo but few Game Changers can read one tier low. Add combo + extra-turn detection as additional bracket pushers: reuse the existing Commander Spellbook integration (meta_combos / SpellbookClient) to detect two-card infinite combos reachable in the deck, and a heuristic for chained extra-turn cards (oracle text 'take an extra turn'). Gate: any two-card combo → at least bracket 3 and block bracket 2; an EARLY combo or extra-turn engine → bracket 4. Keep classifyBracket pure (pass combo data in as a parameter, like the Game Changers set) so it stays unit-testable offline.
+  - deps: p6-bracket, p6-combos
+  - acceptance: classifyBracket accepts combo + extra-turn signal (passed in, not fetched inside) and factors it into the tier
+  - acceptance: A deck with a two-card infinite combo cannot classify as Core (bracket 2); an early combo or extra-turn engine reaches bracket 4
+  - acceptance: Pure + deterministic; unit-tested with fixed inputs; the live Spellbook/GC fetches stay outside the pure function
 - [ ] **Backlog · Format generalization (Brawl/Oathbreaker/…)** — Spec §12. Parameterize the rules engine (count, command-zone kind, banlist source) so the same primitives generalize to Brawl, Oathbreaker, and other singleton/identity formats. Keep `format` a first-class field. Post-v1.
   - deps: p4-tools
   - acceptance: Rules engine parameterized by format profile
