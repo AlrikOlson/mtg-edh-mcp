@@ -211,6 +211,11 @@
   - acceptance: meta_missing_staples lists in-identity, not-in-deck staples ranked by inclusion with each card's inclusion %
   - acceptance: Honors min_inclusion threshold + limit; unresolved names reported not dropped
   - acceptance: DECK_NOT_FOUND for unknown deck; degrades to UPSTREAM_UNAVAILABLE when EDHREC is down with nothing cached
+- [x] **P9 · Surface bracket verdict in the analyze flow** — Review #12 (split from p9-archetype-diff-bracket). The power-level verdict already exists via meta_classify_bracket; this is the cosmetic 'surface it during tuning' part — e.g. a combined meta_deck_summary bundling analyze_stats + min_buy + bracket verdict, or otherwise making the bracket discoverable in the analyze flow. Low value / low urgency since the verdict is already a tool; kept as backlog.
+  - deps: p6-bracket, p3-state
+  - acceptance: The bracket verdict is reachable within a combined analyze/summary flow (not only via an explicit meta_classify_bracket call)
+  - acceptance: No duplication of the classifyBracket logic
+  - acceptance: Advisory; degrades gracefully when the Game Changers list is unavailable
 
 ## Backlog
 
@@ -234,11 +239,6 @@
   - acceptance: Per-deck role overrides supported
   - acceptance: Overrides feed analyze_composition/role_coverage
   - acceptance: Classifier remains the default source
-- [ ] **P9 · Surface bracket verdict in the analyze flow** — Review #12 (split from p9-archetype-diff-bracket). The power-level verdict already exists via meta_classify_bracket; this is the cosmetic 'surface it during tuning' part — e.g. a combined meta_deck_summary bundling analyze_stats + min_buy + bracket verdict, or otherwise making the bracket discoverable in the analyze flow. Low value / low urgency since the verdict is already a tool; kept as backlog.
-  - deps: p6-bracket, p3-state
-  - acceptance: The bracket verdict is reachable within a combined analyze/summary flow (not only via an explicit meta_classify_bracket call)
-  - acceptance: No duplication of the classifyBracket logic
-  - acceptance: Advisory; degrades gracefully when the Game Changers list is unavailable
 
 ## Obsoleted
 

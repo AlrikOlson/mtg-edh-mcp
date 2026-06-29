@@ -10,7 +10,7 @@ import { StructuredError } from "../types/index.js";
 import type { Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
-import { cheapestUsd } from "../analyze/index.js";
+import { cheapestUsd, analyzeStats } from "../analyze/index.js";
 import type { EdhrecClient, SpellbookClient, GameChangersClient } from "../meta/index.js";
 import { classifyBracket } from "../meta/index.js";
 import type { ToolDefinition } from "./registry.js";
@@ -483,6 +483,61 @@ function metaClassifyBracketTool(
   };
 }
 
+function metaDeckSummaryTool(
+  store: DeckStore,
+  index: CardIndex,
+  gameChangers: GameChangersClient,
+  session: string,
+): ToolDefinition {
+  return {
+    name: "meta_deck_summary",
+    config: {
+      title: "Deck summary",
+      description:
+        "One-call deck overview: exact stats (counts, average mana value, total + cheapest-printing " +
+        "min-buy price, color pips) bundled with the power-level bracket verdict + pushers, so the " +
+        "bracket surfaces alongside the numbers during tuning. Advisory; the bracket degrades to null " +
+        "(bracket_unavailable) if the live Game Changers list can't be reached.",
+      inputSchema: { deck_id: z.string() },
+    },
+    handler: async (args) => {
+      const deckId = String(args.deck_id ?? "");
+      const deck = store.get(deckId, session);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      const lookup = (id: string) => index.getCard(id);
+      const stats = analyzeStats(deck.cards, lookup);
+
+      // Bracket needs the live Game Changers list — degrade to null rather than
+      // failing the whole summary when it's unavailable.
+      let bracket: ReturnType<typeof classifyBracket> | null = null;
+      let bracketUnavailable = false;
+      try {
+        bracket = classifyBracket(deck, lookup, await gameChangers.list());
+      } catch {
+        bracketUnavailable = true;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `${stats.total_cards} cards, avg MV ${stats.avg_mv}, min buy $${stats.min_buy_usd}` +
+              (bracket ? `, bracket ${bracket.bracket}` : ", bracket unavailable"),
+          },
+        ],
+        structuredContent: {
+          deck_id: deckId,
+          commander_count: deck.commanders.length,
+          stats,
+          bracket,
+          ...(bracketUnavailable ? { bracket_unavailable: true } : {}),
+        },
+      };
+    },
+  };
+}
+
 /** Build the enrichment tools bound to a DeckStore + CardIndex + EDHREC/Spellbook/GameChangers clients. */
 export function makeMetaTools(
   store: DeckStore,
@@ -500,5 +555,6 @@ export function makeMetaTools(
     metaBudgetSwapsTool(store, index, edhrec, session),
     metaCombosTool(store, index, spellbook, session),
     metaClassifyBracketTool(store, index, gameChangers, session),
+    metaDeckSummaryTool(store, index, gameChangers, session),
   ];
 }

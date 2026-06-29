@@ -146,3 +146,44 @@ describe("meta_classify_bracket tool", () => {
     await c2.close();
   });
 });
+
+describe("meta_deck_summary (review #12)", () => {
+  it("bundles stats + the bracket verdict in one call", async () => {
+    const res = await client.callTool({
+      name: "meta_deck_summary",
+      arguments: { deck_id: "deck-1" },
+    });
+    const r = res.structuredContent as {
+      stats: { total_cards: number; min_buy_usd: number };
+      bracket: { bracket: number; pushers: { game_changers: string[] } } | null;
+    };
+    expect(r.stats.total_cards).toBe(2); // Sol Ring + Cyclonic Rift
+    expect(typeof r.stats.min_buy_usd).toBe("number");
+    expect(r.bracket?.bracket).toBe(3); // 1 Game Changer (Cyclonic Rift)
+    expect(r.bracket?.pushers.game_changers).toEqual(["Cyclonic Rift"]);
+  });
+
+  it("degrades the bracket to null when the Game Changers list is unavailable", async () => {
+    const down = new GameChangersClient(new CacheStore({ now: () => 1000 }), {
+      fetchJson: async () => {
+        throw new Error("offline");
+      },
+    });
+    const server = createServer({ index, deckStore, gameChangers: down });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    const c2 = new Client({ name: "t-sum", version: "0.0.0" });
+    await c2.connect(ct);
+    const res = await c2.callTool({ name: "meta_deck_summary", arguments: { deck_id: "deck-1" } });
+    const r = res.structuredContent as {
+      stats: { total_cards: number };
+      bracket: unknown;
+      bracket_unavailable?: boolean;
+    };
+    expect(res.isError).toBeFalsy(); // summary still succeeds
+    expect(r.stats.total_cards).toBe(2);
+    expect(r.bracket).toBeNull();
+    expect(r.bracket_unavailable).toBe(true);
+    await c2.close();
+  });
+});
