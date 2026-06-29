@@ -1,6 +1,14 @@
 think-and-ship: loaded roadmap with 54 chunk(s) from disk
 # Roadmap — mtg-edh-mcp-4d66ba
 
+## Pending
+
+- [ ] **Backlog · Collection awareness** — Spec §12. Optional `collection` resource so card_search can filter to owned cards. Explicitly out of scope for v1 to keep primitives clean; tracked for later.
+  - deps: p2-card-tools
+  - acceptance: collection resource defined
+  - acceptance: card_search can optionally filter to owned cards
+  - acceptance: Off by default; does not complicate the core primitives
+
 ## Done
 
 - [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
@@ -246,11 +254,6 @@ think-and-ship: loaded roadmap with 54 chunk(s) from disk
   - acceptance: Rules engine parameterized by a FormatProfile (deck size, banlist legality key, command-zone kind, singleton rule)
   - acceptance: At least one non-Commander format (Brawl or Oathbreaker) validates end-to-end via the existing tools
   - acceptance: format stays first-class in Deck state; Commander behavior is unchanged (the default profile)
-- [ ] **Backlog · Collection awareness** — Spec §12. Optional `collection` resource so card_search can filter to owned cards. Explicitly out of scope for v1 to keep primitives clean; tracked for later.
-  - deps: p2-card-tools
-  - acceptance: collection resource defined
-  - acceptance: card_search can optionally filter to owned cards
-  - acceptance: Off by default; does not complicate the core primitives
 - [ ] **Backlog · Role override / feedback channel** — Spec §12. Heuristic roles will misclassify edge cards. Add per-deck role overrides and/or a feedback channel to correct classifications without touching the classifier.
   - deps: p5-roles
   - acceptance: Per-deck role overrides supported
