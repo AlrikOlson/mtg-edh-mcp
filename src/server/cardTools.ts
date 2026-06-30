@@ -12,22 +12,30 @@ import { CardIndex, type SearchOptions } from "../index/index.js";
 import { cheapestUsd, defaultUsd } from "../analyze/index.js";
 import { StructuredError } from "../types/index.js";
 import type { Card } from "../types/index.js";
+import type { CollectionStore } from "../collection/index.js";
 import { resolveCardIdLenient } from "./resolve.js";
 import type { ToolDefinition } from "./registry.js";
 
-function cardSearchTool(index: CardIndex): ToolDefinition {
+function cardSearchTool(
+  index: CardIndex,
+  collection?: CollectionStore,
+  session = "local",
+): ToolDefinition {
   return {
     name: "card_search",
     config: {
       title: "Card search",
       description:
         "Evaluate a Scryfall-grammar query against the local index. Returns lean CardRefs " +
-        "(oracle_id, name, mv, ci, type) with total/returned and an opaque next_cursor.",
+        "(oracle_id, name, mv, ci, type) with total/returned and an opaque next_cursor. " +
+        "Set owned_only:true to restrict results to the owned collection (a no-op until a " +
+        "collection is set via collection_set).",
       inputSchema: {
         query: z.string(),
         order: z.enum(["name", "mv", "price"]).optional(),
         limit: z.number().int().positive().max(175).optional(),
         cursor: z.string().optional(),
+        owned_only: z.boolean().optional(),
       },
     },
     handler: (args) => {
@@ -36,6 +44,11 @@ function cardSearchTool(index: CardIndex): ToolDefinition {
       if (typeof args.order === "string") opts.order = args.order;
       if (typeof args.limit === "number") opts.limit = args.limit;
       if (typeof args.cursor === "string") opts.cursor = args.cursor;
+      // Opt-in owned-collection filter; only restricts when a non-empty
+      // collection exists, so it's identical to today when off/unset.
+      if (args.owned_only === true && collection && collection.size(session) > 0) {
+        opts.oracleIds = [...collection.get(session)];
+      }
       const res = index.evaluate(node, opts);
       return {
         content: [{ type: "text", text: `${res.returned} of ${res.total} cards` }],
@@ -143,10 +156,14 @@ function cardPrintingsTool(index: CardIndex): ToolDefinition {
   };
 }
 
-/** Build the four card-knowledge tool definitions bound to a CardIndex. */
-export function makeCardTools(index: CardIndex): ToolDefinition[] {
+/** Build the four card-knowledge tool definitions bound to a CardIndex (+ optional owned collection). */
+export function makeCardTools(
+  index: CardIndex,
+  collection?: CollectionStore,
+  session = "local",
+): ToolDefinition[] {
   return [
-    cardSearchTool(index),
+    cardSearchTool(index, collection, session),
     cardGetTool(index),
     cardResolveNameTool(index),
     cardPrintingsTool(index),

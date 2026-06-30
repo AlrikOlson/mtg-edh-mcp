@@ -9,11 +9,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
+import { CollectionStore } from "../collection/index.js";
 import { CacheStore, EdhrecClient, SpellbookClient, GameChangersClient } from "../meta/index.js";
 import { registerTools, type ToolDefinition } from "./registry.js";
 import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { BUILTIN_TOOLS } from "./tools.js";
 import { makeCardTools } from "./cardTools.js";
+import { makeCollectionTools } from "./collectionTools.js";
 import { makeDeckTools } from "./deckTools.js";
 import { makeValidateTools } from "./validateTools.js";
 import { makeAnalyzeTools } from "./analyzeTools.js";
@@ -30,6 +32,8 @@ export interface CreateServerOptions {
   index?: CardIndex;
   /** When provided, the deck:// resource + subscription updates use it. */
   deckStore?: DeckStore;
+  /** Owned-card collection (spec §12); default-constructed so the collection_* tools always exist. */
+  collection?: CollectionStore;
   /** EDHREC enrichment client (tests inject one with a fake fetcher). Default-constructed. */
   edhrec?: EdhrecClient;
   /** Commander Spellbook combo client (tests inject one with a fake fetcher). Default-constructed. */
@@ -53,9 +57,19 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
   // Per-principal deck scope; card data is shared read-only across sessions.
   const session = options.session ?? "local";
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  // Optional owned-card collection (spec §12); off by default — card_search only
+  // consults it on owned_only. Default-constructed so collection_* always exist.
+  const collection = options.collection ?? new CollectionStore();
   // Resources (capabilities) must be registered before the transport connects.
-  registerResources(server, { index: options.index, deckStore: options.deckStore });
-  const cardTools = options.index ? makeCardTools(options.index) : [];
+  registerResources(server, {
+    index: options.index,
+    deckStore: options.deckStore,
+    collection: options.index ? collection : undefined,
+  });
+  const cardTools = options.index ? makeCardTools(options.index, collection, session) : [];
+  const collectionTools = options.index
+    ? makeCollectionTools(collection, options.index, session)
+    : [];
   const deckTools = options.deckStore
     ? makeDeckTools(options.deckStore, options.index, snapshot, session)
     : [];
@@ -81,6 +95,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     [
       ...BUILTIN_TOOLS,
       ...cardTools,
+      ...collectionTools,
       ...deckTools,
       ...validateTools,
       ...analyzeTools,

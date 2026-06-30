@@ -48,6 +48,12 @@ export interface SearchOptions {
   order?: string;
   /** Opaque pagination cursor from a prior result. */
   cursor?: string;
+  /**
+   * Optional allow-set: restrict results to these oracle_ids (e.g. an owned
+   * collection). Applied at the SQL layer so total/returned/cursor stay exact.
+   * Empty/omitted = no restriction.
+   */
+  oracleIds?: readonly string[];
 }
 
 export interface SearchResult {
@@ -307,10 +313,19 @@ export class CardIndex {
     const limit = clampLimit(options.limit);
     const offset = options.cursor ? decodeCursor(options.cursor) : 0;
 
+    // Optional owned-collection allow-set: AND an oracle_id IN (...) onto the
+    // query (params appended) so the count + page both honor it — keeping
+    // total/returned/cursor exact. Empty = no restriction.
+    let whereSql = where.sql;
+    const whereParams = [...where.params];
+    if (options.oracleIds && options.oracleIds.length > 0) {
+      const placeholders = options.oracleIds.map(() => "?").join(",");
+      whereSql = `(${whereSql}) AND oracle_id IN (${placeholders})`;
+      whereParams.push(...options.oracleIds);
+    }
+
     const total = (
-      this.db
-        .prepare(`SELECT count(*) AS n FROM cards WHERE ${where.sql}`)
-        .get(...where.params) as {
+      this.db.prepare(`SELECT count(*) AS n FROM cards WHERE ${whereSql}`).get(...whereParams) as {
         n: number;
       }
     ).n;
@@ -318,9 +333,9 @@ export class CardIndex {
     const rows = this.db
       .prepare(
         `SELECT oracle_id, name, mv, type_line, color_identity
-         FROM cards WHERE ${where.sql} ${order} LIMIT ? OFFSET ?`,
+         FROM cards WHERE ${whereSql} ${order} LIMIT ? OFFSET ?`,
       )
-      .all(...where.params, limit, offset) as Array<{
+      .all(...whereParams, limit, offset) as Array<{
       oracle_id: string;
       name: string;
       mv: number;

@@ -6,6 +6,7 @@ import Database from "better-sqlite3";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "./cardIndex.js";
 import { SECONDARY_INDEXES } from "./schema.js";
+import { parseQuery } from "../query/index.js";
 
 const ORACLE = [
   {
@@ -153,6 +154,33 @@ describe("CardIndex.searchByName (FTS)", () => {
     const refs = index.searchByName("vigilance");
     expect(refs[0]?.oracle_id).toBe("o-atraxa");
     expect(refs[0]?.ci).toEqual(["W", "U", "B", "G"]);
+  });
+});
+
+describe("CardIndex.evaluate — owned-collection allow-set (bl-collection)", () => {
+  it("restricts results to the allow-set, keeping total/returned exact", () => {
+    const node = parseQuery("t:creature"); // o-atraxa + o-dfc
+    expect(index.evaluate(node).total).toBe(2);
+
+    const owned = index.evaluate(node, { oracleIds: ["o-atraxa"] });
+    expect(owned.total).toBe(1);
+    expect(owned.returned).toBe(1);
+    expect(owned.results[0]?.oracle_id).toBe("o-atraxa");
+  });
+
+  it("an empty/absent allow-set is a no-op (identical to no filter)", () => {
+    const node = parseQuery("t:creature");
+    expect(index.evaluate(node, { oracleIds: [] }).total).toBe(2);
+  });
+
+  it("treats allow-set ids as bound data, not SQL — an injection string matches nothing and is harmless", () => {
+    const node = parseQuery("t:creature");
+    const evil = "o-atraxa'); DROP TABLE cards;--";
+    const res = index.evaluate(node, { oracleIds: [evil] });
+    expect(res.total).toBe(0);
+    expect(res.results).toEqual([]);
+    // The table is intact: a normal query still works afterward.
+    expect(index.evaluate(node).total).toBe(2);
   });
 });
 

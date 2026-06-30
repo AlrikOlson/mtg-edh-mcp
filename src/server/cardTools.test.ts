@@ -118,13 +118,17 @@ afterEach(async () => {
 });
 
 describe("card tools registration", () => {
-  it("registers all four card tools plus ping", async () => {
+  it("registers the four card tools + collection tools + ping", async () => {
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
     expect(names).toEqual([
       "card_get",
       "card_printings",
       "card_resolve_name",
       "card_search",
+      "collection_add",
+      "collection_clear",
+      "collection_get",
+      "collection_set",
       "ping",
     ]);
   });

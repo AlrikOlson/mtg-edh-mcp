@@ -15,10 +15,12 @@ import {
 import { StructuredError } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
+import type { CollectionStore } from "../collection/index.js";
 
 export interface ResourceDeps {
   index?: CardIndex;
   deckStore?: DeckStore;
+  collection?: CollectionStore;
 }
 
 function firstVar(value: string | string[] | undefined): string {
@@ -28,7 +30,7 @@ function firstVar(value: string | string[] | undefined): string {
 
 /** Register card:// and deck:// resources (and deck subscription wiring) on a server. */
 export function registerResources(server: McpServer, deps: ResourceDeps): void {
-  const { index, deckStore } = deps;
+  const { index, deckStore, collection } = deps;
 
   if (index) {
     server.registerResource(
@@ -86,5 +88,32 @@ export function registerResources(server: McpServer, deps: ResourceDeps): void {
       unsubscribe();
       previousOnClose?.();
     };
+  }
+
+  if (collection) {
+    server.registerResource(
+      "collection",
+      new ResourceTemplate("collection://{session}", { list: undefined }),
+      {
+        title: "Collection",
+        description: "Owned-card collection (oracle_ids) for a session.",
+        mimeType: "application/json",
+      },
+      (uri, variables) => {
+        const sessionId = firstVar(variables.session) || "local";
+        const owned = [...collection.get(sessionId)];
+        const body = {
+          session: sessionId,
+          owned_count: owned.length,
+          owned,
+          ...(index
+            ? { cards: owned.map((id) => ({ oracle_id: id, name: index.getCard(id)?.name })) }
+            : {}),
+        };
+        return {
+          contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(body) }],
+        };
+      },
+    );
   }
 }
