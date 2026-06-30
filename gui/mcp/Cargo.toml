@@ -1,0 +1,27 @@
+[package]
+name = "mtg-edh-mcp-client"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Typed async Rust client over the mtg-edh-mcp engine's streamable-HTTP MCP surface."
+
+[dependencies]
+# Official Rust MCP SDK. Client role + streamable-HTTP transport (reqwest-backed).
+# from_config lets us attach the x-mcp-principal header via custom_headers and set
+# allow_stateless=true to match the engine's stateless POST-only transport.
+rmcp = { version = "2", features = [
+    "client",
+    "transport-streamable-http-client",
+    "transport-streamable-http-client-reqwest",
+] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+# Header types for custom_headers (HashMap<HeaderName, HeaderValue>); rmcp re-uses http 1.x.
+http = "1"
+
+[dev-dependencies]
+# Integration test spawns the node engine and round-trips a call.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "time", "io-util"] }

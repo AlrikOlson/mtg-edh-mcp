@@ -5,7 +5,7 @@
 # ../docs/adr/0001-gui-architecture.md for the architecture decision.
 [workspace]
 resolver = "2"
-members = ["app"]
+members = ["app", "mcp"]
 
 [workspace.package]
 edition = "2021"
