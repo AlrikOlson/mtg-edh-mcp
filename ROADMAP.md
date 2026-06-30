@@ -1,4 +1,3 @@
-think-and-ship: loaded roadmap with 65 chunk(s) from disk
 # Roadmap — mtg-edh-mcp-4d66ba
 
 ## Done
@@ -147,6 +146,11 @@ think-and-ship: loaded roadmap with 65 chunk(s) from disk
   - acceptance: Recommendations scoped to deck color identity
   - acceptance: Profile parses inclusion %, synergy, salt, themes
   - acceptance: exclude_lands honored
+- [x] **GUI · MCP client layer (rmcp streamable-HTTP → engine tools)** — Phase G (think:114). A typed Rust client wrapping rmcp's Streamable HTTP client to the mtg-edh-mcp tool surface: card_search/card_get/card_resolve_name/card_printings, deck_* (create/get/list/add/remove/set_commander/set_companion/snapshot/diff/restore/import/export), validate_*, analyze_* (curve/composition/stats/mana/role_coverage/simulate), meta_* (commander_profile/recommendations/missing_staples/budget_swaps/combos/classify_bracket/deck_summary/themes), budget_plan, collection_*. Sets the x-mcp-principal header, maps the structured §8 error codes (UNKNOWN_CARD/AMBIGUOUS_NAME/DECK_NOT_FOUND/UPSTREAM_UNAVAILABLE/…) to a Rust Result/enum, and exposes ergonomic async methods returning typed structs (mirror the TS structuredContent shapes). Reuses the read-only card:// / deck:// / collection:// resources where useful.
+  - deps: gui-scaffold
+  - acceptance: A Rust client module wraps rmcp streamable-HTTP, sends x-mcp-principal, and exposes typed async calls for the engine tools
+  - acceptance: Structured engine errors map to a Rust error enum (not stringly-typed)
+  - acceptance: An integration test boots (or connects to) the node server and round-trips at least card_search + a deck mutation + validate_deck
 - [x] **P6 · Combo database (Commander Spellbook)** — Spec §5E/§12. meta_combos: combos within a card set or reachable from a commander (pieces, result, steps) via Commander Spellbook. Expose source/confidence per combo since coverage is good but not exhaustive. Essential for combo/cEDH builds.
   - deps: p6-cache, p3-state
   - acceptance: Combos reachable from a commander fixture returned
@@ -255,11 +259,6 @@ think-and-ship: loaded roadmap with 65 chunk(s) from disk
 
 ## Backlog
 
-- [ ] **GUI · MCP client layer (rmcp streamable-HTTP → engine tools)** — Phase G (think:114). A typed Rust client wrapping rmcp's Streamable HTTP client to the mtg-edh-mcp tool surface: card_search/card_get/card_resolve_name/card_printings, deck_* (create/get/list/add/remove/set_commander/set_companion/snapshot/diff/restore/import/export), validate_*, analyze_* (curve/composition/stats/mana/role_coverage/simulate), meta_* (commander_profile/recommendations/missing_staples/budget_swaps/combos/classify_bracket/deck_summary/themes), budget_plan, collection_*. Sets the x-mcp-principal header, maps the structured §8 error codes (UNKNOWN_CARD/AMBIGUOUS_NAME/DECK_NOT_FOUND/UPSTREAM_UNAVAILABLE/…) to a Rust Result/enum, and exposes ergonomic async methods returning typed structs (mirror the TS structuredContent shapes). Reuses the read-only card:// / deck:// / collection:// resources where useful.
-  - deps: gui-scaffold
-  - acceptance: A Rust client module wraps rmcp streamable-HTTP, sends x-mcp-principal, and exposes typed async calls for the engine tools
-  - acceptance: Structured engine errors map to a Rust error enum (not stringly-typed)
-  - acceptance: An integration test boots (or connects to) the node server and round-trips at least card_search + a deck mutation + validate_deck
 - [ ] **GUI · Design tokens + component gallery (the Storybook analog)** — Phase G (think:114), /craft §B. The design grammar this project will own — NOT a default-component-library look. A token system as CSS custom properties (color incl. the WUBRG mana palette, spacing scale, type scale, radii, elevation, motion), light + dark, consumed by every component (Dioxus styles with HTML+CSS; built-in Tailwind available). Plus a component-gallery route (the Storybook 'everything in a gallery' analog for Dioxus): each primitive + object component rendered in all states for visual review and Playwright scrutiny. Establish the brand grammar (a senior-designer MTG aesthetic, mana-color-aware, not AI-slop gradients/emoji).
   - deps: gui-scaffold
   - acceptance: A token layer (CSS custom properties) for color/space/type/radius/elevation/motion, with light + dark themes
