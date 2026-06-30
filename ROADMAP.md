@@ -1,13 +1,5 @@
-think-and-ship: loaded roadmap with 54 chunk(s) from disk
+think-and-ship: loaded roadmap with 55 chunk(s) from disk
 # Roadmap — mtg-edh-mcp-4d66ba
-
-## Pending
-
-- [ ] **Backlog · Collection awareness** — Spec §12. Optional `collection` resource so card_search can filter to owned cards. Explicitly out of scope for v1 to keep primitives clean; tracked for later.
-  - deps: p2-card-tools
-  - acceptance: collection resource defined
-  - acceptance: card_search can optionally filter to owned cards
-  - acceptance: Off by default; does not complicate the core primitives
 
 ## Done
 
@@ -181,6 +173,11 @@ think-and-ship: loaded roadmap with 54 chunk(s) from disk
   - acceptance: Compliance checklist met (User-Agent, no paywalling)
   - acceptance: Package installs and runs from a clean clone
   - acceptance: Docs cover every tool + both transports
+- [x] **Backlog · Collection awareness** — Spec §12. Optional `collection` resource so card_search can filter to owned cards. Explicitly out of scope for v1 to keep primitives clean; tracked for later.
+  - deps: p2-card-tools
+  - acceptance: collection resource defined
+  - acceptance: card_search can optionally filter to owned cards
+  - acceptance: Off by default; does not complicate the core primitives
 - [x] **P8 · Set-commander accepts names (identity bug)** — Review #1 (code-confirmed). deck_set_commander/validate_commander take oracle_ids only; passing a card NAME falls through index.getCard(name)->null and silently yields computed_color_identity [], which then rejects every colored card. Fix: resolve each commander arg as name-or-oracle_id (reuse CardIndex.resolveName), recompute identity from resolved cards, and reject unresolved/ambiguous inputs with UNKNOWN_CARD/AMBIGUOUS_NAME instead of producing an empty identity. Apply the same name-or-id acceptance to deck_create's commanders.
   - deps: p3-commander, p2-card-tools
   - acceptance: Setting a commander by name computes the correct color identity
@@ -249,6 +246,11 @@ think-and-ship: loaded roadmap with 54 chunk(s) from disk
 
 ## Backlog
 
+- [ ] **Backlog · Build-from-collection (collection × budget synthesis)** — Discovered closing bl-collection (think:110). Now that an owned-card collection exists (CollectionStore + card_search owned_only), synthesize it with the differentiated budget tools — the moat play the business-intel briefing identified ('what can I build from what I own'). Concretely: have budget_plan / meta_budget_swaps optionally treat owned cards as $0 (already-owned), so the min-buy / swap suggestions reflect the cards-to-actually-acquire cost rather than full retail; and/or a meta_recommendations / missing-staples mode that prefers owned cards. Pure analysis stays pure; the tool layer passes the session's collection in (like the bracket Spellbook combos pattern). Off by default. Honest scope note: this is the high-value extension of collection awareness; bl-collection deliberately stopped at the search filter to stay atomic.
+  - deps: bl-collection, p9-budget-reprints
+  - acceptance: budget tools can treat owned cards as already-acquired ($0) so the buy cost reflects only un-owned cards
+  - acceptance: Opt-in; with no collection the budget output is identical to today
+  - acceptance: Pure budget core stays IO-free; the collection is passed in at the tool layer; unit + tool tests
 - [ ] **Backlog · Format generalization (Brawl/Oathbreaker/…)** — Spec §12. Parameterize the rules engine by a format profile so the same primitives validate Brawl, Oathbreaker, and other singleton/identity formats. Refresh 2026 (think:105) — the concrete code seams are now mapped: (1) src/validate/coreRules.ts hardcodes COMMANDER_DECK_SIZE=100 (checkCardCount) and checkBanlist reads card.legalities.commander — Card.legalities is already a full Record, so legalities.brawl / legalities.oathbreaker are ALREADY ingested; just parameterize the key; (2) src/types/deck.ts Format is the literal "commander" only — widen to a union + a FormatProfile {deckSize, banlistKey, commandZoneKind, singleton}; (3) command-zone eligibility (commanderRules.ts) already handles planeswalkers via "can be your commander" text (relevant to Oathbreaker). Honest strategic note (think:105): demand is LOW — Oathbreaker is widely called near-dead and Brawl is Arena-only — and the MTG-MCP field is already crowded on broad card-lookup/basic-deck; this server's differentiation is EDH-deep analysis. So format-generalization widens into low-demand formats and dilutes the moat. Kept post-v1; see the reprioritize proposal (collection ranked above this).
   - deps: p4-tools
   - acceptance: Rules engine parameterized by a FormatProfile (deck size, banlist legality key, command-zone kind, singleton rule)
