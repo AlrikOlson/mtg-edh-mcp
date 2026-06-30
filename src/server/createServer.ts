@@ -80,7 +80,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
       : [];
   const analyzeTools =
     options.deckStore && options.index
-      ? makeAnalyzeTools(options.deckStore, options.index, session)
+      ? makeAnalyzeTools(options.deckStore, options.index, session, collection)
       : [];
   // Enrichment needs the index (name resolution) + deck store (deck context).
   const edhrec = options.edhrec ?? new EdhrecClient(new CacheStore());

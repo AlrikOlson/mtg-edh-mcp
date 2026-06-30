@@ -9,6 +9,7 @@ import { StructuredError } from "../types/index.js";
 import type { Card, Color, Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
+import type { CollectionStore } from "../collection/index.js";
 import {
   analyzeCurve,
   analyzeComposition,
@@ -254,7 +255,12 @@ function simulateDeckTool(store: DeckStore, index: CardIndex, session: string): 
   };
 }
 
-function budgetPlanTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
+function budgetPlanTool(
+  store: DeckStore,
+  index: CardIndex,
+  session: string,
+  collection?: CollectionStore,
+): ToolDefinition {
   return {
     name: "budget_plan",
     config: {
@@ -263,12 +269,14 @@ function budgetPlanTool(store: DeckStore, index: CardIndex, session: string): To
         "Plan a deck toward a price target: default vs min-buy (cheapest-printing) totals, total " +
         "reprint_savings (buy the cheap printing — no deck change), ranked reprint_suggestions, and " +
         "cost_drivers (the priciest cards by cheapest×qty, with roles, to consider cutting). Pass " +
-        "target_usd for the over-budget gap. Figures are local-index price floors (conservative for " +
-        "bulk commons), advisory only. Functional replacements are a separate concern.",
+        "target_usd for the over-budget gap. Set use_collection:true to also report acquire_usd — " +
+        "the cost to buy only the cards you don't already own (per collection_set). Figures are " +
+        "local-index price floors (conservative for bulk commons), advisory only.",
       inputSchema: {
         deck_id: z.string(),
         target_usd: z.number().nonnegative().optional(),
         limit: z.number().int().positive().max(100).optional(),
+        use_collection: z.boolean().optional(),
       },
     },
     handler: (args) => {
@@ -279,14 +287,19 @@ function budgetPlanTool(store: DeckStore, index: CardIndex, session: string): To
       const opts: BudgetOptions = {};
       if (typeof args.target_usd === "number") opts.targetUsd = args.target_usd;
       if (typeof args.limit === "number") opts.limit = args.limit;
+      // Opt-in collection awareness: zero out cards already owned in this session.
+      if (args.use_collection === true && collection && collection.size(session) > 0) {
+        opts.owned = collection.get(session);
+      }
       const plan = budgetPlan(deck.cards, lookup, opts);
       const gap =
         plan.over_min_buy_by_usd !== null ? `, $${plan.over_min_buy_by_usd} over target` : "";
+      const acquire = plan.acquire_usd !== null ? `; acquire $${plan.acquire_usd}` : "";
       return {
         content: [
           {
             type: "text",
-            text: `min buy $${plan.min_buy_usd} (default $${plan.default_total_usd}); reprint savings $${plan.reprint_savings_usd}${gap}`,
+            text: `min buy $${plan.min_buy_usd} (default $${plan.default_total_usd}); reprint savings $${plan.reprint_savings_usd}${acquire}${gap}`,
           },
         ],
         structuredContent: { deck_id: deckId, ...plan },
@@ -300,6 +313,7 @@ export function makeAnalyzeTools(
   store: DeckStore,
   index: CardIndex,
   session = "local",
+  collection?: CollectionStore,
 ): ToolDefinition[] {
   return [
     analyzeCurveTool(store, index, session),
@@ -308,6 +322,6 @@ export function makeAnalyzeTools(
     analyzeManaBaseTool(store, index, session),
     analyzeRoleCoverageTool(store, index, session),
     simulateDeckTool(store, index, session),
-    budgetPlanTool(store, index, session),
+    budgetPlanTool(store, index, session, collection),
   ];
 }

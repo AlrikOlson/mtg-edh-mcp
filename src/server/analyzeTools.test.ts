@@ -215,4 +215,27 @@ describe("budget_plan", () => {
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
+
+  it("use_collection treats owned cards as acquired ($0), off by default (bl-collection-budget)", async () => {
+    interface Plan {
+      acquire_usd: number | null;
+      owned_value_usd: number | null;
+      min_buy_usd: number;
+    }
+    const plan = async (args: Record<string, unknown>): Promise<Plan> =>
+      (await client.callTool({ name: "budget_plan", arguments: { deck_id: "deck-1", ...args } }))
+        .structuredContent as Plan;
+
+    // No collection yet: use_collection is a no-op (acquire null, identical to today).
+    expect((await plan({ use_collection: true })).acquire_usd).toBeNull();
+
+    // Own Sol Ring + the Forests → only Counterspell remains to acquire.
+    await client.callTool({ name: "collection_set", arguments: { cards: ["o-sol", "o-forest"] } });
+    const owned = await plan({ use_collection: true });
+    expect(owned.acquire_usd).toBe(1.0); // just Counterspell
+    expect(owned.owned_value_usd).toBe(owned.min_buy_usd - 1.0);
+
+    // Flag off → acquire stays null even with a collection set.
+    expect((await plan({})).acquire_usd).toBeNull();
+  });
 });

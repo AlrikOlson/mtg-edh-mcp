@@ -55,6 +55,17 @@ export interface BudgetPlan {
   target_usd: number | null;
   /** How far the min-buy floor exceeds the target (0 when within budget), or null. */
   over_min_buy_by_usd: number | null;
+  /**
+   * Cost to actually ACQUIRE the deck when an owned collection is supplied:
+   * sum of cheapest×qty for cards NOT owned (owned cards count as $0). Null when
+   * no collection was given. Ownership is membership — owning a card zeroes its
+   * whole entry regardless of qty (the collection tracks no quantities).
+   */
+  acquire_usd: number | null;
+  /** Min-buy value already covered by owned cards (min_buy − acquire), or null. */
+  owned_value_usd: number | null;
+  /** How far the acquire cost exceeds the target (0 when within budget), or null. */
+  over_acquire_by_usd: number | null;
 }
 
 export interface BudgetOptions {
@@ -62,6 +73,11 @@ export interface BudgetOptions {
   targetUsd?: number;
   /** Max entries in reprint_suggestions / cost_drivers (default 10). */
   limit?: number;
+  /**
+   * Owned cards (oracle_ids). When given, the plan adds acquire_usd — the cost to
+   * buy only the cards you don't own. Omitted = no collection (acquire figures null).
+   */
+  owned?: ReadonlySet<string>;
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -77,8 +93,10 @@ export function budgetPlan(
   opts: BudgetOptions = {},
 ): BudgetPlan {
   const limit = opts.limit ?? 10;
+  const owned = opts.owned;
   let defaultTotal = 0;
   let minBuyTotal = 0;
+  let acquireTotal = 0;
   const reprints: ReprintSaving[] = [];
   const drivers: CostDriver[] = [];
 
@@ -90,6 +108,8 @@ export function budgetPlan(
     const qty = entry.qty;
     defaultTotal += d * qty;
     minBuyTotal += c * qty;
+    // Owned cards are already in hand ($0 to acquire); the rest cost cheapest×qty.
+    if (!owned?.has(entry.oracle_id)) acquireTotal += c * qty;
 
     const savings = (d - c) * qty;
     if (savings > 0) {
@@ -126,5 +146,9 @@ export function budgetPlan(
     cost_drivers: drivers.slice(0, limit),
     target_usd: target,
     over_min_buy_by_usd: target !== null ? round2(Math.max(0, minBuyTotal - target)) : null,
+    acquire_usd: owned ? round2(acquireTotal) : null,
+    owned_value_usd: owned ? round2(minBuyTotal - acquireTotal) : null,
+    over_acquire_by_usd:
+      owned && target !== null ? round2(Math.max(0, acquireTotal - target)) : null,
   };
 }

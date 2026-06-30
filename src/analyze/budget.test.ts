@@ -91,3 +91,38 @@ describe("budgetPlan (review #10)", () => {
     expect(plan.reprint_suggestions).toEqual([]); // Sol Ring has no cheaper printing
   });
 });
+
+describe("budgetPlan — owned collection (bl-collection-budget)", () => {
+  const entries = [
+    { oracle_id: "o-rats", qty: 3 },
+    { oracle_id: "o-sol", qty: 1 },
+  ];
+
+  it("is off by default: no owned set => acquire figures are null, other fields unchanged", () => {
+    const plan = budgetPlan(entries, lookup);
+    expect(plan.min_buy_usd).toBe(2.4);
+    expect(plan.acquire_usd).toBeNull();
+    expect(plan.owned_value_usd).toBeNull();
+    expect(plan.over_acquire_by_usd).toBeNull();
+  });
+
+  it("zeroes owned cards: acquire_usd counts only un-owned cards", () => {
+    // Own Sol Ring (cheapest 1.50) → acquire = just the Rats (0.30×3 = 0.90).
+    const plan = budgetPlan(entries, lookup, { owned: new Set(["o-sol"]) });
+    expect(plan.min_buy_usd).toBe(2.4); // full-deck floor unchanged
+    expect(plan.acquire_usd).toBe(0.9);
+    expect(plan.owned_value_usd).toBe(1.5); // min_buy − acquire
+  });
+
+  it("reports the over-acquire gap against the target", () => {
+    const plan = budgetPlan(entries, lookup, { owned: new Set(["o-sol"]), targetUsd: 0.5 });
+    expect(plan.over_acquire_by_usd).toBe(0.4); // acquire 0.90 − 0.50
+    expect(plan.over_min_buy_by_usd).toBe(1.9); // 2.40 − 0.50 (unchanged semantics)
+  });
+
+  it("owning everything makes acquire_usd zero", () => {
+    const plan = budgetPlan(entries, lookup, { owned: new Set(["o-rats", "o-sol"]) });
+    expect(plan.acquire_usd).toBe(0);
+    expect(plan.owned_value_usd).toBe(2.4);
+  });
+});
