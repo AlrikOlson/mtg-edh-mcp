@@ -86,7 +86,10 @@ pub struct CardSearchParams {
 impl CardSearchParams {
     /// Convenience constructor for the common case (just a query).
     pub fn new(query: impl Into<String>) -> Self {
-        Self { query: query.into(), ..Self::default() }
+        Self {
+            query: query.into(),
+            ..Self::default()
+        }
     }
 }
 
@@ -103,6 +106,9 @@ pub struct DeckCreateParams {
 
 impl DeckCreateParams {
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), ..Self::default() }
+        Self {
+            name: name.into(),
+            ..Self::default()
+        }
     }
 }

@@ -64,7 +64,10 @@ pub(crate) fn engine_error_from_payload(payload: &Value) -> EngineError {
                 .and_then(|d| d.get("candidates"))
                 .and_then(|c| serde_json::from_value::<Vec<CardRef>>(c.clone()).ok())
                 .unwrap_or_default();
-            EngineError::AmbiguousName { message, candidates }
+            EngineError::AmbiguousName {
+                message,
+                candidates,
+            }
         }
         "DECK_NOT_FOUND" => EngineError::DeckNotFound { message },
         "UPSTREAM_UNAVAILABLE" => EngineError::UpstreamUnavailable {
@@ -143,7 +146,12 @@ mod tests {
             "details": { "url": "https://edhrec.com", "status": 503, "reason": "maintenance" }
         }));
         match e {
-            EngineError::UpstreamUnavailable { url, status, reason, .. } => {
+            EngineError::UpstreamUnavailable {
+                url,
+                status,
+                reason,
+                ..
+            } => {
                 assert_eq!(url.as_deref(), Some("https://edhrec.com"));
                 assert_eq!(status, Some(503));
                 assert_eq!(reason.as_deref(), Some("maintenance"));
