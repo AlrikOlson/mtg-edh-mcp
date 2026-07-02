@@ -217,6 +217,10 @@
   - acceptance: The web target is driven by Playwright in light + dark with mechanical DOM assertions against the mb-* class contract + token resolution + axe a11y (AA both themes)
   - acceptance: A design-fidelity pass vs the Manabase handoff is recorded: layout metrics, type/mono rules, motion/reduced-motion, no-gradient/no-emoji grammar — deviations enumerated honestly
   - acceptance: OOUX fidelity verified: each object renders through its one component (CardRow/CardTile etc.) with consistent CTAs across Browse/Workbench/Collection
+- [x] **GUI · Session persistence — active deck + snapshots survive restart** — Scrutiny finding (think:141): reloading the app loses active_deck_id/name and the session snapshot list — AppState is in-memory only. Persist the active deck + snapshot ids (localStorage on web via document::eval or gloo-storage; a config file on desktop) and restore on boot, falling back to deck_list when the stored id no longer exists. Also consider surfacing deck_list as a deck switcher (carried gui-deck gap) since restore-on-boot needs the same listing.
+  - deps: gui-scrutiny
+  - acceptance: Reload/restart restores the active deck (verified in the web target)
+  - acceptance: Stale stored deck ids fall back gracefully to deck_list
 - [x] **P7 · Determinism & latency gate** — Spec §11. Enforce non-functional requirements: deterministic outputs (stable sort tiebreakers, no randomness unless explicitly requested) and latency (<50ms typical for local search/validation/analysis). Benchmark suite wired into CI.
   - deps: p2-eval, p4-tools, p5-mana
   - acceptance: Benchmark suite enforces the <50ms budget in CI
@@ -323,10 +327,6 @@
   - deps: gui-oracle
   - acceptance: Each listed gap either shipped or explicitly re-recorded with a reason
   - acceptance: Mini Playwright pass over the touched surfaces
-- [ ] **GUI · Session persistence — active deck + snapshots survive restart** — Scrutiny finding (think:141): reloading the app loses active_deck_id/name and the session snapshot list — AppState is in-memory only. Persist the active deck + snapshot ids (localStorage on web via document::eval or gloo-storage; a config file on desktop) and restore on boot, falling back to deck_list when the stored id no longer exists. Also consider surfacing deck_list as a deck switcher (carried gui-deck gap) since restore-on-boot needs the same listing.
-  - deps: gui-scrutiny
-  - acceptance: Reload/restart restores the active deck (verified in the web target)
-  - acceptance: Stale stored deck ids fall back gracefully to deck_list
 - [ ] **Oracle · LLM brain — BYO-key agent over the engine tools (product decision)** — From refresh think:145; the explicit revisit of think:142's structured-intent-v1 decision. An LLM (Claude API, BYO key) drives the engine's MCP tools as a real agent loop behind the existing Oracle UI (the state machine, streamed captions, and change-set rendering all carry over — only the brain swaps). Requires USER-level product decisions first: key storage/entry UX, cost expectations, offline behavior (structured intents remain the fallback), and whether the desktop app or a proxy holds the key. Do not start without those recorded.
   - deps: gui-oracle
   - acceptance: Recorded product decisions: key handling, cost, offline fallback
