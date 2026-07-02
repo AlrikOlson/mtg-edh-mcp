@@ -37,7 +37,9 @@ pub use types::{
     ValidateDeckResult,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 use http::{HeaderName, HeaderValue};
+#[cfg(not(target_arch = "wasm32"))]
 use rmcp::{
     model::{CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation},
     service::{RoleClient, RunningService},
@@ -69,14 +71,24 @@ fn cards_arg(cards: &[String]) -> Map<String, Value> {
 /// The `x-mcp-principal` header the engine reads to scope decks/collections.
 const PRINCIPAL_HEADER: &str = "x-mcp-principal";
 
-/// A connected MCP client to the engine. Owns the running rmcp service.
+/// A connected MCP client to the engine. Native builds own a running rmcp
+/// service; wasm builds hold a fetch-backed reqwest client and speak the
+/// engine's stateless direct-POST contract (think:140).
 pub struct EngineClient {
+    #[cfg(not(target_arch = "wasm32"))]
     service: RunningService<RoleClient, ClientInfo>,
+    #[cfg(target_arch = "wasm32")]
+    url: String,
+    #[cfg(target_arch = "wasm32")]
+    principal: String,
+    #[cfg(target_arch = "wasm32")]
+    http: reqwest::Client,
 }
 
 impl EngineClient {
     /// Connect to the engine at `base_url` (e.g. `http://127.0.0.1:3000`),
     /// sending `principal` in the `x-mcp-principal` header.
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn connect(base_url: &str, principal: &str) -> Result<Self, EngineError> {
         let principal_value = HeaderValue::from_str(principal)
             .map_err(|e| EngineError::Transport(format!("invalid principal '{principal}': {e}")))?;
@@ -98,6 +110,17 @@ impl EngineClient {
             .await
             .map_err(|e| EngineError::Transport(format!("connect to {base_url} failed: {e}")))?;
         Ok(Self { service })
+    }
+
+    /// wasm connect: no handshake — the engine is stateless, every POST is
+    /// self-contained. Reachability is proven by the caller's first probe call.
+    #[cfg(target_arch = "wasm32")]
+    pub async fn connect(base_url: &str, principal: &str) -> Result<Self, EngineError> {
+        Ok(Self {
+            url: base_url.to_string(),
+            principal: principal.to_string(),
+            http: reqwest::Client::new(),
+        })
     }
 
     /// `card_search` — evaluate a Scryfall-grammar query against the index.
@@ -430,6 +453,7 @@ impl EngineClient {
     }
 
     /// Gracefully close the connection.
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn shutdown(self) -> Result<(), EngineError> {
         self.service
             .cancel()
@@ -440,6 +464,7 @@ impl EngineClient {
 
     /// Call a tool, route errors through the §8 mapper, and decode the
     /// `structuredContent` into `T`.
+    #[cfg(not(target_arch = "wasm32"))]
     async fn call<T: DeserializeOwned>(
         &self,
         name: &'static str,
@@ -452,14 +477,76 @@ impl EngineClient {
             .map_err(|e| EngineError::Transport(format!("call_tool {name} failed: {e}")))?;
 
         let structured = result.structured_content.unwrap_or(Value::Null);
-        if result.is_error.unwrap_or(false) {
-            return Err(error::engine_error_from_payload(&structured));
-        }
-        if structured.is_null() {
-            return Err(EngineError::Transport(format!(
-                "{name} returned no structuredContent"
-            )));
-        }
-        Ok(serde_json::from_value(structured)?)
+        decode_structured(name, structured, result.is_error.unwrap_or(false))
     }
+
+    /// wasm call: direct stateless JSON-RPC POST; the reply is SSE-framed
+    /// (`event: message` / `data: {...}`) — parse the first data: line.
+    #[cfg(target_arch = "wasm32")]
+    async fn call<T: DeserializeOwned>(
+        &self,
+        name: &'static str,
+        args: Map<String, Value>,
+    ) -> Result<T, EngineError> {
+        let body = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": { "name": name, "arguments": Value::Object(args) },
+        });
+        let text = self
+            .http
+            .post(&self.url)
+            .header("content-type", "application/json")
+            .header("accept", "application/json, text/event-stream")
+            .header(PRINCIPAL_HEADER, &self.principal)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| EngineError::Transport(format!("POST {name} failed: {e}")))?
+            .text()
+            .await
+            .map_err(|e| EngineError::Transport(format!("read {name} reply failed: {e}")))?;
+        let data = text
+            .lines()
+            .find_map(|l| l.strip_prefix("data: "))
+            .unwrap_or(text.trim());
+        let rpc: Value = serde_json::from_str(data)?;
+        if let Some(err) = rpc.get("error") {
+            return Err(EngineError::Transport(format!("{name} rpc error: {err}")));
+        }
+        let result = rpc.get("result").cloned().unwrap_or(Value::Null);
+        let is_error = result
+            .get("isError")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let structured = result
+            .get("structuredContent")
+            .cloned()
+            .unwrap_or(Value::Null);
+        decode_structured(name, structured, is_error)
+    }
+
+    /// wasm shutdown: nothing to tear down (no long-lived service).
+    #[cfg(target_arch = "wasm32")]
+    pub async fn shutdown(self) -> Result<(), EngineError> {
+        Ok(())
+    }
+}
+
+/// Shared tail of every tool call: engine error mapping + typed decode.
+fn decode_structured<T: DeserializeOwned>(
+    name: &'static str,
+    structured: Value,
+    is_error: bool,
+) -> Result<T, EngineError> {
+    if is_error {
+        return Err(error::engine_error_from_payload(&structured));
+    }
+    if structured.is_null() {
+        return Err(EngineError::Transport(format!(
+            "{name} returned no structuredContent"
+        )));
+    }
+    Ok(serde_json::from_value(structured)?)
 }

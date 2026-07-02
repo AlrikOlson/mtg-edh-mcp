@@ -61,11 +61,34 @@ async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   return raw.length === 0 ? undefined : JSON.parse(raw);
 }
 
+/**
+ * Minimal CORS for local browser-based clients (the Dioxus web target used by
+ * the GUI scrutiny gate). Only localhost origins are reflected — this server
+ * binds 127.0.0.1 and is not meant to be exposed cross-origin beyond dev.
+ */
+function applyCors(req: http.IncomingMessage, res: http.ServerResponse): void {
+  const origin = req.headers.origin;
+  if (typeof origin !== "string") return;
+  if (!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return;
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "content-type, accept, x-mcp-principal, mcp-protocol-version",
+  );
+}
+
 async function handle(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   options: CreateServerOptions,
 ): Promise<void> {
+  applyCors(req, res);
+  // CORS preflight from a browser client: answer before the POST-only gate.
+  if (req.method === "OPTIONS") {
+    res.writeHead(204).end();
+    return;
+  }
   // Stateless: only POST carries JSON-RPC. A 405 on GET tells the client there
   // is no long-lived SSE stream, which the SDK client tolerates gracefully.
   if (req.method !== "POST") {

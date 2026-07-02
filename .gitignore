@@ -22,3 +22,7 @@ data/
 # OS / editor cruft
 .DS_Store
 *.tsbuildinfo
+
+# Playwright MCP session artifacts (scrutiny runs)
+.playwright-mcp/
+scrutiny-*.png

@@ -10,6 +10,7 @@
 use dioxus::prelude::*;
 use mtg_edh_mcp_client::EngineClient;
 use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
 
 /// Engine connection lifecycle, surfaced in the top bar. The `Ready` payload
@@ -42,9 +43,14 @@ pub struct AppState {
 /// Engine base URL: MTG_EDH_MCP_URL overrides; default matches the engine's
 /// MCP_HTTP_PORT default.
 fn engine_url() -> String {
-    std::env::var("MTG_EDH_MCP_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string())
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Ok(url) = std::env::var("MTG_EDH_MCP_URL") {
+        return url;
+    }
+    "http://127.0.0.1:3000".to_string()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// Dev sidecar entrypoint: MTG_EDH_MCP_DIST overrides; falls back to the repo
 /// checkout's dist/main.js relative to this crate (compile-time path — dev
 /// only; bundled-.app resolution is gui-app-shell's deferred sidecar work).
@@ -56,6 +62,7 @@ fn sidecar_dist() -> Option<std::path::PathBuf> {
     dev.canonicalize().ok()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// Spawn the node engine as a detached sidecar child. Returns whether a spawn
 /// was attempted. The child outlives us intentionally in dev; lifecycle
 /// management (kill-on-quit, bundled node) is deferred to the packaging work.
@@ -113,25 +120,33 @@ pub fn connect(state: AppState) {
             }
             client.shutdown().await.ok();
         }
-        // Sidecar: spawn the node engine, then retry with backoff.
-        let spawned = spawn_sidecar();
-        if spawned.is_ok() {
-            for _ in 0..20 {
-                tokio::time::sleep(Duration::from_millis(300)).await;
-                if let Ok(client) = EngineClient::connect(&url, &principal).await {
-                    if probe(&client).await {
-                        conn.set(ConnState::Ready(Arc::new(client)));
-                        return;
+        // Sidecar: spawn the node engine, then retry with backoff (native only —
+        // a browser build cannot spawn processes; it needs the engine already up).
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let spawned = spawn_sidecar();
+            if spawned.is_ok() {
+                for _ in 0..20 {
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+                    if let Ok(client) = EngineClient::connect(&url, &principal).await {
+                        if probe(&client).await {
+                            conn.set(ConnState::Ready(Arc::new(client)));
+                            return;
+                        }
+                        client.shutdown().await.ok();
                     }
-                    client.shutdown().await.ok();
                 }
             }
+            let reason = match spawned {
+                Ok(()) => format!("engine did not answer at {url} after sidecar spawn"),
+                Err(e) => format!("engine unreachable at {url}; {e}"),
+            };
+            conn.set(ConnState::Offline(reason));
         }
-        let reason = match spawned {
-            Ok(()) => format!("engine did not answer at {url} after sidecar spawn"),
-            Err(e) => format!("engine unreachable at {url}; {e}"),
-        };
-        conn.set(ConnState::Offline(reason));
+        #[cfg(target_arch = "wasm32")]
+        conn.set(ConnState::Offline(format!(
+            "engine unreachable at {url} — start it with MCP_TRANSPORT=http node dist/main.js"
+        )));
     });
 }
 

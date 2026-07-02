@@ -284,11 +284,13 @@ fn RecList(title: &'static str, items: Vec<Recommendation>) -> Element {
             div { style: "font: var(--type-body-sm); color: var(--text-muted);", "Nothing to suggest." }
         }
         div { class: "ic-rows",
+            // EDHREC `inclusion` is a DECK COUNT, not a rate (scrutiny finding,
+            // think:141); `synergy` is a fraction.
             for item in items {
                 div { class: "ic-row",
-                    span { class: "ic-row__k", "{item.inclusion * 100.0:.0}%" }
+                    span { class: "ic-row__k", "{item.inclusion:.0} decks" }
                     span { class: "ic-row__names", "{item.name}" }
-                    span { class: "ic-row__n", "syn {item.synergy * 100.0:+.0}" }
+                    span { class: "ic-row__n", "syn {item.synergy * 100.0:+.0}%" }
                 }
             }
         }

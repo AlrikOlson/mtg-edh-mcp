@@ -11,8 +11,16 @@ description = "Desktop GUI for mtg-edh-mcp — a Dioxus client over the MCP engi
 # would pick the platform feature for us, but we gate on plain `cargo build`
 # (dioxus-cli isn't required to compile, and its `dx` binary name collides with
 # Deno's `dx` on this machine — see the ADR). System WebView via wry/tao.
-dioxus = { version = "0.7", features = ["desktop"] }
+dioxus = { version = "0.7" }
 # The typed MCP client to the engine (gui-mcp-client chunk).
 mtg-edh-mcp-client = { path = "../mcp" }
-# Async sleep for the connect/retry backoff (dioxus desktop provides the runtime).
+
+# Async sleep for the connect/retry backoff (native sidecar path only).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1", features = ["time"] }
+
+[features]
+default = ["desktop"]
+desktop = ["dioxus/desktop"]
+# The gui-scrutiny web target (dx serve --platform web).
+web = ["dioxus/web"]
