@@ -8,7 +8,7 @@
 //! mirroring the engine's graceful-degradation ethos.
 
 use dioxus::prelude::*;
-use mtg_edh_mcp_client::EngineClient;
+use mtg_edh_mcp_client::{serde_json, EngineClient};
 use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
@@ -38,6 +38,10 @@ pub struct AppState {
     /// Snapshots taken this session: (snapshot_id, version-at-capture). The
     /// engine has no snapshot-list tool, so the GUI tracks what it took.
     pub snapshots: Signal<Vec<(String, u64)>>,
+    /// True once restore_session has run. Saves are gated on this — otherwise
+    /// the boot-time save effect would overwrite the stored session with nulls
+    /// before restore ever reads it.
+    pub hydrated: Signal<bool>,
 }
 
 /// Engine base URL: MTG_EDH_MCP_URL overrides; default matches the engine's
@@ -134,15 +138,126 @@ pub fn use_provide_app_state() -> AppState {
         active_deck_name: Signal::new(None),
         deck_rev: Signal::new(0),
         snapshots: Signal::new(Vec::new()),
+        hydrated: Signal::new(false),
     });
     use_effect(move || {
         connect(state);
+    });
+    // Persist the session whenever its parts change (reads subscribe this
+    // effect). Gated on hydration — see AppState.hydrated.
+    use_effect(move || {
+        let blob = persist_blob(&state);
+        if !(state.hydrated)() {
+            return;
+        }
+        spawn(async move {
+            persist_write(blob).await;
+        });
     });
     state
 }
 
 pub fn use_app_state() -> AppState {
     use_context::<AppState>()
+}
+
+// ---- Session persistence (gui-persist) ---------------------------------------
+// One JSON blob {deck_id, deck_name, snapshots} — localStorage on web, a
+// dotfile in $HOME on desktop. Restore validates via deck_get and falls back
+// to deck_list; a vanished stored deck never wedges boot.
+
+#[cfg(target_arch = "wasm32")]
+const PERSIST_KEY: &str = "mtg-edh-gui-session";
+
+fn persist_blob(state: &AppState) -> String {
+    let snapshots: Vec<serde_json::Value> = (state.snapshots)()
+        .into_iter()
+        .map(|(id, v)| serde_json::json!([id, v]))
+        .collect();
+    serde_json::json!({
+        "deck_id": (state.active_deck_id)(),
+        "deck_name": (state.active_deck_name)(),
+        "snapshots": snapshots,
+    })
+    .to_string()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn persist_path() -> Option<std::path::PathBuf> {
+    std::env::var("HOME")
+        .ok()
+        .map(|h| std::path::PathBuf::from(h).join(".mtg-edh-gui.json"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn persist_write(blob: String) {
+    if let Some(p) = persist_path() {
+        let _ = std::fs::write(p, blob);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn persist_read() -> Option<String> {
+    std::fs::read_to_string(persist_path()?).ok()
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn persist_write(blob: String) {
+    let js = format!(
+        "localStorage.setItem('{PERSIST_KEY}', {});",
+        serde_json::Value::String(blob)
+    );
+    let _ = document::eval(&js).await;
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn persist_read() -> Option<String> {
+    let value = document::eval(&format!("return localStorage.getItem('{PERSIST_KEY}');"))
+        .await
+        .ok()?;
+    match value {
+        serde_json::Value::String(s) => Some(s),
+        _ => None,
+    }
+}
+
+/// Restore the persisted session once the engine is Ready: validate the stored
+/// deck via deck_get; a stale id falls back to the newest deck in deck_list.
+async fn restore_session(mut state: AppState, client: Arc<EngineClient>) {
+    let stored: Option<serde_json::Value> = match persist_read().await {
+        Some(raw) => serde_json::from_str(&raw).ok(),
+        None => None,
+    };
+    if let Some(blob) = &stored {
+        if let Some(snaps) = blob.get("snapshots").and_then(|v| v.as_array()) {
+            let list: Vec<(String, u64)> = snaps
+                .iter()
+                .filter_map(|e| {
+                    Some((
+                        e.get(0)?.as_str()?.to_string(),
+                        e.get(1)?.as_u64().unwrap_or(0),
+                    ))
+                })
+                .collect();
+            state.snapshots.set(list);
+        }
+        if let Some(id) = blob.get("deck_id").and_then(|v| v.as_str()) {
+            if let Ok(got) = client.deck_get(id).await {
+                state.active_deck_id.set(Some(got.deck.deck_id));
+                state.active_deck_name.set(Some(got.deck.name));
+                state.hydrated.set(true);
+                return;
+            }
+        }
+    }
+    // Stale or absent: graceful fallback to the newest listed deck.
+    if let Ok(listing) = client.deck_list().await {
+        if let Some(deck) = listing.decks.last() {
+            state.active_deck_id.set(Some(deck.deck_id.clone()));
+            state.active_deck_name.set(Some(deck.name.clone()));
+        }
+    }
+    state.hydrated.set(true);
 }
 
 /// Try to connect; on failure spawn the sidecar once and retry briefly, then
@@ -156,7 +271,9 @@ pub fn connect(state: AppState) {
         // First attempt: an engine may already be running (dev mode).
         if let Ok(client) = EngineClient::connect(&url, &principal).await {
             if probe(&client).await {
-                conn.set(ConnState::Ready(Arc::new(client)));
+                let client = Arc::new(client);
+                conn.set(ConnState::Ready(client.clone()));
+                restore_session(state, client).await;
                 return;
             }
             client.shutdown().await.ok();

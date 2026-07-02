@@ -141,6 +141,7 @@ fn TopBar() -> Element {
                         "No deck"
                     }
                 }
+                DeckSwitcher {}
             }
             span { class: "mb-tb__div" }
             ColorIdentity { identity: vec![], size: 15 }
@@ -204,6 +205,59 @@ fn Placeholder(title: &'static str, note: &'static str) -> Element {
         div { style: "flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); color: var(--text-muted);",
             h2 { style: "font: var(--type-h1); color: var(--text-secondary); margin: 0;", "{title}" }
             p { style: "font: var(--type-body-sm); margin: 0;", "{note}" }
+        }
+    }
+}
+
+/// The deck switcher (gui-persist): deck_list behind a native select, mapping
+/// the chosen deck_id into the shared active-deck signals. Doubles as the
+/// visible surface of the restore-on-boot fallback listing.
+#[component]
+fn DeckSwitcher() -> Element {
+    let state = crate::state::use_app_state();
+    let decks = use_resource(move || {
+        let conn = (state.conn)();
+        let _ = (state.deck_rev)();
+        async move {
+            match conn {
+                ConnState::Ready(client) => client.deck_list().await.ok().map(|l| {
+                    l.decks
+                        .into_iter()
+                        .map(|d| (d.deck_id, d.name))
+                        .collect::<Vec<_>>()
+                }),
+                _ => None,
+            }
+        }
+    });
+    let list = decks.read().clone().flatten().unwrap_or_default();
+    if list.len() < 2 {
+        return rsx! {};
+    }
+    let active = (state.active_deck_id)();
+    rsx! {
+        select {
+            class: "mb-select mb-select--sm",
+            "data-switcher": "deck",
+            style: "max-width: 160px;",
+            onchange: move |e| {
+                let id = e.value();
+                if let Some(Some(all)) = &*decks.read() {
+                    if let Some((deck_id, name)) = all.iter().find(|(d, _)| *d == id) {
+                        let mut did = state.active_deck_id;
+                        let mut dname = state.active_deck_name;
+                        did.set(Some(deck_id.clone()));
+                        dname.set(Some(name.clone()));
+                    }
+                }
+            },
+            for (deck_id, name) in list {
+                option {
+                    value: "{deck_id}",
+                    selected: Some(deck_id.clone()) == active,
+                    "{name}"
+                }
+            }
         }
     }
 }
