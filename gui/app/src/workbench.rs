@@ -233,6 +233,7 @@ pub fn WorkbenchScreen() -> Element {
                         div { style: "flex: 1; display: flex; min-height: 0;",
                             div { style: "flex: 1; min-width: 400px; overflow-y: auto; display: flex; flex-direction: column;",
                         CommandZone { deck: deck.clone(), commander: commander_detail }
+                            crate::oracle::OracleBar { deck_id: deck.deck_id.clone() }
                         DeckToolbar { deck: deck.clone(), errors, view, group_by, sort_by }
                         div { style: "padding: 0 var(--space-4) var(--space-6);",
                             for (key, group_cards) in groups {

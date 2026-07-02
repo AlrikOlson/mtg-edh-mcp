@@ -14,6 +14,7 @@ mod gallery;
 mod icons;
 mod insights;
 mod meta;
+mod oracle;
 mod shell;
 mod state;
 mod workbench;
