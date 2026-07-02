@@ -125,6 +125,14 @@ The source is organized around the spec's engine groupings:
 | `src/meta/`     | EDHREC / Spellbook / bracket enrichment        |
 | `src/types/`    | Canonical data model + error taxonomy          |
 
+## Support
+
+This is a free, open-source hobby project. If it's useful to you and you feel
+like saying thanks:
+
+- [GitHub Sponsors](https://github.com/sponsors/AlrikOlson)
+- [Buy Me a Coffee](https://buymeacoffee.com/alrikolson)
+
 ## License
 
 MIT
