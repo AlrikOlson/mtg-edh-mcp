@@ -201,13 +201,13 @@ pub fn MetaCards(deck_id: String, version: u64) -> Element {
                 Some(Some((recs, staples, swaps, combos))) => rsx! {
                     match recs {
                         Ok(r) => rsx! {
-                            RecList { title: "Recommendations", items: r.recommendations.clone() }
+                            RecList { title: "Recommendations", items: r.recommendations.clone(), deck_id: deck_id.clone() }
                         },
                         Err(e) => advisory(e),
                     }
                     match staples {
                         Ok(s) => rsx! {
-                            RecList { title: "Missing staples", items: s.missing.clone() }
+                            RecList { title: "Missing staples", items: s.missing.clone(), deck_id: deck_id.clone() }
                         },
                         Err(e) => advisory(e),
                     }
@@ -274,7 +274,8 @@ pub fn MetaCards(deck_id: String, version: u64) -> Element {
 
 /// A compact EDHREC list: rank-style inclusion% + name + synergy.
 #[component]
-fn RecList(title: &'static str, items: Vec<Recommendation>) -> Element {
+fn RecList(title: &'static str, items: Vec<Recommendation>, deck_id: String) -> Element {
+    let state = use_app_state();
     rsx! {
         div { class: "ic-h", style: "margin-top: var(--space-2);",
             "{title}"
@@ -291,6 +292,27 @@ fn RecList(title: &'static str, items: Vec<Recommendation>) -> Element {
                     span { class: "ic-row__k", "{item.inclusion:.0} decks" }
                     span { class: "ic-row__names", "{item.name}" }
                     span { class: "ic-row__n", "syn {item.synergy * 100.0:+.0}%" }
+                    IconButton {
+                        label: "Add to deck".to_string(),
+                        size: "sm".to_string(),
+                        onclick: {
+                            let id = item.oracle_id.clone();
+                            let deck_id = deck_id.clone();
+                            move |_| {
+                                let conn = (state.conn)();
+                                let (id, deck_id) = (id.clone(), deck_id.clone());
+                                let mut rev = state.deck_rev;
+                                spawn(async move {
+                                    if let Some(client) = ready_client(&conn) {
+                                        // The engine's pre-check verdict gates it.
+                                        let _ = client.deck_add(&deck_id, &[(id, 1)]).await;
+                                        rev += 1;
+                                    }
+                                });
+                            }
+                        },
+                        Ico { svg: icons::PLUS }
+                    }
                 }
             }
         }

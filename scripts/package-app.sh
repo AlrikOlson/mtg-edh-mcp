@@ -11,4 +11,8 @@ APP=gui/target/dx/mtg-edh-gui/bundle/macos/macos/MtgEdhGui.app
 rm -rf "$APP/Contents/Resources/data"
 cp -R build/data "$APP/Contents/Resources/data"
 codesign --force --deep -s - "$APP"
-echo "app: $APP ($(du -sh "$APP" | cut -f1))"
+# Re-create the dmg AFTER data injection (dx's own dmg predates it).
+DMG="$(dirname "$APP")/MtgEdhGui.dmg"
+rm -f "$DMG"
+hdiutil create -volname "MtgEdhGui" -srcfolder "$APP" -ov -format UDZO "$DMG" > /dev/null
+echo "app: $APP ($(du -sh "$APP" | cut -f1)); dmg: $DMG ($(du -sh "$DMG" | cut -f1))"

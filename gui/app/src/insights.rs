@@ -310,7 +310,11 @@ fn RailCards(analysis: Analysis, seed: Signal<u32>) -> Element {
                                 span { class: "ic-dd__meta",
                                     b { "{demand}" }
                                     " / {supply} "
-                                    if under {
+                                    // Zero demand can't be "tight" — the engine flag
+                                    // is about supply ratios; show a neutral dash.
+                                    if demand == 0 {
+                                        span { style: "color: var(--text-faint);", "—" }
+                                    } else if under {
                                         span { class: "warn", "tight" }
                                     } else {
                                         span { class: "ok", "ok" }

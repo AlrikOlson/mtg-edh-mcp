@@ -23,6 +23,52 @@ pub fn CollectionScreen() -> Element {
     let mut unresolved = use_signal(Vec::<String>::new);
     let mut confirm_clear = use_signal(|| false);
 
+    // card_search-backed autocomplete for the add input (last comma segment).
+    let suggestions = use_resource(move || {
+        let conn = (state.conn)();
+        let raw = add_input();
+        async move {
+            let frag = raw
+                .split([',', ';', '\n'])
+                .next_back()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if frag.len() < 3 {
+                return Vec::new();
+            }
+            let Some(client) = ready_client(&conn) else {
+                return Vec::new();
+            };
+            // The grammar matches whole words — a trailing partial word
+            // ("Goblin Ki") yields nothing, so fall back to the completed
+            // words when the full fragment finds no cards.
+            let search = |q: String| {
+                let client = client.clone();
+                async move {
+                    client
+                        .card_search(mtg_edh_mcp_client::CardSearchParams {
+                            query: q,
+                            limit: Some(5),
+                            ..Default::default()
+                        })
+                        .await
+                        .map(|r| r.results.into_iter().map(|c| c.name).collect::<Vec<_>>())
+                        .unwrap_or_default()
+                }
+            };
+            let full = search(frag.clone()).await;
+            if !full.is_empty() {
+                return full;
+            }
+            match frag.rsplit_once(' ') {
+                Some((head, _)) if head.len() >= 3 => search(head.to_string()).await,
+                _ => Vec::new(),
+            }
+        }
+    });
+    let suggestions = move || suggestions.read().clone().unwrap_or_default();
+
     // Owned set + joined details (one batched card_get) + build-from-collection.
     let data = use_resource(move || {
         let conn = (state.conn)();
@@ -177,9 +223,15 @@ pub fn CollectionScreen() -> Element {
                             div { class: "mb-input mb-input--md", style: "flex: 1; max-width: 480px;",
                                 input {
                                     r#type: "text",
+                                    list: "card-suggest",
                                     placeholder: "Add cards by name or oracle_id (comma-separated)",
                                     value: add_input(),
-                                    onchange: move |e| add_input.set(e.value()),
+                                    oninput: move |e| add_input.set(e.value()),
+                                }
+                            }
+                            datalist { id: "card-suggest",
+                                for name in suggestions() {
+                                    option { value: "{name}" }
                                 }
                             }
                             Button {

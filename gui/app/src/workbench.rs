@@ -131,6 +131,7 @@ pub fn WorkbenchScreen() -> Element {
     let state = use_app_state();
     // Shared cross-screen mutation counter (state.deck_rev).
     let mut rev = state.deck_rev;
+    let mut filter99 = use_signal(String::new);
     let view = use_signal(|| "list".to_string());
     let group_by = use_signal(|| "type".to_string());
     let sort_by = use_signal(|| "mv".to_string());
@@ -235,8 +236,34 @@ pub fn WorkbenchScreen() -> Element {
                         CommandZone { deck: deck.clone(), commander: commander_detail }
                             crate::oracle::OracleBar { deck_id: deck.deck_id.clone() }
                         DeckToolbar { deck: deck.clone(), errors, view, group_by, sort_by }
+                        div { style: "padding: 0 var(--space-4) var(--space-2);",
+                            div { class: "mb-input mb-input--sm", style: "max-width: 260px;",
+                                input {
+                                    r#type: "text",
+                                    "data-filter": "the-99",
+                                    placeholder: "Filter the 99…",
+                                    value: filter99(),
+                                    oninput: move |e| filter99.set(e.value()),
+                                }
+                            }
+                        }
                         div { style: "padding: 0 var(--space-4) var(--space-6);",
-                            for (key, group_cards) in groups {
+                            for (key, group_cards) in groups.into_iter().filter_map(|(k, cards)| {
+                                let q = filter99().trim().to_lowercase();
+                                if q.is_empty() {
+                                    return Some((k, cards));
+                                }
+                                let kept: Vec<_> = cards
+                                    .into_iter()
+                                    .filter(|c| {
+                                        c.detail
+                                            .as_ref()
+                                            .map(|d| d.name.to_lowercase().contains(&q))
+                                            .unwrap_or(false)
+                                    })
+                                    .collect();
+                                (!kept.is_empty()).then_some((k, kept))
+                            }) {
                                 DeckGroup {
                                     name: key.clone(),
                                     cards: group_cards,
@@ -541,7 +568,7 @@ fn IoPanel(deck_id: String) -> Element {
     let mut import_text = use_signal(String::new);
     let mut import_report = use_signal(|| Option::<(u32, usize)>::None);
     let mut export_text = use_signal(String::new);
-    let mut diff_view = use_signal(|| Option::<(String, String)>::None);
+    let mut diff_view = use_signal(|| Option::<(String, Vec<String>)>::None);
 
     let import_id = deck_id.clone();
     let export_id = deck_id.clone();
@@ -604,7 +631,7 @@ fn IoPanel(deck_id: String) -> Element {
                                 spawn(async move {
                                     if let Some(client) = crate::browse::ready_client(&conn) {
                                         if let Ok(d) = client.deck_diff(&id, &sid).await {
-                                            diff_view.set(Some((sid.clone(), summarize_diff(&d.diff))));
+                                            diff_view.set(Some((sid.clone(), diff_lines(&d.diff))));
                                         }
                                     }
                                 });
@@ -622,10 +649,18 @@ fn IoPanel(deck_id: String) -> Element {
                                 let conn = (state.conn)();
                                 let (id, sid) = (id.clone(), sid.clone());
                                 let mut rev = state.deck_rev;
+                                let mut snapshots = state.snapshots;
                                 spawn(async move {
                                     if let Some(client) = crate::browse::ready_client(&conn) {
                                         if client.deck_restore(&id, &sid).await.is_ok() {
                                             rev += 1;
+                                        } else {
+                                            // Stale id (engine restarted) — prune it.
+                                            let list: Vec<_> = snapshots()
+                                                .into_iter()
+                                                .filter(|(s, _)| *s != sid)
+                                                .collect();
+                                            snapshots.set(list);
                                         }
                                     }
                                 });
@@ -635,12 +670,17 @@ fn IoPanel(deck_id: String) -> Element {
                     }
                 }
             }
-            if let Some((sid, summary)) = diff_view() {
+            if let Some((sid, lines)) = diff_view() {
                 div { class: "ic-callout", "data-diff": "{sid}",
                     Ico { svg: icons::GIT_COMPARE }
                     span {
-                        b { "Diff vs {sid}: " }
-                        "{summary}"
+                        b { "Diff vs {sid}" }
+                        if lines.is_empty() {
+                            " — no changes"
+                        }
+                        for line in lines {
+                            div { style: "font: var(--type-data-sm);", "{line}" }
+                        }
                     }
                 }
             }
@@ -713,13 +753,23 @@ fn IoPanel(deck_id: String) -> Element {
     }
 }
 
-/// Human summary of the deck_diff payload (kept loose engine-side).
-fn summarize_diff(diff: &mtg_edh_mcp_client::serde_json::Value) -> String {
-    let count = |key: &str| diff.get(key).and_then(|v| v.as_array()).map_or(0, Vec::len);
-    format!(
-        "{} added, {} removed, {} qty changed",
-        count("added"),
-        count("removed"),
-        count("qty_changed")
-    )
+/// Row-level lines from the deck_diff payload (kept loose engine-side):
+/// one "+/−/±  name-or-id" line per entry across the three change arrays.
+fn diff_lines(diff: &mtg_edh_mcp_client::serde_json::Value) -> Vec<String> {
+    let mut lines = Vec::new();
+    let name_of = |e: &mtg_edh_mcp_client::serde_json::Value| {
+        e.get("name")
+            .or_else(|| e.get("oracle_id"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("?")
+            .to_string()
+    };
+    for (key, sign) in [("added", "+"), ("removed", "−"), ("qty_changed", "±")] {
+        if let Some(entries) = diff.get(key).and_then(|v| v.as_array()) {
+            for e in entries {
+                lines.push(format!("{sign} {}", name_of(e)));
+            }
+        }
+    }
+    lines
 }
