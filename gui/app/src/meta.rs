@@ -54,6 +54,7 @@ pub fn MetaCards(deck_id: String, version: u64) -> Element {
         let conn = (state.conn)();
         let deck_id = id_a.clone();
         let _ = version;
+        let _ = (state.deck_rev)();
         async move {
             let client = ready_client(&conn)?;
             let bracket: Enriched<BracketResult> = client.meta_classify_bracket(&deck_id).await;
@@ -68,6 +69,7 @@ pub fn MetaCards(deck_id: String, version: u64) -> Element {
         let conn = (state.conn)();
         let deck_id = id_b.clone();
         let _ = version;
+        let _ = (state.deck_rev)();
         async move {
             let client = ready_client(&conn)?;
             let recs: Enriched<RecommendationsResult> =

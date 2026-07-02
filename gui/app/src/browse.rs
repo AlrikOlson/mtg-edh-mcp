@@ -335,6 +335,8 @@ fn InspectorBody(card: CardRef, detail: CardDetail, printings: Vec<Printing>) ->
                             spawn(async move {
                                 if let (Some(client), Some(deck_id)) = (ready_client(&conn), deck_id) {
                                     let _ = client.deck_add(&deck_id, &[(id, 1)]).await;
+                                    let mut rev = state.deck_rev;
+                                    rev += 1;
                                 }
                             });
                         },

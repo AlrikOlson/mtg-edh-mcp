@@ -129,8 +129,8 @@ fn ci_var(identity: &[String]) -> String {
 #[component]
 pub fn WorkbenchScreen() -> Element {
     let state = use_app_state();
-    // Bumped after every mutation so resources refetch.
-    let mut rev = use_signal(|| 0u32);
+    // Shared cross-screen mutation counter (state.deck_rev).
+    let mut rev = state.deck_rev;
     let view = use_signal(|| "list".to_string());
     let group_by = use_signal(|| "type".to_string());
     let sort_by = use_signal(|| "mv".to_string());
@@ -261,6 +261,7 @@ pub fn WorkbenchScreen() -> Element {
                             if let Some(v) = validation {
                                 ValidationPanel { validation: v.clone() }
                             }
+                            IoPanel { deck_id: deck.deck_id.clone() }
                         }
                             }
                             crate::insights::InsightsRail { deck_id: rail_deck_id, version: rail_version }
@@ -526,4 +527,198 @@ fn ValidationPanel(validation: mtg_edh_mcp_client::ValidateDeckResult) -> Elemen
             }
         }
     }
+}
+
+/// Deck IO — import/export dialogs + the session's snapshot list with
+/// diff/restore (gui-deck-io). The engine has no snapshot-list tool, so the
+/// list is what this session captured (state.snapshots).
+#[component]
+fn IoPanel(deck_id: String) -> Element {
+    let state = use_app_state();
+    let mut show_import = use_signal(|| false);
+    let mut show_export = use_signal(|| false);
+    let mut import_text = use_signal(String::new);
+    let mut import_report = use_signal(|| Option::<(u32, usize)>::None);
+    let mut export_text = use_signal(String::new);
+    let mut diff_view = use_signal(|| Option::<(String, String)>::None);
+
+    let import_id = deck_id.clone();
+    let export_id = deck_id.clone();
+    let snap_deck = deck_id.clone();
+
+    rsx! {
+        div { style: "margin-top: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); max-width: 620px;",
+            "data-panel": "deck-io",
+            div { style: "display: flex; align-items: center; gap: var(--space-2);",
+                span { class: "deckctl__lbl", "Deck IO" }
+                div { style: "flex: 1;" }
+                Button {
+                    variant: "secondary".to_string(),
+                    size: "sm".to_string(),
+                    onclick: move |_| show_import.set(true),
+                    "Import"
+                }
+                Button {
+                    variant: "secondary".to_string(),
+                    size: "sm".to_string(),
+                    onclick: {
+                        let id = export_id.clone();
+                        move |_| {
+                            let conn = (state.conn)();
+                            let id = id.clone();
+                            spawn(async move {
+                                if let Some(client) = crate::browse::ready_client(&conn) {
+                                    if let Ok(out) = client.deck_export(&id).await {
+                                        export_text.set(out.text);
+                                        show_export.set(true);
+                                    }
+                                }
+                            });
+                        }
+                    },
+                    "Export"
+                }
+            }
+            // Session snapshots (taken via the TopBar Snapshot button).
+            if (state.snapshots)().is_empty() {
+                div { style: "font: var(--type-body-sm); color: var(--text-muted);",
+                    "No snapshots yet — use the Snapshot button in the top bar."
+                }
+            }
+            for (snapshot_id, at_version) in (state.snapshots)() {
+                div { style: "display: flex; align-items: center; gap: var(--space-2); font: var(--type-data-sm); color: var(--text-secondary);",
+                    "data-snapshot": "{snapshot_id}",
+                    span { "{snapshot_id}" }
+                    span { style: "color: var(--text-faint);", "v{at_version}" }
+                    div { style: "flex: 1;" }
+                    Button {
+                        variant: "ghost".to_string(),
+                        size: "sm".to_string(),
+                        onclick: {
+                            let id = snap_deck.clone();
+                            let sid = snapshot_id.clone();
+                            move |_| {
+                                let conn = (state.conn)();
+                                let (id, sid) = (id.clone(), sid.clone());
+                                spawn(async move {
+                                    if let Some(client) = crate::browse::ready_client(&conn) {
+                                        if let Ok(d) = client.deck_diff(&id, &sid).await {
+                                            diff_view.set(Some((sid.clone(), summarize_diff(&d.diff))));
+                                        }
+                                    }
+                                });
+                            }
+                        },
+                        "Diff"
+                    }
+                    Button {
+                        variant: "ghost".to_string(),
+                        size: "sm".to_string(),
+                        onclick: {
+                            let id = snap_deck.clone();
+                            let sid = snapshot_id.clone();
+                            move |_| {
+                                let conn = (state.conn)();
+                                let (id, sid) = (id.clone(), sid.clone());
+                                let mut rev = state.deck_rev;
+                                spawn(async move {
+                                    if let Some(client) = crate::browse::ready_client(&conn) {
+                                        if client.deck_restore(&id, &sid).await.is_ok() {
+                                            rev += 1;
+                                        }
+                                    }
+                                });
+                            }
+                        },
+                        "Restore"
+                    }
+                }
+            }
+            if let Some((sid, summary)) = diff_view() {
+                div { class: "ic-callout", "data-diff": "{sid}",
+                    Ico { svg: icons::GIT_COMPARE }
+                    span {
+                        b { "Diff vs {sid}: " }
+                        "{summary}"
+                    }
+                }
+            }
+        }
+        if show_import() {
+            Dialog {
+                title: Some("Import decklist".to_string()),
+                description: Some("Moxfield / Archidekt / MTGO / Arena / plaintext. Unresolved lines are reported, never dropped.".to_string()),
+                on_close: move |_| show_import.set(false),
+                footer: Some(rsx! {
+                    Button { variant: "ghost".to_string(), onclick: move |_| show_import.set(false), "Cancel" }
+                    Button {
+                        variant: "primary".to_string(),
+                        onclick: {
+                            let id = import_id.clone();
+                            move |_| {
+                                let conn = (state.conn)();
+                                let text = import_text();
+                                let id = id.clone();
+                                let mut rev = state.deck_rev;
+                                spawn(async move {
+                                    if let Some(client) = crate::browse::ready_client(&conn) {
+                                        if let Ok(result) =
+                                            client.deck_import(&text, Some(&id), None).await
+                                        {
+                                            import_report.set(Some((
+                                                result.resolved_count,
+                                                result.unresolved.len(),
+                                            )));
+                                            rev += 1;
+                                        }
+                                    }
+                                });
+                            }
+                        },
+                        "Import"
+                    }
+                }),
+                textarea {
+                    style: "width: 100%; min-height: 180px; font: var(--type-data-sm); background: var(--surface-input); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: var(--space-2);",
+                    placeholder: "1 Sol Ring\n1 Arcane Signet\n…",
+                    onchange: move |e| import_text.set(e.value()),
+                    "{import_text()}"
+                }
+                if let Some((resolved, unresolved)) = import_report() {
+                    div { style: "margin-top: var(--space-2);",
+                        Badge {
+                            tone: if unresolved == 0 { "success".to_string() } else { "warning".to_string() },
+                            dot: true,
+                            "{resolved} resolved · {unresolved} unresolved"
+                        }
+                    }
+                }
+            }
+        }
+        if show_export() {
+            Dialog {
+                title: Some("Export decklist".to_string()),
+                on_close: move |_| show_export.set(false),
+                footer: Some(rsx! {
+                    Button { variant: "ghost".to_string(), onclick: move |_| show_export.set(false), "Close" }
+                }),
+                textarea {
+                    readonly: true,
+                    style: "width: 100%; min-height: 220px; font: var(--type-data-sm); background: var(--surface-input); color: var(--text-primary); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: var(--space-2);",
+                    "{export_text()}"
+                }
+            }
+        }
+    }
+}
+
+/// Human summary of the deck_diff payload (kept loose engine-side).
+fn summarize_diff(diff: &mtg_edh_mcp_client::serde_json::Value) -> String {
+    let count = |key: &str| diff.get(key).and_then(|v| v.as_array()).map_or(0, Vec::len);
+    format!(
+        "{} added, {} removed, {} qty changed",
+        count("added"),
+        count("removed"),
+        count("qty_changed")
+    )
 }

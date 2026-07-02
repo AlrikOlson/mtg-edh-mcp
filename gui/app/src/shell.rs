@@ -172,9 +172,26 @@ fn TopBar() -> Element {
             Button {
                 variant: "primary".to_string(),
                 size: "sm".to_string(),
+                disabled: (state.active_deck_id)().is_none(),
                 leading_icon: Some(rsx! {
                     Ico { svg: icons::FLOPPY_DISK }
                 }),
+                onclick: move |_| {
+                    let conn = (state.conn)();
+                    let deck_id = (state.active_deck_id)();
+                    let mut snapshots = state.snapshots;
+                    spawn(async move {
+                        if let (Some(client), Some(deck_id)) =
+                            (crate::browse::ready_client(&conn), deck_id)
+                        {
+                            if let Ok(snap) = client.deck_snapshot(&deck_id).await {
+                                let mut list = snapshots();
+                                list.push((snap.snapshot_id, snap.version));
+                                snapshots.set(list);
+                            }
+                        }
+                    });
+                },
                 "Snapshot"
             }
         }

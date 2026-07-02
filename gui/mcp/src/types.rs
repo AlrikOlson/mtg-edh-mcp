@@ -569,3 +569,47 @@ pub struct BudgetPlanResult {
     #[serde(default)]
     pub over_acquire_by_usd: Option<f64>,
 }
+
+// ---- deck IO: import/export/snapshot/diff/restore (gui-deck-io) ---------------
+
+/// `deck_snapshot` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct SnapshotResult {
+    pub snapshot_id: String,
+    pub version: u64,
+}
+
+/// `deck_diff` structuredContent — the diff payload kept loose (added/removed/
+/// qty-changed/metadata lists rendered generically).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckDiffResult {
+    pub diff: Value,
+}
+
+/// `deck_restore` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct RestoreResult {
+    pub deck_id: String,
+    pub restored_from: String,
+    pub deck: Deck,
+}
+
+/// `deck_import` structuredContent — unresolved lines are never dropped.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct ImportResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub resolved_count: u32,
+    #[serde(default)]
+    pub unresolved: Vec<Value>,
+}
+
+/// `deck_export` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct ExportResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub format: String,
+    #[serde(default)]
+    pub text: String,
+}

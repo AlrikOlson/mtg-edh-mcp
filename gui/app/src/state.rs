@@ -31,6 +31,12 @@ pub struct AppState {
     /// The active deck, once one is created/selected (gui-deck).
     pub active_deck_id: Signal<Option<String>>,
     pub active_deck_name: Signal<Option<String>>,
+    /// Bumped after ANY deck mutation (from any screen) so every deck-reading
+    /// resource refetches — the shared cross-screen refresh signal.
+    pub deck_rev: Signal<u32>,
+    /// Snapshots taken this session: (snapshot_id, version-at-capture). The
+    /// engine has no snapshot-list tool, so the GUI tracks what it took.
+    pub snapshots: Signal<Vec<(String, u64)>>,
 }
 
 /// Engine base URL: MTG_EDH_MCP_URL overrides; default matches the engine's
@@ -78,6 +84,8 @@ pub fn use_provide_app_state() -> AppState {
         principal: Signal::new("local".to_string()),
         active_deck_id: Signal::new(None),
         active_deck_name: Signal::new(None),
+        deck_rev: Signal::new(0),
+        snapshots: Signal::new(Vec::new()),
     });
     use_effect(move || {
         connect(state);

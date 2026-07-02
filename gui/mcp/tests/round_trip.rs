@@ -186,6 +186,45 @@ async fn round_trip_against_engine() {
         assert_eq!(removed.deck_id, deck_id);
     }
 
+    // gui-deck-io wrappers: export → snapshot → mutate → diff → restore.
+    let exported = client.deck_export(&deck_id).await.expect("deck_export");
+    assert_eq!(exported.deck_id, deck_id);
+    let snap = client.deck_snapshot(&deck_id).await.expect("deck_snapshot");
+    assert!(!snap.snapshot_id.is_empty());
+    if let Some(hit) = hits.results.first() {
+        // Mutate (re-add the card removed earlier), then diff vs the snapshot.
+        client
+            .deck_add(&deck_id, &[(hit.oracle_id.clone(), 1)])
+            .await
+            .expect("deck_add (io)");
+        let diff = client
+            .deck_diff(&deck_id, &snap.snapshot_id)
+            .await
+            .expect("deck_diff");
+        assert!(diff.diff.is_object());
+        let restored = client
+            .deck_restore(&deck_id, &snap.snapshot_id)
+            .await
+            .expect("deck_restore");
+        assert_eq!(restored.restored_from, snap.snapshot_id);
+        assert_eq!(restored.deck.deck_id, deck_id);
+    }
+    // Import into the same deck (plaintext); shape-safe when index is empty.
+    let import_text = hits
+        .results
+        .first()
+        .map(|h| format!("1 {}", h.name))
+        .unwrap_or_else(|| "1 Definitely Not A Real Card".to_string());
+    let imported = client
+        .deck_import(&import_text, Some(&deck_id), None)
+        .await
+        .expect("deck_import");
+    assert_eq!(imported.deck_id, deck_id);
+    assert_eq!(
+        imported.resolved_count as usize + imported.unresolved.len(),
+        1
+    );
+
     // gui-meta wrappers. deck_summary NEVER throws on enrichment failure
     // (bracket=null + bracket_unavailable). Bracket/combos may legitimately be
     // UpstreamUnavailable in test runs — both outcomes are valid; only the

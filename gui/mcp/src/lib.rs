@@ -24,15 +24,17 @@ mod error;
 mod types;
 
 pub use error::EngineError;
+pub use serde_json;
 pub use types::{
     AddVerdict, AnalyzeCompositionResult, AnalyzeCurveResult, AnalyzeStatsResult, BracketPushers,
     BracketResult, BudgetPlanResult, BudgetSwap, BudgetSwapsResult, CardDetail, CardGetResult,
     CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, CollectionView, Combo,
     CombosResult, CostDriver, Deck, DeckAddResult, DeckCardEntry, DeckCreateParams,
-    DeckCreateResult, DeckGetResult, DeckListResult, DeckMutateResult, DeckSummaryResult,
-    ManaBaseReport, MissingStaplesResult, OwnedCard, Printing, Recommendation,
-    RecommendationsResult, ReprintSuggestion, RoleCoverageResult, RoleGap, SetCommanderResult,
-    SimResult, SwapCard, ValidateDeckResult,
+    DeckCreateResult, DeckDiffResult, DeckGetResult, DeckListResult, DeckMutateResult,
+    DeckSummaryResult, ExportResult, ImportResult, ManaBaseReport, MissingStaplesResult, OwnedCard,
+    Printing, Recommendation, RecommendationsResult, ReprintSuggestion, RestoreResult,
+    RoleCoverageResult, RoleGap, SetCommanderResult, SimResult, SnapshotResult, SwapCard,
+    ValidateDeckResult,
 };
 
 use http::{HeaderName, HeaderValue};
@@ -368,6 +370,56 @@ impl EngineClient {
     /// UPSTREAM_UNAVAILABLE on a cold Spellbook cache miss.
     pub async fn meta_combos(&self, deck_id: &str) -> Result<CombosResult, EngineError> {
         self.call("meta_combos", deck_arg(deck_id)).await
+    }
+
+    /// `deck_snapshot` — capture an immutable copy under a snapshot_id.
+    pub async fn deck_snapshot(&self, deck_id: &str) -> Result<SnapshotResult, EngineError> {
+        self.call("deck_snapshot", deck_arg(deck_id)).await
+    }
+
+    /// `deck_diff` — compare a snapshot against current (or a second snapshot).
+    pub async fn deck_diff(
+        &self,
+        deck_id: &str,
+        snapshot_id: &str,
+    ) -> Result<DeckDiffResult, EngineError> {
+        let mut args = deck_arg(deck_id);
+        args.insert("snapshot_id".into(), Value::String(snapshot_id.to_string()));
+        self.call("deck_diff", args).await
+    }
+
+    /// `deck_restore` — roll back to a snapshot (a version-bumping mutation).
+    pub async fn deck_restore(
+        &self,
+        deck_id: &str,
+        snapshot_id: &str,
+    ) -> Result<RestoreResult, EngineError> {
+        let mut args = deck_arg(deck_id);
+        args.insert("snapshot_id".into(), Value::String(snapshot_id.to_string()));
+        self.call("deck_restore", args).await
+    }
+
+    /// `deck_import` — parse a decklist; adds to `deck_id` or creates a deck.
+    pub async fn deck_import(
+        &self,
+        text: &str,
+        deck_id: Option<&str>,
+        name: Option<&str>,
+    ) -> Result<ImportResult, EngineError> {
+        let mut args = Map::new();
+        args.insert("text".into(), Value::String(text.to_string()));
+        if let Some(id) = deck_id {
+            args.insert("deck_id".into(), Value::String(id.to_string()));
+        }
+        if let Some(n) = name {
+            args.insert("name".into(), Value::String(n.to_string()));
+        }
+        self.call("deck_import", args).await
+    }
+
+    /// `deck_export` — plaintext "<qty> <name>" decklist.
+    pub async fn deck_export(&self, deck_id: &str) -> Result<ExportResult, EngineError> {
+        self.call("deck_export", deck_arg(deck_id)).await
     }
 
     /// `validate_deck` — run the authoritative legality gate.

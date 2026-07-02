@@ -75,6 +75,7 @@ pub fn InsightsRail(deck_id: String, version: u64) -> Element {
         let deck_id = id_for_fetch.clone();
         let seed_now = seed();
         let _ = version;
+        let _ = (state.deck_rev)();
         async move {
             let client = ready_client(&conn)?;
             let curve = client.analyze_curve(&deck_id).await.ok()?;
