@@ -225,6 +225,46 @@ async fn round_trip_against_engine() {
         1
     );
 
+    // gui-oracle-whatif: the projection round-trip must be LEAK-FREE — the
+    // deck's card set is identical after snapshot → apply → analyze → restore.
+    if let Some(hit) = hits.results.first() {
+        let before = client.deck_get(&deck_id).await.expect("deck_get before");
+        let mut before_set: Vec<String> = before
+            .deck
+            .cards
+            .iter()
+            .map(|e| e.oracle_id.clone())
+            .collect();
+        before_set.sort();
+        let snap = client
+            .deck_snapshot(&deck_id)
+            .await
+            .expect("whatif snapshot");
+        client
+            .deck_remove(&deck_id, &[(hit.oracle_id.clone(), 1)])
+            .await
+            .expect("whatif transient remove");
+        let projected = client.analyze_curve(&deck_id).await.expect("whatif curve");
+        assert!(projected.total <= before.deck.cards.len() as u32 + 100);
+        client
+            .deck_restore(&deck_id, &snap.snapshot_id)
+            .await
+            .expect("whatif restore");
+        let after = client.deck_get(&deck_id).await.expect("deck_get after");
+        let mut after_set: Vec<String> = after
+            .deck
+            .cards
+            .iter()
+            .map(|e| e.oracle_id.clone())
+            .collect();
+        after_set.sort();
+        assert_eq!(before_set, after_set, "projection leaked into the deck");
+        assert!(
+            after.deck.version > before.deck.version,
+            "restore bumps version"
+        );
+    }
+
     // gui-meta wrappers. deck_summary NEVER throws on enrichment failure
     // (bracket=null + bracket_unavailable). Bracket/combos may legitimately be
     // UpstreamUnavailable in test runs — both outcomes are valid; only the

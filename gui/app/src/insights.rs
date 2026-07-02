@@ -172,7 +172,9 @@ fn StatLine(stats: Vec<(String, String, bool)>) -> Element {
 
 #[component]
 fn RailCards(analysis: Analysis, seed: Signal<u32>) -> Element {
+    let state = use_app_state();
     let a = analysis;
+    let whatif = (state.whatif)();
     let (score, label, parts) = health(&a);
     // HealthRing: r=50 circle, circumference 2πr ≈ 314.16.
     let dash = 314.16;
@@ -271,7 +273,17 @@ fn RailCards(analysis: Analysis, seed: Signal<u32>) -> Element {
             ] }
         }
         Card { id: "curve", title: "Mana curve", icon: icons::STATS_UP_SQUARE,
-            CurveChart { buckets: buckets.clone() }
+            if let Some(w) = &whatif {
+                div { class: "ghosthead", "data-whatif": "projected",
+                    span { class: "ghosthead__t",
+                        "What-if · {w.total_cards} cards · keepable {w.keepable_rate * 100.0:.1}% · avg mv {w.avg_mv_nonland:.2}"
+                    }
+                }
+            }
+            CurveChart {
+                buckets: buckets.clone(),
+                ghost: (state.whatif)().map(|w| w.curve),
+            }
             StatLine { stats: vec![
                 ("Avg MV".into(), format!("{:.2}", a.stats.avg_mv), false),
                 ("Nonland".into(), format!("{}", a.stats.nonland_cards), false),

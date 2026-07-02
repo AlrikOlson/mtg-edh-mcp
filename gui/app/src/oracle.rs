@@ -8,7 +8,7 @@
 use crate::browse::ready_client;
 use crate::ds::*;
 use crate::icons;
-use crate::state::use_app_state;
+use crate::state::{use_app_state, WhatIf};
 use dioxus::prelude::*;
 use mtg_edh_mcp_client::{CardSearchParams, EngineClient};
 use std::sync::Arc;
@@ -111,6 +111,12 @@ pub fn OracleBar(deck_id: String) -> Element {
                     });
                     phase.set(Phase::Idle);
                 } else {
+                    // What-if projection BEFORE Proposing: the deck is mutated
+                    // transiently here, so Accept/Reject cannot race it — they
+                    // only become possible once the restore has completed.
+                    let projected = project_whatif(&client, &deck_id, &set, caps).await;
+                    let mut whatif = state.whatif;
+                    whatif.set(projected);
                     proposal.set(set);
                     phase.set(Phase::Proposing);
                 }
@@ -145,12 +151,16 @@ pub fn OracleBar(deck_id: String) -> Element {
             });
             proposal.set(ChangeSet::default());
             caps.set(Vec::new());
+            let mut whatif = state.whatif;
+            whatif.set(None);
             phase.set(Phase::Idle);
         }
     };
     let reject = move || {
         proposal.set(ChangeSet::default());
         caps.set(Vec::new());
+        let mut whatif = state.whatif;
+        whatif.set(None);
         phase.set(Phase::Idle);
     };
 
@@ -471,4 +481,90 @@ async fn run_intent(
         }
     }
     set
+}
+
+/// The what-if projection (gui-oracle-whatif): REAL engine analysis of the
+/// proposed deck via snapshot → apply → analyze → restore, streamed as
+/// captions like every other Oracle step. The restore ALWAYS runs; analysis
+/// failures just yield no overlay (honest absence, never a local heuristic).
+async fn project_whatif(
+    client: &Arc<EngineClient>,
+    deck_id: &str,
+    set: &ChangeSet,
+    mut caps: Signal<Vec<Cap>>,
+) -> Option<WhatIf> {
+    let snap = step(
+        &mut caps,
+        "deck_snapshot",
+        format!("deck:{deck_id}"),
+        client.deck_snapshot(deck_id),
+    )
+    .await?;
+    finish(&mut caps, format!("{} (what-if)", snap.snapshot_id));
+
+    // Apply the change-set transiently.
+    if !set.cuts.is_empty() {
+        let cuts: Vec<(String, u32)> = set.cuts.iter().map(|c| (c.oracle_id.clone(), 1)).collect();
+        let _ = client.deck_remove(deck_id, &cuts).await;
+    }
+    if !set.adds.is_empty() {
+        let adds: Vec<(String, u32)> = set.adds.iter().map(|c| (c.oracle_id.clone(), 1)).collect();
+        let _ = client.deck_add(deck_id, &adds).await;
+    }
+
+    // Analyze the projected deck (fast sim: 300 trials, fixed seed).
+    let curve = step(
+        &mut caps,
+        "analyze_curve",
+        "projected".to_string(),
+        client.analyze_curve(deck_id),
+    )
+    .await;
+    if let Some(c) = &curve {
+        finish(&mut caps, format!("{} cards", c.total));
+    }
+    let stats = client.analyze_stats(deck_id).await.ok();
+    let sim = step(
+        &mut caps,
+        "simulate_deck",
+        "projected seed:42 trials:300".to_string(),
+        client.simulate_deck(deck_id, Some(42), Some(300)),
+    )
+    .await;
+    if let Some(s) = &sim {
+        finish(
+            &mut caps,
+            format!("keepable {:.1}%", s.keepable_rate * 100.0),
+        );
+    }
+
+    // ALWAYS restore — the projection must be invisible to the real deck.
+    let restored = step(
+        &mut caps,
+        "deck_restore",
+        format!("from:{}", snap.snapshot_id),
+        client.deck_restore(deck_id, &snap.snapshot_id),
+    )
+    .await;
+    finish(
+        &mut caps,
+        if restored.is_some() {
+            "deck unchanged".to_string()
+        } else {
+            "RESTORE FAILED — check the deck".to_string()
+        },
+    );
+
+    let (curve, stats, sim) = (curve?, stats?, sim?);
+    let mut buckets: Vec<(String, u32)> = curve.buckets.into_iter().collect();
+    buckets.sort_by(|a, b| {
+        let key = |s: &str| s.trim_end_matches('+').parse::<u32>().unwrap_or(99);
+        key(&a.0).cmp(&key(&b.0))
+    });
+    Some(WhatIf {
+        curve: buckets,
+        keepable_rate: sim.keepable_rate,
+        avg_mv_nonland: stats.avg_mv_nonland,
+        total_cards: stats.total_cards,
+    })
 }

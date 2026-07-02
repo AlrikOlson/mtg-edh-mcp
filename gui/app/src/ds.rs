@@ -699,8 +699,27 @@ pub fn BracketMeter(
 
 /// Mana-curve histogram from analyze_curve buckets.
 #[component]
-pub fn CurveChart(buckets: Vec<(String, u32)>, #[props(default = 150)] height: u32) -> Element {
-    let max = buckets.iter().map(|(_, n)| *n).max().unwrap_or(1).max(1);
+pub fn CurveChart(
+    buckets: Vec<(String, u32)>,
+    #[props(default = 150)] height: u32,
+    /// Projected (what-if) counts per bucket label — dashed-gold ghost bars.
+    #[props(default)]
+    ghost: Option<Vec<(String, u32)>>,
+) -> Element {
+    let ghost_of = |label: &str| -> Option<u32> {
+        ghost
+            .as_ref()?
+            .iter()
+            .find(|(l, _)| l == label)
+            .map(|(_, n)| *n)
+    };
+    let max = buckets
+        .iter()
+        .map(|(_, n)| *n)
+        .chain(ghost.iter().flatten().map(|(_, n)| *n))
+        .max()
+        .unwrap_or(1)
+        .max(1);
     rsx! {
         div { class: "mb-curve",
             div { class: "mb-curve__plot", style: "--_h: {height}px;",
@@ -711,6 +730,15 @@ pub fn CurveChart(buckets: Vec<(String, u32)>, #[props(default = 150)] height: u
                                 class: "mb-curve__bar",
                                 style: "height: {count * 100 / max}%;",
                                 span { class: "mb-curve__count", "{count}" }
+                            }
+                            if let Some(g) = ghost_of(&label) {
+                                if g != count {
+                                    div {
+                                        class: "mb-curve__ghost",
+                                        style: "height: {g * 100 / max}%;",
+                                        span { class: "mb-curve__gcount", "{g}" }
+                                    }
+                                }
                             }
                         }
                         div { class: "mb-curve__label", "{label}" }

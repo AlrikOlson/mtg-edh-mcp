@@ -23,6 +23,16 @@ pub enum ConnState {
     Offline(String),
 }
 
+/// Engine-computed projection of a pending Oracle change-set (gui-oracle-whatif).
+/// Transient by nature — never persisted; cleared on accept/reject/new ask.
+#[derive(Clone, PartialEq)]
+pub struct WhatIf {
+    pub curve: Vec<(String, u32)>,
+    pub keepable_rate: f64,
+    pub avg_mv_nonland: f64,
+    pub total_cards: u32,
+}
+
 /// Global app state, provided via context at the root.
 #[derive(Clone, Copy)]
 pub struct AppState {
@@ -42,6 +52,8 @@ pub struct AppState {
     /// the boot-time save effect would overwrite the stored session with nulls
     /// before restore ever reads it.
     pub hydrated: Signal<bool>,
+    /// The pending change-set's projected analysis (ghost overlays in the rail).
+    pub whatif: Signal<Option<WhatIf>>,
 }
 
 /// Engine base URL: MTG_EDH_MCP_URL overrides; default matches the engine's
@@ -139,6 +151,7 @@ pub fn use_provide_app_state() -> AppState {
         deck_rev: Signal::new(0),
         snapshots: Signal::new(Vec::new()),
         hydrated: Signal::new(false),
+        whatif: Signal::new(None),
     });
     use_effect(move || {
         connect(state);
