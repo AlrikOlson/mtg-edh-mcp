@@ -68,7 +68,7 @@ streamable-HTTP transport). Wiring lands in `gui-mcp-client`.
   and the **web target** used by `gui-scrutiny`'s Playwright pass). It is **not**
   required to compile. On this machine the `dx` on `PATH` is **Deno's `dx`**
   (`deno x`), a name collision — installing dioxus-cli (`cargo install
-  dioxus-cli`) puts its `dx` in `~/.cargo/bin`; invoke it by full path or fix
+dioxus-cli`) puts its `dx` in `~/.cargo/bin`; invoke it by full path or fix
   `PATH` order. Documented here so future chunks don't trip on it.
 
 ## Layout
@@ -80,9 +80,9 @@ streamable-HTTP transport). Wiring lands in `gui-mcp-client`.
 
 ## Repo: two toolchains
 
-| Stack | Where | Build | Test | Lint |
-|---|---|---|---|---|
-| Engine (TS) | repo root | `npm run build` | `npm test` | `npm run lint` + `npm run typecheck` |
-| GUI (Rust) | `/gui` | `cargo build` | `cargo test` | `cargo clippy` + `cargo fmt --check` |
+| Stack       | Where     | Build           | Test         | Lint                                 |
+| ----------- | --------- | --------------- | ------------ | ------------------------------------ |
+| Engine (TS) | repo root | `npm run build` | `npm test`   | `npm run lint` + `npm run typecheck` |
+| GUI (Rust)  | `/gui`    | `cargo build`   | `cargo test` | `cargo clippy` + `cargo fmt --check` |
 
 CI should run both independently; neither gates the other.

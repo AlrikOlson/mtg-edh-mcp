@@ -339,3 +339,26 @@ pub struct SimResult {
     #[serde(default)]
     pub avg_turn_to_first_spell: Option<f64>,
 }
+
+// ---- collection_* (gui-collection) -------------------------------------------
+
+/// One owned card in the collection view.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct OwnedCard {
+    pub oracle_id: String,
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+/// The shared collection view returned by collection_set/add/get/clear
+/// (+ `unresolved` on mutations). Membership-only — no quantities.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CollectionView {
+    pub owned_count: u32,
+    #[serde(default)]
+    pub owned: Vec<String>,
+    #[serde(default)]
+    pub cards: Vec<OwnedCard>,
+    #[serde(default)]
+    pub unresolved: Vec<String>,
+}

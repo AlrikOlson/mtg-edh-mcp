@@ -124,6 +124,25 @@ async fn round_trip_against_engine() {
     let validated = client.validate_deck(&deck_id).await.expect("validate_deck");
     assert_eq!(validated.deck_id, deck_id);
 
+    // gui-collection wrappers: add → get → budget(use_collection) → set([]) round-trip.
+    if let Some(hit) = hits.results.first() {
+        let added = client
+            .collection_add(std::slice::from_ref(&hit.oracle_id))
+            .await
+            .expect("collection_add");
+        assert!(added.owned.contains(&hit.oracle_id));
+        assert!(added.unresolved.is_empty());
+        let got = client.collection_get().await.expect("collection_get");
+        assert_eq!(got.owned_count, added.owned_count);
+        let plan = client
+            .budget_plan(&deck_id, true)
+            .await
+            .expect("budget_plan use_collection");
+        assert!(plan.is_object());
+        let cleared = client.collection_set(&[]).await.expect("collection_set");
+        assert_eq!(cleared.owned_count, 0);
+    }
+
     // gui-analysis wrappers: analyze_* + deterministic sim round-trip.
     let curve = client.analyze_curve(&deck_id).await.expect("analyze_curve");
     assert_eq!(curve.deck_id, deck_id);

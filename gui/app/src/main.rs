@@ -8,6 +8,7 @@
 use dioxus::prelude::*;
 
 mod browse;
+mod collection;
 mod ds;
 mod gallery;
 mod icons;
@@ -47,6 +48,7 @@ fn App() -> Element {
         "browse.css",
         "deckeditor.css",
         "insights.css",
+        "collection.css",
         "gallery.css",
     ];
     rsx! {

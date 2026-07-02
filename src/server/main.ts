@@ -8,6 +8,7 @@
  */
 import { existsSync } from "node:fs";
 import { VersionedStore } from "../ingest/index.js";
+import { CollectionStore } from "../collection/index.js";
 import { CardIndex, DEFAULT_DATA_ROOT, DEFAULT_INDEX_NAME, readSnapshot } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
 import { cachedSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
@@ -46,7 +47,11 @@ async function main(): Promise<void> {
   if (useHttp(process.argv.slice(2), process.env)) {
     const port = process.env.MCP_HTTP_PORT ? Number(process.env.MCP_HTTP_PORT) : 3000;
     const host = process.env.MCP_HTTP_HOST ?? "127.0.0.1";
-    const running = await startHttp({ port, host, snapshot, index, deckStore });
+    // Shared across all per-request servers — without this, the stateless HTTP
+    // transport gave every POST a fresh empty collection (caught by the GUI's
+    // Rust e2e round-trip, which acts as the regression test).
+    const collection = new CollectionStore();
+    const running = await startHttp({ port, host, snapshot, index, deckStore, collection });
     console.error(`mtg-edh-mcp listening on http://${host}:${running.port} (streamable HTTP)`);
   } else {
     await startStdio({ snapshot, index, deckStore });

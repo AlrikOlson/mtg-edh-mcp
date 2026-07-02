@@ -55,7 +55,7 @@ pub fn AppShell() -> Element {
                         crate::workbench::WorkbenchScreen {}
                     },
                     Screen::Collection => rsx! {
-                        Placeholder { title: "Collection", note: "Owned cards land in gui-collection." }
+                        crate::collection::CollectionScreen {}
                     },
                 }
             }

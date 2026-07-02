@@ -26,10 +26,10 @@ mod types;
 pub use error::EngineError;
 pub use types::{
     AddVerdict, AnalyzeCompositionResult, AnalyzeCurveResult, AnalyzeStatsResult, CardDetail,
-    CardGetResult, CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, Deck,
-    DeckAddResult, DeckCardEntry, DeckCreateParams, DeckCreateResult, DeckGetResult,
-    DeckListResult, DeckMutateResult, ManaBaseReport, Printing, RoleCoverageResult, RoleGap,
-    SetCommanderResult, SimResult, ValidateDeckResult,
+    CardGetResult, CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult,
+    CollectionView, Deck, DeckAddResult, DeckCardEntry, DeckCreateParams, DeckCreateResult,
+    DeckGetResult, DeckListResult, DeckMutateResult, ManaBaseReport, OwnedCard, Printing,
+    RoleCoverageResult, RoleGap, SetCommanderResult, SimResult, ValidateDeckResult,
 };
 
 use http::{HeaderName, HeaderValue};
@@ -48,6 +48,16 @@ use serde_json::{Map, Value};
 fn deck_arg(deck_id: &str) -> Map<String, Value> {
     let mut args = Map::new();
     args.insert("deck_id".into(), Value::String(deck_id.to_string()));
+    args
+}
+
+/// Build a `{ cards: [...] }` argument map (name-or-id strings).
+fn cards_arg(cards: &[String]) -> Map<String, Value> {
+    let mut args = Map::new();
+    args.insert(
+        "cards".into(),
+        Value::Array(cards.iter().cloned().map(Value::String).collect()),
+    );
     args
 }
 
@@ -264,6 +274,41 @@ impl EngineClient {
             args.insert("trials".into(), Value::from(trials));
         }
         self.call("simulate_deck", args).await
+    }
+
+    /// `collection_get` — the owned-card set (membership-only).
+    pub async fn collection_get(&self) -> Result<CollectionView, EngineError> {
+        self.call("collection_get", Map::new()).await
+    }
+
+    /// `collection_add` — add cards (name or oracle_id); reports unresolved.
+    pub async fn collection_add(&self, cards: &[String]) -> Result<CollectionView, EngineError> {
+        self.call("collection_add", cards_arg(cards)).await
+    }
+
+    /// `collection_set` — replace the owned set (used for removal too).
+    pub async fn collection_set(&self, cards: &[String]) -> Result<CollectionView, EngineError> {
+        self.call("collection_set", cards_arg(cards)).await
+    }
+
+    /// `collection_clear` — empty the collection.
+    pub async fn collection_clear(&self) -> Result<CollectionView, EngineError> {
+        self.call("collection_clear", Map::new()).await
+    }
+
+    /// `budget_plan` — deck budget report; `use_collection` adds `acquire_usd`
+    /// (cost to finish from what you own). Returned raw: the plan is rich and
+    /// consumed field-by-field (gui-meta types it fully).
+    pub async fn budget_plan(
+        &self,
+        deck_id: &str,
+        use_collection: bool,
+    ) -> Result<Value, EngineError> {
+        let mut args = deck_arg(deck_id);
+        if use_collection {
+            args.insert("use_collection".into(), Value::Bool(true));
+        }
+        self.call("budget_plan", args).await
     }
 
     /// `validate_deck` — run the authoritative legality gate.
