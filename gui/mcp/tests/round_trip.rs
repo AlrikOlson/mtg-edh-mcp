@@ -78,6 +78,22 @@ async fn round_trip_against_engine() {
         .expect("card_search");
     assert_eq!(hits.returned as usize, hits.results.len());
 
+    // card_get + card_printings — round-trip the gui-card wrappers when the
+    // index has cards (shape-safe when empty).
+    if let Some(hit) = hits.results.first() {
+        let got = client
+            .card_get(std::slice::from_ref(&hit.oracle_id))
+            .await
+            .expect("card_get");
+        assert_eq!(got.cards.len(), 1);
+        assert_eq!(got.cards[0].oracle_id, hit.oracle_id);
+        let prints = client
+            .card_printings(&hit.oracle_id)
+            .await
+            .expect("card_printings");
+        assert_eq!(prints.oracle_id, hit.oracle_id);
+    }
+
     // deck_create — scoped to the "local" principal we connected with.
     let created = client
         .deck_create(DeckCreateParams {

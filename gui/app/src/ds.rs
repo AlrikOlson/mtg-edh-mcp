@@ -224,11 +224,20 @@ pub fn SegmentedControl(
 }
 
 #[component]
-pub fn Select(options: Vec<String>, #[props(default = "md".to_string())] size: String) -> Element {
+pub fn Select(
+    options: Vec<String>,
+    #[props(default = "md".to_string())] size: String,
+    on_change: Option<EventHandler<String>>,
+) -> Element {
     let sm = if size == "sm" { " mb-select--sm" } else { "" };
     rsx! {
         div { class: "mb-select{sm}",
             select {
+                onchange: move |e| {
+                    if let Some(handler) = on_change {
+                        handler.call(e.value());
+                    }
+                },
                 for opt in options {
                     option { value: "{opt}", "{opt}" }
                 }
@@ -463,11 +472,20 @@ pub fn CardRow(
     };
     let illegal = if illegal { " mb-cardrow--illegal" } else { "" };
     let tint = identity_tint(&identity);
+    // Scryfall images can fail to decode in webviews (handoff gotcha #2) —
+    // onerror falls back to the identity-tinted CSS frame.
+    let mut img_failed = use_signal(|| false);
+    let shown_image = image.filter(|_| !img_failed());
     rsx! {
         div { class: "mb-cardrow{selected}{illegal}",
             div { class: "mb-cardrow__thumb",
-                if let Some(src) = image {
-                    img { src: "{src}", alt: "{name}", loading: "lazy" }
+                if let Some(src) = shown_image {
+                    img {
+                        src: "{src}",
+                        alt: "{name}",
+                        loading: "lazy",
+                        onerror: move |_| img_failed.set(true),
+                    }
                 } else {
                     div { class: "mb-cardrow__ph", style: "background: {tint};" }
                 }
@@ -516,11 +534,20 @@ pub fn CardTile(
 ) -> Element {
     let selected = if selected { " mb-tile--selected" } else { "" };
     let tint = identity_tint(&identity);
+    // Scryfall images can fail to decode in webviews (handoff gotcha #2) —
+    // onerror falls back to the identity-tinted CSS frame.
+    let mut img_failed = use_signal(|| false);
+    let shown_image = image.filter(|_| !img_failed());
     rsx! {
         div { class: "mb-tile{selected}",
             div { class: "mb-tile__art",
-                if let Some(src) = image {
-                    img { src: "{src}", alt: "{name}", loading: "lazy" }
+                if let Some(src) = shown_image {
+                    img {
+                        src: "{src}",
+                        alt: "{name}",
+                        loading: "lazy",
+                        onerror: move |_| img_failed.set(true),
+                    }
                 } else {
                     div { class: "mb-tile__ph", style: "background: {tint};" }
                 }

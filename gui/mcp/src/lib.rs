@@ -25,8 +25,9 @@ mod types;
 
 pub use error::EngineError;
 pub use types::{
-    AddVerdict, CardRef, CardSearchParams, CardSearchResult, DeckAddResult, DeckCreateParams,
-    DeckCreateResult, ValidateDeckResult,
+    AddVerdict, CardDetail, CardGetResult, CardPrintingsResult, CardRef, CardSearchParams,
+    CardSearchResult, DeckAddResult, DeckCreateParams, DeckCreateResult, Printing,
+    ValidateDeckResult,
 };
 
 use http::{HeaderName, HeaderValue};
@@ -138,6 +139,26 @@ impl EngineClient {
         args.insert("deck_id".into(), Value::String(deck_id.to_string()));
         args.insert("cards".into(), Value::Array(entries));
         self.call("deck_add", args).await
+    }
+
+    /// `card_get` — lean card details (oracle text, roles, legality, pricing).
+    pub async fn card_get(&self, oracle_ids: &[String]) -> Result<CardGetResult, EngineError> {
+        let mut args = Map::new();
+        args.insert(
+            "oracle_ids".into(),
+            Value::Array(oracle_ids.iter().cloned().map(Value::String).collect()),
+        );
+        self.call("card_get", args).await
+    }
+
+    /// `card_printings` — every printing of a card with per-printing prices.
+    pub async fn card_printings(
+        &self,
+        oracle_id: &str,
+    ) -> Result<CardPrintingsResult, EngineError> {
+        let mut args = Map::new();
+        args.insert("oracle_id".into(), Value::String(oracle_id.to_string()));
+        self.call("card_printings", args).await
     }
 
     /// `validate_deck` — run the authoritative legality gate.

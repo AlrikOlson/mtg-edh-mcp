@@ -112,3 +112,70 @@ impl DeckCreateParams {
         }
     }
 }
+
+// ---- card_get / card_printings (gui-card) -----------------------------------
+
+/// One card from `card_get` (lean `Partial<Card>` + computed pricing).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CardDetail {
+    #[serde(default)]
+    pub oracle_id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub mana_cost: String,
+    #[serde(default)]
+    pub mv: f64,
+    #[serde(default)]
+    pub color_identity: Vec<String>,
+    #[serde(default)]
+    pub type_line: String,
+    #[serde(default)]
+    pub oracle_text: String,
+    #[serde(default)]
+    pub keywords: Vec<String>,
+    /// Format → "legal" | "banned" | … (kept loose).
+    #[serde(default)]
+    pub legalities: Value,
+    #[serde(default)]
+    pub roles: Vec<String>,
+    #[serde(default)]
+    pub is_commander_eligible: bool,
+    pub default_usd: Option<f64>,
+    pub cheapest_usd: Option<f64>,
+}
+
+/// `card_get` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CardGetResult {
+    pub cards: Vec<CardDetail>,
+    #[serde(default)]
+    pub missing: Vec<String>,
+}
+
+/// One printing from `card_printings`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Printing {
+    #[serde(default)]
+    pub scryfall_id: String,
+    #[serde(default)]
+    pub set: String,
+    #[serde(default)]
+    pub set_name: String,
+    #[serde(default)]
+    pub collector_number: String,
+    #[serde(default)]
+    pub rarity: String,
+    /// e.g. { "usd": "2.15", "usd_foil": null }.
+    #[serde(default)]
+    pub prices: Value,
+    #[serde(default)]
+    pub released_at: Option<String>,
+}
+
+/// `card_printings` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CardPrintingsResult {
+    pub oracle_id: String,
+    pub printings: Vec<Printing>,
+}

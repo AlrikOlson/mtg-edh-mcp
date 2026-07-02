@@ -49,7 +49,7 @@ pub fn AppShell() -> Element {
                         div { style: "flex: 1; overflow-y: auto;", crate::gallery::Gallery {} }
                     },
                     Screen::Browse => rsx! {
-                        Placeholder { title: "Browse", note: "Card search lands in gui-card." }
+                        crate::browse::BrowseScreen {}
                     },
                     Screen::Workbench => rsx! {
                         Placeholder { title: "Workbench", note: "The deck editor lands in gui-deck." }
