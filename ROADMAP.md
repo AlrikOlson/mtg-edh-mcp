@@ -255,6 +255,11 @@
   - acceptance: Detection + graceful fallback: no CLI → Tier 2 if key configured, else structured intents, with the active tier honestly labeled in the ask bar
   - acceptance: Sandboxed: allowedTools restricted to the engine's MCP tools only
   - acceptance: Tier 2 (BYO key) shipped or explicitly split to a follow-up chunk with its key-UX decisions recorded
+- [x] **Oracle · Tier 2 — BYO Anthropic API key brain** — Split from oracle-llm-brain (user-approved). Direct Anthropic API brain for users without Claude Code: key entry + storage UX (macOS keychain vs config file — DECIDE), model choice (haiku default for cost), cost messaging, streaming tool-use loop against the engine implemented in-app (the Tier 1 CLI does this for free; Tier 2 reimplements the agent loop over the API). Falls back to structured intents offline. Do not start before the key-storage decision is recorded.
+  - deps: oracle-llm-brain
+  - acceptance: Key entry/storage decision recorded and implemented
+  - acceptance: API-driven agent loop streams captions and produces change-sets through pre-check verdicts
+  - acceptance: Honest cost/latency labeling
 - [x] **Backlog · Collection awareness** — Spec §12. Optional `collection` resource so card_search can filter to owned cards. Explicitly out of scope for v1 to keep primitives clean; tracked for later.
   - deps: p2-card-tools
   - acceptance: collection resource defined
@@ -333,11 +338,6 @@
 
 ## Backlog
 
-- [ ] **Oracle · Tier 2 — BYO Anthropic API key brain** — Split from oracle-llm-brain (user-approved). Direct Anthropic API brain for users without Claude Code: key entry + storage UX (macOS keychain vs config file — DECIDE), model choice (haiku default for cost), cost messaging, streaming tool-use loop against the engine implemented in-app (the Tier 1 CLI does this for free; Tier 2 reimplements the agent loop over the API). Falls back to structured intents offline. Do not start before the key-storage decision is recorded.
-  - deps: oracle-llm-brain
-  - acceptance: Key entry/storage decision recorded and implemented
-  - acceptance: API-driven agent loop streams captions and produces change-sets through pre-check verdicts
-  - acceptance: Honest cost/latency labeling
 - [ ] **Backlog · Format generalization (Brawl/Oathbreaker/…)** — Spec §12. Parameterize the rules engine by a format profile so the same primitives validate Brawl, Oathbreaker, and other singleton/identity formats. Refresh 2026 (think:105) — the concrete code seams are now mapped: (1) src/validate/coreRules.ts hardcodes COMMANDER_DECK_SIZE=100 (checkCardCount) and checkBanlist reads card.legalities.commander — Card.legalities is already a full Record, so legalities.brawl / legalities.oathbreaker are ALREADY ingested; just parameterize the key; (2) src/types/deck.ts Format is the literal "commander" only — widen to a union + a FormatProfile {deckSize, banlistKey, commandZoneKind, singleton}; (3) command-zone eligibility (commanderRules.ts) already handles planeswalkers via "can be your commander" text (relevant to Oathbreaker). Honest strategic note (think:105): demand is LOW — Oathbreaker is widely called near-dead and Brawl is Arena-only — and the MTG-MCP field is already crowded on broad card-lookup/basic-deck; this server's differentiation is EDH-deep analysis. So format-generalization widens into low-demand formats and dilutes the moat. Kept post-v1; see the reprioritize proposal (collection ranked above this).
   - deps: p4-tools
   - acceptance: Rules engine parameterized by a FormatProfile (deck size, banlist legality key, command-zone kind, singleton rule)
