@@ -1,0 +1,532 @@
+/* Manabase UI kit — Insights cards.
+   The bespoke, detailed body of every section in the Workbench's right rail.
+   Each card is its own deep read of one analyze_* surface — not a lone chart but
+   a full panel: the visualization, a derived stat line, a breakdown table, and a
+   terse interpretive callout. Driven by the LIVE deck-derived analysis (and the
+   projected what-if analysis) so everything updates as the Oracle mutates state. */
+(function () {
+  const DS = window.ManabaseDesignSystem_9d5890 || {};
+  const { StatTile, RoleChip, Tag, BracketMeter, ManaSourceBars, CurveChart, SimReadout, RoleCoverageBars, ValidationItem, ColorIdentity } = DS;
+  const Ic = window.Ic;
+
+  /* ---- card-specific CSS (tokens drive everything) ----------------------- */
+  const CSS = `
+  .ic-eyebrow { font:var(--type-eyebrow); letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-faint); margin-bottom:var(--space-3); display:flex; align-items:center; gap:var(--gap-inline-xs); }
+  .ic-eyebrow iconify-icon { color:var(--accent-text); font-size:13px; }
+  .ic-eyebrow__c { margin-left:auto; font:var(--type-data-sm); color:var(--text-faint); text-transform:none; letter-spacing:0; }
+  .ic-sep { height:1px; background:var(--border-faint); border:0; margin:var(--space-4) 0; }
+  .ic-col { display:flex; flex-direction:column; gap:var(--space-4); }
+
+  .ic-statline { display:grid; grid-template-columns:repeat(auto-fit, minmax(74px, 1fr)); gap:var(--space-3) var(--space-3); }
+  .ic-stat { display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .ic-stat__k { font:var(--type-eyebrow); letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ic-stat__v { font:var(--type-data-lg); color:var(--text-primary); font-variant-numeric:tabular-nums; display:flex; align-items:baseline; gap:4px; }
+  .ic-stat__v small { font:var(--type-data-sm); color:var(--text-muted); }
+  .ic-stat__v.accent { color:var(--accent-text); }
+
+  .ic-h { font:var(--type-label); color:var(--text-secondary); margin-bottom:var(--space-2_5); display:flex; align-items:center; gap:var(--space-2); }
+  .ic-h__c { margin-left:auto; font:var(--type-data-sm); color:var(--text-faint); }
+
+  /* by-mana-value / generic breakdown rows */
+  .ic-rows { display:flex; flex-direction:column; }
+  .ic-row { display:grid; grid-template-columns:30px 1fr auto; align-items:center; gap:var(--space-2_5); padding:var(--space-1_5) 0; border-bottom:1px solid var(--border-faint); }
+  .ic-row:last-child { border-bottom:0; }
+  .ic-row__k { font:var(--type-data-sm); color:var(--accent-text); font-variant-numeric:tabular-nums; }
+  .ic-row__names { font:var(--type-body-sm); color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ic-row__n { font:var(--type-data-sm); color:var(--text-secondary); font-variant-numeric:tabular-nums; text-align:right; }
+  .ic-row__bar { height:6px; border-radius:var(--radius-pill); background:var(--viz-track); overflow:hidden; }
+  .ic-row__fill { display:block; height:100%; background:var(--accent); border-radius:var(--radius-pill); }
+
+  /* demand-vs-supply (pips & sources) */
+  .ic-dd { display:flex; flex-direction:column; gap:var(--space-2_5); }
+  .ic-dd__row { display:grid; grid-template-columns:18px 1fr 76px; align-items:center; gap:var(--space-2_5); }
+  .ic-dd__bars { display:flex; flex-direction:column; gap:3px; }
+  .ic-dd__bar { height:8px; border-radius:var(--radius-pill); background:var(--viz-track); overflow:hidden; position:relative; }
+  .ic-dd__fill { display:block; height:100%; border-radius:var(--radius-pill); }
+  .ic-dd__fill--demand { background:color-mix(in oklab, var(--text-primary) 42%, transparent); }
+  .ic-dd__meta { font:var(--type-data-sm); color:var(--text-secondary); font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+  .ic-dd__meta b { color:var(--text-primary); font-weight:var(--weight-semibold); }
+  .ic-dd__meta .warn { color:var(--warning); } .ic-dd__meta .ok { color:var(--success); }
+  .ic-legend { display:flex; gap:var(--space-3); font:var(--type-label-sm); color:var(--text-muted); margin-top:var(--space-1); }
+  .ic-legend span { display:inline-flex; align-items:center; gap:5px; }
+  .ic-legend i { width:12px; height:8px; border-radius:2px; display:inline-block; }
+
+  /* roles */
+  .ic-role { padding:var(--space-2_5) 0; border-bottom:1px solid var(--border-faint); }
+  .ic-role:last-child { border-bottom:0; }
+  .ic-role__head { display:flex; align-items:center; gap:var(--space-2); }
+  .ic-role__band { margin-left:auto; font:var(--type-data-sm); color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .ic-role__band b { color:var(--text-primary); }
+  .ic-status { font:var(--type-eyebrow); letter-spacing:var(--tracking-caps); text-transform:uppercase; padding:1px 6px; border-radius:var(--radius-pill); border:1px solid transparent; }
+  .ic-status--ok { color:var(--success); background:color-mix(in oklab,var(--success) 13%,transparent); border-color:color-mix(in oklab,var(--success) 28%,transparent); }
+  .ic-status--under { color:var(--warning); background:color-mix(in oklab,var(--warning) 13%,transparent); border-color:color-mix(in oklab,var(--warning) 28%,transparent); }
+  .ic-status--over { color:var(--info); background:color-mix(in oklab,var(--info) 13%,transparent); border-color:color-mix(in oklab,var(--info) 28%,transparent); }
+  .ic-role__cards { font:var(--type-body-sm); color:var(--text-muted); margin-top:4px; }
+  .ic-role__fix { font:var(--type-label-sm); color:var(--warning); margin-top:4px; display:flex; align-items:center; gap:5px; }
+  .ic-role__fix iconify-icon { font-size:12px; }
+
+  /* checklist (bracket criteria / validation) */
+  .ic-checks { display:flex; flex-direction:column; gap:var(--space-1_5); }
+  .ic-check { display:flex; align-items:flex-start; gap:var(--space-2); padding:var(--space-1_5) 0; }
+  .ic-check__mark { width:18px; height:18px; flex:none; border-radius:var(--radius-circle); display:flex; align-items:center; justify-content:center; font-size:11px; margin-top:1px; }
+  .ic-check__mark--ok { color:var(--success); background:color-mix(in oklab,var(--success) 16%,transparent); }
+  .ic-check__mark--no { color:var(--danger); background:color-mix(in oklab,var(--danger) 16%,transparent); }
+  .ic-check__body { min-width:0; }
+  .ic-check__t { font:var(--type-body-sm); color:var(--text-primary); }
+  .ic-check__d { font:var(--type-label-sm); color:var(--text-faint); }
+
+  /* pushers */
+  .ic-push { display:grid; grid-template-columns:108px 1fr; gap:var(--space-2) var(--space-3); align-items:baseline; padding:var(--space-1_5) 0; border-bottom:1px solid var(--border-faint); }
+  .ic-push:last-child { border-bottom:0; }
+  .ic-push__k { font:var(--type-label-sm); color:var(--text-muted); }
+  .ic-push__v { font:var(--type-body-sm); color:var(--text-secondary); }
+  .ic-push__v em { color:var(--text-faint); font-style:normal; }
+
+  .ic-callout { display:flex; gap:var(--space-2); align-items:flex-start; padding:var(--space-2_5) var(--space-3); border-radius:var(--radius-md); background:var(--surface-raised); border:1px solid var(--border-subtle); font:var(--type-body-sm); color:var(--text-secondary); line-height:1.5; }
+  .ic-callout iconify-icon { color:var(--accent-text); font-size:15px; margin-top:1px; flex:none; }
+  .ic-callout b { color:var(--text-primary); font-weight:var(--weight-medium); }
+
+  .ic-meta { display:flex; flex-direction:column; gap:var(--space-2_5); }
+  .ic-meta__row { display:flex; align-items:center; gap:var(--space-2); }
+  .ic-meta__k { font:var(--type-eyebrow); letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-faint); width:74px; flex:none; }
+  .ic-meta__chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .ic-meta__v { font:var(--type-data-sm); color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+
+  /* health drivers */
+  .ic-driver { display:grid; grid-template-columns:92px 1fr 86px; align-items:center; gap:var(--space-2_5); padding:5px 0; }
+  .ic-driver__k { font:var(--type-label-sm); color:var(--text-secondary); white-space:nowrap; }
+  .ic-driver__track { height:8px; border-radius:var(--radius-pill); background:var(--viz-track); overflow:hidden; }
+  .ic-driver__fill { display:block; height:100%; border-radius:var(--radius-pill); background:linear-gradient(90deg, var(--gold-500), var(--gold-300)); box-shadow:0 0 8px -2px color-mix(in oklab,var(--gold-400) 60%,transparent); }
+  .ic-driver__w { font:var(--type-data-sm); color:var(--text-faint); text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  `;
+  let injected = false;
+  (function ensure(){ if (injected || typeof document==="undefined") return; injected=true; const s=document.createElement("style"); s.setAttribute("data-mb","insightscards"); s.textContent=CSS; document.head.appendChild(s); })();
+
+  /* ---- shared helpers ---------------------------------------------------- */
+  const COLORS = ["W", "U", "B", "R", "G"];
+  const isLand = (c) => /\bLand\b/.test(c.typeLine);
+  const mvOf = (c) => { let n = 0; (c.manaCost.match(/\{([^}]+)\}/g) || []).forEach((t) => { const v = t.slice(1, -1); n += /^\d+$/.test(v) ? +v : (/[WUBRGC]/.test(v) ? 1 : 0); }); return n; };
+  const pct = (n) => Math.round(n * 100) + "%";
+  const names = (cards, n) => { const out = cards.slice(0, n).map((c) => c.name); return out.join(", ") + (cards.length > n ? " +" + (cards.length - n) : ""); };
+
+  function Delta({ d, decimals, unit, suffix }) {
+    if (d == null) return null;
+    const r = decimals ? +d.toFixed(decimals) : Math.round(d);
+    if (r === 0) return <span className="delta delta--flat">±0{unit || ""}</span>;
+    const cls = r > 0 ? "delta--up" : "delta--down";
+    return <span className={"delta " + cls}>{r > 0 ? <Ic.ArrowUp /> : <Ic.ArrowDown />}{r > 0 ? "+" : ""}{r}{unit || ""}{suffix || ""}</span>;
+  }
+  function Stat({ k, v, sub, accent, delta }) {
+    return (
+      <div className="ic-stat">
+        <span className="ic-stat__k">{k}</span>
+        <span className={"ic-stat__v" + (accent ? " accent" : "")}>{v}{sub ? <small>{sub}</small> : null}{delta != null ? <Delta d={delta.d} decimals={delta.decimals} unit={delta.unit} /> : null}</span>
+      </div>
+    );
+  }
+
+  /* ---- deck health ------------------------------------------------------- */
+  function useCountUp(target) {
+    const [v, setV] = React.useState(target); const ref = React.useRef(target);
+    React.useEffect(() => {
+      const from = ref.current, to = target, t0 = performance.now(), dur = 650;
+      if (from === to) { setV(to); return; }
+      let raf; const tick = (now) => { const t = Math.min(1, (now - t0) / dur); const e = 1 - Math.pow(1 - t, 3); setV(Math.round(from + (to - from) * e)); if (t < 1) raf = requestAnimationFrame(tick); else { ref.current = to; setV(to); } };
+      raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf);
+    }, [target]); return v;
+  }
+  function healthParts(A) {
+    const cov = A.coverage || []; const inBand = cov.length ? cov.filter((g) => g.status === "ok").length / cov.length : 0;
+    const keepable = A.sim.keepable_rate; const mv = A.stats.avg_mv_nonland; const curveH = Math.max(0, 1 - Math.abs(mv - 3) / 3);
+    return [
+      { key: "coverage", label: "Role coverage", v: inBand, w: 0.45 },
+      { key: "consistency", label: "Goldfish keep", v: keepable, w: 0.35 },
+      { key: "curve", label: "Curve shape", v: curveH, w: 0.20 },
+    ];
+  }
+  function computeHealth(A) {
+    const parts = healthParts(A);
+    const score = Math.round(parts.reduce((s, p) => s + p.v * p.w, 0) * 100);
+    const label = score >= 80 ? "Tournament-ready" : score >= 65 ? "Solid" : score >= 50 ? "Rough edges" : "Needs work";
+    return { score, label };
+  }
+  function HealthRing({ analysis, projected }) {
+    const cur = computeHealth(analysis);
+    const proj = projected ? computeHealth(projected) : null;
+    const d = proj ? proj.score - cur.score : 0;
+    const shown = useCountUp(cur.score);
+    const r = 50, C = 2 * Math.PI * r, off = C * (1 - cur.score / 100);
+    const r2 = 57, C2 = 2 * Math.PI * r2, off2 = C2 * (1 - (proj ? proj.score : 0) / 100);
+    const showGhost = proj && d !== 0;
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexWrap: "wrap" }}>
+        <div style={{ position: "relative", width: 112, height: 112, flex: "none" }}>
+          <svg width="112" height="112" viewBox="0 0 122 122">
+            <defs><linearGradient id="hp-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="var(--gold-300)" /><stop offset="100%" stopColor="var(--gold-500)" /></linearGradient></defs>
+            <circle cx="61" cy="61" r={r} fill="none" stroke="var(--viz-track)" strokeWidth="9" />
+            {showGhost ? <circle cx="61" cy="61" r={r2} fill="none" stroke="var(--accent-text)" strokeWidth="3" strokeLinecap="round" strokeDasharray={C2} strokeDashoffset={off2} transform="rotate(-90 61 61)" style={{ transition: "stroke-dashoffset var(--dur-slower) var(--ease-out)", opacity: 0.85, filter: "drop-shadow(0 0 5px color-mix(in oklab, var(--gold-400) 60%, transparent))" }} /> : null}
+            <circle cx="61" cy="61" r={r} fill="none" stroke="url(#hp-grad)" strokeWidth="9" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={off} transform="rotate(-90 61 61)" style={{ transition: "stroke-dashoffset var(--dur-slower) var(--ease-out)", filter: "drop-shadow(0 0 6px color-mix(in oklab, var(--gold-400) 55%, transparent))" }} />
+          </svg>
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 31, color: "var(--text-primary)", lineHeight: 1 }}>{shown}</span>
+            <span style={{ font: "var(--type-label-sm)", color: "var(--text-faint)" }}>/ 100</span>
+          </div>
+        </div>
+        <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+          <div style={{ font: "var(--type-eyebrow)", letterSpacing: "var(--tracking-caps)", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 4 }}>Deck health</div>
+          <div style={{ font: "var(--type-title)", color: "var(--accent-text)" }}>{cur.label}</div>
+          {showGhost ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: 6 }}>
+              <Delta d={d} />
+              <span style={{ font: "var(--type-body-sm)", color: "var(--text-secondary)" }}>if accepted → <b style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{proj.score}</b> · {proj.label}</span>
+            </div>
+          ) : (
+            <div style={{ font: "var(--type-body-sm)", color: "var(--text-muted)", marginTop: 4 }}>Weighted blend of role coverage, goldfish keepable rate, and curve shape.</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ---- pip / composition bars (with what-if ghosts) ---------------------- */
+  function Pips({ pips, ghost }) {
+    const wf = !!ghost;
+    const present = COLORS.filter((c) => (pips[c] || 0) > 0 || (wf && (ghost[c] || 0) > 0));
+    const cols = present.length ? present : COLORS;
+    const max = Math.max(1, ...cols.map((c) => Math.max(pips[c] || 0, wf ? (ghost[c] || 0) : 0)));
+    return (
+      <div className="ins-pips">
+        {cols.map((c) => {
+          const cur = pips[c] || 0; const proj = wf ? (ghost[c] || 0) : cur; const d = proj - cur;
+          return (
+            <div className={"ins-pip" + (wf ? " ins-pip--whatif" : "")} key={c}>
+              <i className={`ms ms-${c.toLowerCase()} ms-cost`} style={{ fontSize: 16 }} />
+              <span className="ins-pip__track">
+                {wf && d !== 0 ? <span className="ghostfill" style={{ width: Math.max(4, (proj / max) * 100) + "%" }} /> : null}
+                <span className={`ins-pip__fill ins-pip__fill--${c}`} style={{ width: Math.max(4, (cur / max) * 100) + "%" }} />
+              </span>
+              <span className={"ins-pip__val" + (wf ? " ins-pip__val--whatif" : "")}>{cur}{wf && d !== 0 ? <Delta d={d} /> : null}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  function CompBars({ by_type, ghost }) {
+    const wf = !!ghost;
+    const keys = Array.from(new Set([...Object.keys(by_type), ...(wf ? Object.keys(ghost) : [])]));
+    const entries = keys.map((t) => [t, by_type[t] || 0]).sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...keys.map((t) => Math.max(by_type[t] || 0, wf ? (ghost[t] || 0) : 0)));
+    return (
+      <div className="ins-comp">
+        {entries.map(([t, n]) => {
+          const proj = wf ? (ghost[t] || 0) : n; const d = proj - n;
+          return (
+            <div className={"ins-comp__row" + (wf ? " ins-comp__row--whatif" : "")} key={t}>
+              <span>{t}</span>
+              <span className="ins-comp__track">
+                {wf && d !== 0 ? <span className="ghostfill" style={{ width: (proj / max) * 100 + "%" }} /> : null}
+                <span className="ins-comp__fill" style={{ width: (n / max) * 100 + "%" }} />
+              </span>
+              <span>{n}{wf && d !== 0 ? <Delta d={d} /> : null}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  /* ---- derived deck reads ------------------------------------------------ */
+  const ORDER = ["0", "1", "2", "3", "4", "5", "6", "7+"];
+  function curveStats(A, deck) {
+    const buckets = A.curve;
+    const nonland = ORDER.reduce((s, k) => s + (buckets[k] || 0), 0);
+    const peakKey = ORDER.reduce((best, k) => ((buckets[k] || 0) > (buckets[best] || 0) ? k : best), "0");
+    const low = (buckets["0"] || 0) + (buckets["1"] || 0) + (buckets["2"] || 0) + (buckets["3"] || 0);
+    // median MV across nonland spells
+    const flat = []; ORDER.forEach((k) => { const v = k === "7+" ? 7 : +k; for (let i = 0; i < (buckets[k] || 0); i++) flat.push(v); });
+    const median = flat.length ? flat.sort((a, b) => a - b)[Math.floor(flat.length / 2)] : 0;
+    // sample card names per bucket
+    const byMv = {}; ORDER.forEach((k) => (byMv[k] = []));
+    deck.filter((c) => !isLand(c)).forEach((c) => { const mv = mvOf(c); byMv[mv >= 7 ? "7+" : String(mv)].push(c); });
+    return { nonland, peakKey, lowShare: nonland ? low / nonland : 0, median, byMv };
+  }
+
+  /* ======================================================================= */
+  /*  CARDS                                                                   */
+  /* ======================================================================= */
+
+  function GlanceCard({ A, PR, deck }) {
+    const MB = window.MB;
+    const total = A.stats.total_cards; const short = 100 - total;
+    const dStat = (cur, proj, dec) => { if (!PR) return null; const v = dec ? +(proj - cur).toFixed(dec) : Math.round(proj - cur); return v === 0 ? null : v; };
+    const keepCur = Math.round(A.sim.keepable_rate * 100), keepProj = PR ? Math.round(PR.sim.keepable_rate * 100) : keepCur;
+    return (
+      <div className="ic-col">
+        <HealthRing analysis={A} projected={PR} />
+        <div>
+          <div className="ic-h" style={{ whiteSpace: "nowrap" }}>Score drivers</div>
+          {healthParts(A).map((p) => (
+            <div className="ic-driver" key={p.key}>
+              <span className="ic-driver__k">{p.label}</span>
+              <span className="ic-driver__track"><span className="ic-driver__fill" style={{ width: pct(p.v) }} /></span>
+              <span className="ic-driver__w">{pct(p.v)} · ×{p.w}</span>
+            </div>
+          ))}
+        </div>
+        <div className="ins-grid2">
+          <StatTile label="Cards" value={total} unit="/100" icon={<Ic.Deck />} delta={dStat(total, PR && PR.stats.total_cards)} />
+          <StatTile label="Lands" value={A.lands} unit="/100" delta={dStat(A.lands, PR && PR.lands)} />
+          <StatTile label="Avg MV" value={A.stats.avg_mv_nonland} accent icon={<Ic.Graph />} delta={dStat(A.stats.avg_mv_nonland, PR && PR.stats.avg_mv_nonland, 2)} />
+          <StatTile label="Keepable" value={keepCur + "%"} icon={<Ic.Dice />} delta={dStat(keepCur, keepProj)} />
+        </div>
+        <div className="ic-callout">
+          <Ic.Info />
+          <span>{short > 0 ? <span><b>{total} cards</b> — {short} short of a legal 100.</span> : short < 0 ? <span><b>{total} cards</b> — {-short} over.</span> : <span><b>100 cards.</b> Singleton 99 + commander.</span>} Min buy <b>${Math.round(A.stats.min_buy_usd)}</b>.</span>
+        </div>
+        <hr className="ic-sep" />
+        <div className="ic-meta">
+          <div className="ic-meta__row"><span className="ic-meta__k">Identity</span><ColorIdentity identity={MB.deckIdentity} size={15} /></div>
+          <div className="ic-meta__row"><span className="ic-meta__k">Snapshot</span><span className="ic-meta__v">{MB.snapshot} · v7</span></div>
+          <div className="ic-meta__row"><span className="ic-meta__k">Themes</span><span className="ic-meta__chips">{MB.themes.map((t) => <Tag key={t}>{t}</Tag>)}</span></div>
+        </div>
+      </div>
+    );
+  }
+
+  function CurveCard({ A, PR, deck }) {
+    const s = curveStats(A, deck);
+    const dAvg = PR ? +(PR.stats.avg_mv_nonland - A.stats.avg_mv_nonland).toFixed(2) : null;
+    const ps = PR ? curveStats(PR, deck) : null;
+    const dLow = ps ? Math.round((ps.lowShare - s.lowShare) * 100) : null;
+    return (
+      <div className="ic-col">
+        <div className="ic-eyebrow"><Ic.Graph />Mana curve<span className="ic-eyebrow__c">excludes lands</span></div>
+        <CurveChart buckets={A.curve} ghost={PR ? PR.curve : null} height={186} />
+        <div className="ic-statline">
+          <Stat k="Avg MV" v={A.stats.avg_mv_nonland} accent delta={dAvg ? { d: dAvg, decimals: 2 } : null} />
+          <Stat k="Median" v={s.median} />
+          <Stat k="Peak" v={s.peakKey} sub="MV" />
+          <Stat k="≤3 MV" v={pct(s.lowShare)} delta={dLow ? { d: dLow, unit: "" } : null} />
+          <Stat k="Nonland" v={s.nonland} />
+        </div>
+        <hr className="ic-sep" />
+        <div className="ic-h">By mana value<span className="ic-h__c">{s.nonland} spells</span></div>
+        <div className="ic-rows">
+          {ORDER.filter((k) => s.byMv[k].length).map((k) => (
+            <div className="ic-row" key={k}>
+              <span className="ic-row__k">{k === "7+" ? "7+" : k}</span>
+              <span className="ic-row__names">{names(s.byMv[k], 3) || "—"}</span>
+              <span className="ic-row__n">{s.byMv[k].length}</span>
+            </div>
+          ))}
+        </div>
+        <div className="ic-callout"><Ic.Info /><span>Curve peaks at <b>MV {s.peakKey}</b>; <b>{pct(s.lowShare)}</b> of nonland spells cost ≤ 3 — castable through the early turns.</span></div>
+      </div>
+    );
+  }
+
+  function PipCard({ A, PR }) {
+    const total = COLORS.reduce((t, c) => t + (A.pips[c] || 0), 0);
+    const present = COLORS.filter((c) => (A.pips[c] || 0) > 0 || (A.sources[c] || 0) > 0);
+    const top = present.reduce((b, c) => ((A.pips[c] || 0) > (A.pips[b] || 0) ? c : b), present[0] || "W");
+    const max = Math.max(1, ...present.map((c) => Math.max(A.pips[c] || 0, A.sources[c] || 0)));
+    const NAME = { W: "white", U: "blue", B: "black", R: "red", G: "green" };
+    const tight = present.filter((c) => (A.sources[c] || 0) < (A.pips[c] || 0) * 0.7);
+    return (
+      <div className="ic-col">
+        <div className="ic-eyebrow">Color pips required<span className="ic-eyebrow__c">{total} colored</span></div>
+        <Pips pips={A.pips} ghost={PR ? PR.pips : null} />
+        <hr className="ic-sep" />
+        <div className="ic-h">Demand vs supply</div>
+        <div className="ic-dd">
+          {present.map((c) => {
+            const demand = A.pips[c] || 0, supply = A.sources[c] || 0;
+            const tightC = supply < demand * 0.7;
+            return (
+              <div className="ic-dd__row" key={c}>
+                <i className={`ms ms-${c.toLowerCase()} ms-cost`} style={{ fontSize: 16 }} />
+                <span className="ic-dd__bars">
+                  <span className="ic-dd__bar"><span className="ic-dd__fill ic-dd__fill--demand" style={{ width: (demand / max) * 100 + "%" }} /></span>
+                  <span className="ic-dd__bar"><span className={"ic-dd__fill ins-pip__fill--" + c} style={{ width: (supply / max) * 100 + "%" }} /></span>
+                </span>
+                <span className="ic-dd__meta"><b>{demand}</b> / {supply} <span className={tightC ? "warn" : "ok"}>{tightC ? "tight" : "ok"}</span></span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="ic-legend"><span><i className="ic-dd__fill--demand" />Pips required</span><span><i style={{ background: "var(--mtg-g)" }} />Sources available</span></div>
+        <div className="ic-callout"><Ic.Info /><span>Heaviest in <b>{NAME[top]}</b> ({A.pips[top]} pips). {tight.length ? <span><b>{tight.map((c) => NAME[c]).join(", ")}</b> demand outpaces sources — watch early casts.</span> : <span>Every color is comfortably supported.</span>}</span></div>
+      </div>
+    );
+  }
+
+  function TypeCard({ A, PR, deck }) {
+    const t = A.composition;
+    const get = (k) => t[k] || 0;
+    const perms = get("Creature") + get("Artifact") + get("Enchantment") + get("Planeswalker") + get("Land");
+    const spells = get("Instant") + get("Sorcery");
+    const lands = A.lands; const nonland = (A.stats.total_cards - 1) - lands;
+    const roleC = A.roleCount || {};
+    const interaction = (roleC.spot_removal || 0) + (roleC.board_wipe || 0) + (roleC.counterspell || 0);
+    const tot = Math.max(1, A.stats.total_cards - 1);
+    return (
+      <div className="ic-col">
+        <div className="ic-eyebrow">Composition<span className="ic-eyebrow__c">{A.stats.total_cards - 1} + commander</span></div>
+        <CompBars by_type={t} ghost={PR ? PR.composition : null} />
+        <hr className="ic-sep" />
+        <div className="ic-statline">
+          <Stat k="Permanents" v={perms} sub={pct(perms / tot)} />
+          <Stat k="Spells" v={spells} sub={pct(spells / tot)} />
+          <Stat k="Lands" v={lands} accent />
+          <Stat k="Nonland" v={nonland} />
+          <Stat k="Interaction" v={interaction} />
+          <Stat k="Walkers" v={get("Planeswalker")} />
+        </div>
+        <div className="ic-callout"><Ic.Info /><span><b>{pct(perms / tot)}</b> permanents, <b>{interaction}</b> interaction pieces (removal + wipes + counters). {get("Planeswalker")} planeswalkers anchor the superfriends plan.</span></div>
+      </div>
+    );
+  }
+
+  function SourceCard({ A }) {
+    const present = COLORS.filter((c) => (A.sources[c] || 0) > 0 || (A.pips[c] || 0) > 0);
+    const totalSrc = COLORS.reduce((s, c) => s + (A.sources[c] || 0), 0);
+    const under = present.filter((c) => (A.sources[c] || 0) < A.threshold);
+    const NAME = { W: "white", U: "blue", B: "black", R: "red", G: "green" };
+    return (
+      <div className="ic-col">
+        <div className="ic-eyebrow"><Ic.Flask />Mana sources<span className="ic-eyebrow__c">{A.lands} lands</span></div>
+        <ManaSourceBars sources={A.sources} threshold={A.threshold} underSupported={under} />
+        <hr className="ic-sep" />
+        <div className="ic-statline">
+          <Stat k="Sources" v={totalSrc} sub="total" />
+          <Stat k="Threshold" v={A.threshold} accent />
+          <Stat k="Colors" v={present.filter((c) => (A.sources[c] || 0) > 0).length} />
+          <Stat k="Under" v={under.length} />
+        </div>
+        <div className="ic-callout"><Ic.Info /><span>Each color wants <b>≥ {A.threshold}</b> sources for reliable on-curve casting. {under.length ? <span><b>{under.map((c) => NAME[c]).join(", ")}</b> sit below threshold — add fixing.</span> : <span>All colors clear the threshold.</span>}</span></div>
+      </div>
+    );
+  }
+
+  function RoleCard({ A, PR, deck }) {
+    const cardsFor = (role) => role === "land" ? deck.filter(isLand) : deck.filter((c) => (c.roles || []).includes(role));
+    return (
+      <div className="ic-col">
+        <div className="ic-eyebrow"><Ic.Sparkles />Role coverage<span className="ic-eyebrow__c">have / target band</span></div>
+        <RoleCoverageBars gaps={A.coverage} ghost={PR ? PR.coverage : null} />
+        <hr className="ic-sep" />
+        <div className="ic-rows">
+          {A.coverage.map((g) => {
+            const cards = cardsFor(g.role);
+            const need = g.want_min - g.have, trim = g.have - g.want_max;
+            return (
+              <div className="ic-role" key={g.role}>
+                <div className="ic-role__head">
+                  <RoleChip role={g.role} />
+                  <span className={"ic-status ic-status--" + g.status}>{g.status}</span>
+                  <span className="ic-role__band"><b>{g.have}</b> / {g.want_min}–{g.want_max}</span>
+                </div>
+                <div className="ic-role__cards">{cards.length ? names(cards, 4) : "—"}</div>
+                {g.status === "under" ? <div className="ic-role__fix"><Ic.ArrowUp />Add {need} more to hit the band</div> : g.status === "over" ? <div className="ic-role__fix" style={{ color: "var(--info)" }}><Ic.ArrowDown />{trim} over — consider trimming</div> : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function GoldfishCard({ A, PR }) {
+    const s = A.sim;
+    const dKeep = PR ? Math.round((PR.sim.keepable_rate - s.keepable_rate) * 100) : null;
+    return (
+      <div className="ic-col">
+        <div className="ic-eyebrow"><Ic.Dice />Goldfish<span className="ic-eyebrow__c">{s.trials.toLocaleString()} games · seed 1</span></div>
+        <SimReadout keepableRate={s.keepable_rate} mulliganRate={s.mulligan_rate} deadOnArrivalRate={s.dead_on_arrival_rate} landsByTurn={s.lands_by_turn}
+          ghostKeepableRate={PR ? PR.sim.keepable_rate : null} ghostDeadOnArrivalRate={PR ? PR.sim.dead_on_arrival_rate : null} ghostLandsByTurn={PR ? PR.sim.lands_by_turn : null} />
+        <hr className="ic-sep" />
+        <div className="ic-statline">
+          <Stat k="Keepable" v={pct(s.keepable_rate)} accent delta={dKeep ? { d: dKeep } : null} />
+          <Stat k="Mulligan" v={pct(s.mulligan_rate)} />
+          <Stat k="Screw/flood" v={pct(s.dead_on_arrival_rate)} />
+          <Stat k="Open lands" v={s.avg_opening_lands} />
+          <Stat k="1st spell" v={pct(s.first_spell_rate)} />
+          <Stat k="→ 1st spell" v={"T" + s.avg_turn_to_first_spell} />
+        </div>
+        <div className="ic-callout"><Ic.Info /><span>You keep <b>{pct(s.keepable_rate)}</b> of opening sevens with ~<b>{s.avg_opening_lands}</b> lands, casting a first spell by turn <b>{s.avg_turn_to_first_spell}</b> in {pct(s.first_spell_rate)} of games.</span></div>
+      </div>
+    );
+  }
+
+  function BracketCard({ A }) {
+    const P = A.bracket.pushers; const b = A.bracket.bracket;
+    const gc = P.game_changers.length;
+    const checks = [
+      { ok: gc <= 3, t: "Game Changers ≤ 3", d: gc ? P.game_changers.join(", ") : "none" },
+      { ok: P.mld.length === 0, t: "No mass land denial", d: P.mld.length ? P.mld.join(", ") : "none present" },
+      { ok: P.combos.length === 0, t: "No early 2-card combos", d: P.combos.length ? P.combos.join(", ") : "none detected" },
+      { ok: P.fast_mana.length <= 2, t: "Fast mana ≤ 2", d: P.fast_mana.length ? P.fast_mana.join(", ") : "none" },
+      { ok: P.extra_turns.length === 0, t: "No chained extra turns", d: P.extra_turns.length ? P.extra_turns.join(", ") : "none" },
+    ];
+    const pushRow = (k, items) => <div className="ic-push" key={k}><span className="ic-push__k">{k}</span><span className="ic-push__v">{items.length ? items.join(", ") : <em>none</em>}</span></div>;
+    return (
+      <div className="ic-col">
+        <div className="ic-eyebrow"><Ic.Crown />Power bracket</div>
+        <BracketMeter bracket={b} />
+        <hr className="ic-sep" />
+        <div className="ic-h">Classification criteria</div>
+        <div className="ic-checks">
+          {checks.map((c, i) => (
+            <div className="ic-check" key={i}>
+              <span className={"ic-check__mark " + (c.ok ? "ic-check__mark--ok" : "ic-check__mark--no")}>{c.ok ? <Ic.Check /> : <Ic.X />}</span>
+              <span className="ic-check__body"><div className="ic-check__t">{c.t}</div><div className="ic-check__d">{c.d}</div></span>
+            </div>
+          ))}
+        </div>
+        <hr className="ic-sep" />
+        <div className="ic-h">Pushers detected</div>
+        <div>
+          {pushRow("Game Changers", P.game_changers)}
+          {pushRow("Fast mana", P.fast_mana)}
+          {pushRow("Tutors", P.tutors)}
+          {pushRow("Land denial", P.mld)}
+          {pushRow("Combos", P.combos)}
+        </div>
+        <div className="ic-callout"><Ic.Crown /><span><b>{gc} Game Changers</b>, no mass land denial → <b>Upgraded ({b})</b>. Add chained fast mana or a 2-card combo line to reach Optimized (4).</span></div>
+      </div>
+    );
+  }
+
+  function ValidationCard({ A }) {
+    const MB = window.MB;
+    const v = (MB.analysis.violations || []);
+    const errors = v.filter((x) => x.severity === "error");
+    const passes = [
+      { t: "Card count", d: A.stats.total_cards + " / 100 — 99 + commander" },
+      { t: "Singleton", d: "No duplicate nonland names" },
+      { t: "Commander legality", d: MB.commander.name + " is a legal commander" },
+    ];
+    return (
+      <div className="ic-col">
+        <div className="ic-eyebrow" style={{ color: "var(--danger)" }}><Ic.Alert />Validation<span className="ic-eyebrow__c">{errors.length} error{errors.length === 1 ? "" : "s"}</span></div>
+        {errors.map((e, i) => (
+          <ValidationItem key={i} rule={e.rule} severity={e.severity} card={e.card} detail={e.detail} fixHint="Ask the Oracle to fix legality" />
+        ))}
+        <hr className="ic-sep" />
+        <div className="ic-h">Passing checks</div>
+        <div className="ic-checks">
+          {passes.map((c, i) => (
+            <div className="ic-check" key={i}>
+              <span className="ic-check__mark ic-check__mark--ok"><Ic.Check /></span>
+              <span className="ic-check__body"><div className="ic-check__t">{c.t}</div><div className="ic-check__d">{c.d}</div></span>
+            </div>
+          ))}
+        </div>
+        <div className="ic-callout"><Ic.Info /><span>One identity violation blocks legality. Everything else validates — resolve the off-color card and the deck is tournament-legal.</span></div>
+      </div>
+    );
+  }
+
+  window.InsightsCards = { Delta, HealthRing, computeHealth, GlanceCard, CurveCard, PipCard, TypeCard, SourceCard, RoleCard, GoldfishCard, BracketCard, ValidationCard };
+})();

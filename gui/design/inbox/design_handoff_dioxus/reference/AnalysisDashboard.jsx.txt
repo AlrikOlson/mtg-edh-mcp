@@ -1,0 +1,230 @@
+/* Manabase UI kit — Insights rail.
+   The analysis surfaces (analyze_* + goldfish + bracket + validation) for the
+   Workbench's right rail: a single clean VERTICAL scroll of cards with a
+   floating scroll-spy dot subnav (no cramped tab bar). Driven by LIVE,
+   deck-derived data so everything updates when the Oracle changes the deck. */
+(function () {
+  const DS = window.ManabaseDesignSystem_9d5890 || {};
+  const { Badge } = DS;
+  const IC = window.InsightsCards;
+  const Ic = window.Ic;
+
+  const CSS = `
+  .ins-rail { width:clamp(336px, 36vw, 620px); flex:none; border-left:1px solid var(--border-subtle); background:var(--surface-base); display:flex; flex-direction:column; min-height:0; position:relative; }
+  .ins-head { display:flex; align-items:center; gap:var(--space-2); padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--border-subtle); min-width:0; overflow:hidden; }
+  .ins-head__t { font:var(--type-eyebrow); letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-secondary); white-space:nowrap; }
+  @media (max-width: 1060px){ .ins-head__bracket { display:none; } }
+  .ins-main { flex:1; display:flex; min-height:0; position:relative; }
+  .ins-body { flex:1; overflow-y:auto; overflow-x:hidden; padding:var(--space-4); display:flex; flex-direction:column; gap:var(--space-3); scrollbar-width:none; scroll-behavior:smooth; }
+  .ins-body::-webkit-scrollbar { width:0; height:0; }
+  .ins-card { background:var(--surface-card); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:var(--space-4); box-shadow:var(--shadow-bevel); scroll-margin-top:var(--space-3); transition:border-color var(--dur-base) var(--ease-standard), box-shadow var(--dur-base) var(--ease-standard); }
+  .ins-card--hero { border-color:var(--accent-soft-border); box-shadow:var(--glow-gold); }
+  .ins-card--hero .ins-eyebrow { color:var(--accent-text); }
+  .ins-eyebrow { font:var(--type-eyebrow); letter-spacing:var(--tracking-caps); text-transform:uppercase; color:var(--text-faint); margin-bottom:var(--space-3); display:flex; align-items:center; gap:var(--gap-inline-xs); }
+  .ins-eyebrow iconify-icon { color:var(--accent-text); font-size:13px; }
+  .ins-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-2_5); }
+
+  /* persistent section subnav — a fixed rail with a spring-slid active indicator */
+  .ins-subnav { flex:none; width:54px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:var(--space-3) 0; border-right:1px solid var(--border-subtle); background:linear-gradient(var(--surface-base), var(--surface-base)); position:relative; z-index:4; }
+  .ins-subnav__track { position:absolute; top:14px; bottom:auto; left:50%; width:2px; transform:translateX(-50%); background:var(--border-faint); border-radius:2px; }
+  .ins-subnav__progress { position:absolute; left:50%; width:2px; transform:translateX(-50%); background:linear-gradient(var(--gold-300), var(--gold-500)); border-radius:2px; box-shadow:0 0 8px -1px color-mix(in oklab,var(--gold-400) 70%,transparent); transition:top 520ms cubic-bezier(0.34,1.4,0.5,1), height 520ms cubic-bezier(0.34,1.4,0.5,1); z-index:1; }
+  .ins-subnav__thumb { position:absolute; left:50%; transform:translateX(-50%); width:38px; height:38px; border-radius:var(--radius-md); background:var(--accent-soft); border:1px solid var(--accent-soft-border); box-shadow:var(--glow-gold); transition:top 520ms cubic-bezier(0.34,1.4,0.5,1); z-index:1; pointer-events:none; }
+  .ins-subnav__item { position:relative; z-index:2; width:38px; height:38px; flex:none; display:flex; align-items:center; justify-content:center; border:none; background:transparent; color:var(--text-secondary); border-radius:var(--radius-md); cursor:pointer; padding:0; font-size:16px; transition:color var(--dur-base) var(--ease-standard), transform var(--dur-fast) var(--ease-out); }
+  .ins-subnav__item iconify-icon { font-size:16px; transition:transform var(--dur-fast) var(--ease-out); filter:drop-shadow(0 0 2px var(--surface-base)) drop-shadow(0 0 3px var(--surface-base)) drop-shadow(0 0 1px var(--surface-base)); }
+  .ins-subnav__item:hover { color:var(--text-primary); }
+  .ins-subnav__item:hover iconify-icon { transform:scale(1.12); }
+  .ins-subnav__item--active { color:var(--accent-text); }
+  .ins-subnav__item--danger { color:color-mix(in oklab,var(--danger) 80%,var(--text-muted)); }
+  .ins-subnav__item--danger.ins-subnav__item--active { color:var(--danger); }
+  .ins-subnav__item::after { content:attr(data-label); position:absolute; left:46px; top:50%; transform:translateY(-50%) translateX(-4px); background:var(--surface-overlay); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:4px 10px; font:var(--type-label-sm); color:var(--text-primary); white-space:nowrap; box-shadow:var(--shadow-2); opacity:0; pointer-events:none; transition:opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); z-index:8; }
+  .ins-subnav__item:hover::after { opacity:1; transform:translateY(-50%) translateX(0); }
+  .ins-head__active { font:var(--type-label); color:var(--accent-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .ins-head__sep { width:3px; height:3px; border-radius:var(--radius-circle); background:var(--text-faint); flex:none; }
+
+  .ins-pips { display:flex; flex-direction:column; gap:var(--space-2_5); }
+  .ins-pip { display:grid; grid-template-columns:20px 1fr 26px; align-items:center; gap:var(--space-2_5); }
+  .ins-pip__track { height:13px; background:var(--viz-track); border-radius:var(--radius-pill); overflow:hidden; box-shadow:inset 0 0 0 1px var(--border-faint); }
+  .ins-pip__fill { height:100%; border-radius:var(--radius-pill); transition:width var(--dur-slow) var(--ease-out); min-width:13px; }
+  .ins-pip__fill--W { background:var(--mtg-w); box-shadow:0 0 10px -2px color-mix(in oklab,var(--mtg-w) 60%,transparent); }
+  .ins-pip__fill--U { background:var(--mtg-u); box-shadow:0 0 10px -2px color-mix(in oklab,var(--mtg-u) 70%,transparent); }
+  .ins-pip__fill--B { background:var(--mtg-b); box-shadow:0 0 10px -2px color-mix(in oklab,var(--mtg-b) 70%,transparent); }
+  .ins-pip__fill--R { background:var(--mtg-r); box-shadow:0 0 10px -2px color-mix(in oklab,var(--mtg-r) 70%,transparent); }
+  .ins-pip__fill--G { background:var(--mtg-g); box-shadow:0 0 10px -2px color-mix(in oklab,var(--mtg-g) 70%,transparent); }
+  .ins-pip__val { font:var(--type-data-sm); color:var(--text-secondary); text-align:right; font-variant-numeric:tabular-nums; }
+
+  .ins-comp { display:flex; flex-direction:column; gap:var(--space-1_5); }
+  .ins-comp__row { display:grid; grid-template-columns:84px 1fr 24px; align-items:center; gap:var(--space-2); }
+  .ins-comp__row > span:first-child { font:var(--type-label-sm); color:var(--text-secondary); }
+  .ins-comp__track { height:8px; background:var(--viz-track); border-radius:var(--radius-pill); overflow:hidden; }
+  .ins-comp__fill { display:block; height:100%; background:var(--mtg-c); border-radius:var(--radius-pill); transition:width var(--dur-slow) var(--ease-out); }
+  .ins-comp__row > span:last-child { font:var(--type-data-sm); color:var(--text-secondary); text-align:right; font-variant-numeric:tabular-nums; }
+  .ins-pusher { display:flex; gap:var(--space-2); align-items:baseline; padding:var(--space-1_5) 0; border-bottom:1px solid var(--border-faint); }
+  .ins-pusher span:first-child { font:var(--type-label-sm); color:var(--text-muted); width:96px; flex:none; }
+  .ins-pusher span:last-child { font:var(--type-body-sm); color:var(--text-secondary); }
+
+  /* ---- what-if delta overlays ---- */
+  .ins-whatif { display:flex; align-items:center; gap:var(--space-2); margin:var(--space-3) var(--space-4) 0; padding:var(--space-2) var(--space-3); background:color-mix(in oklab,var(--gold-400) 9%,var(--surface-card)); border:1px dashed var(--accent-soft-border); border-radius:var(--radius-md); box-shadow:var(--shadow-bevel); animation:cap-in var(--dur-base) var(--ease-out); }
+  .ins-whatif iconify-icon { color:var(--accent-text); font-size:14px; flex:none; }
+  .ins-whatif__t { font:var(--type-label); color:var(--accent-text); white-space:nowrap; }
+  .ins-whatif__t b { font-weight:var(--weight-semibold); }
+  .ins-whatif__leg { margin-left:auto; display:flex; align-items:center; gap:var(--space-2_5); font:var(--type-label-sm); color:var(--text-muted); }
+  .ins-whatif__sw { display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+  .ins-whatif__sw i { width:15px; border-top:2.5px solid var(--accent); display:inline-block; }
+  .ins-whatif__sw i.ghost { border-top-style:dashed; border-color:var(--accent-text); }
+
+  .delta { display:inline-flex; align-items:center; gap:1px; font:var(--type-data-sm); font-variant-numeric:tabular-nums; padding:0 5px; border-radius:var(--radius-pill); border:1px solid transparent; line-height:1.5; }
+  .delta--up { color:var(--success); background:color-mix(in oklab,var(--success) 14%,transparent); border-color:color-mix(in oklab,var(--success) 28%,transparent); }
+  .delta--down { color:var(--danger); background:color-mix(in oklab,var(--danger) 14%,transparent); border-color:color-mix(in oklab,var(--danger) 28%,transparent); }
+  .delta--flat { color:var(--text-faint); background:var(--surface-raised); }
+  .delta iconify-icon { font-size:11px; }
+
+  .ins-pip--whatif { grid-template-columns:20px 1fr 70px; }
+  .ins-comp__row--whatif { grid-template-columns:84px 1fr 62px; }
+  .ins-pip__track, .ins-comp__track { position:relative; }
+  .ghostfill { position:absolute; top:-1px; bottom:-1px; left:0; border-radius:var(--radius-pill); border:1.5px dashed color-mix(in oklab,var(--accent-text) 85%,transparent); background:color-mix(in oklab,var(--gold-400) 14%,transparent); box-sizing:border-box; transition:width var(--dur-slow) var(--ease-out); pointer-events:none; z-index:2; }
+  .ins-pip__val--whatif, .ins-comp__row--whatif > span:last-child { display:inline-flex; align-items:center; justify-content:flex-end; gap:4px; }
+  `;
+  let injected = false;
+  (function ensure(){ if (injected || typeof document==="undefined") return; injected=true; const s=document.createElement("style"); s.setAttribute("data-mb","insights"); s.textContent=CSS; document.head.appendChild(s); })();
+
+  window.InsightsRail = function InsightsRail({ analysis, projected, hasIllegal, deck }) {
+    const A = analysis;
+    const PR = projected;
+    const whatif = !!PR;
+    const D = deck || [];
+    const NAV_ICON = { stats: <Ic.Info />, curve: <Ic.Graph />, pips: <Ic.Percent />, comp: <Ic.Box />, mana: <Ic.Flask />, roles: <Ic.Sparkles />, goldfish: <Ic.Dice />, bracket: <Ic.Crown />, valid: <Ic.Alert /> };
+
+    const bodyRef = React.useRef(null);
+    const refs = React.useRef({});
+    const [active, setActive] = React.useState("stats");
+
+    const sections = [
+      { key: "stats", label: "At a glance", card: true, node: <IC.GlanceCard A={A} PR={PR} deck={D} /> },
+      { key: "curve", label: "Mana curve", card: true, node: <IC.CurveCard A={A} PR={PR} deck={D} /> },
+      { key: "pips", label: "Color pips", card: true, node: <IC.PipCard A={A} PR={PR} /> },
+      { key: "comp", label: "Composition", card: true, node: <IC.TypeCard A={A} PR={PR} deck={D} /> },
+      { key: "mana", label: "Mana sources", card: true, node: <IC.SourceCard A={A} /> },
+      { key: "roles", label: "Role coverage", card: true, node: <IC.RoleCard A={A} PR={PR} deck={D} /> },
+      { key: "goldfish", label: "Goldfish", card: true, node: <IC.GoldfishCard A={A} PR={PR} /> },
+      { key: "bracket", label: "Power bracket", card: true, node: <IC.BracketCard A={A} /> },
+    ];
+    if (hasIllegal) sections.push({ key: "valid", label: "Validation", card: true, danger: true, node: <IC.ValidationCard A={A} /> });
+
+    const navBtns = React.useRef({});
+    const lock = React.useRef(false);
+    const target = React.useRef(null);
+    const lockTimer = React.useRef(0);
+    const spacerRef = React.useRef(null);
+    const [thumbTop, setThumbTop] = React.useState(0);
+    const [track, setTrack] = React.useState({ top: 0, height: 0 });
+    const [progress, setProgress] = React.useState({ top: 0, height: 0 });
+    const activeLabel = (sections.find((s) => s.key === active) || sections[0]).label;
+    const LINE = 44; // detection line, px below the body's top edge
+
+    // Scroll-spy in VIEWPORT coordinates (robust to offsetParent), picking the
+    // last section whose top has crossed the detection line.
+    const spyNow = () => {
+      const body = bodyRef.current; if (!body) return active;
+      const line = body.getBoundingClientRect().top + LINE;
+      let cur = sections[0].key;
+      for (const s of sections) { const el = refs.current[s.key]; if (!el) continue; if (el.getBoundingClientRect().top - 2 <= line) cur = s.key; else break; }
+      if (body.scrollTop + body.clientHeight >= body.scrollHeight - 4) cur = sections[sections.length - 1].key;
+      return cur;
+    };
+    const releaseLock = () => { lock.current = false; };
+    const onScroll = () => {
+      const body = bodyRef.current; if (!body) return;
+      if (lock.current) {
+        // hold the spy until the programmatic scroll actually arrives (no
+        // mid-flight drift); a fallback timer / user gesture also releases it
+        if (target.current == null || Math.abs(body.scrollTop - target.current) <= 2) releaseLock();
+        else return;
+      }
+      const cur = spyNow();
+      if (cur !== active) setActive(cur);
+    };
+    const jump = (key) => {
+      const el = refs.current[key], body = bodyRef.current; if (!el || !body) return;
+      const top = body.scrollTop + (el.getBoundingClientRect().top - body.getBoundingClientRect().top) - LINE + 2;
+      const clamped = Math.max(0, Math.min(Math.round(top), body.scrollHeight - body.clientHeight));
+      target.current = clamped; lock.current = true; setActive(key);
+      body.scrollTo({ top: clamped, behavior: "smooth" });
+      clearTimeout(lockTimer.current); lockTimer.current = setTimeout(releaseLock, 1000);
+    };
+    const center = (b) => b.offsetTop + b.offsetHeight / 2;
+
+    // A trailing spacer sized so EVERY section (incl. the last) can scroll up to
+    // the detection line — keeps the click target and the spy in agreement.
+    React.useEffect(() => {
+      const body = bodyRef.current, sp = spacerRef.current; if (!body || !sp) return;
+      const fit = () => { const keys = Object.keys(refs.current); const last = refs.current[keys[keys.length - 1]]; if (last) sp.style.height = Math.max(0, body.clientHeight - last.offsetHeight - LINE - 12) + "px"; };
+      fit(); const t = setTimeout(fit, 140); window.addEventListener("resize", fit);
+      return () => { window.removeEventListener("resize", fit); clearTimeout(t); };
+    }, [analysis, projected, hasIllegal, whatif]);
+
+    // a manual scroll gesture cancels the programmatic lock immediately
+    React.useEffect(() => {
+      const body = bodyRef.current; if (!body) return;
+      body.addEventListener("wheel", releaseLock, { passive: true });
+      body.addEventListener("touchstart", releaseLock, { passive: true });
+      return () => { body.removeEventListener("wheel", releaseLock); body.removeEventListener("touchstart", releaseLock); };
+    }, []);
+
+    React.useEffect(() => {
+      const measure = () => {
+        const b = navBtns.current[active];
+        const first = navBtns.current[sections[0].key];
+        const last = navBtns.current[sections[sections.length - 1].key];
+        if (b) setThumbTop(b.offsetTop);
+        if (first && last) setTrack({ top: center(first), height: Math.max(0, center(last) - center(first)) });
+        if (b && first) setProgress({ top: center(first), height: Math.max(0, center(b) - center(first)) });
+      };
+      measure();
+      // re-measure after fonts/icons settle and on resize (layout shifts move offsetTop)
+      const t = setTimeout(measure, 380);
+      window.addEventListener("resize", measure);
+      return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
+    }, [active, hasIllegal, whatif]);
+
+    return (
+      <div className="ins-rail">
+        <div className="ins-head">
+          <span className="ins-head__t">Insights</span>
+          <span className="ins-head__sep" />
+          <span className="ins-head__active">{activeLabel}</span>
+          <div style={{ flex: 1 }} />
+          <Badge tone={hasIllegal ? "danger" : "success"} dot>{hasIllegal ? "1 error" : "Legal"}</Badge>
+          <Badge tone="accent" className="ins-head__bracket">{"Bracket " + A.bracket.bracket}</Badge>
+        </div>
+        {whatif ? (
+          <div className="ins-whatif">
+            <Ic.Compare />
+            <span className="ins-whatif__t"><b>What-if preview</b> · projected impact</span>
+            <span className="ins-whatif__leg">
+              <span className="ins-whatif__sw"><i></i>Now</span>
+              <span className="ins-whatif__sw"><i className="ghost"></i>If accepted</span>
+            </span>
+          </div>
+        ) : null}
+        <div className="ins-main">
+          <div className="ins-subnav">
+            <div className="ins-subnav__track" style={{ top: track.top, height: track.height }} />
+            <div className="ins-subnav__progress" style={{ top: progress.top, height: progress.height }} />
+            <div className="ins-subnav__thumb" style={{ top: thumbTop }} />
+            {sections.map((s) => (
+              <button key={s.key} ref={(el) => (navBtns.current[s.key] = el)} className={"ins-subnav__item" + (active === s.key ? " ins-subnav__item--active" : "") + (s.danger ? " ins-subnav__item--danger" : "")} data-label={s.label} onClick={() => jump(s.key)} aria-label={s.label} aria-current={active === s.key ? "true" : undefined}>{NAV_ICON[s.key] || <Ic.Info />}</button>
+            ))}
+          </div>
+          <div className="ins-body" ref={bodyRef} onScroll={onScroll}>
+            {sections.map((s) => (
+              <div key={s.key} ref={(el) => (refs.current[s.key] = el)} className={(s.card ? "ins-card" : "") + (s.card && active === s.key ? " ins-card--hero" : "")} style={s.danger ? { borderColor: "color-mix(in oklab, var(--danger) 35%, transparent)" } : null}>
+                {s.node}
+              </div>
+            ))}
+            <div ref={spacerRef} aria-hidden="true" style={{ flex: "none" }} />
+          </div>
+        </div>
+      </div>
+    );
+  };
+})();

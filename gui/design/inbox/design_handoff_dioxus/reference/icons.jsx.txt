@@ -1,0 +1,25 @@
+/* Manabase UI kit — iconography.
+   Library: ICONOIR (https://iconoir.com), delivered via the Iconify web
+   component (<iconify-icon>). Chosen deliberately over the usual Lucide/
+   Heroicons/Tabler — Iconoir's crisp, slightly editorial line work suits the
+   dark arcane workbench, and the MTG flavor is carried by the mana-font pips.
+   Each export is a thin React wrapper around <iconify-icon icon="iconoir:…">;
+   it inherits font-size (1em) and currentColor like text. */
+(function () {
+  const I = (name) => function Icon(props) {
+    return React.createElement("iconify-icon", Object.assign({ icon: "iconoir:" + name }, props));
+  };
+  window.Ic = {
+    // chrome
+    Search: I("search"), Plus: I("plus"), Minus: I("minus"), Settings: I("settings"),
+    List: I("list"), Grid: I("view-grid"), Check: I("check"), X: I("xmark"),
+    Alert: I("warning-triangle"), Chevron: I("nav-arrow-down"), ChevronRight: I("nav-arrow-right"),
+    Sun: I("sun-light"), Moon: I("half-moon"), Filter: I("filter"), Trash: I("trash"),
+    Copy: I("copy"), Info: I("info-circle"), Save: I("floppy-disk"), Sparkles: I("sparks"),
+    // navigation + domain
+    Browse: I("bookmark-book"), Deck: I("multiple-pages"), Analyze: I("stats-up-square"),
+    Collection: I("archive"), Dice: I("dice-five"), Crown: I("crown"), Graph: I("graph-up"),
+    Flask: I("flask"), Percent: I("percentage-circle"), Box: I("box-iso"),
+    ArrowUp: I("arrow-up"), ArrowDown: I("arrow-down"), Compare: I("git-compare"),
+  };
+})();

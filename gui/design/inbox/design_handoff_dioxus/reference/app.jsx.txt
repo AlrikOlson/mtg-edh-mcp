@@ -1,0 +1,117 @@
+/* Manabase UI kit — app shell + router.
+   Nav rail · top bar (deck identity / legality / snapshot / theme) · screen body.
+   Ties the four object screens together into one interactive desktop window. */
+(function () {
+  const DS = window.ManabaseDesignSystem_9d5890 || {};
+  const { IconButton, Tooltip, Badge, ColorIdentity, Button } = DS;
+  const Ic = window.Ic;
+
+  const CSS = `
+  .mb-nav { position:relative; display:flex; flex-direction:column; align-items:center; gap:var(--space-2); width:42px; }
+  .mb-nav__ind { position:absolute; left:0; width:42px; height:42px; border-radius:var(--radius-md); background:var(--accent-soft); border:1px solid var(--accent-soft-border); box-shadow:var(--glow-gold); transition:top 480ms cubic-bezier(0.34,1.4,0.5,1); z-index:0; pointer-events:none; }
+  .mb-nav__item { position:relative; z-index:1; width:42px; height:42px; border:none; background:transparent; border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); font-size:21px; padding:0; transition:color var(--dur-base) var(--ease-standard); }
+  .mb-nav__item iconify-icon { transition:transform var(--dur-fast) var(--ease-out); }
+  .mb-nav__item:hover { color:var(--text-primary); }
+  .mb-nav__item:hover iconify-icon { transform:scale(1.13); }
+  .mb-nav__item--active { color:var(--accent-text); }
+  .mb-nav__item::after { content:attr(data-label); position:absolute; left:50px; top:50%; transform:translateY(-50%) translateX(-5px); background:var(--surface-overlay); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:5px 11px; font:var(--type-label-sm); color:var(--text-primary); white-space:nowrap; box-shadow:var(--shadow-2); opacity:0; pointer-events:none; transition:opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard); z-index:30; }
+  .mb-nav__item:hover::after { opacity:1; transform:translateY(-50%) translateX(0); }
+  .mb-tb__div { width:1px; height:20px; background:var(--border-default); flex:none; }
+  .mb-cmdk { display:inline-flex; align-items:center; gap:var(--space-2); height:var(--control-h); padding:0 var(--space-2_5); border-radius:var(--radius-sm); border:1px solid var(--border-default); background:var(--surface-input); color:var(--text-muted); font:var(--type-label-sm); cursor:pointer; min-width:200px; white-space:nowrap; transition:var(--transition-control); }
+  .mb-cmdk:hover { border-color:var(--accent-soft-border); color:var(--text-secondary); background:var(--surface-raised); }
+  .mb-cmdk__kbd { margin-left:auto; font:var(--type-data-sm); color:var(--text-faint); border:1px solid var(--border-default); border-radius:var(--radius-xs); padding:0 5px; }
+  .mb-tb__name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; padding-right:2px; }
+  /* topbar sheds chrome progressively instead of wrapping / clipping */
+  @media (max-width: 1280px){ .mb-tb__hide-lg { display:none !important; } }
+  @media (max-width: 1120px){ .mb-tb__hide-md { display:none !important; } .mb-cmdk { min-width:0; } .mb-cmdk__lbl { display:none; } .mb-cmdk__kbd { margin-left:0; } }
+  @media (max-width: 980px){ .mb-tb__hide-sm { display:none !important; } }
+  `;
+  let injected = false;
+  (function ensure(){ if (injected || typeof document==="undefined") return; injected=true; const s=document.createElement("style"); s.setAttribute("data-mb","appshell"); s.textContent=CSS; document.head.appendChild(s); })();
+
+  const sh = {
+    app: { display: "flex", height: "100vh", width: "100%", background: "var(--surface-canvas)", overflow: "hidden" },
+    rail: { width: "var(--rail-nav)", flex: "none", borderRight: "1px solid var(--border-subtle)", background: "var(--surface-base)", display: "flex", flexDirection: "column", alignItems: "center", padding: "var(--space-3) 0", gap: "var(--space-3)" },
+    logo: { width: 32, height: 32, marginBottom: "var(--space-1)" },
+    work: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0 },
+    topbar: { height: "var(--topbar-h)", flex: "none", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-panel)", display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "0 var(--space-4)", minWidth: 0, overflow: "hidden" },
+    deckname: { font: "var(--type-h2)", display: "flex", alignItems: "center", gap: "var(--space-2)", whiteSpace: "nowrap", minWidth: 0, flex: "0 1 auto" },
+    spacer: { flex: 1 },
+  };
+
+  const SCREENS = [
+    { id: "browse", label: "Browse", icon: Ic.Browse, comp: "CardBrowser" },
+    { id: "deck", label: "Workbench", icon: Ic.Deck, comp: "DeckEditor" },
+    { id: "collection", label: "Collection", icon: Ic.Collection, comp: "Collection" },
+  ];
+
+  function NavRail({ active, setActive, theme, toggleTheme }) {
+    const itemRefs = React.useRef({});
+    const [indTop, setIndTop] = React.useState(0);
+    React.useEffect(() => { const el = itemRefs.current[active]; if (el) setIndTop(el.offsetTop); }, [active]);
+    return (
+      <div style={sh.rail}>
+        <img src="../../assets/logo/manabase-mark.svg" alt="Manabase" style={sh.logo} />
+        <div className="mb-nav">
+          <div className="mb-nav__ind" style={{ top: indTop }} />
+          {SCREENS.map((s) => {
+            const Icon = s.icon;
+            return (
+              <button key={s.id} ref={(el) => (itemRefs.current[s.id] = el)} className={"mb-nav__item" + (active === s.id ? " mb-nav__item--active" : "")}
+                data-label={s.label} aria-label={s.label} aria-current={active === s.id ? "page" : undefined} onClick={() => setActive(s.id)}>
+                <Icon />
+              </button>
+            );
+          })}
+        </div>
+        <div style={sh.spacer} />
+        <Tooltip content={theme === "light" ? "Dark theme" : "Light theme"} side="right">
+          <IconButton label="Toggle theme" onClick={toggleTheme}>{theme === "light" ? <Ic.Moon /> : <Ic.Sun />}</IconButton>
+        </Tooltip>
+        <Tooltip content="Settings" side="right"><IconButton label="Settings"><Ic.Settings /></IconButton></Tooltip>
+      </div>
+    );
+  }
+
+  function TopBar() {
+    const MB = window.MB;
+    return (
+      <div style={sh.topbar}>
+        <div style={sh.deckname}>
+          <span style={{ color: "var(--accent-text)", display: "inline-flex", fontSize: 18 }}><Ic.Crown /></span>
+          <span className="mb-tb__name">{MB.deckName}</span>
+        </div>
+        <span className="mb-tb__div" />
+        <ColorIdentity identity={MB.deckIdentity} size={15} />
+        <Badge tone="neutral" mono className="mb-tb__hide-md">v7</Badge>
+        <Badge tone="success" dot>Legal</Badge>
+        <Badge tone="accent" className="mb-tb__hide-sm">{"Bracket 3"}</Badge>
+        <div style={sh.spacer} />
+        <span className="mb-cmdk"><Ic.Search /><span className="mb-cmdk__lbl"> Search the universe </span><span className="mb-cmdk__kbd">⌘K</span></span>
+        <span className="mb-tb__div mb-tb__hide-lg" />
+        <Badge tone="info" mono className="mb-tb__hide-lg">{MB.snapshot}</Badge>
+        <Button variant="primary" size="sm" leadingIcon={<Ic.Save />}>Snapshot</Button>
+      </div>
+    );
+  }
+
+  window.ManabaseApp = function ManabaseApp() {
+    const [active, setActive] = React.useState("deck");
+    const [theme, setTheme] = React.useState("dark");
+    const toggleTheme = () => {
+      const next = theme === "dark" ? "light" : "dark";
+      setTheme(next);
+      document.documentElement.setAttribute("data-theme", next);
+    };
+    const Screen = window[SCREENS.find((s) => s.id === active).comp];
+    return (
+      <div style={sh.app}>
+        <NavRail active={active} setActive={setActive} theme={theme} toggleTheme={toggleTheme} />
+        <div style={sh.work}>
+          <TopBar />
+          {Screen ? <Screen /> : null}
+        </div>
+      </div>
+    );
+  };
+})();
