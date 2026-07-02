@@ -26,3 +26,7 @@ data/
 # Playwright MCP session artifacts (scrutiny runs)
 .playwright-mcp/
 scrutiny-*.png
+
+# Packaging staging (scripts/package-engine.sh)
+build/
+gui/app/bundle-data/

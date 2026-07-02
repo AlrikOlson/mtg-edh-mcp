@@ -53,6 +53,13 @@ async function main(): Promise<void> {
     const collection = new CollectionStore();
     const running = await startHttp({ port, host, snapshot, index, deckStore, collection });
     console.error(`mtg-edh-mcp listening on http://${host}:${running.port} (streamable HTTP)`);
+    // Sidecar lifecycle (opt-in): the GUI spawns us with piped stdin; when the
+    // GUI dies, stdin closes and we exit — orphan-proof without process groups.
+    if (process.env.MCP_WATCH_STDIN === "1") {
+      process.stdin.resume();
+      process.stdin.on("end", () => process.exit(0));
+      process.stdin.on("close", () => process.exit(0));
+    }
   } else {
     await startStdio({ snapshot, index, deckStore });
     console.error("mtg-edh-mcp serving on stdio");

@@ -63,11 +63,52 @@ fn sidecar_dist() -> Option<std::path::PathBuf> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// Spawn the node engine as a detached sidecar child. Returns whether a spawn
-/// was attempted. The child outlives us intentionally in dev; lifecycle
-/// management (kill-on-quit, bundled node) is deferred to the packaging work.
+/// The bundled engine binary (Node SEA, built by scripts/package-engine.sh):
+/// MTG_EDH_ENGINE_BIN overrides; otherwise a sibling of the app executable
+/// (dx bundle external_bin lands in Contents/MacOS next to the app binary).
+fn bundled_engine() -> Option<std::path::PathBuf> {
+    if let Ok(p) = std::env::var("MTG_EDH_ENGINE_BIN") {
+        return Some(p.into());
+    }
+    let exe = std::env::current_exe().ok()?;
+    let sibling = exe.parent()?.join("mtg-edh-engine");
+    sibling.exists().then_some(sibling)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// The bundled card-data snapshot (dx bundle resources → Contents/Resources).
+fn bundled_data_dir(engine: &std::path::Path) -> Option<std::path::PathBuf> {
+    if let Ok(p) = std::env::var("MCP_DATA_DIR") {
+        return Some(p.into());
+    }
+    let resources = engine.parent()?.parent()?.join("Resources/data/cards");
+    resources.exists().then_some(resources)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Spawn the engine sidecar. Bundled mode first (SEA binary + piped stdin so
+/// the engine exits when we die — MCP_WATCH_STDIN); dev-checkout node fallback.
 fn spawn_sidecar() -> Result<(), String> {
-    let dist = sidecar_dist().ok_or("no dist/main.js found (run `npm run build`)")?;
+    if let Some(engine) = bundled_engine() {
+        let mut cmd = std::process::Command::new(&engine);
+        cmd.env("MCP_TRANSPORT", "http")
+            .env("MCP_WATCH_STDIN", "1")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        if let Some(data) = bundled_data_dir(&engine) {
+            cmd.env("MCP_DATA_DIR", data);
+        }
+        let child = cmd
+            .spawn()
+            .map_err(|e| format!("failed to spawn bundled engine: {e}"))?;
+        // Leak the child (and its stdin pipe write-end) for our lifetime; the
+        // OS closes the pipe when we exit, which is exactly the kill signal.
+        std::mem::forget(child);
+        return Ok(());
+    }
+    let dist =
+        sidecar_dist().ok_or("no bundled engine and no dist/main.js (run `npm run build`)")?;
     let root = dist
         .parent()
         .and_then(std::path::Path::parent)
