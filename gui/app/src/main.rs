@@ -1,11 +1,25 @@
-//! mtg-edh-mcp desktop GUI — Phase G scaffold.
+//! mtg-edh-mcp GUI — Dioxus 0.7 desktop app.
 //!
-//! This is the minimal app shell: a Dioxus 0.7 desktop window. The real screens
-//! (Card / Deck / Collection / Analysis / Meta) and the rmcp MCP client that
-//! talks to the TypeScript engine over Streamable HTTP land in later GUI chunks
-//! (gui-mcp-client, gui-app-shell, …). See ../../docs/adr/0001-gui-architecture.md.
+//! Currently the app IS the Manabase component gallery (the Storybook analog);
+//! the shell/router lands in gui-app-shell. Styling comes entirely from the
+//! vendored Manabase design system (gui/design/inbox/design_handoff_dioxus).
 
 use dioxus::prelude::*;
+
+mod ds;
+mod gallery;
+mod icons;
+
+// The whole assets directory ships as ONE folder asset: manganis does not
+// rewrite url() references inside CSS (dioxus#3325), so the fonts must stay
+// siblings of the stylesheets under their original relative paths
+// ("fonts/mana.woff2" etc.). A folder asset preserves that structure.
+static ASSETS: Asset = asset!("/assets");
+
+/// The Manabase mark (WUBRG color pie ringed in gold).
+pub fn logo_url() -> String {
+    format!("{ASSETS}/logo/manabase-mark.svg")
+}
 
 fn main() {
     dioxus::launch(App);
@@ -13,10 +27,22 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    // Load order matters: font faces first, then the icon-font class rules
+    // (linked DIRECTLY, never via nested @import — handoff gotcha #1), then
+    // tokens, then the component/screen contracts, then gallery chrome.
+    let sheets = [
+        "fonts-local.css",
+        "mana.min.css",
+        "keyrune.min.css",
+        "manabase.css",
+        "components.css",
+        "screens.css",
+        "gallery.css",
+    ];
     rsx! {
-        main {
-            h1 { "mtg-edh-mcp" }
-            p { "Phase G scaffold — Dioxus 0.7 desktop. The engine stays in TypeScript; this app will speak MCP to it." }
+        for sheet in sheets {
+            document::Stylesheet { href: format!("{ASSETS}/{sheet}") }
         }
+        gallery::Gallery {}
     }
 }
