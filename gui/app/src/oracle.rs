@@ -105,6 +105,8 @@ pub fn OracleBar(deck_id: String) -> Element {
                 #[cfg(not(target_arch = "wasm32"))]
                 let set = if intent == "search" && claude_available() {
                     run_claude_brain(&deck_id, &query, caps).await
+                } else if intent == "search" && api_key().is_some() {
+                    run_api_brain(&client, &deck_id, &query, oracle_model(), caps).await
                 } else {
                     run_intent(&client, &deck_id, intent, &query, caps).await
                 };
@@ -579,10 +581,27 @@ async fn project_whatif(
 /// The active brain tier, labeled honestly in the ask bar.
 fn oracle_placeholder() -> &'static str {
     #[cfg(not(target_arch = "wasm32"))]
-    if claude_available() {
-        return "Ask the Oracle to refine your deck… (Claude Code)";
+    {
+        if claude_available() {
+            return "Ask the Oracle to refine your deck… (Claude Code)";
+        }
+        if api_key().is_some() {
+            return "Ask the Oracle to refine your deck… (Anthropic API)";
+        }
     }
     "Ask the Oracle to refine your deck… (scripted intents)"
+}
+
+/// Tier 2 model: haiku by default (cost-appropriate); env-overridable.
+#[cfg(not(target_arch = "wasm32"))]
+fn oracle_model() -> &'static str {
+    use std::sync::OnceLock;
+    static MODEL: OnceLock<String> = OnceLock::new();
+    MODEL
+        .get_or_init(|| {
+            std::env::var("MTG_EDH_ORACLE_MODEL").unwrap_or_else(|_| "claude-haiku-4-5".to_string())
+        })
+        .as_str()
 }
 
 // ---- Tier 1 brain: the user's own Claude Code CLI (oracle-llm-brain) --------
@@ -849,4 +868,228 @@ mod brain_tests {
     fn change_set_rejects_garbage() {
         assert!(parse_change_set("no json here").is_none());
     }
+}
+
+// ---- Tier 2 brain: BYO Anthropic API key (oracle-byo-key) --------------------
+// Key lives in the macOS keychain (service mtg-edh-oracle) via the `security`
+// CLI — never plaintext on disk; ANTHROPIC_API_KEY env is the non-macOS
+// fallback. A REAL tool-use loop over the messages API: a curated tool set
+// executed through the existing EngineClient wrappers, each call a caption,
+// the final text the same fenced-JSON change-set contract as Tier 1.
+
+#[cfg(not(target_arch = "wasm32"))]
+const KEYCHAIN_SERVICE: &str = "mtg-edh-oracle";
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn api_key() -> Option<String> {
+    if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
+        if !key.trim().is_empty() {
+            return Some(key);
+        }
+    }
+    let out = std::process::Command::new("security")
+        .args(["find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let key = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    (!key.is_empty()).then_some(key)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn store_api_key(key: &str) -> bool {
+    std::process::Command::new("security")
+        .args([
+            "add-generic-password",
+            "-U",
+            "-s",
+            KEYCHAIN_SERVICE,
+            "-a",
+            "anthropic",
+            "-w",
+            key,
+        ])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// The curated tool schemas the API model may call (executed via EngineClient).
+#[cfg(not(target_arch = "wasm32"))]
+fn api_tools() -> serde_json::Value {
+    let q = |desc: &str| serde_json::json!({"type":"object","properties":{"query":{"type":"string","description":desc},"limit":{"type":"integer"}},"required":["query"]});
+    let d = serde_json::json!({"type":"object","properties":{"deck_id":{"type":"string"}},"required":["deck_id"]});
+    serde_json::json!([
+        {"name":"card_search","description":"Scryfall-grammar card search (t:, c:, o:, name words). Returns oracle_id+name.","input_schema": q("Scryfall-style query")},
+        {"name":"deck_get","description":"The deck's current cards (oracle_id, qty, name).","input_schema": d},
+        {"name":"analyze_stats","description":"Deck stats: totals, avg mv, pips, prices.","input_schema": d},
+        {"name":"meta_missing_staples","description":"High-inclusion EDHREC staples the deck lacks (oracle_id+name).","input_schema": d},
+        {"name":"budget_plan","description":"Budget: min-buy, cost drivers, reprints.","input_schema": d},
+    ])
+}
+
+/// Execute one API-requested tool via the typed wrappers; JSON result string.
+#[cfg(not(target_arch = "wasm32"))]
+async fn run_api_tool(
+    client: &Arc<EngineClient>,
+    deck_id: &str,
+    name: &str,
+    input: &serde_json::Value,
+) -> String {
+    let trunc = |v: serde_json::Value| {
+        let s = v.to_string();
+        s.chars().take(4000).collect::<String>()
+    };
+    match name {
+        "card_search" => {
+            let query = input
+                .get("query")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(8) as u32;
+            match client
+                .card_search(CardSearchParams {
+                    query,
+                    limit: Some(limit.min(15)),
+                    ..Default::default()
+                })
+                .await
+            {
+                Ok(r) => trunc(serde_json::json!({"total": r.total, "results": r.results.iter().map(|c| serde_json::json!({"oracle_id": c.oracle_id, "name": c.name, "type": c.type_line, "mv": c.mv})).collect::<Vec<_>>()})),
+                Err(e) => format!("error: {e}"),
+            }
+        }
+        "deck_get" => match client.deck_get(deck_id).await {
+            Ok(r) => trunc(serde_json::json!({"name": r.deck.name, "cards": r.deck.cards.iter().map(|e| serde_json::json!({"oracle_id": e.oracle_id, "qty": e.qty, "name": e.name})).collect::<Vec<_>>()})),
+            Err(e) => format!("error: {e}"),
+        },
+        "analyze_stats" => match client.analyze_stats(deck_id).await {
+            Ok(r) => trunc(serde_json::json!({"total_cards": r.total_cards, "avg_mv_nonland": r.avg_mv_nonland, "min_buy_usd": r.min_buy_usd})),
+            Err(e) => format!("error: {e}"),
+        },
+        "meta_missing_staples" => match client.meta_missing_staples(deck_id, Some(8)).await {
+            Ok(r) => trunc(serde_json::json!(r.missing.iter().map(|m| serde_json::json!({"oracle_id": m.oracle_id, "name": m.name, "inclusion": m.inclusion})).collect::<Vec<_>>())),
+            Err(e) => format!("error: {e}"),
+        },
+        "budget_plan" => match client.budget_plan(deck_id, true).await {
+            Ok(r) => trunc(serde_json::json!({"min_buy_usd": r.min_buy_usd, "cost_drivers": r.cost_drivers.iter().take(5).map(|d| serde_json::json!({"oracle_id": d.oracle_id, "name": d.name, "usd": d.contribution})).collect::<Vec<_>>()})),
+            Err(e) => format!("error: {e}"),
+        },
+        other => format!("error: unknown tool {other}"),
+    }
+}
+
+/// The Tier 2 agent loop: messages API with tool_use until end_turn (max 8 rounds).
+#[cfg(not(target_arch = "wasm32"))]
+async fn run_api_brain(
+    client: &Arc<EngineClient>,
+    deck_id: &str,
+    query: &str,
+    model: &str,
+    mut caps: Signal<Vec<Cap>>,
+) -> ChangeSet {
+    let empty = ChangeSet::default();
+    let Some(key) = api_key() else { return empty };
+    let http = reqwest::Client::new();
+    let contract = r#"```json
+{"adds":[{"oracle_id":"...","name":"...","role":"...","reason":"..."}],"cuts":[{"oracle_id":"...","name":"...","role":"...","reason":"..."}],"summary":"one sentence"}
+```"#;
+    let system = format!(
+        "You are the Oracle, a Commander (EDH) deckbuilding assistant. The active deck_id is \
+         {deck_id}. Investigate with the provided tools, then reply with ONLY one fenced json \
+         block of exactly this shape, no prose:\n{contract}\noracle_id values MUST come from \
+         tool results. At most 5 adds and 3 cuts."
+    );
+    let mut messages = vec![serde_json::json!({"role": "user", "content": query})];
+    caps.write().push(Cap {
+        tool: "anthropic".to_string(),
+        args: format!("model {model} · your API key"),
+        result: Some("session started".to_string()),
+    });
+
+    for _ in 0..8 {
+        let body = serde_json::json!({
+            "model": model,
+            "max_tokens": 1500,
+            "system": system,
+            "tools": api_tools(),
+            "messages": messages,
+        });
+        let resp = http
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&body)
+            .send()
+            .await;
+        let Ok(resp) = resp else {
+            finish(&mut caps, "network error".to_string());
+            return empty;
+        };
+        let Ok(reply) = resp.json::<serde_json::Value>().await else {
+            finish(&mut caps, "bad reply".to_string());
+            return empty;
+        };
+        if let Some(err) = reply.get("error") {
+            caps.write().push(Cap {
+                tool: "anthropic".to_string(),
+                args: String::new(),
+                result: Some(format!(
+                    "API error: {}",
+                    err.get("message").and_then(|m| m.as_str()).unwrap_or("?")
+                )),
+            });
+            return empty;
+        }
+        let content = reply
+            .get("content")
+            .and_then(|c| c.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let stop = reply
+            .get("stop_reason")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if stop == "tool_use" {
+            let mut results = Vec::new();
+            for block in &content {
+                if block.get("type").and_then(|v| v.as_str()) == Some("tool_use") {
+                    let name = block.get("name").and_then(|v| v.as_str()).unwrap_or("?");
+                    let input = block.get("input").cloned().unwrap_or_default();
+                    let id = block.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                    caps.write().push(Cap {
+                        tool: name.to_string(),
+                        args: input.to_string().chars().take(60).collect(),
+                        result: None,
+                    });
+                    let out = run_api_tool(client, deck_id, name, &input).await;
+                    finish(&mut caps, "done".to_string());
+                    results.push(serde_json::json!({"type": "tool_result", "tool_use_id": id, "content": out}));
+                }
+            }
+            messages.push(serde_json::json!({"role": "assistant", "content": content}));
+            messages.push(serde_json::json!({"role": "user", "content": results}));
+            continue;
+        }
+        // end_turn: extract text and parse the change-set.
+        let text: String = content
+            .iter()
+            .filter_map(|b| b.get("text").and_then(|v| v.as_str()))
+            .collect::<Vec<_>>()
+            .join("\n");
+        if let Some(set) = parse_change_set(&text) {
+            return set;
+        }
+        caps.write().push(Cap {
+            tool: "oracle".to_string(),
+            args: String::new(),
+            result: Some("no change-set in the reply".to_string()),
+        });
+        return empty;
+    }
+    finish(&mut caps, "round limit reached".to_string());
+    empty
 }

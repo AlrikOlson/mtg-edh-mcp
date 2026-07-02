@@ -3159,6 +3159,7 @@ version = "0.1.0"
 dependencies = [
  "dioxus",
  "mtg-edh-mcp-client",
+ "reqwest 0.12.28",
  "tokio",
 ]
 

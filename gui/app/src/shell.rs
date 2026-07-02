@@ -81,6 +81,7 @@ pub fn AppShell() -> Element {
 
 #[component]
 fn NavRail(active: Signal<Screen>, light: Signal<bool>) -> Element {
+    let mut show_settings = use_signal(|| false);
     // 42px item + var(--space-2) (8px) gap — drives the indicator like the
     // reference's offsetTop measurement.
     let idx = SCREENS
@@ -118,7 +119,14 @@ fn NavRail(active: Signal<Screen>, light: Signal<bool>) -> Element {
                 }
             }
             Tooltip { content: "Settings".to_string(),
-                IconButton { label: "Settings".to_string(), Ico { svg: icons::SETTINGS } }
+                IconButton {
+                    label: "Settings".to_string(),
+                    onclick: move |_| show_settings.set(true),
+                    Ico { svg: icons::SETTINGS }
+                }
+            }
+            if show_settings() {
+                SettingsDialog { on_close: move |_| show_settings.set(false) }
             }
         }
     }
@@ -256,6 +264,71 @@ fn DeckSwitcher() -> Element {
                     value: "{deck_id}",
                     selected: Some(deck_id.clone()) == active,
                     "{name}"
+                }
+            }
+        }
+    }
+}
+
+/// Settings — Oracle brain configuration (oracle-byo-key). The API key goes
+/// to the macOS keychain via the `security` CLI; it is never echoed back.
+#[component]
+fn SettingsDialog(on_close: EventHandler<()>) -> Element {
+    let mut key_input = use_signal(String::new);
+    let mut saved = use_signal(|| Option::<bool>::None);
+    #[cfg(not(target_arch = "wasm32"))]
+    let has_key = crate::oracle::api_key().is_some();
+    #[cfg(target_arch = "wasm32")]
+    let has_key = false;
+    rsx! {
+        Dialog {
+            title: Some("Settings".to_string()),
+            description: Some("Oracle brain: Claude Code CLI is used automatically when installed; otherwise an Anthropic API key (stored in the macOS keychain, model claude-haiku-4-5); otherwise scripted intents.".to_string()),
+            on_close: move |_| on_close.call(()),
+            footer: Some(rsx! {
+                Button { variant: "ghost".to_string(), onclick: move |_| on_close.call(()), "Close" }
+            }),
+            div { style: "display: flex; flex-direction: column; gap: var(--space-3);",
+                div { style: "font: var(--type-label-sm); color: var(--text-secondary);",
+                    if has_key {
+                        "API key: configured (keychain)"
+                    } else {
+                        "API key: not configured"
+                    }
+                }
+                div { style: "display: flex; gap: var(--space-2);",
+                    div { class: "mb-input mb-input--md", style: "flex: 1;",
+                        input {
+                            r#type: "password",
+                            placeholder: "sk-ant-… (stored in keychain)",
+                            value: key_input(),
+                            onchange: move |e| key_input.set(e.value()),
+                        }
+                    }
+                    Button {
+                        variant: "secondary".to_string(),
+                        onclick: move |_| {
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                let ok = !key_input().trim().is_empty()
+                                    && crate::oracle::store_api_key(key_input().trim());
+                                saved.set(Some(ok));
+                                if ok {
+                                    key_input.set(String::new());
+                                }
+                            }
+                            #[cfg(target_arch = "wasm32")]
+                            saved.set(Some(false));
+                        },
+                        "Save key"
+                    }
+                }
+                if let Some(ok) = saved() {
+                    Badge {
+                        tone: if ok { "success".to_string() } else { "danger".to_string() },
+                        dot: true,
+                        if ok { "Saved to keychain" } else { "Save failed" }
+                    }
                 }
             }
         }
