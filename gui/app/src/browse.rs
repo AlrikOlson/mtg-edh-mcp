@@ -14,7 +14,7 @@ const WUBRG: [&str; 5] = ["W", "U", "B", "R", "G"];
 
 /// Scryfall named-image URL (handoff gotcha #2: format=image&version=normal —
 /// art_crop can fail to decode in webviews). Fallback is the CSS frame.
-fn scryfall_image(name: &str) -> String {
+pub fn scryfall_image(name: &str) -> String {
     let encoded: String = name
         .chars()
         .map(|c| match c {
@@ -28,7 +28,7 @@ fn scryfall_image(name: &str) -> String {
     format!("https://api.scryfall.com/cards/named?exact={encoded}&format=image&version=normal")
 }
 
-fn ready_client(conn: &ConnState) -> Option<Arc<EngineClient>> {
+pub fn ready_client(conn: &ConnState) -> Option<Arc<EngineClient>> {
     match conn {
         ConnState::Ready(client) => Some(client.clone()),
         _ => None,
@@ -319,7 +319,29 @@ fn InspectorBody(card: CardRef, detail: CardDetail, printings: Vec<Printing>) ->
                     }
                 }
             }
-            Button { variant: "primary".to_string(), full_width: true, "Add to deck" }
+            {
+                let state = use_app_state();
+                let oracle_id = card.oracle_id.clone();
+                let has_deck = (state.active_deck_id)().is_some();
+                rsx! {
+                    Button {
+                        variant: "primary".to_string(),
+                        full_width: true,
+                        disabled: !has_deck,
+                        onclick: move |_| {
+                            let conn = (state.conn)();
+                            let deck_id = (state.active_deck_id)();
+                            let id = oracle_id.clone();
+                            spawn(async move {
+                                if let (Some(client), Some(deck_id)) = (ready_client(&conn), deck_id) {
+                                    let _ = client.deck_add(&deck_id, &[(id, 1)]).await;
+                                }
+                            });
+                        },
+                        if has_deck { "Add to deck" } else { "No active deck" }
+                    }
+                }
+            }
             if commander_legal == "legal" {
                 Badge { tone: "success".to_string(), dot: true, "Legal in Commander" }
             } else {

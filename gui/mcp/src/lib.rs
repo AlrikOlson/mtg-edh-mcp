@@ -26,7 +26,8 @@ mod types;
 pub use error::EngineError;
 pub use types::{
     AddVerdict, CardDetail, CardGetResult, CardPrintingsResult, CardRef, CardSearchParams,
-    CardSearchResult, DeckAddResult, DeckCreateParams, DeckCreateResult, Printing,
+    CardSearchResult, Deck, DeckAddResult, DeckCardEntry, DeckCreateParams, DeckCreateResult,
+    DeckGetResult, DeckListResult, DeckMutateResult, Printing, SetCommanderResult,
     ValidateDeckResult,
 };
 
@@ -159,6 +160,54 @@ impl EngineClient {
         let mut args = Map::new();
         args.insert("oracle_id".into(), Value::String(oracle_id.to_string()));
         self.call("card_printings", args).await
+    }
+
+    /// `deck_get` — a deck's lean projection (entries carry name).
+    pub async fn deck_get(&self, deck_id: &str) -> Result<DeckGetResult, EngineError> {
+        let mut args = Map::new();
+        args.insert("deck_id".into(), Value::String(deck_id.to_string()));
+        self.call("deck_get", args).await
+    }
+
+    /// `deck_list` — all decks for this principal.
+    pub async fn deck_list(&self) -> Result<DeckListResult, EngineError> {
+        self.call("deck_list", Map::new()).await
+    }
+
+    /// `deck_remove` — remove `(oracle_id, qty)` cards from a deck.
+    pub async fn deck_remove(
+        &self,
+        deck_id: &str,
+        cards: &[(String, u32)],
+    ) -> Result<DeckMutateResult, EngineError> {
+        let entries: Vec<Value> = cards
+            .iter()
+            .map(|(oracle_id, qty)| {
+                let mut entry = Map::new();
+                entry.insert("oracle_id".into(), Value::String(oracle_id.clone()));
+                entry.insert("qty".into(), Value::from(*qty));
+                Value::Object(entry)
+            })
+            .collect();
+        let mut args = Map::new();
+        args.insert("deck_id".into(), Value::String(deck_id.to_string()));
+        args.insert("cards".into(), Value::Array(entries));
+        self.call("deck_remove", args).await
+    }
+
+    /// `deck_set_commander` — set commander(s) by name or oracle_id.
+    pub async fn deck_set_commander(
+        &self,
+        deck_id: &str,
+        commanders: &[String],
+    ) -> Result<SetCommanderResult, EngineError> {
+        let mut args = Map::new();
+        args.insert("deck_id".into(), Value::String(deck_id.to_string()));
+        args.insert(
+            "commanders".into(),
+            Value::Array(commanders.iter().cloned().map(Value::String).collect()),
+        );
+        self.call("deck_set_commander", args).await
     }
 
     /// `validate_deck` — run the authoritative legality gate.

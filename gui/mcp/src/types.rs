@@ -22,7 +22,7 @@ pub struct CardRef {
 }
 
 /// `card_search` structuredContent.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct CardSearchResult {
     pub total: u64,
     pub returned: u64,
@@ -31,14 +31,14 @@ pub struct CardSearchResult {
 }
 
 /// `deck_create` structuredContent. `deck` kept opaque for now.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DeckCreateResult {
     pub deck_id: String,
     pub deck: Value,
 }
 
 /// One entry of `deck_add`'s `verdicts`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct AddVerdict {
     pub oracle_id: String,
     /// `"ok" | "added_illegal" | "rejected"`.
@@ -48,7 +48,7 @@ pub struct AddVerdict {
 }
 
 /// `deck_add` structuredContent.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DeckAddResult {
     pub deck_id: String,
     pub version: u64,
@@ -56,7 +56,7 @@ pub struct DeckAddResult {
 }
 
 /// `validate_deck` structuredContent. Violations kept opaque for now.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ValidateDeckResult {
     pub deck_id: String,
     pub ok: bool,
@@ -178,4 +178,78 @@ pub struct Printing {
 pub struct CardPrintingsResult {
     pub oracle_id: String,
     pub printings: Vec<Printing>,
+}
+
+// ---- deck_get / deck_list / deck_remove / deck_set_commander (gui-deck) ------
+
+/// One entry in a deck's card list.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckCardEntry {
+    pub oracle_id: String,
+    pub qty: u32,
+    /// Present + true only when force-added despite violations.
+    #[serde(default)]
+    pub illegal: bool,
+    /// Present in the lean deck_get projection.
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+/// The serialized Deck object (src/types/deck.ts).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Deck {
+    pub deck_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub commanders: Vec<String>,
+    #[serde(default)]
+    pub command_zone_kind: Option<String>,
+    #[serde(default)]
+    pub companion: Option<String>,
+    #[serde(default)]
+    pub cards: Vec<DeckCardEntry>,
+    #[serde(default)]
+    pub computed_color_identity: Vec<String>,
+    #[serde(default)]
+    pub version: u64,
+    #[serde(default)]
+    pub data_snapshot: Option<String>,
+}
+
+/// `deck_get` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckGetResult {
+    pub deck: Deck,
+}
+
+/// `deck_list` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckListResult {
+    pub decks: Vec<Deck>,
+}
+
+/// `deck_remove` structuredContent (also carries version-conflict shape).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckMutateResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub version: u64,
+    #[serde(default)]
+    pub conflict: bool,
+}
+
+/// `deck_set_commander` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct SetCommanderResult {
+    #[serde(default)]
+    pub ok: bool,
+    pub deck_id: String,
+    #[serde(default)]
+    pub commanders: Vec<String>,
+    #[serde(default)]
+    pub computed_color_identity: Vec<String>,
+    #[serde(default)]
+    pub version: u64,
+    #[serde(default)]
+    pub violations: Vec<Value>,
 }

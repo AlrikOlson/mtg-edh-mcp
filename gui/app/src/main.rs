@@ -13,6 +13,7 @@ mod gallery;
 mod icons;
 mod shell;
 mod state;
+mod workbench;
 
 // The whole assets directory ships as ONE folder asset: manganis does not
 // rewrite url() references inside CSS (dioxus#3325), so the fonts must stay
@@ -43,6 +44,7 @@ fn App() -> Element {
         "screens.css",
         "appshell.css",
         "browse.css",
+        "deckeditor.css",
         "gallery.css",
     ];
     rsx! {

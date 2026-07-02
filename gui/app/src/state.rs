@@ -30,6 +30,7 @@ pub struct AppState {
     pub principal: Signal<String>,
     /// The active deck, once one is created/selected (gui-deck).
     pub active_deck_id: Signal<Option<String>>,
+    pub active_deck_name: Signal<Option<String>>,
 }
 
 /// Engine base URL: MTG_EDH_MCP_URL overrides; default matches the engine's
@@ -76,6 +77,7 @@ pub fn use_provide_app_state() -> AppState {
         conn: Signal::new(ConnState::Connecting),
         principal: Signal::new("local".to_string()),
         active_deck_id: Signal::new(None),
+        active_deck_name: Signal::new(None),
     });
     use_effect(move || {
         connect(state);

@@ -52,7 +52,7 @@ pub fn AppShell() -> Element {
                         crate::browse::BrowseScreen {}
                     },
                     Screen::Workbench => rsx! {
-                        Placeholder { title: "Workbench", note: "The deck editor lands in gui-deck." }
+                        crate::workbench::WorkbenchScreen {}
                     },
                     Screen::Collection => rsx! {
                         Placeholder { title: "Collection", note: "Owned cards land in gui-collection." }
@@ -135,8 +135,8 @@ fn TopBar() -> Element {
                     Ico { svg: icons::CROWN }
                 }
                 span { class: "mb-tb__name",
-                    if let Some(deck) = (state.active_deck_id)() {
-                        "{deck}"
+                    if let Some(name) = (state.active_deck_name)() {
+                        "{name}"
                     } else {
                         "No deck"
                     }

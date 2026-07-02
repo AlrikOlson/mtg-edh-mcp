@@ -124,6 +124,19 @@ async fn round_trip_against_engine() {
     let validated = client.validate_deck(&deck_id).await.expect("validate_deck");
     assert_eq!(validated.deck_id, deck_id);
 
+    // gui-deck wrappers: list → get → remove round-trip.
+    let listed = client.deck_list().await.expect("deck_list");
+    assert!(listed.decks.iter().any(|d| d.deck_id == deck_id));
+    let fetched = client.deck_get(&deck_id).await.expect("deck_get").deck;
+    assert_eq!(fetched.deck_id, deck_id);
+    if let Some(entry) = fetched.cards.first() {
+        let removed = client
+            .deck_remove(&deck_id, &[(entry.oracle_id.clone(), 1)])
+            .await
+            .expect("deck_remove");
+        assert_eq!(removed.deck_id, deck_id);
+    }
+
     // §8 mapping: an unknown deck surfaces as the typed DeckNotFound variant.
     let err = client
         .validate_deck("deck-that-does-not-exist")
