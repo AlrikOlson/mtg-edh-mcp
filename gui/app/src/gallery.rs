@@ -30,16 +30,9 @@ fn Row(children: Element) -> Element {
 
 #[component]
 pub fn Gallery() -> Element {
-    let mut light = use_signal(|| false);
+    // Theme is owned by the shell's rail toggle (shell.rs) — the gallery just
+    // renders under whichever data-theme is active.
     let mut dialog_open = use_signal(|| false);
-    use_effect(move || {
-        let script = if light() {
-            "document.documentElement.dataset.theme = 'light'"
-        } else {
-            "delete document.documentElement.dataset.theme"
-        };
-        document::eval(script);
-    });
 
     rsx! {
         div { class: "gal", style: "max-width: 980px; margin: 0 auto; padding: var(--space-6) var(--space-5) var(--space-10); display: flex; flex-direction: column; gap: var(--space-6);",
@@ -48,14 +41,6 @@ pub fn Gallery() -> Element {
                 img { src: crate::logo_url(), alt: "Manabase", width: "28", height: "28" }
                 h1 { style: "font: var(--type-display); color: var(--text-primary); margin: 0; flex: 1;",
                     "Manabase — component gallery"
-                }
-                Button {
-                    variant: "secondary".to_string(),
-                    leading_icon: Some(rsx! {
-                        Ico { svg: if light() { icons::HALF_MOON } else { icons::SUN_LIGHT } }
-                    }),
-                    onclick: move |_| light.toggle(),
-                    if light() { "Dark" } else { "Light" }
                 }
             }
 

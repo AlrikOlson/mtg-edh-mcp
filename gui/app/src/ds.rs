@@ -124,6 +124,7 @@ pub fn IconButton(
     #[props(default = "md".to_string())] size: String,
     #[props(default = false)] solid: bool,
     #[props(default = false)] active: bool,
+    onclick: Option<EventHandler<MouseEvent>>,
     children: Element,
 ) -> Element {
     let solid = if solid { " mb-iconbtn--solid" } else { "" };
@@ -133,6 +134,11 @@ pub fn IconButton(
             class: "mb-iconbtn mb-iconbtn--{size}{solid}{active}",
             aria_label: "{label}",
             title: "{label}",
+            onclick: move |e| {
+                if let Some(handler) = onclick {
+                    handler.call(e);
+                }
+            },
             {children}
         }
     }

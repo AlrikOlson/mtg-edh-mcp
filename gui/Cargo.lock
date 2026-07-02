@@ -2715,6 +2715,8 @@ name = "mtg-edh-gui"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "mtg-edh-mcp-client",
+ "tokio",
 ]
 
 [[package]]

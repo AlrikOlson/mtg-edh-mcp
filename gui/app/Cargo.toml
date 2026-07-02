@@ -12,3 +12,7 @@ description = "Desktop GUI for mtg-edh-mcp — a Dioxus client over the MCP engi
 # (dioxus-cli isn't required to compile, and its `dx` binary name collides with
 # Deno's `dx` on this machine — see the ADR). System WebView via wry/tao.
 dioxus = { version = "0.7", features = ["desktop"] }
+# The typed MCP client to the engine (gui-mcp-client chunk).
+mtg-edh-mcp-client = { path = "../mcp" }
+# Async sleep for the connect/retry backoff (dioxus desktop provides the runtime).
+tokio = { version = "1", features = ["time"] }

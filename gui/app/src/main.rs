@@ -1,14 +1,17 @@
 //! mtg-edh-mcp GUI — Dioxus 0.7 desktop app.
 //!
-//! Currently the app IS the Manabase component gallery (the Storybook analog);
-//! the shell/router lands in gui-app-shell. Styling comes entirely from the
-//! vendored Manabase design system (gui/design/inbox/design_handoff_dioxus).
+//! The Manabase app shell (nav rail + top bar + signal-routed screens) frames
+//! the object screens; the component gallery remains a rail destination as the
+//! scrutiny regression surface. Styling comes entirely from the vendored
+//! Manabase design system (gui/design/inbox/design_handoff_dioxus).
 
 use dioxus::prelude::*;
 
 mod ds;
 mod gallery;
 mod icons;
+mod shell;
+mod state;
 
 // The whole assets directory ships as ONE folder asset: manganis does not
 // rewrite url() references inside CSS (dioxus#3325), so the fonts must stay
@@ -37,12 +40,13 @@ fn App() -> Element {
         "manabase.css",
         "components.css",
         "screens.css",
+        "appshell.css",
         "gallery.css",
     ];
     rsx! {
         for sheet in sheets {
             document::Stylesheet { href: format!("{ASSETS}/{sheet}") }
         }
-        gallery::Gallery {}
+        shell::AppShell {}
     }
 }
