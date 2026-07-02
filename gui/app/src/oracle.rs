@@ -10,7 +10,7 @@ use crate::ds::*;
 use crate::icons;
 use crate::state::{use_app_state, WhatIf};
 use dioxus::prelude::*;
-use mtg_edh_mcp_client::{CardSearchParams, EngineClient};
+use mtg_edh_mcp_client::{serde_json, CardSearchParams, EngineClient};
 use std::sync::Arc;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -23,7 +23,7 @@ enum Phase {
 /// One streamed tool-call caption; `result: None` = live (in flight).
 #[derive(Clone, PartialEq)]
 struct Cap {
-    tool: &'static str,
+    tool: String,
     args: String,
     result: Option<String>,
 }
@@ -102,10 +102,17 @@ pub fn OracleBar(deck_id: String) -> Element {
                     return;
                 };
                 let intent = match_intent(&query);
+                #[cfg(not(target_arch = "wasm32"))]
+                let set = if intent == "search" && claude_available() {
+                    run_claude_brain(&deck_id, &query, caps).await
+                } else {
+                    run_intent(&client, &deck_id, intent, &query, caps).await
+                };
+                #[cfg(target_arch = "wasm32")]
                 let set = run_intent(&client, &deck_id, intent, &query, caps).await;
                 if set.adds.is_empty() && set.cuts.is_empty() {
                     caps.write().push(Cap {
-                        tool: "oracle",
+                        tool: "oracle".to_string(),
                         args: String::new(),
                         result: Some("nothing to propose".into()),
                     });
@@ -173,7 +180,7 @@ pub fn OracleBar(deck_id: String) -> Element {
                 input {
                     class: "ask__in",
                     r#type: "text",
-                    placeholder: "Ask the Oracle to refine your deck… (scripted intents v1)",
+                    placeholder: oracle_placeholder(),
                     value: input(),
                     onchange: move |e| input.set(e.value()),
                     onkeydown: {
@@ -311,7 +318,7 @@ where
     F: std::future::Future<Output = Result<T, mtg_edh_mcp_client::EngineError>>,
 {
     caps.write().push(Cap {
-        tool,
+        tool: tool.to_string(),
         args,
         result: None,
     });
@@ -567,4 +574,279 @@ async fn project_whatif(
         avg_mv_nonland: stats.avg_mv_nonland,
         total_cards: stats.total_cards,
     })
+}
+
+/// The active brain tier, labeled honestly in the ask bar.
+fn oracle_placeholder() -> &'static str {
+    #[cfg(not(target_arch = "wasm32"))]
+    if claude_available() {
+        return "Ask the Oracle to refine your deck… (Claude Code)";
+    }
+    "Ask the Oracle to refine your deck… (scripted intents)"
+}
+
+// ---- Tier 1 brain: the user's own Claude Code CLI (oracle-llm-brain) --------
+// Headless `claude -p --output-format stream-json` with --strict-mcp-config
+// pointing at THIS app's engine and --allowedTools limited to its MCP tools,
+// so Claude plans real tool sequences against the live deck. Every observed
+// contract below comes from the recorded probe (think:155/156), not docs.
+// Native-only: a browser build cannot spawn processes.
+
+#[cfg(not(target_arch = "wasm32"))]
+fn claude_available() -> bool {
+    use std::sync::OnceLock;
+    static AVAILABLE: OnceLock<bool> = OnceLock::new();
+    *AVAILABLE.get_or_init(|| {
+        std::process::Command::new("claude")
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn engine_mcp_config() -> std::io::Result<std::path::PathBuf> {
+    let url =
+        std::env::var("MTG_EDH_MCP_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    let path = std::env::temp_dir().join("mtg-edh-oracle-mcp.json");
+    std::fs::write(
+        &path,
+        serde_json::json!({ "mcpServers": { "mtg": { "type": "http", "url": url } } }).to_string(),
+    )?;
+    Ok(path)
+}
+
+/// Extract the fenced-JSON change-set from Claude's final text.
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_change_set(text: &str) -> Option<ChangeSet> {
+    let start = text.find("```json").map(|i| i + 7).or_else(|| {
+        // Unfenced fallback: first '{'.
+        text.find('{')
+    })?;
+    let rest = &text[start..];
+    let end = rest.find("```").unwrap_or(rest.len());
+    let value: serde_json::Value = serde_json::from_str(rest[..end].trim()).ok()?;
+    let card = |e: &serde_json::Value| -> Option<ProposedCard> {
+        Some(ProposedCard {
+            oracle_id: e.get("oracle_id")?.as_str()?.to_string(),
+            name: e.get("name")?.as_str()?.to_string(),
+            role: e
+                .get("role")
+                .and_then(|v| v.as_str())
+                .unwrap_or("suggestion")
+                .to_string(),
+            reason: e
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .unwrap_or("proposed by Claude")
+                .to_string(),
+        })
+    };
+    let list = |key: &str| -> Vec<ProposedCard> {
+        value
+            .get(key)
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(card).collect())
+            .unwrap_or_default()
+    };
+    Some(ChangeSet {
+        adds: list("adds"),
+        cuts: list("cuts"),
+        summary: value
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Claude's proposal")
+            .to_string(),
+    })
+}
+
+/// One stream-json line → an optional caption/final-text event.
+#[cfg(not(target_arch = "wasm32"))]
+enum StreamEvent {
+    ToolUse { tool: String, args: String },
+    ToolDone,
+    Final(String),
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_stream_line(line: &str) -> Option<StreamEvent> {
+    let event: serde_json::Value = serde_json::from_str(line.trim()).ok()?;
+    match event.get("type").and_then(|v| v.as_str())? {
+        "assistant" => {
+            let content = event.get("message")?.get("content")?.as_array()?;
+            for c in content {
+                if c.get("type").and_then(|v| v.as_str()) == Some("tool_use") {
+                    let tool = c
+                        .get("name")?
+                        .as_str()?
+                        .trim_start_matches("mcp__mtg__")
+                        .to_string();
+                    let args = c
+                        .get("input")
+                        .map(|i| i.to_string())
+                        .unwrap_or_default()
+                        .chars()
+                        .take(60)
+                        .collect();
+                    return Some(StreamEvent::ToolUse { tool, args });
+                }
+            }
+            None
+        }
+        "user" => {
+            let content = event.get("message")?.get("content")?.as_array()?;
+            content
+                .iter()
+                .any(|c| c.get("type").and_then(|v| v.as_str()) == Some("tool_result"))
+                .then_some(StreamEvent::ToolDone)
+        }
+        "result" => Some(StreamEvent::Final(
+            event
+                .get("result")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+        )),
+        _ => None,
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn run_claude_brain(deck_id: &str, query: &str, mut caps: Signal<Vec<Cap>>) -> ChangeSet {
+    use tokio::io::AsyncBufReadExt;
+
+    let empty = ChangeSet::default();
+    let Ok(mcp_config) = engine_mcp_config() else {
+        return empty;
+    };
+    let contract = r#"```json
+{"adds":[{"oracle_id":"...","name":"...","role":"...","reason":"..."}],"cuts":[{"oracle_id":"...","name":"...","role":"...","reason":"..."}],"summary":"one sentence"}
+```"#;
+    let prompt = format!(
+        "You are the Oracle, a Commander (EDH) deckbuilding assistant inside a desktop app. \
+         The user's active deck has deck_id \"{deck_id}\". Their request: \"{query}\".\n\
+         Investigate with the mtg MCP tools (deck_get, card_search, analyze_*, meta_*, \
+         validate_deck — read-only; do NOT call deck_add/deck_remove/deck_restore yourself: \
+         the app applies changes after the user accepts). Then reply with ONLY one fenced \
+         json block of exactly this shape, no prose:\n{contract}\n\
+         oracle_id values MUST come from tool results. At most 5 adds and 3 cuts."
+    );
+
+    caps.write().push(Cap {
+        tool: "claude".to_string(),
+        args: "headless · your Claude Code auth".to_string(),
+        result: None,
+    });
+
+    let child = tokio::process::Command::new("claude")
+        .args(["-p", &prompt])
+        .args(["--output-format", "stream-json"])
+        .arg("--verbose")
+        .args(["--mcp-config".as_ref(), mcp_config.as_os_str()])
+        .arg("--strict-mcp-config")
+        .args(["--allowedTools", "mcp__mtg__*"])
+        .args([
+            "--disallowedTools",
+            "Bash,Agent,WebSearch,WebFetch,Read,Write,Edit,Glob,Grep,TodoWrite,NotebookEdit",
+        ])
+        .args(["--max-turns", "16"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn();
+    let Ok(mut child) = child else {
+        finish(&mut caps, "failed to launch claude".to_string());
+        return empty;
+    };
+    let Some(stdout) = child.stdout.take() else {
+        finish(&mut caps, "no stdout".to_string());
+        return empty;
+    };
+    finish(&mut caps, "session started".to_string());
+
+    let mut lines = tokio::io::BufReader::new(stdout).lines();
+    let mut final_text = String::new();
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(240);
+    loop {
+        let next = tokio::time::timeout_at(deadline, lines.next_line()).await;
+        match next {
+            Ok(Ok(Some(line))) => match parse_stream_line(&line) {
+                Some(StreamEvent::ToolUse { tool, args }) => {
+                    caps.write().push(Cap {
+                        tool,
+                        args,
+                        result: None,
+                    });
+                }
+                Some(StreamEvent::ToolDone) => finish(&mut caps, "done".to_string()),
+                Some(StreamEvent::Final(text)) => final_text = text,
+                None => {}
+            },
+            Ok(Ok(None)) => break,
+            Ok(Err(_)) | Err(_) => {
+                let _ = child.kill().await;
+                finish(&mut caps, "timed out".to_string());
+                break;
+            }
+        }
+    }
+    let _ = child.wait().await;
+
+    match parse_change_set(&final_text) {
+        Some(set) if !set.adds.is_empty() || !set.cuts.is_empty() => set,
+        _ => {
+            caps.write().push(Cap {
+                tool: "oracle".to_string(),
+                args: String::new(),
+                result: Some(if final_text.is_empty() {
+                    "no reply from claude".to_string()
+                } else {
+                    "no change-set in the reply".to_string()
+                }),
+            });
+            empty
+        }
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod brain_tests {
+    use super::*;
+
+    #[test]
+    fn stream_line_tool_use() {
+        let line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__mtg__card_search","input":{"query":"t:goblin","limit":3}}]}}"#;
+        match parse_stream_line(line) {
+            Some(StreamEvent::ToolUse { tool, .. }) => assert_eq!(tool, "card_search"),
+            _ => panic!("expected ToolUse"),
+        }
+    }
+
+    #[test]
+    fn stream_line_result() {
+        let line = r#"{"type":"result","subtype":"success","result":"```json\n{\"adds\":[],\"cuts\":[],\"summary\":\"s\"}\n```"}"#;
+        match parse_stream_line(line) {
+            Some(StreamEvent::Final(text)) => assert!(text.contains("summary")),
+            _ => panic!("expected Final"),
+        }
+    }
+
+    #[test]
+    fn change_set_from_fenced_json() {
+        let text = r#"```json
+{"adds":[{"oracle_id":"abc","name":"Sol Ring","role":"ramp","reason":"fast mana"}],"cuts":[],"summary":"add ramp"}
+```"#;
+        let set = parse_change_set(text).expect("parse");
+        assert_eq!(set.adds.len(), 1);
+        assert_eq!(set.adds[0].name, "Sol Ring");
+        assert_eq!(set.summary, "add ramp");
+    }
+
+    #[test]
+    fn change_set_rejects_garbage() {
+        assert!(parse_change_set("no json here").is_none());
+    }
 }
