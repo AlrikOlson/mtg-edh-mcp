@@ -216,6 +216,10 @@
   - acceptance: dx bundle produces a .app that launches cold (engine sidecar starts, ENGINE READY, no dev checkout)
   - acceptance: Engine ships as a bundled single binary or a recorded decision why not
   - acceptance: Quit kills the sidecar (no orphan node)
+- [x] **GUI · UX polish sweep — the carried gaps in one pass** — From refresh think:145 — the gaps carried across GUI-phase close-outs, folded into one sweep so they stop being footnotes: deck switcher (deck_list surface), change-commander UI, filter-the-99 input, add-to-deck CTAs on Oracle/meta rec lists, collection add autocomplete (card_search-backed), row-level deck_diff view, rail subnav scroll-spy (click-jump only today), Add-verdict feedback in Browse, axe-core a11y pass (never run — manual contrast only), pips zero-demand "tight" cosmetics (engine classification question). Verify with a mini scrutiny pass.
+  - deps: gui-oracle
+  - acceptance: Each listed gap either shipped or explicitly re-recorded with a reason
+  - acceptance: Mini Playwright pass over the touched surfaces
 - [x] **GUI · Scrutiny gate — Playwright (web target), light/dark, anti-AI-slop** — Phase G (think:114), UPDATED post-handoff (think:121): the /craft §B + /gui-scrutiny verify gate adapted for Dioxus, now with a CONCRETE fidelity contract: the Manabase handoff (gui/design/inbox/design_handoff_dioxus/ — tokens in manabase.css, class contracts in components.css/screens.css, COMPONENTS.md prop APIs, README layout metrics). Build the WEB target (dioxus-cli — NOT the Deno `dx` on PATH, ADR 0001) and drive it with the Playwright MCP: empirical review in LIGHT + DARK (data-theme flip), visual AND mechanical — bespoke DOM assertions against the mb-* class contract (e.g. .mb-cardrow structure, token var resolution — one bad var() silently kills a declaration, handoff gotcha #3), plus axe a11y (design targets WCAG AA 4.5:1 both themes). Anti-AI-slop is now GROUNDED: deviations from the handoff grammar ARE the slop test — no unmotivated gradients (design bans gradients-as-decoration), no emoji (WUBRG pips are the only glyphs), mono+tabular for every number, sentence case, reduced-motion collapses to 0ms. OOUX fidelity: Card renders ONLY through CardRow/CardTile with consistent CTAs everywhere. Wire the /gallery route (gui-design-tokens) into the gate as regression coverage.
   - deps: gui-card, gui-deck, gui-collection, gui-analysis, gui-meta
   - acceptance: The web target is driven by Playwright in light + dark with mechanical DOM assertions against the mb-* class contract + token resolution + axe a11y (AA both themes)
@@ -323,10 +327,6 @@
 
 ## Backlog
 
-- [ ] **GUI · UX polish sweep — the carried gaps in one pass** — From refresh think:145 — the gaps carried across GUI-phase close-outs, folded into one sweep so they stop being footnotes: deck switcher (deck_list surface), change-commander UI, filter-the-99 input, add-to-deck CTAs on Oracle/meta rec lists, collection add autocomplete (card_search-backed), row-level deck_diff view, rail subnav scroll-spy (click-jump only today), Add-verdict feedback in Browse, axe-core a11y pass (never run — manual contrast only), pips zero-demand "tight" cosmetics (engine classification question). Verify with a mini scrutiny pass.
-  - deps: gui-oracle
-  - acceptance: Each listed gap either shipped or explicitly re-recorded with a reason
-  - acceptance: Mini Playwright pass over the touched surfaces
 - [ ] **Oracle · LLM brain — BYO-key agent over the engine tools (product decision)** — From refresh think:145; the explicit revisit of think:142's structured-intent-v1 decision. An LLM (Claude API, BYO key) drives the engine's MCP tools as a real agent loop behind the existing Oracle UI (the state machine, streamed captions, and change-set rendering all carry over — only the brain swaps). Requires USER-level product decisions first: key storage/entry UX, cost expectations, offline behavior (structured intents remain the fallback), and whether the desktop app or a proxy holds the key. Do not start without those recorded.
   - deps: gui-oracle
   - acceptance: Recorded product decisions: key handling, cost, offline fallback
