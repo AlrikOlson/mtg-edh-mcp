@@ -51,7 +51,7 @@ fn health(a: &Analysis) -> (u32, &'static str, [(&'static str, f64, f64); 3]) {
     (score, label, parts)
 }
 
-const SECTIONS: [(&str, &str, &str); 8] = [
+const SECTIONS: [(&str, &str, &str); 11] = [
     ("glance", "At a glance", icons::GRAPH_UP),
     ("curve", "Mana curve", icons::STATS_UP_SQUARE),
     ("pips", "Pips — demand vs supply", icons::PERCENTAGE_CIRCLE),
@@ -60,6 +60,9 @@ const SECTIONS: [(&str, &str, &str); 8] = [
     ("roles", "Role coverage", icons::CHECK),
     ("goldfish", "Goldfish", icons::DICE_FIVE),
     ("validation", "Validation", icons::WARNING_TRIANGLE),
+    ("bracket", "Power bracket", icons::CROWN),
+    ("budget", "Budget", icons::ARCHIVE),
+    ("meta", "Meta", icons::SPARKS),
 ];
 
 #[component]
@@ -119,6 +122,7 @@ pub fn InsightsRail(deck_id: String, version: u64) -> Element {
                 match &*data.read() {
                     Some(Some(a)) => rsx! {
                         RailCards { analysis: a.clone(), seed }
+                        crate::meta::MetaCards { deck_id: deck_id.clone(), version }
                     },
                     Some(None) => rsx! {
                         div { style: "color: var(--text-muted); font: var(--type-body-sm);",

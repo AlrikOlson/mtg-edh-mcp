@@ -13,6 +13,7 @@ mod ds;
 mod gallery;
 mod icons;
 mod insights;
+mod meta;
 mod shell;
 mod state;
 mod workbench;

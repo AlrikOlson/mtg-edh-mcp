@@ -138,7 +138,7 @@ async fn round_trip_against_engine() {
             .budget_plan(&deck_id, true)
             .await
             .expect("budget_plan use_collection");
-        assert!(plan.is_object());
+        assert_eq!(plan.deck_id, deck_id);
         let cleared = client.collection_set(&[]).await.expect("collection_set");
         assert_eq!(cleared.owned_count, 0);
     }
@@ -184,6 +184,29 @@ async fn round_trip_against_engine() {
             .await
             .expect("deck_remove");
         assert_eq!(removed.deck_id, deck_id);
+    }
+
+    // gui-meta wrappers. deck_summary NEVER throws on enrichment failure
+    // (bracket=null + bracket_unavailable). Bracket/combos may legitimately be
+    // UpstreamUnavailable in test runs — both outcomes are valid; only the
+    // wire+shape contract is asserted.
+    let summary = client
+        .meta_deck_summary(&deck_id)
+        .await
+        .expect("meta_deck_summary must not throw");
+    assert_eq!(summary.deck_id, deck_id);
+    assert!(
+        summary.bracket.is_some() || summary.bracket_unavailable || summary.stats.total_cards == 0
+    );
+    match client.meta_classify_bracket(&deck_id).await {
+        Ok(b) => assert!((1..=5).contains(&b.bracket)),
+        Err(EngineError::UpstreamUnavailable { .. }) => {}
+        Err(other) => panic!("meta_classify_bracket: unexpected error {other:?}"),
+    }
+    match client.meta_combos(&deck_id).await {
+        Ok(c) => assert_eq!(c.deck_id, deck_id),
+        Err(EngineError::UpstreamUnavailable { .. }) => {}
+        Err(other) => panic!("meta_combos: unexpected error {other:?}"),
     }
 
     // §8 mapping: an unknown deck surfaces as the typed DeckNotFound variant.

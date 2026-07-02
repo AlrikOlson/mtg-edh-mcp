@@ -106,8 +106,8 @@ pub fn CollectionScreen() -> Element {
                             .unwrap_or(std::cmp::Ordering::Equal)
                     }).map(|d| d.name.split(',').next().unwrap_or(&d.name).to_string());
                     let shown = items.len();
-                    let acquire = budget.as_ref().and_then(|b| b.get("acquire_usd")).and_then(|v| v.as_f64());
-                    let min_buy = budget.as_ref().and_then(|b| b.get("min_buy_usd")).and_then(|v| v.as_f64());
+                    let acquire = budget.as_ref().and_then(|b| b.acquire_usd);
+                    let min_buy = budget.as_ref().map(|b| b.min_buy_usd);
                     rsx! {
                         div { class: "col-stats", style: "margin-top: var(--space-4);",
                             div { class: "col-stat",

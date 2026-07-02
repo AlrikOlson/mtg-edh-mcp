@@ -279,6 +279,7 @@ pub struct AnalyzeCompositionResult {
 /// `analyze_stats` structuredContent.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct AnalyzeStatsResult {
+    #[serde(default)]
     pub deck_id: String,
     pub total_cards: u32,
     pub nonland_cards: u32,
@@ -361,4 +362,210 @@ pub struct CollectionView {
     pub cards: Vec<OwnedCard>,
     #[serde(default)]
     pub unresolved: Vec<String>,
+}
+
+// ---- meta_* / budget_plan (gui-meta) -----------------------------------------
+
+/// Bracket pushers — card-name lists per category (combos formatted "A + B").
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+pub struct BracketPushers {
+    #[serde(default)]
+    pub game_changers: Vec<String>,
+    #[serde(default)]
+    pub fast_mana: Vec<String>,
+    #[serde(default)]
+    pub tutors: Vec<String>,
+    #[serde(default)]
+    pub mld: Vec<String>,
+    #[serde(default)]
+    pub combos: Vec<String>,
+    #[serde(default)]
+    pub extra_turns: Vec<String>,
+}
+
+/// `meta_classify_bracket` structuredContent (also embedded in deck_summary).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct BracketResult {
+    #[serde(default)]
+    pub deck_id: String,
+    pub bracket: u8,
+    #[serde(default)]
+    pub pushers: BracketPushers,
+    #[serde(default)]
+    pub rationale: String,
+}
+
+/// `meta_deck_summary` structuredContent — never throws; bracket may be null
+/// with bracket_unavailable=true when enrichment is down.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckSummaryResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub commander_count: u32,
+    pub stats: AnalyzeStatsResult,
+    #[serde(default)]
+    pub bracket: Option<BracketResult>,
+    #[serde(default)]
+    pub bracket_unavailable: bool,
+}
+
+/// One EDHREC-backed recommendation / missing staple.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Recommendation {
+    pub oracle_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub synergy: f64,
+    #[serde(default)]
+    pub inclusion: f64,
+    #[serde(default)]
+    pub category: String,
+}
+
+/// `meta_recommendations` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct RecommendationsResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub commander: String,
+    #[serde(default)]
+    pub recommendations: Vec<Recommendation>,
+    #[serde(default)]
+    pub unresolved: Vec<Value>,
+}
+
+/// `meta_missing_staples` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct MissingStaplesResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub commander: String,
+    #[serde(default)]
+    pub missing: Vec<Recommendation>,
+    #[serde(default)]
+    pub unresolved: Vec<Value>,
+}
+
+/// One side of a budget swap.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct SwapCard {
+    pub oracle_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub cheapest_usd: f64,
+    #[serde(default)]
+    pub qty: u32,
+}
+
+/// One budget swap (`in` is a Rust keyword — renamed).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct BudgetSwap {
+    pub out: SwapCard,
+    #[serde(rename = "in")]
+    pub replacement: SwapCard,
+    #[serde(default)]
+    pub roles_matched: Vec<String>,
+    #[serde(default)]
+    pub savings: f64,
+}
+
+/// `meta_budget_swaps` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct BudgetSwapsResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub commander: String,
+    #[serde(default)]
+    pub swaps: Vec<BudgetSwap>,
+    #[serde(default)]
+    pub current_min_buy_usd: f64,
+    #[serde(default)]
+    pub projected_min_buy_usd: f64,
+    #[serde(default)]
+    pub target_usd: Option<f64>,
+}
+
+/// One Commander Spellbook combo.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Combo {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub pieces: Vec<String>,
+    #[serde(default)]
+    pub produces: Vec<String>,
+    #[serde(default)]
+    pub steps: Option<String>,
+    #[serde(default)]
+    pub source: String,
+    #[serde(default)]
+    pub confidence: Option<String>,
+}
+
+/// `meta_combos` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CombosResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub combos: Vec<Combo>,
+    #[serde(default)]
+    pub included_count: u32,
+    #[serde(default)]
+    pub almost_count: u32,
+}
+
+/// One reprint suggestion in `budget_plan`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct ReprintSuggestion {
+    pub oracle_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub qty: u32,
+    #[serde(default)]
+    pub default_usd: f64,
+    #[serde(default)]
+    pub cheapest_usd: f64,
+    #[serde(default)]
+    pub savings: f64,
+}
+
+/// One cost driver in `budget_plan`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CostDriver {
+    pub oracle_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub qty: u32,
+    #[serde(default)]
+    pub cheapest_usd: f64,
+    #[serde(default)]
+    pub contribution: f64,
+    #[serde(default)]
+    pub roles: Vec<String>,
+}
+
+/// `budget_plan` structuredContent — fully typed (was raw Value).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct BudgetPlanResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub default_total_usd: f64,
+    #[serde(default)]
+    pub min_buy_usd: f64,
+    #[serde(default)]
+    pub reprint_savings_usd: f64,
+    #[serde(default)]
+    pub reprint_suggestions: Vec<ReprintSuggestion>,
+    #[serde(default)]
+    pub cost_drivers: Vec<CostDriver>,
+    #[serde(default)]
+    pub target_usd: Option<f64>,
+    #[serde(default)]
+    pub over_min_buy_by_usd: Option<f64>,
+    #[serde(default)]
+    pub acquire_usd: Option<f64>,
+    #[serde(default)]
+    pub owned_value_usd: Option<f64>,
+    #[serde(default)]
+    pub over_acquire_by_usd: Option<f64>,
 }

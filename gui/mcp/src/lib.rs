@@ -25,11 +25,14 @@ mod types;
 
 pub use error::EngineError;
 pub use types::{
-    AddVerdict, AnalyzeCompositionResult, AnalyzeCurveResult, AnalyzeStatsResult, CardDetail,
-    CardGetResult, CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult,
-    CollectionView, Deck, DeckAddResult, DeckCardEntry, DeckCreateParams, DeckCreateResult,
-    DeckGetResult, DeckListResult, DeckMutateResult, ManaBaseReport, OwnedCard, Printing,
-    RoleCoverageResult, RoleGap, SetCommanderResult, SimResult, ValidateDeckResult,
+    AddVerdict, AnalyzeCompositionResult, AnalyzeCurveResult, AnalyzeStatsResult, BracketPushers,
+    BracketResult, BudgetPlanResult, BudgetSwap, BudgetSwapsResult, CardDetail, CardGetResult,
+    CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, CollectionView, Combo,
+    CombosResult, CostDriver, Deck, DeckAddResult, DeckCardEntry, DeckCreateParams,
+    DeckCreateResult, DeckGetResult, DeckListResult, DeckMutateResult, DeckSummaryResult,
+    ManaBaseReport, MissingStaplesResult, OwnedCard, Printing, Recommendation,
+    RecommendationsResult, ReprintSuggestion, RoleCoverageResult, RoleGap, SetCommanderResult,
+    SimResult, SwapCard, ValidateDeckResult,
 };
 
 use http::{HeaderName, HeaderValue};
@@ -296,19 +299,75 @@ impl EngineClient {
         self.call("collection_clear", Map::new()).await
     }
 
-    /// `budget_plan` — deck budget report; `use_collection` adds `acquire_usd`
-    /// (cost to finish from what you own). Returned raw: the plan is rich and
-    /// consumed field-by-field (gui-meta types it fully).
+    /// `budget_plan` — the deck budget report; `use_collection` adds
+    /// `acquire_usd` (cost to finish from what you own).
     pub async fn budget_plan(
         &self,
         deck_id: &str,
         use_collection: bool,
-    ) -> Result<Value, EngineError> {
+    ) -> Result<BudgetPlanResult, EngineError> {
         let mut args = deck_arg(deck_id);
         if use_collection {
             args.insert("use_collection".into(), Value::Bool(true));
         }
         self.call("budget_plan", args).await
+    }
+
+    /// `meta_classify_bracket` — the 1–5 power bracket + pushers.
+    /// UPSTREAM_UNAVAILABLE on a cold Game Changers cache miss.
+    pub async fn meta_classify_bracket(&self, deck_id: &str) -> Result<BracketResult, EngineError> {
+        self.call("meta_classify_bracket", deck_arg(deck_id)).await
+    }
+
+    /// `meta_deck_summary` — one-call overview; never throws on enrichment
+    /// failure (bracket=null + bracket_unavailable instead).
+    pub async fn meta_deck_summary(&self, deck_id: &str) -> Result<DeckSummaryResult, EngineError> {
+        self.call("meta_deck_summary", deck_arg(deck_id)).await
+    }
+
+    /// `meta_recommendations` — EDHREC synergy/inclusion picks.
+    pub async fn meta_recommendations(
+        &self,
+        deck_id: &str,
+        limit: Option<u32>,
+    ) -> Result<RecommendationsResult, EngineError> {
+        let mut args = deck_arg(deck_id);
+        if let Some(limit) = limit {
+            args.insert("limit".into(), Value::from(limit));
+        }
+        self.call("meta_recommendations", args).await
+    }
+
+    /// `meta_missing_staples` — high-inclusion cards the deck lacks.
+    pub async fn meta_missing_staples(
+        &self,
+        deck_id: &str,
+        limit: Option<u32>,
+    ) -> Result<MissingStaplesResult, EngineError> {
+        let mut args = deck_arg(deck_id);
+        if let Some(limit) = limit {
+            args.insert("limit".into(), Value::from(limit));
+        }
+        self.call("meta_missing_staples", args).await
+    }
+
+    /// `meta_budget_swaps` — role-matched cheaper replacements.
+    pub async fn meta_budget_swaps(
+        &self,
+        deck_id: &str,
+        limit: Option<u32>,
+    ) -> Result<BudgetSwapsResult, EngineError> {
+        let mut args = deck_arg(deck_id);
+        if let Some(limit) = limit {
+            args.insert("limit".into(), Value::from(limit));
+        }
+        self.call("meta_budget_swaps", args).await
+    }
+
+    /// `meta_combos` — Commander Spellbook combos in the deck.
+    /// UPSTREAM_UNAVAILABLE on a cold Spellbook cache miss.
+    pub async fn meta_combos(&self, deck_id: &str) -> Result<CombosResult, EngineError> {
+        self.call("meta_combos", deck_arg(deck_id)).await
     }
 
     /// `validate_deck` — run the authoritative legality gate.
