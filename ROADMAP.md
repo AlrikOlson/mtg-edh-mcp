@@ -207,6 +207,10 @@
   - acceptance: Change-sets render per the handoff (spectral adds / CUT strikethrough; Enter/Esc; gold flash) and apply through deck_add/deck_remove with the pre-check verdict
   - acceptance: An explicit recorded decision on the agent brain (LLM vs structured-intent v1)
   - acceptance: What-if overlays split to gui-oracle-whatif (772)
+- [x] **GUI · Oracle what-if — ghost overlays from real projected analysis** — Split from gui-oracle at start (think:142). While a change-set is pending, the Insights rail overlays ghosted dashed-gold deltas (ghost props on CurveChart/RoleCoverageBars/SimReadout per the handoff). MUST be computed from REAL engine analysis of the projected deck — recorded honest path: snapshot → apply change-set → analyze_* batch → restore (the deck_snapshot/deck_restore wrappers exist since gui-deck-io); alternatively a new engine projection capability (separate decision). No local heuristics (the reference's simScore is theater).
+  - deps: gui-oracle
+  - acceptance: Pending change-sets produce ghost overlays on the rail computed by the engine (snapshot round-trip or projection tool)
+  - acceptance: Accept/reject clears the overlay; restore proven leak-free (version bump accounted)
 - [x] **GUI · Packaging — dx bundle .app + engine sidecar; the double-clickable artifact** — From refresh think:145. Dioxus 0.7 ships this first-class: `dx bundle --package-types` (macOS .app/.dmg; dioxuslabs.com/learn/0.7/tutorial/bundle) + Dioxus.toml `bundle.external_bin` (sidecar binaries included in the bundle, resolved by name at runtime — learn/0.7/guides/tools/configure). The ONE real decision: ship the node engine as a single binary — candidates: Node SEA (single executable application), `bun build --compile`, or require system node (weakest). Work: Dioxus.toml (none exists yet); state.rs sidecar resolution for bundled mode (dev-checkout path is the only mode today — deferred since gui-app-shell); kill-engine-on-quit lifecycle; snapshot data (data/ dir) placement in the bundle; verify the .app launches cold on a machine-shaped PATH. Folds naturally with gui-persist testing (restart round-trip).
   - deps: gui-scrutiny
   - acceptance: dx bundle produces a .app that launches cold (engine sidecar starts, ENGINE READY, no dev checkout)
@@ -319,10 +323,6 @@
 
 ## Backlog
 
-- [ ] **GUI · Oracle what-if — ghost overlays from real projected analysis** — Split from gui-oracle at start (think:142). While a change-set is pending, the Insights rail overlays ghosted dashed-gold deltas (ghost props on CurveChart/RoleCoverageBars/SimReadout per the handoff). MUST be computed from REAL engine analysis of the projected deck — recorded honest path: snapshot → apply change-set → analyze_* batch → restore (the deck_snapshot/deck_restore wrappers exist since gui-deck-io); alternatively a new engine projection capability (separate decision). No local heuristics (the reference's simScore is theater).
-  - deps: gui-oracle
-  - acceptance: Pending change-sets produce ghost overlays on the rail computed by the engine (snapshot round-trip or projection tool)
-  - acceptance: Accept/reject clears the overlay; restore proven leak-free (version bump accounted)
 - [ ] **GUI · UX polish sweep — the carried gaps in one pass** — From refresh think:145 — the gaps carried across GUI-phase close-outs, folded into one sweep so they stop being footnotes: deck switcher (deck_list surface), change-commander UI, filter-the-99 input, add-to-deck CTAs on Oracle/meta rec lists, collection add autocomplete (card_search-backed), row-level deck_diff view, rail subnav scroll-spy (click-jump only today), Add-verdict feedback in Browse, axe-core a11y pass (never run — manual contrast only), pips zero-demand "tight" cosmetics (engine classification question). Verify with a mini scrutiny pass.
   - deps: gui-oracle
   - acceptance: Each listed gap either shipped or explicitly re-recorded with a reason
