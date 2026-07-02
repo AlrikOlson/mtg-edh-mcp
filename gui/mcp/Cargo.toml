@@ -19,8 +19,9 @@ rmcp = { version = "2", features = [
     "client",
     "transport-streamable-http-client",
     "transport-streamable-http-client-reqwest",
+    "transport-child-process",
 ] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process"] }
 # Header types for custom_headers (HashMap<HeaderName, HeaderValue>); rmcp re-uses http 1.x.
 http = "1"
 

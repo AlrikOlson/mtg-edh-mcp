@@ -102,8 +102,45 @@ fn bundled_data_dir(engine: &std::path::Path) -> Option<std::path::PathBuf> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// Spawn the engine sidecar. Bundled mode first (SEA binary + piped stdin so
-/// the engine exits when we die — MCP_WATCH_STDIN); dev-checkout node fallback.
+/// True when the developer explicitly opted into the HTTP transport
+/// (`MTG_EDH_DEV_HTTP=1`, or a custom engine URL). The packaged app never sets
+/// these, so a default launch owns no TCP listener at all (think:168).
+fn dev_http_mode() -> bool {
+    std::env::var("MTG_EDH_DEV_HTTP").is_ok() || std::env::var("MTG_EDH_MCP_URL").is_ok()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// The engine invocation for the stdio channel: bundled SEA binary first,
+/// dev-checkout `node dist/main.js` fallback. No `MCP_TRANSPORT` — stdio is
+/// the engine's default, and rmcp's `TokioChildProcess` owns the pipes.
+fn engine_command() -> Result<tokio::process::Command, String> {
+    if let Some(engine) = bundled_engine() {
+        let mut cmd = tokio::process::Command::new(&engine);
+        if let Some(data) = bundled_data_dir(&engine) {
+            cmd.env("MCP_DATA_DIR", data);
+        }
+        cmd.stderr(std::process::Stdio::null());
+        return Ok(cmd);
+    }
+    let dist =
+        sidecar_dist().ok_or("no bundled engine and no dist/main.js (run `npm run build`)")?;
+    let root = dist
+        .parent()
+        .and_then(std::path::Path::parent)
+        .ok_or("bad dist path")?
+        .to_path_buf();
+    let mut cmd = tokio::process::Command::new("node");
+    cmd.arg(&dist)
+        .current_dir(root)
+        .stderr(std::process::Stdio::null());
+    Ok(cmd)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Spawn the engine sidecar as an HTTP listener — DEV-HTTP MODE ONLY (the
+/// stdio channel is the default; see `engine_command`). Bundled mode first
+/// (SEA binary + piped stdin so the engine exits when we die —
+/// MCP_WATCH_STDIN); dev-checkout node fallback.
 fn spawn_sidecar() -> Result<(), String> {
     if let Some(engine) = bundled_engine() {
         let mut cmd = std::process::Command::new(&engine);
@@ -273,13 +310,32 @@ async fn restore_session(mut state: AppState, client: Arc<EngineClient>) {
     state.hydrated.set(true);
 }
 
-/// Try to connect; on failure spawn the sidecar once and retry briefly, then
-/// settle into Offline with the reason. Re-callable from the Retry button.
+/// Try to connect, then settle into Offline with the reason on failure.
+/// Re-callable from the Retry button.
+///
+/// Native default: spawn the engine as a child and speak MCP over its
+/// stdin/stdout (no TCP listener exists — think:168). The rmcp initialize
+/// handshake doubles as the readiness wait, and dropping the client kills
+/// the child. Dev-HTTP mode (`MTG_EDH_DEV_HTTP` / `MTG_EDH_MCP_URL`) keeps
+/// the old attach-or-spawn HTTP flow; wasm is HTTP-only (a browser can't
+/// spawn processes).
 pub fn connect(state: AppState) {
     let mut conn = state.conn;
     let principal = (state.principal)();
     conn.set(ConnState::Connecting);
     spawn(async move {
+        #[cfg(not(target_arch = "wasm32"))]
+        if !dev_http_mode() {
+            match stdio_client().await {
+                Ok(client) => {
+                    let client = Arc::new(client);
+                    conn.set(ConnState::Ready(client.clone()));
+                    restore_session(state, client).await;
+                }
+                Err(reason) => conn.set(ConnState::Offline(reason)),
+            }
+            return;
+        }
         let url = engine_url();
         // First attempt: an engine may already be running (dev mode).
         if let Ok(client) = EngineClient::connect(&url, &principal).await {
@@ -319,6 +375,20 @@ pub fn connect(state: AppState) {
             "engine unreachable at {url} — start it with MCP_TRANSPORT=http node dist/main.js"
         )));
     });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+/// Spawn-and-handshake over stdio, with the probe round-trip as final proof.
+async fn stdio_client() -> Result<EngineClient, String> {
+    let cmd = engine_command()?;
+    let client = EngineClient::connect_stdio(cmd)
+        .await
+        .map_err(|e| format!("engine failed to start over stdio: {e}"))?;
+    if !probe(&client).await {
+        client.shutdown().await.ok();
+        return Err("engine started but the stdio probe round-trip failed".to_string());
+    }
+    Ok(client)
 }
 
 /// A cheap round-trip proving the wire actually works (POST + structured reply).

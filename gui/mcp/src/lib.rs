@@ -45,6 +45,7 @@ use rmcp::{
     service::{RoleClient, RunningService},
     transport::{
         streamable_http_client::StreamableHttpClientTransportConfig, StreamableHttpClientTransport,
+        TokioChildProcess,
     },
     ServiceExt,
 };
@@ -109,6 +110,26 @@ impl EngineClient {
             .serve(transport)
             .await
             .map_err(|e| EngineError::Transport(format!("connect to {base_url} failed: {e}")))?;
+        Ok(Self { service })
+    }
+
+    /// Spawn `command` as a child process and speak MCP over its stdin/stdout
+    /// (rmcp `TokioChildProcess`). No TCP listener exists anywhere: the channel
+    /// is a kernel pipe, unreachable from browsers or LAN peers, and the child
+    /// is killed when this client drops. The engine's stdio transport uses the
+    /// single `"local"` session, so no principal header applies here.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn connect_stdio(command: tokio::process::Command) -> Result<Self, EngineError> {
+        let transport = TokioChildProcess::new(command)
+            .map_err(|e| EngineError::Transport(format!("spawn engine child failed: {e}")))?;
+        let client_info = ClientInfo::new(
+            ClientCapabilities::default(),
+            Implementation::new("mtg-edh-gui", env!("CARGO_PKG_VERSION")),
+        );
+        let service = client_info
+            .serve(transport)
+            .await
+            .map_err(|e| EngineError::Transport(format!("stdio engine handshake failed: {e}")))?;
         Ok(Self { service })
     }
 

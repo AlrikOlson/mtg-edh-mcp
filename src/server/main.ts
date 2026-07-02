@@ -63,6 +63,10 @@ async function main(): Promise<void> {
   } else {
     await startStdio({ snapshot, index, deckStore });
     console.error("mtg-edh-mcp serving on stdio");
+    // A closed stdin means the client (and the transport) is gone; exit even if
+    // background timers would otherwise keep the event loop alive — orphan-proof.
+    process.stdin.on("end", () => process.exit(0));
+    process.stdin.on("close", () => process.exit(0));
   }
 }
 

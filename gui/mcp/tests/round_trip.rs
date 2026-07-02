@@ -301,6 +301,79 @@ async fn round_trip_against_engine() {
     client.shutdown().await.ok();
 }
 
+/// The stdio child-process channel (release-hardening, think:168): spawn the
+/// engine over pipes — no TCP listener anywhere — and drive the same core
+/// wire: connect → card_search → deck lifecycle → §8 error mapping. The rmcp
+/// initialize handshake doubles as the readiness wait (no polling loop).
+#[tokio::test]
+#[ignore = "spawns node dist/main.js — run `npm run build` first, then `cargo test -- --ignored`"]
+async fn round_trip_over_stdio() {
+    let root = repo_root();
+    let main_js = root.join("dist/main.js");
+    assert!(
+        main_js.exists(),
+        "{} missing — run `npm run build` at the repo root first",
+        main_js.display()
+    );
+
+    let mut cmd = tokio::process::Command::new("node");
+    cmd.arg("dist/main.js").current_dir(&root);
+    let client = EngineClient::connect_stdio(cmd)
+        .await
+        .expect("connect_stdio: spawn + initialize handshake");
+
+    let hits = client
+        .card_search(CardSearchParams {
+            query: "t:creature".into(),
+            limit: Some(5),
+            ..Default::default()
+        })
+        .await
+        .expect("card_search over stdio");
+    assert_eq!(hits.returned as usize, hits.results.len());
+
+    let created = client
+        .deck_create(DeckCreateParams {
+            name: "stdio round-trip".into(),
+            format: Some("commander".into()),
+            ..Default::default()
+        })
+        .await
+        .expect("deck_create over stdio");
+    let deck_id = created.deck_id;
+    assert!(!deck_id.is_empty());
+
+    let oracle_id = hits
+        .results
+        .first()
+        .map(|c| c.oracle_id.clone())
+        .unwrap_or_else(|| "00000000-0000-0000-0000-000000000000".into());
+    let added = client
+        .deck_add(&deck_id, &[(oracle_id, 1)])
+        .await
+        .expect("deck_add over stdio");
+    assert_eq!(added.verdicts.len(), 1);
+
+    // The stdio server is one long-lived process — the single "local" session
+    // must see the deck across calls (no per-request store resets).
+    let validated = client.validate_deck(&deck_id).await.expect("validate_deck");
+    assert_eq!(validated.deck_id, deck_id);
+    let listed = client.deck_list().await.expect("deck_list");
+    assert!(listed.decks.iter().any(|d| d.deck_id == deck_id));
+
+    // §8 mapping survives the transport swap.
+    let err = client
+        .validate_deck("deck-that-does-not-exist")
+        .await
+        .expect_err("validate_deck on unknown deck should error");
+    assert!(
+        matches!(err, EngineError::DeckNotFound { .. }),
+        "expected DeckNotFound, got {err:?}"
+    );
+
+    client.shutdown().await.ok();
+}
+
 /// Retry `connect` + a trivial `card_search` until the server answers, up to 30s.
 async fn await_ready(url: &str, principal: &str) -> EngineClient {
     let deadline = Instant::now() + Duration::from_secs(30);

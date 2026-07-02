@@ -31,6 +31,13 @@ over two transports from one core (`createServer`):
 - **Streamable HTTP** — for hosted clients. Stateless: a fresh server is created
   per POST, all sharing one card index (read-only) and one deck store.
 
+**Transport security posture:** the desktop GUI (`gui/`) spawns the engine as a
+child process and speaks MCP over **stdio pipes** — a default app launch owns no
+TCP listener at all, so nothing is reachable from browsers or LAN peers. The
+HTTP transport is for hosted deployments and local development only (opt in from
+the GUI with `MTG_EDH_DEV_HTTP=1`); it binds `127.0.0.1` by default and carries
+no authentication, so never expose it beyond localhost as-is.
+
 Both expose the same tools and resources. Deck state is scoped per **principal**:
 over HTTP the principal is read from the `x-mcp-principal` request header (so two
 callers get isolated decks); stdio and header-less requests use the single
