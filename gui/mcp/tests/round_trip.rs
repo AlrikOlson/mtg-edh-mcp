@@ -371,7 +371,50 @@ async fn round_trip_over_stdio() {
         "expected DeckNotFound, got {err:?}"
     );
 
+    // data_* wrappers (release-first-run): this dev checkout HAS an index; the
+    // ingest state is idle and no run is started here (it would hit Scryfall).
+    let ds = client.data_status().await.expect("data_status");
+    assert!(ds.has_index, "dev checkout should serve an index");
+    assert!(!ds.ingest.running);
+    assert_eq!(ds.ingest.phase, "idle");
+    assert!(ds.data_snapshot.is_some(), "stamped snapshot date expected");
+
     client.shutdown().await.ok();
+}
+
+/// Cold-start contract (release-first-run): with an EMPTY data dir the engine
+/// still boots over stdio, reports has_index=false, and ping works — the state
+/// the GUI onboarding dialog keys on.
+#[tokio::test]
+#[ignore = "spawns node dist/main.js — run `npm run build` first, then `cargo test -- --ignored`"]
+async fn cold_start_without_data_dir() {
+    let root = repo_root();
+    assert!(root.join("dist/main.js").exists());
+    let empty = std::env::temp_dir().join(format!("mtg-edh-cold-{}", std::process::id()));
+    std::fs::create_dir_all(&empty).expect("mk empty data dir");
+
+    let mut cmd = tokio::process::Command::new("node");
+    cmd.arg("dist/main.js")
+        .current_dir(&root)
+        .env("MCP_DATA_DIR", &empty);
+    let client = EngineClient::connect_stdio(cmd)
+        .await
+        .expect("cold engine must handshake without an index");
+
+    let ds = client.data_status().await.expect("data_status (cold)");
+    assert!(!ds.has_index, "empty data dir must report has_index=false");
+    assert_eq!(ds.ingest.phase, "idle");
+
+    // Card tools are absent without an index — the error is a clean tool-level
+    // failure, not a hang or transport death.
+    let err = client
+        .card_search(CardSearchParams::new("t:creature"))
+        .await
+        .expect_err("card_search must fail cleanly with no index");
+    drop(err);
+
+    client.shutdown().await.ok();
+    std::fs::remove_dir_all(&empty).ok();
 }
 
 /// Retry `connect` + a trivial `card_search` until the server answers, up to 30s.

@@ -20,6 +20,7 @@ import { makeDeckTools } from "./deckTools.js";
 import { makeValidateTools } from "./validateTools.js";
 import { makeAnalyzeTools } from "./analyzeTools.js";
 import { makeMetaTools } from "./metaTools.js";
+import { IngestRunner, makeDataTools } from "./dataTools.js";
 import { registerResources } from "./resources.js";
 
 export const SERVER_NAME = "mtg-edh-mcp";
@@ -49,6 +50,12 @@ export interface CreateServerOptions {
   session?: string;
   /** Extra tools to register alongside the built-ins (used by tests + later engines). */
   tools?: readonly ToolDefinition[];
+  /**
+   * Shared ingest runner behind data_status/data_ingest. Like {@link CollectionStore},
+   * HTTP mode MUST pass one instance shared across per-request servers, or every
+   * poll would see a fresh idle runner. Default-constructed so the tools always exist.
+   */
+  ingest?: IngestRunner;
 }
 
 /** Construct a fully wired (but not yet connected) MCP server. */
@@ -90,10 +97,17 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     options.deckStore && options.index
       ? makeMetaTools(options.deckStore, options.index, edhrec, spellbook, gameChangers, session)
       : [];
+  // Data-lifecycle tools are registered unconditionally — they are the path OUT
+  // of the no-index state, so they cannot be gated on the index existing.
+  const dataTools = makeDataTools({
+    hasIndex: Boolean(options.index),
+    runner: options.ingest ?? new IngestRunner(),
+  });
   registerTools(
     server,
     [
       ...BUILTIN_TOOLS,
+      ...dataTools,
       ...cardTools,
       ...collectionTools,
       ...deckTools,

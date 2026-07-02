@@ -6,7 +6,7 @@
 
 use crate::ds::*;
 use crate::icons;
-use crate::state::{connect, use_provide_app_state, ConnState};
+use crate::state::{connect, fetch_data_status, run_ingest, use_provide_app_state, ConnState};
 use dioxus::prelude::*;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -59,6 +59,11 @@ pub fn AppShell() -> Element {
                     },
                 }
             }
+        }
+        // First-run onboarding (release-first-run): connected engine, no card
+        // index — every card tool would fail, so this blocks until data exists.
+        if matches!((state.conn)(), ConnState::Ready(_)) && (state.data)().is_some_and(|d| !d.has_index) {
+            DataOnboarding {}
         }
         // Engine-offline banner with retry, per the graceful-degradation ethos.
         if let ConnState::Offline(reason) = (state.conn)() {
@@ -272,6 +277,70 @@ fn DeckSwitcher() -> Element {
 
 /// Settings — Oracle brain configuration (oracle-byo-key). The API key goes
 /// to the macOS keychain via the `security` CLI; it is never echoed back.
+/// First-run card-data onboarding (release-first-run). The engine is up but
+/// has no index: offer the one-time Scryfall download + index build, with
+/// phase-level progress polled from data_status. On done the app reconnects —
+/// a fresh engine boot serves the new index (tool registration is static).
+#[component]
+fn DataOnboarding() -> Element {
+    let state = crate::state::use_app_state();
+    let ingest = (state.data)().map(|d| d.ingest);
+    let phase = ingest.as_ref().map(|i| i.phase.clone()).unwrap_or_default();
+    let error = ingest.as_ref().and_then(|i| i.error.clone());
+    let busy = matches!(phase.as_str(), "download" | "build");
+    let status_line = match phase.as_str() {
+        "download" => "Downloading card data from Scryfall (~700 MB)…".to_string(),
+        "build" => "Building the local card index…".to_string(),
+        "done" => "Done — reconnecting…".to_string(),
+        "error" => format!("Failed: {}", error.unwrap_or_else(|| "unknown error".into())),
+        _ => "This one-time download needs about 1 GB of disk space.".to_string(),
+    };
+    rsx! {
+        Dialog {
+            title: Some("Set up card data".to_string()),
+            description: Some(
+                "The card database isn't installed yet. The app downloads Scryfall's bulk card \
+                 data and builds a local search index — everything runs on your machine."
+                    .to_string(),
+            ),
+            on_close: move |_| {},
+            footer: Some(rsx! {
+                Button {
+                    variant: "primary".to_string(),
+                    disabled: busy,
+                    onclick: move |_| run_ingest(state, false, true),
+                    if phase == "error" { "Retry download" } else { "Download & build" }
+                }
+            }),
+            div { style: "display: flex; flex-direction: column; gap: var(--space-3);",
+                "data-onboarding": "card-data",
+                div {
+                    style: "font: var(--type-body-sm); color: var(--text-secondary);",
+                    "data-onboarding-phase": phase.clone(),
+                    "{status_line}"
+                }
+                if busy {
+                    Badge { tone: "info".to_string(), dot: true, "Working — safe to keep using the app" }
+                }
+                if cfg!(target_arch = "wasm32") && busy {
+                    Button {
+                        variant: "secondary".to_string(),
+                        size: "sm".to_string(),
+                        onclick: move |_| {
+                            spawn(async move {
+                                if let ConnState::Ready(client) = (state.conn)() {
+                                    fetch_data_status(state, &client).await;
+                                }
+                            });
+                        },
+                        "Check status"
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[component]
 fn SettingsDialog(on_close: EventHandler<()>) -> Element {
     let mut key_input = use_signal(String::new);
@@ -329,6 +398,67 @@ fn SettingsDialog(on_close: EventHandler<()>) -> Element {
                         dot: true,
                         if ok { "Saved to keychain" } else { "Save failed" }
                     }
+                }
+                CardDataSection {}
+            }
+        }
+    }
+}
+
+/// Settings section: card-data freshness + the update action (release-first-run).
+/// Deliberately does NOT auto-restart the engine on completion — the in-memory
+/// DeckStore would drop the session's decks; the user reconnects explicitly.
+#[component]
+fn CardDataSection() -> Element {
+    let state = crate::state::use_app_state();
+    let data = (state.data)();
+    let snapshot = data
+        .as_ref()
+        .and_then(|d| d.data_snapshot.clone())
+        .unwrap_or_else(|| "unknown".to_string());
+    let ingest = data.map(|d| d.ingest);
+    let phase = ingest.as_ref().map(|i| i.phase.clone()).unwrap_or_default();
+    let busy = matches!(phase.as_str(), "download" | "build");
+    let fresh = ingest.as_ref().and_then(|i| i.snapshot.clone());
+    rsx! {
+        div { style: "border-top: 1px solid var(--border-subtle); padding-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);",
+            "data-settings": "card-data",
+            div { style: "font: var(--type-label-sm); color: var(--text-secondary);",
+                "Card data snapshot: {snapshot}"
+            }
+            div { style: "display: flex; align-items: center; gap: var(--space-2);",
+                Button {
+                    variant: "secondary".to_string(),
+                    size: "sm".to_string(),
+                    disabled: busy,
+                    onclick: move |_| run_ingest(state, true, false),
+                    "Update card data"
+                }
+                if busy {
+                    Badge { tone: "info".to_string(), dot: true,
+                        if phase == "download" { "Downloading (~700 MB)…" } else { "Building index…" }
+                    }
+                }
+            }
+            if phase == "done" {
+                div { style: "display: flex; align-items: center; gap: var(--space-2);",
+                    Badge { tone: "success".to_string(), dot: true,
+                        "Updated to {fresh.clone().unwrap_or_default()}"
+                    }
+                    span { style: "font: var(--type-body-sm); color: var(--text-secondary);",
+                        "Takes effect after a reconnect — unsaved decks are lost on reconnect."
+                    }
+                    Button {
+                        variant: "ghost".to_string(),
+                        size: "sm".to_string(),
+                        onclick: move |_| connect(state),
+                        "Reconnect now"
+                    }
+                }
+            }
+            if phase == "error" {
+                Badge { tone: "danger".to_string(), dot: true,
+                    "Update failed — the served index is untouched; retry any time"
                 }
             }
         }

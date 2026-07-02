@@ -8,7 +8,7 @@
 //! mirroring the engine's graceful-degradation ethos.
 
 use dioxus::prelude::*;
-use mtg_edh_mcp_client::{serde_json, EngineClient};
+use mtg_edh_mcp_client::{serde_json, DataStatusResult, EngineClient};
 use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
@@ -54,6 +54,17 @@ pub struct AppState {
     pub hydrated: Signal<bool>,
     /// The pending change-set's projected analysis (ghost overlays in the rail).
     pub whatif: Signal<Option<WhatIf>>,
+    /// Card-data status from the connected engine (release-first-run): whether
+    /// an index exists + any in-flight ingest. None until the first fetch.
+    pub data: Signal<Option<DataStatusResult>>,
+}
+
+/// Fetch `data_status` into the shared signal (called at every Ready point and
+/// polled by the onboarding/update flows).
+pub async fn fetch_data_status(mut state: AppState, client: &EngineClient) {
+    if let Ok(ds) = client.data_status().await {
+        state.data.set(Some(ds));
+    }
 }
 
 /// Engine base URL: MTG_EDH_MCP_URL overrides; default matches the engine's
@@ -189,6 +200,7 @@ pub fn use_provide_app_state() -> AppState {
         snapshots: Signal::new(Vec::new()),
         hydrated: Signal::new(false),
         whatif: Signal::new(None),
+        data: Signal::new(None),
     });
     use_effect(move || {
         connect(state);
@@ -329,6 +341,7 @@ pub fn connect(state: AppState) {
             match stdio_client().await {
                 Ok(client) => {
                     let client = Arc::new(client);
+                    fetch_data_status(state, &client).await;
                     conn.set(ConnState::Ready(client.clone()));
                     restore_session(state, client).await;
                 }
@@ -341,6 +354,7 @@ pub fn connect(state: AppState) {
         if let Ok(client) = EngineClient::connect(&url, &principal).await {
             if probe(&client).await {
                 let client = Arc::new(client);
+                fetch_data_status(state, &client).await;
                 conn.set(ConnState::Ready(client.clone()));
                 restore_session(state, client).await;
                 return;
@@ -357,7 +371,9 @@ pub fn connect(state: AppState) {
                     tokio::time::sleep(Duration::from_millis(300)).await;
                     if let Ok(client) = EngineClient::connect(&url, &principal).await {
                         if probe(&client).await {
-                            conn.set(ConnState::Ready(Arc::new(client)));
+                            let client = Arc::new(client);
+                            fetch_data_status(state, &client).await;
+                            conn.set(ConnState::Ready(client));
                             return;
                         }
                         client.shutdown().await.ok();
@@ -377,6 +393,47 @@ pub fn connect(state: AppState) {
     });
 }
 
+/// Kick off a card-data ingest and (on native) poll `data_status` each second
+/// until it settles. `reconnect_on_done` is for onboarding — no index means no
+/// live decks to lose. The Settings update flow passes false: the engine's
+/// DeckStore is in-memory, so an automatic engine restart would drop the
+/// session's decks; the user reconnects explicitly instead.
+pub fn run_ingest(state: AppState, force: bool, reconnect_on_done: bool) {
+    spawn(async move {
+        let ConnState::Ready(client) = (state.conn)() else {
+            return;
+        };
+        if client.data_ingest(force).await.is_err() {
+            return;
+        }
+        fetch_data_status(state, &client).await;
+        #[cfg(not(target_arch = "wasm32"))]
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            fetch_data_status(state, &client).await;
+            let phase = (state.data)()
+                .map(|d| d.ingest.phase)
+                .unwrap_or_default();
+            match phase.as_str() {
+                "done" => {
+                    if reconnect_on_done {
+                        connect(state);
+                    }
+                    return;
+                }
+                "error" | "idle" => return,
+                _ => {}
+            }
+        }
+        // wasm has no timer here; the onboarding UI offers a manual
+        // "check status" refresh instead of an automatic poll.
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = reconnect_on_done;
+        }
+    });
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// Spawn-and-handshake over stdio, with the probe round-trip as final proof.
 async fn stdio_client() -> Result<EngineClient, String> {
@@ -393,13 +450,8 @@ async fn stdio_client() -> Result<EngineClient, String> {
 
 /// A cheap round-trip proving the wire actually works (POST + structured reply).
 async fn probe(client: &EngineClient) -> bool {
-    use mtg_edh_mcp_client::CardSearchParams;
-    client
-        .card_search(CardSearchParams {
-            query: "t:creature".into(),
-            limit: Some(1),
-            ..Default::default()
-        })
-        .await
-        .is_ok()
+    // data_status is registered unconditionally — unlike card_search it also
+    // answers on an index-less engine, which is exactly the state the
+    // first-run onboarding flow needs to reach Ready in (release-first-run).
+    client.data_status().await.is_ok()
 }

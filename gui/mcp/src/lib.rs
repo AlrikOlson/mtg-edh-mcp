@@ -29,9 +29,11 @@ pub use types::{
     AddVerdict, AnalyzeCompositionResult, AnalyzeCurveResult, AnalyzeStatsResult, BracketPushers,
     BracketResult, BudgetPlanResult, BudgetSwap, BudgetSwapsResult, CardDetail, CardGetResult,
     CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, CollectionView, Combo,
-    CombosResult, CostDriver, Deck, DeckAddResult, DeckCardEntry, DeckCreateParams,
+    CombosResult, CostDriver, DataIngestResult, DataStatusResult, Deck, DeckAddResult,
+    DeckCardEntry, DeckCreateParams,
     DeckCreateResult, DeckDiffResult, DeckGetResult, DeckListResult, DeckMutateResult,
-    DeckSummaryResult, ExportResult, ImportResult, ManaBaseReport, MissingStaplesResult, OwnedCard,
+    DeckSummaryResult, ExportResult, ImportResult, IngestStatus, ManaBaseReport,
+    MissingStaplesResult, OwnedCard,
     Printing, Recommendation, RecommendationsResult, ReprintSuggestion, RestoreResult,
     RoleCoverageResult, RoleGap, SetCommanderResult, SimResult, SnapshotResult, SwapCard,
     ValidateDeckResult,
@@ -343,6 +345,18 @@ impl EngineClient {
     /// `collection_clear` — empty the collection.
     pub async fn collection_clear(&self) -> Result<CollectionView, EngineError> {
         self.call("collection_clear", Map::new()).await
+    }
+
+    /// `data_status` — index presence + ingest phase (poll during onboarding/update).
+    pub async fn data_status(&self) -> Result<DataStatusResult, EngineError> {
+        self.call("data_status", Map::new()).await
+    }
+
+    /// `data_ingest` — kick off the bulk download + index rebuild in the engine.
+    pub async fn data_ingest(&self, force: bool) -> Result<DataIngestResult, EngineError> {
+        let mut args = Map::new();
+        args.insert("force".into(), Value::Bool(force));
+        self.call("data_ingest", args).await
     }
 
     /// `budget_plan` — the deck budget report; `use_collection` adds

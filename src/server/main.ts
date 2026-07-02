@@ -12,6 +12,7 @@ import { CollectionStore } from "../collection/index.js";
 import { CardIndex, DEFAULT_DATA_ROOT, DEFAULT_INDEX_NAME, readSnapshot } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
 import { cachedSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
+import { IngestRunner } from "./dataTools.js";
 import { startStdio } from "./stdio.js";
 import { startHttp } from "./http.js";
 
@@ -44,6 +45,9 @@ async function boot(): Promise<Boot> {
 
 async function main(): Promise<void> {
   const { snapshot, index, deckStore } = await boot();
+  // One process-wide ingest runner: shared across per-request servers in HTTP
+  // mode (same rule as CollectionStore) so polls see the real run state.
+  const ingest = new IngestRunner();
   if (useHttp(process.argv.slice(2), process.env)) {
     const port = process.env.MCP_HTTP_PORT ? Number(process.env.MCP_HTTP_PORT) : 3000;
     const host = process.env.MCP_HTTP_HOST ?? "127.0.0.1";
@@ -51,7 +55,7 @@ async function main(): Promise<void> {
     // transport gave every POST a fresh empty collection (caught by the GUI's
     // Rust e2e round-trip, which acts as the regression test).
     const collection = new CollectionStore();
-    const running = await startHttp({ port, host, snapshot, index, deckStore, collection });
+    const running = await startHttp({ port, host, snapshot, index, deckStore, collection, ingest });
     console.error(`mtg-edh-mcp listening on http://${host}:${running.port} (streamable HTTP)`);
     // Sidecar lifecycle (opt-in): the GUI spawns us with piped stdin; when the
     // GUI dies, stdin closes and we exit — orphan-proof without process groups.
@@ -61,7 +65,7 @@ async function main(): Promise<void> {
       process.stdin.on("close", () => process.exit(0));
     }
   } else {
-    await startStdio({ snapshot, index, deckStore });
+    await startStdio({ snapshot, index, deckStore, ingest });
     console.error("mtg-edh-mcp serving on stdio");
     // A closed stdin means the client (and the transport) is gone; exit even if
     // background timers would otherwise keep the event loop alive — orphan-proof.

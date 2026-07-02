@@ -613,3 +613,45 @@ pub struct ExportResult {
     #[serde(default)]
     pub text: String,
 }
+
+// ---- data_* (release-first-run) -----------------------------------------------
+
+/// One ingest run's pollable state (`data_status.ingest`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct IngestStatus {
+    pub running: bool,
+    /// "idle" | "download" | "build" | "done" | "error".
+    #[serde(default)]
+    pub phase: String,
+    #[serde(default)]
+    pub started_at: Option<String>,
+    #[serde(default)]
+    pub finished_at: Option<String>,
+    /// Fresh data_snapshot date, present when phase == "done".
+    #[serde(default)]
+    pub snapshot: Option<String>,
+    #[serde(default)]
+    pub cards: Option<u32>,
+    #[serde(default)]
+    pub skipped: Option<bool>,
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+/// `data_status` structuredContent. `data_snapshot` rides the universal stamp
+/// and is the date of the index the RUNNING server serves.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DataStatusResult {
+    pub has_index: bool,
+    pub ingest: IngestStatus,
+    #[serde(default)]
+    pub data_snapshot: Option<String>,
+}
+
+/// `data_ingest` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DataIngestResult {
+    pub started: bool,
+    #[serde(default)]
+    pub already_running: bool,
+}
