@@ -253,3 +253,89 @@ pub struct SetCommanderResult {
     #[serde(default)]
     pub violations: Vec<Value>,
 }
+
+// ---- analyze_* / simulate_deck (gui-analysis) --------------------------------
+
+use std::collections::HashMap;
+
+/// `analyze_curve` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct AnalyzeCurveResult {
+    pub deck_id: String,
+    /// Keys "0".."6", "7+".
+    pub buckets: HashMap<String, u32>,
+    pub total: u32,
+}
+
+/// `analyze_composition` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct AnalyzeCompositionResult {
+    pub deck_id: String,
+    pub by_type: HashMap<String, u32>,
+    pub by_role: HashMap<String, u32>,
+    pub total: u32,
+}
+
+/// `analyze_stats` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct AnalyzeStatsResult {
+    pub deck_id: String,
+    pub total_cards: u32,
+    pub nonland_cards: u32,
+    pub avg_mv: f64,
+    pub avg_mv_nonland: f64,
+    pub color_pips: HashMap<String, u32>,
+    #[serde(default)]
+    pub total_price_usd: f64,
+    #[serde(default)]
+    pub min_buy_usd: f64,
+}
+
+/// `analyze_mana_base` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct ManaBaseReport {
+    pub deck_id: String,
+    pub total_lands: u32,
+    pub untapped_lands: u32,
+    pub tapped_lands: u32,
+    pub sources: HashMap<String, u32>,
+    pub fixing_sources: u32,
+    #[serde(default)]
+    pub under_supported: Vec<String>,
+}
+
+/// One role's band from `analyze_role_coverage.gaps`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct RoleGap {
+    pub role: String,
+    pub have: u32,
+    pub want_min: u32,
+    pub want_max: u32,
+    /// "under" | "ok" | "over".
+    pub status: String,
+}
+
+/// `analyze_role_coverage` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct RoleCoverageResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub counts: HashMap<String, u32>,
+    pub gaps: Vec<RoleGap>,
+}
+
+/// `simulate_deck` structuredContent. `lands_by_turn` keys arrive as JSON
+/// object keys, i.e. strings ("1".."10").
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct SimResult {
+    pub deck_id: String,
+    pub trials: u32,
+    pub keepable_rate: f64,
+    pub mulligan_rate: f64,
+    pub dead_on_arrival_rate: f64,
+    pub avg_opening_lands: f64,
+    pub lands_by_turn: HashMap<String, f64>,
+    pub first_spell_rate: f64,
+    #[serde(default)]
+    pub avg_turn_to_first_spell: Option<f64>,
+}

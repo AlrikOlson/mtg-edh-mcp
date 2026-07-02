@@ -124,6 +124,36 @@ async fn round_trip_against_engine() {
     let validated = client.validate_deck(&deck_id).await.expect("validate_deck");
     assert_eq!(validated.deck_id, deck_id);
 
+    // gui-analysis wrappers: analyze_* + deterministic sim round-trip.
+    let curve = client.analyze_curve(&deck_id).await.expect("analyze_curve");
+    assert_eq!(curve.deck_id, deck_id);
+    let stats = client.analyze_stats(&deck_id).await.expect("analyze_stats");
+    assert_eq!(stats.deck_id, deck_id);
+    client
+        .analyze_composition(&deck_id)
+        .await
+        .expect("analyze_composition");
+    client
+        .analyze_mana_base(&deck_id)
+        .await
+        .expect("analyze_mana_base");
+    client
+        .analyze_role_coverage(&deck_id)
+        .await
+        .expect("analyze_role_coverage");
+    let sim1 = client
+        .simulate_deck(&deck_id, Some(42), Some(200))
+        .await
+        .expect("simulate_deck");
+    let sim2 = client
+        .simulate_deck(&deck_id, Some(42), Some(200))
+        .await
+        .expect("simulate_deck (2)");
+    assert_eq!(
+        sim1.keepable_rate, sim2.keepable_rate,
+        "identical seed must be deterministic"
+    );
+
     // gui-deck wrappers: list → get → remove round-trip.
     let listed = client.deck_list().await.expect("deck_list");
     assert!(listed.decks.iter().any(|d| d.deck_id == deck_id));

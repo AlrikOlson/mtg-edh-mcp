@@ -227,7 +227,11 @@ pub fn WorkbenchScreen() -> Element {
                     }
                     let commander_detail = deck.commanders.first().and_then(|id| details.get(id)).cloned();
                     let errors = validation.as_ref().map(|v| v.errors.len()).unwrap_or(0);
+                    let rail_deck_id = deck.deck_id.clone();
+                    let rail_version = deck.version;
                     rsx! {
+                        div { style: "flex: 1; display: flex; min-height: 0;",
+                            div { style: "flex: 1; min-width: 400px; overflow-y: auto; display: flex; flex-direction: column;",
                         CommandZone { deck: deck.clone(), commander: commander_detail }
                         DeckToolbar { deck: deck.clone(), errors, view, group_by, sort_by }
                         div { style: "padding: 0 var(--space-4) var(--space-6);",
@@ -257,6 +261,9 @@ pub fn WorkbenchScreen() -> Element {
                             if let Some(v) = validation {
                                 ValidationPanel { validation: v.clone() }
                             }
+                        }
+                            }
+                            crate::insights::InsightsRail { deck_id: rail_deck_id, version: rail_version }
                         }
                     }
                 },

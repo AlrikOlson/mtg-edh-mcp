@@ -25,10 +25,11 @@ mod types;
 
 pub use error::EngineError;
 pub use types::{
-    AddVerdict, CardDetail, CardGetResult, CardPrintingsResult, CardRef, CardSearchParams,
-    CardSearchResult, Deck, DeckAddResult, DeckCardEntry, DeckCreateParams, DeckCreateResult,
-    DeckGetResult, DeckListResult, DeckMutateResult, Printing, SetCommanderResult,
-    ValidateDeckResult,
+    AddVerdict, AnalyzeCompositionResult, AnalyzeCurveResult, AnalyzeStatsResult, CardDetail,
+    CardGetResult, CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, Deck,
+    DeckAddResult, DeckCardEntry, DeckCreateParams, DeckCreateResult, DeckGetResult,
+    DeckListResult, DeckMutateResult, ManaBaseReport, Printing, RoleCoverageResult, RoleGap,
+    SetCommanderResult, SimResult, ValidateDeckResult,
 };
 
 use http::{HeaderName, HeaderValue};
@@ -42,6 +43,13 @@ use rmcp::{
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
+
+/// Build the common `{ deck_id }` argument map.
+fn deck_arg(deck_id: &str) -> Map<String, Value> {
+    let mut args = Map::new();
+    args.insert("deck_id".into(), Value::String(deck_id.to_string()));
+    args
+}
 
 /// The `x-mcp-principal` header the engine reads to scope decks/collections.
 const PRINCIPAL_HEADER: &str = "x-mcp-principal";
@@ -208,6 +216,54 @@ impl EngineClient {
             Value::Array(commanders.iter().cloned().map(Value::String).collect()),
         );
         self.call("deck_set_commander", args).await
+    }
+
+    /// `analyze_curve` — the mana-curve histogram.
+    pub async fn analyze_curve(&self, deck_id: &str) -> Result<AnalyzeCurveResult, EngineError> {
+        self.call("analyze_curve", deck_arg(deck_id)).await
+    }
+
+    /// `analyze_composition` — type + role breakdowns.
+    pub async fn analyze_composition(
+        &self,
+        deck_id: &str,
+    ) -> Result<AnalyzeCompositionResult, EngineError> {
+        self.call("analyze_composition", deck_arg(deck_id)).await
+    }
+
+    /// `analyze_stats` — averages, pips, totals, min-buy.
+    pub async fn analyze_stats(&self, deck_id: &str) -> Result<AnalyzeStatsResult, EngineError> {
+        self.call("analyze_stats", deck_arg(deck_id)).await
+    }
+
+    /// `analyze_mana_base` — per-color sources + under-supported flags.
+    pub async fn analyze_mana_base(&self, deck_id: &str) -> Result<ManaBaseReport, EngineError> {
+        self.call("analyze_mana_base", deck_arg(deck_id)).await
+    }
+
+    /// `analyze_role_coverage` — role counts vs target bands.
+    pub async fn analyze_role_coverage(
+        &self,
+        deck_id: &str,
+    ) -> Result<RoleCoverageResult, EngineError> {
+        self.call("analyze_role_coverage", deck_arg(deck_id)).await
+    }
+
+    /// `simulate_deck` — the deterministic Monte Carlo goldfish.
+    pub async fn simulate_deck(
+        &self,
+        deck_id: &str,
+        seed: Option<u32>,
+        trials: Option<u32>,
+    ) -> Result<SimResult, EngineError> {
+        let mut args = deck_arg(deck_id);
+        if let Some(seed) = seed {
+            args.insert("seed".into(), Value::from(seed));
+        }
+        if let Some(trials) = trials {
+            args.insert("trials".into(), Value::from(trials));
+        }
+        self.call("simulate_deck", args).await
     }
 
     /// `validate_deck` — run the authoritative legality gate.

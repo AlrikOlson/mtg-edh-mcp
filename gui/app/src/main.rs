@@ -11,6 +11,7 @@ mod browse;
 mod ds;
 mod gallery;
 mod icons;
+mod insights;
 mod shell;
 mod state;
 mod workbench;
@@ -45,6 +46,7 @@ fn App() -> Element {
         "appshell.css",
         "browse.css",
         "deckeditor.css",
+        "insights.css",
         "gallery.css",
     ];
     rsx! {
