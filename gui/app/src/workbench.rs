@@ -341,6 +341,24 @@ pub fn WorkbenchScreen() -> Element {
                                             }
                                         });
                                     },
+                                    on_add: {
+                                        let details = details.clone();
+                                        move |oracle_id: String| {
+                                            let conn = (state.conn)();
+                                            let deck_id = (state.active_deck_id)();
+                                            let name = details
+                                                .get(&oracle_id)
+                                                .map(|d| d.name.clone())
+                                                .unwrap_or_else(|| oracle_id.clone());
+                                            spawn(async move {
+                                                if let (Some(client), Some(deck_id)) = (ready_client(&conn), deck_id) {
+                                                    let res = client.deck_add(&deck_id, &[(oracle_id, 1)]).await;
+                                                    toast_add_outcome(state, &name, &res);
+                                                    rev += 1;
+                                                }
+                                            });
+                                        }
+                                    },
                                 }
                             }
                             if let Some(v) = validation {
@@ -830,6 +848,7 @@ fn DeckGroup(
     collapsed: bool,
     on_toggle: EventHandler<String>,
     on_remove: EventHandler<String>,
+    on_add: EventHandler<String>,
 ) -> Element {
     let count: u32 = cards.iter().map(|c| c.qty).sum();
     let total: f64 = cards
@@ -861,15 +880,29 @@ fn DeckGroup(
                                 image: Some(scryfall_image(&d.name)),
                                 cost: Some(rsx! { ManaCost { cost: d.mana_cost.clone(), size: 12 } }),
                                 footer: Some(rsx! {
-                                    Button {
-                                        variant: "ghost".to_string(),
-                                        size: "sm".to_string(),
-                                        full_width: true,
-                                        onclick: {
-                                            let id = card.oracle_id.clone();
-                                            move |_| on_remove.call(id.clone())
-                                        },
-                                        "Remove"
+                                    div { style: "display: flex; align-items: center; gap: var(--space-1_5); width: 100%;",
+                                        if card.qty > 1 {
+                                            span { "data-qty": "{card.qty}", style: "font: var(--type-data-sm); color: var(--accent-text);", "×{card.qty}" }
+                                        }
+                                        IconButton {
+                                            label: "Add one".to_string(),
+                                            size: "sm".to_string(),
+                                            onclick: {
+                                                let id = card.oracle_id.clone();
+                                                move |_| on_add.call(id.clone())
+                                            },
+                                            Ico { svg: icons::PLUS }
+                                        }
+                                        Button {
+                                            variant: "ghost".to_string(),
+                                            size: "sm".to_string(),
+                                            full_width: true,
+                                            onclick: {
+                                                let id = card.oracle_id.clone();
+                                                move |_| on_remove.call(id.clone())
+                                            },
+                                            "Remove"
+                                        }
                                     }
                                 }),
                             }
@@ -887,11 +920,21 @@ fn DeckGroup(
                                 type_line: card.detail.as_ref().map(|d| d.type_line.clone()),
                                 identity: card.detail.as_ref().map(|d| d.color_identity.clone()).unwrap_or_default(),
                                 price_usd: card.detail.as_ref().and_then(|d| d.default_usd),
+                                qty: Some(card.qty),
                                 illegal: card.illegal,
                                 cost: card.detail.as_ref().map(|d| rsx! { ManaCost { cost: d.mana_cost.clone(), size: 13 } }),
                                 action: Some(rsx! {
                                     IconButton {
-                                        label: "Remove".to_string(),
+                                        label: "Add one".to_string(),
+                                        size: "sm".to_string(),
+                                        onclick: {
+                                            let id = card.oracle_id.clone();
+                                            move |_| on_add.call(id.clone())
+                                        },
+                                        Ico { svg: icons::PLUS }
+                                    }
+                                    IconButton {
+                                        label: "Remove one".to_string(),
                                         size: "sm".to_string(),
                                         onclick: {
                                             let id = card.oracle_id.clone();

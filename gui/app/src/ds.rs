@@ -458,6 +458,8 @@ pub fn CardRow(
     price_usd: Option<f64>,
     edhrec_rank: Option<u32>,
     image: Option<String>,
+    /// Copies in the deck; rendered as an ×N chip when > 1 (gui-quantities).
+    qty: Option<u32>,
     #[props(default = false)] selected: bool,
     #[props(default = false)] illegal: bool,
     cost: Option<Element>,
@@ -491,7 +493,15 @@ pub fn CardRow(
                 }
             }
             div { class: "mb-cardrow__main",
-                div { class: "mb-cardrow__name", "{name}" }
+                div { class: "mb-cardrow__name",
+                    if let Some(q) = qty.filter(|q| *q > 1) {
+                        span { class: "mb-cardrow__qty", "data-qty": "{q}",
+                            style: "font: var(--type-data-sm); color: var(--accent-text); background: var(--accent-soft); border-radius: var(--radius-sm); padding: 0 var(--space-1_5); margin-right: var(--space-1_5);",
+                            "×{q}"
+                        }
+                    }
+                    "{name}"
+                }
                 if let Some(t) = type_line {
                     div { class: "mb-cardrow__type", "{t}" }
                 }

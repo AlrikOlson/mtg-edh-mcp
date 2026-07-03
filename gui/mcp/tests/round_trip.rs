@@ -443,6 +443,36 @@ async fn round_trip_over_stdio() {
     assert_eq!(ds.ingest.phase, "idle");
     assert!(ds.data_snapshot.is_some(), "stamped snapshot date expected");
 
+    // Quantities (gui-quantities): a basic land accepts bulk qty in ONE call
+    // and the deck reports it back — 35 basics is one action, not 35 clicks.
+    // Wastes is the colorless basic (legal under ANY commander identity —
+    // Forest was identity-rejected by the arbitrary test commander, which the
+    // first red run of this proof usefully confirmed). deck_add takes ORACLE
+    // IDS, not names (second red run) — resolve via card_search first, exactly
+    // as the GUI does.
+    let wastes_hit = client
+        .card_search(CardSearchParams::new("Wastes"))
+        .await
+        .expect("card_search Wastes")
+        .results
+        .into_iter()
+        .find(|c| c.name == "Wastes")
+        .expect("Wastes in index");
+    let bulk = client
+        .deck_add(&deck_id, &[(wastes_hit.oracle_id, 35)])
+        .await
+        .expect("deck_add Wastes x35");
+    assert_eq!(bulk.verdicts.len(), 1);
+    assert_eq!(bulk.verdicts[0].status, "ok", "basics allow any number");
+    let after = client.deck_get(&deck_id).await.expect("deck_get after bulk");
+    let wastes = after
+        .deck
+        .cards
+        .iter()
+        .find(|c| c.name.as_deref() == Some("Wastes"))
+        .expect("Wastes entry present");
+    assert_eq!(wastes.qty, 35, "bulk qty round-trips");
+
     // Deck lifecycle (gui-deck-lifecycle): rename shows everywhere; delete is
     // terminal and surfaces as the typed DeckNotFound afterward.
     let renamed = client
