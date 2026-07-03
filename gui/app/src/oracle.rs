@@ -10,7 +10,10 @@ use crate::ds::*;
 use crate::icons;
 use crate::state::{use_app_state, WhatIf};
 use dioxus::prelude::*;
-use mtg_edh_mcp_client::{serde_json, CardSearchParams, EngineClient};
+// serde_json is only used by the native-only Oracle brains (Tier 1/2).
+#[cfg(not(target_arch = "wasm32"))]
+use mtg_edh_mcp_client::serde_json;
+use mtg_edh_mcp_client::{CardSearchParams, EngineClient};
 use std::sync::Arc;
 
 #[derive(Clone, Copy, PartialEq)]
