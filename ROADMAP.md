@@ -1,20 +1,5 @@
 # Roadmap — mtg-edh-mcp-4d66ba
 
-## Pending
-
-- [ ] **GUI · Command zone editing — set/change commander, partners, companion** — Gap audit (think:178-179): the flagship object of a Commander deckbuilder is READ-ONLY — deck_set_commander has a gui/mcp wrapper but zero app call sites; the commander is set once via a blind text field at deck creation and can never be changed; command_zone_kind (partner/background/doctor_companion) is never surfaced; deck_set_companion has no wrapper at all; the CommandZone component only displays. Work: make CommandZone editable — set/replace commander(s) with name autocomplete backed by card_search (reuse the whole-word grammar autocomplete pattern, think:154) filtered to is_commander_eligible; partner/background second slot per command_zone_kind; companion slot (add deck_set_companion wrapper); surface validate_commander verdicts inline; replace the create-dialog's blind text input with the same autocomplete. Engine already supports everything — this is GUI + one wrapper.
-  - deps: gui-ux-polish
-  - acceptance: Commander can be set, replaced, and cleared from the Workbench CommandZone with autocomplete of eligible cards
-  - acceptance: Partner/background and companion slots work per command_zone_kind; deck_set_companion wrapper added
-  - acceptance: Ineligible choices are rejected with the engine's verdict shown, not silently
-  - acceptance: Create dialog uses the same autocomplete; gates + a round-trip exercise set_commander from the GUI wrapper
-- [ ] **GUI · Deck lifecycle — delete and rename (decks are currently immortal)** — Gap audit (think:178-179): deck_delete exists in the engine but has NO gui/mcp wrapper and NO UI — and since release-deck-persistence, every deck now persists FOREVER with no way to remove it. Rename doesn't exist end-to-end: DeckStore.setName is implemented but no MCP tool exposes it. Work: (a) engine — add a deck_rename tool over setName (tiny; follow deckTools.ts conventions; update the cardTools registration-inventory test); (b) gui/mcp — deck_delete + deck_rename wrappers; (c) GUI — delete with a confirm dialog (destructive; deck persister already handles delete via onDirty) and inline rename in the DeckSwitcher/TopBar; clear active-deck state gracefully when the active deck is deleted (fall back like restore_session does).
-  - deps: release-deck-persistence
-  - acceptance: A deck can be deleted from the UI with confirmation; the persisted decks.json reflects it after restart
-  - acceptance: A deck can be renamed inline; deck_rename engine tool + wrapper exist with tests
-  - acceptance: Deleting the active deck falls back gracefully (no wedged pointer)
-  - acceptance: All gates green incl. the tool-inventory test
-
 ## Done
 
 - [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
@@ -289,6 +274,18 @@
   - acceptance: ./.github/FUNDING.yml exists with github + buy_me_a_coffee entries
   - acceptance: README has a Support section linking both
   - acceptance: ROADMAP.md view regenerated
+- [x] **GUI · Command zone editing — set/change commander, partners, companion** — Gap audit (think:178-179): the flagship object of a Commander deckbuilder is READ-ONLY — deck_set_commander has a gui/mcp wrapper but zero app call sites; the commander is set once via a blind text field at deck creation and can never be changed; command_zone_kind (partner/background/doctor_companion) is never surfaced; deck_set_companion has no wrapper at all; the CommandZone component only displays. Work: make CommandZone editable — set/replace commander(s) with name autocomplete backed by card_search (reuse the whole-word grammar autocomplete pattern, think:154) filtered to is_commander_eligible; partner/background second slot per command_zone_kind; companion slot (add deck_set_companion wrapper); surface validate_commander verdicts inline; replace the create-dialog's blind text input with the same autocomplete. Engine already supports everything — this is GUI + one wrapper.
+  - deps: gui-ux-polish
+  - acceptance: Commander can be set, replaced, and cleared from the Workbench CommandZone with autocomplete of eligible cards
+  - acceptance: Partner/background and companion slots work per command_zone_kind; deck_set_companion wrapper added
+  - acceptance: Ineligible choices are rejected with the engine's verdict shown, not silently
+  - acceptance: Create dialog uses the same autocomplete; gates + a round-trip exercise set_commander from the GUI wrapper
+- [x] **GUI · Deck lifecycle — delete and rename (decks are currently immortal)** — Gap audit (think:178-179): deck_delete exists in the engine but has NO gui/mcp wrapper and NO UI — and since release-deck-persistence, every deck now persists FOREVER with no way to remove it. Rename doesn't exist end-to-end: DeckStore.setName is implemented but no MCP tool exposes it. Work: (a) engine — add a deck_rename tool over setName (tiny; follow deckTools.ts conventions; update the cardTools registration-inventory test); (b) gui/mcp — deck_delete + deck_rename wrappers; (c) GUI — delete with a confirm dialog (destructive; deck persister already handles delete via onDirty) and inline rename in the DeckSwitcher/TopBar; clear active-deck state gracefully when the active deck is deleted (fall back like restore_session does).
+  - deps: release-deck-persistence
+  - acceptance: A deck can be deleted from the UI with confirmation; the persisted decks.json reflects it after restart
+  - acceptance: A deck can be renamed inline; deck_rename engine tool + wrapper exist with tests
+  - acceptance: Deleting the active deck falls back gracefully (no wedged pointer)
+  - acceptance: All gates green incl. the tool-inventory test
 - [x] **Release · Deck durability — persist the DeckStore across engine restarts** — Discovery during release-first-run (think:173, 2026-07-02): the DeckStore is in-memory only (src/deck/deckStore.ts) — a public user's decks vanish on every app quit and on any engine restart (incl. the update-card-data reconnect). gui-persist only preserves the GUI-side pointer (deck id/name + snapshot ids); after an engine restart deck_get fails and the fallback deck_list is empty. For a public release this is arguably THE top blocker — worse than signing. Work: engine-side persistence for the local session's decks (e.g. JSON blob or SQLite next to the data dir, load at boot, write-through on mutation; keep versioning + snapshots semantics), or a GUI-side export-on-quit/import-on-boot fallback. Must respect the shared-store rule in HTTP mode (think:134). Once decks are durable, the update-card-data flow can auto-reconnect (release-first-run deliberately defers restart today to avoid eating live decks).
   - deps: release-hardening
   - acceptance: Decks (incl. commanders, companions, versions) survive an app quit + relaunch
