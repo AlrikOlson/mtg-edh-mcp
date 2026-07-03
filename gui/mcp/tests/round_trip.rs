@@ -31,6 +31,20 @@ fn repo_root() -> PathBuf {
         .expect("canonicalize repo root")
 }
 
+/// An isolated data root sharing the repo's card index (symlinked versions/ +
+/// copied current.json) but with its OWN decks.json — tests must never write
+/// into the user's real deck store (gui-test-data-isolation, think:186).
+fn isolated_data_dir(root: &std::path::Path, tag: &str) -> PathBuf {
+    let real = root.join("data/cards");
+    let dir = std::env::temp_dir().join(format!("mtg-edh-{tag}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).expect("mk isolated data dir");
+    std::os::unix::fs::symlink(real.join("versions"), dir.join("versions"))
+        .expect("symlink versions");
+    std::fs::copy(real.join("current.json"), dir.join("current.json")).expect("copy current");
+    dir
+}
+
 /// An ephemeral free TCP port (bind to :0, read it back, drop the listener).
 fn free_port() -> u16 {
     TcpListener::bind("127.0.0.1:0")
@@ -53,6 +67,7 @@ async fn round_trip_against_engine() {
 
     let port = free_port();
     let url = format!("http://127.0.0.1:{port}");
+    let data = isolated_data_dir(&root, "http");
 
     // kill_on_drop ensures the child dies when `_child` leaves scope, even on panic.
     let _child = tokio::process::Command::new("node")
@@ -61,6 +76,7 @@ async fn round_trip_against_engine() {
         .env("MCP_TRANSPORT", "http")
         .env("MCP_HTTP_PORT", port.to_string())
         .env("MCP_HTTP_HOST", "127.0.0.1")
+        .env("MCP_DATA_DIR", &data)
         .kill_on_drop(true)
         .spawn()
         .expect("spawn `node dist/main.js`");
@@ -316,8 +332,11 @@ async fn round_trip_over_stdio() {
         main_js.display()
     );
 
+    let data = isolated_data_dir(&root, "stdio");
     let mut cmd = tokio::process::Command::new("node");
-    cmd.arg("dist/main.js").current_dir(&root);
+    cmd.arg("dist/main.js")
+        .current_dir(&root)
+        .env("MCP_DATA_DIR", &data);
     let client = EngineClient::connect_stdio(cmd)
         .await
         .expect("connect_stdio: spawn + initialize handshake");
