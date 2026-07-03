@@ -10,10 +10,16 @@ strategic decisions of its own.
 See [`commander-deckbuilder-mcp-spec.md`](./commander-deckbuilder-mcp-spec.md) for
 the full design and [`ROADMAP.md`](./ROADMAP.md) for delivery status.
 
-> **Status:** feature-complete v1. All seven phases have shipped — card knowledge,
-> versioned deck state, validation, analysis, meta enrichment, multi-tenancy, and
-> the determinism/latency gate — with 230 tests green. The three §10 worked-example
-> decks build end-to-end through the tools alone.
+> **Status:** pre-1.0, feature-complete. The engine (332 tests green) ships with
+> a macOS desktop app — deck workbench, analysis rail, collection, and the Oracle
+> in-app agent — plus first-run data onboarding and durable decks. **1.0.0 will be
+> the first signed, notarized public release**; until then see the Gatekeeper note
+> in the install guide. See [`CHANGELOG.md`](./CHANGELOG.md).
+>
+> **Platform: macOS only** (keychain + Node SEA packaging are macOS-specific).
+
+**New here? Start with [`docs/INSTALL.md`](./docs/INSTALL.md)** — the desktop app,
+or plugging the engine into Claude Desktop as a plain MCP server.
 
 ## Requirements
 
@@ -102,7 +108,28 @@ surfaces `UPSTREAM_UNAVAILABLE` when there is nothing to fall back on. Core
 search / validation / analysis never touch the network, so the server stays
 fully functional local-only when upstreams are down.
 
-## Compliance (Scryfall Fan Content)
+## Data sources & compliance
+
+Four external sources feed the engine; their standing differs and is stated
+honestly:
+
+- **Scryfall** — the card database, via the officially blessed bulk-data
+  exports. Fully sanctioned; compliance details below.
+- **EDHREC** (recommendations, themes, commander profiles) — via
+  `json.edhrec.com`, an **unofficial endpoint with no published API terms**.
+  It is widely used by third-party tools, but it could change or disappear
+  without notice. Responses are TTL-cached and every EDHREC-backed feature
+  degrades gracefully (the tool reports enrichment as unavailable rather than
+  failing the request).
+- **Commander Spellbook** (combo detection) — public API, same
+  graceful-degradation treatment.
+- **Commander brackets / Game Changers** — WotC's published list, cached.
+
+Durability of _your_ data: decks and snapshots are persisted (`decks.json`
+under the data dir) and survive restarts; the owned-card **collection is
+session-only by design** and resets on restart.
+
+### Scryfall Fan Content
 
 This project honors [Scryfall's Fan Content terms](https://scryfall.com/docs/api):
 
