@@ -35,12 +35,45 @@ fn advisory(err: &EngineError) -> Element {
                 }
             }
         },
+        // Known engine codes map to human states — never raw strings with
+        // internal deck UUIDs (audit find, think:186).
+        EngineError::Engine { code, .. } if code == "INELIGIBLE_COMMANDER" => rsx! {
+            div { class: "ic-callout", "data-degraded": "no-commander",
+                Ico { svg: icons::INFO_CIRCLE }
+                span {
+                    b { "No commander set. " }
+                    "Pick one in the command zone to unlock EDHREC recommendations, staples, budget swaps, and combos."
+                }
+            }
+        },
+        EngineError::Engine { code, .. } => rsx! {
+            div { class: "ic-callout", "data-degraded": "error",
+                Ico { svg: icons::WARNING_TRIANGLE }
+                span { "Enrichment failed ({code})." }
+            }
+        },
+        EngineError::DeckNotFound { .. } => rsx! {
+            div { class: "ic-callout", "data-degraded": "error",
+                Ico { svg: icons::WARNING_TRIANGLE }
+                span { "Enrichment failed — the deck could not be resolved." }
+            }
+        },
         other => rsx! {
             div { class: "ic-callout", "data-degraded": "error",
                 Ico { svg: icons::WARNING_TRIANGLE }
                 span { "{other}" }
             }
         },
+    }
+}
+
+/// Dedupe key so the same failure renders once across the four surfaces.
+fn err_key(err: &EngineError) -> String {
+    match err {
+        EngineError::Engine { code, .. } => code.clone(),
+        EngineError::UpstreamUnavailable { .. } => "UPSTREAM_UNAVAILABLE".to_string(),
+        EngineError::DeckNotFound { .. } => "DECK_NOT_FOUND".to_string(),
+        other => other.to_string(),
     }
 }
 
@@ -199,66 +232,83 @@ pub fn MetaCards(deck_id: String, version: u64) -> Element {
             }
             match &*enrich.read() {
                 Some(Some((recs, staples, swaps, combos))) => rsx! {
-                    match recs {
-                        Ok(r) => rsx! {
-                            RecList { title: "Recommendations", items: r.recommendations.clone(), deck_id: deck_id.clone() }
-                        },
-                        Err(e) => advisory(e),
-                    }
-                    match staples {
-                        Ok(s) => rsx! {
-                            RecList { title: "Missing staples", items: s.missing.clone(), deck_id: deck_id.clone() }
-                        },
-                        Err(e) => advisory(e),
-                    }
-                    match swaps {
-                        Ok(s) => rsx! {
-                            if !s.swaps.is_empty() {
-                                div { class: "ic-h", style: "margin-top: var(--space-4);",
-                                    "Budget swaps"
-                                    span { class: "ic-h__c",
-                                        "min-buy ${s.current_min_buy_usd:.0} → ${s.projected_min_buy_usd:.0}"
-                                    }
-                                }
-                                div { class: "ic-rows",
-                                    for swap in s.swaps.iter().take(5).cloned() {
-                                        div { class: "ic-row",
-                                            span { class: "ic-row__k", "−${swap.savings:.0}" }
-                                            span { class: "ic-row__names",
-                                                "{swap.out.name} → {swap.replacement.name}"
-                                            }
-                                            span { class: "ic-row__n", "{swap.roles_matched.join(\", \")}" }
-                                        }
-                                    }
-                                }
+                    // One advisory per unique failure — the same error must not
+                    // render four times down the rail (think:186).
+                    {
+                        let mut seen: Vec<String> = Vec::new();
+                        let advisories: Vec<Element> = [
+                            recs.as_ref().err(),
+                            staples.as_ref().err(),
+                            swaps.as_ref().err(),
+                            combos.as_ref().err(),
+                        ]
+                        .into_iter()
+                        .flatten()
+                        .filter(|e| {
+                            let k = err_key(e);
+                            if seen.contains(&k) {
+                                false
+                            } else {
+                                seen.push(k);
+                                true
                             }
-                        },
-                        Err(e) => advisory(e),
+                        })
+                        .map(advisory)
+                        .collect();
+                        rsx! {
+                            for a in advisories {
+                                {a}
+                            }
+                        }
                     }
-                    match combos {
-                        Ok(c) => rsx! {
+                    if let Ok(r) = recs {
+                        RecList { title: "Recommendations", items: r.recommendations.clone(), deck_id: deck_id.clone() }
+                    }
+                    if let Ok(s) = staples {
+                        RecList { title: "Missing staples", items: s.missing.clone(), deck_id: deck_id.clone() }
+                    }
+                    if let Ok(s) = swaps {
+                        if !s.swaps.is_empty() {
                             div { class: "ic-h", style: "margin-top: var(--space-4);",
-                                "Combos"
-                                span { class: "ic-h__c", "{c.included_count} in deck · {c.almost_count} almost" }
-                            }
-                            if c.combos.is_empty() {
-                                div { style: "font: var(--type-body-sm); color: var(--text-muted);",
-                                    "No known two-card combos."
+                                "Budget swaps"
+                                span { class: "ic-h__c",
+                                    "min-buy ${s.current_min_buy_usd:.0} → ${s.projected_min_buy_usd:.0}"
                                 }
                             }
-                            for combo in c.combos.iter().take(5).cloned() {
-                                div { class: "ic-push",
-                                    span { class: "ic-push__k",
-                                        if combo.confidence.as_deref() == Some("almost") { "almost" } else { "in deck" }
-                                    }
-                                    span { class: "ic-push__v",
-                                        "{combo.pieces.join(\" + \")} "
-                                        em { "→ {combo.produces.join(\", \")}" }
+                            div { class: "ic-rows",
+                                for swap in s.swaps.iter().take(5).cloned() {
+                                    div { class: "ic-row",
+                                        span { class: "ic-row__k", "−${swap.savings:.0}" }
+                                        span { class: "ic-row__names",
+                                            "{swap.out.name} → {swap.replacement.name}"
+                                        }
+                                        span { class: "ic-row__n", "{swap.roles_matched.join(\", \")}" }
                                     }
                                 }
                             }
-                        },
-                        Err(e) => advisory(e),
+                        }
+                    }
+                    if let Ok(c) = combos {
+                        div { class: "ic-h", style: "margin-top: var(--space-4);",
+                            "Combos"
+                            span { class: "ic-h__c", "{c.included_count} in deck · {c.almost_count} almost" }
+                        }
+                        if c.combos.is_empty() {
+                            div { style: "font: var(--type-body-sm); color: var(--text-muted);",
+                                "No known two-card combos."
+                            }
+                        }
+                        for combo in c.combos.iter().take(5).cloned() {
+                            div { class: "ic-push",
+                                span { class: "ic-push__k",
+                                    if combo.confidence.as_deref() == Some("almost") { "almost" } else { "in deck" }
+                                }
+                                span { class: "ic-push__v",
+                                    "{combo.pieces.join(\" + \")} "
+                                    em { "→ {combo.produces.join(\", \")}" }
+                                }
+                            }
+                        }
                     }
                 },
                 Some(None) => rsx! {
