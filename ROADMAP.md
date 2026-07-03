@@ -1,23 +1,5 @@
 # Roadmap — mtg-edh-mcp-4d66ba
 
-## Pending
-
-- [ ] **GUI · Browse pagination — surface next_cursor as load-more** — Audit find (think:186): card_search returns next_cursor and Browse drops it — users see exactly one page of results with no way to continue (zero cursor references in browse.rs). Work: a 'Load more' affordance appending the next page (accumulate results, keep the cursor in a signal, reset on query change), plus the total shown ('120 of 4,382') so the truncation is honest rather than silent.
-  - deps: gui-ux-polish
-  - acceptance: A broad search can page through all results via load-more
-  - acceptance: Result count shows returned-of-total
-  - acceptance: Cursor resets on query change; owned-only filter still composes
-- [ ] **GUI · Make the TopBar '⌘K Search the universe' real (it currently does nothing)** — Audit find (think:186) — fake UI: the TopBar 'Search the universe ⌘K' span has role=button and tabindex but NO onclick; the actual ⌘K listener is registered by the Oracle (Workbench-only) and focuses the Oracle ask input, not a search. Work: make the affordance honest — clicking it (and ⌘K globally, registered once in the shell, not per-screen) navigates to Browse and focuses the search input; the Oracle input gets a different binding (⌘J or none). Alternative if search-focus is judged wrong: remove the affordance entirely — decorative chrome that promises a missing feature is worse than nothing.
-  - deps: gui-ux-polish
-  - acceptance: Clicking the TopBar search affordance focuses a real search (Browse) from any screen
-  - acceptance: ⌘K registered once globally; behavior consistent regardless of active screen
-  - acceptance: No affordance remains that has no handler (grep role=button without onclick)
-- [ ] **GUI · Meta rail error states — no raw engine strings with UUIDs** — Audit find (think:186): with no commander set, the Meta rail renders 'engine error [INELIGIBLE_COMMANDER]: deck <uuid> has no resolvable commander' — three times, raw, with the internal deck UUID. This violates the enrichment degradation matrix (think:137: unavailable upstream renders as an honest, friendly empty state). Work: map the known error codes to human states — INELIGIBLE_COMMANDER → 'Set a commander to see EDHREC recommendations' (with a jump-to-command-zone link), UPSTREAM_UNAVAILABLE → the existing offline pattern; unknown errors keep the code but drop the UUID; dedupe repeated identical states in the rail.
-  - deps: gui-command-zone
-  - acceptance: Commanderless deck shows a friendly 'set a commander' state in the meta sections, once, with a CTA
-  - acceptance: No raw deck UUIDs render anywhere in the rail
-  - acceptance: Genuine upstream failures keep the existing degradation pattern
-
 ## Done
 
 - [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
@@ -309,6 +291,21 @@
   - acceptance: +/− steppers mutate qty; singleton rejections on + are visible (via gui-add-feedback)
   - acceptance: Browse add accepts a quantity; adding 35 Forest is one action
   - acceptance: Wire proof: a qty-35 basic round-trips and renders ×35
+- [x] **GUI · Browse pagination — surface next_cursor as load-more** — Audit find (think:186): card_search returns next_cursor and Browse drops it — users see exactly one page of results with no way to continue (zero cursor references in browse.rs). Work: a 'Load more' affordance appending the next page (accumulate results, keep the cursor in a signal, reset on query change), plus the total shown ('120 of 4,382') so the truncation is honest rather than silent.
+  - deps: gui-ux-polish
+  - acceptance: A broad search can page through all results via load-more
+  - acceptance: Result count shows returned-of-total
+  - acceptance: Cursor resets on query change; owned-only filter still composes
+- [x] **GUI · Make the TopBar '⌘K Search the universe' real (it currently does nothing)** — Audit find (think:186) — fake UI: the TopBar 'Search the universe ⌘K' span has role=button and tabindex but NO onclick; the actual ⌘K listener is registered by the Oracle (Workbench-only) and focuses the Oracle ask input, not a search. Work: make the affordance honest — clicking it (and ⌘K globally, registered once in the shell, not per-screen) navigates to Browse and focuses the search input; the Oracle input gets a different binding (⌘J or none). Alternative if search-focus is judged wrong: remove the affordance entirely — decorative chrome that promises a missing feature is worse than nothing.
+  - deps: gui-ux-polish
+  - acceptance: Clicking the TopBar search affordance focuses a real search (Browse) from any screen
+  - acceptance: ⌘K registered once globally; behavior consistent regardless of active screen
+  - acceptance: No affordance remains that has no handler (grep role=button without onclick)
+- [x] **GUI · Meta rail error states — no raw engine strings with UUIDs** — Audit find (think:186): with no commander set, the Meta rail renders 'engine error [INELIGIBLE_COMMANDER]: deck <uuid> has no resolvable commander' — three times, raw, with the internal deck UUID. This violates the enrichment degradation matrix (think:137: unavailable upstream renders as an honest, friendly empty state). Work: map the known error codes to human states — INELIGIBLE_COMMANDER → 'Set a commander to see EDHREC recommendations' (with a jump-to-command-zone link), UPSTREAM_UNAVAILABLE → the existing offline pattern; unknown errors keep the code but drop the UUID; dedupe repeated identical states in the rail.
+  - deps: gui-command-zone
+  - acceptance: Commanderless deck shows a friendly 'set a commander' state in the meta sections, once, with a CTA
+  - acceptance: No raw deck UUIDs render anywhere in the rail
+  - acceptance: Genuine upstream failures keep the existing degradation pattern
 - [x] **GUI · Command zone editing — set/change commander, partners, companion** — Gap audit (think:178-179): the flagship object of a Commander deckbuilder is READ-ONLY — deck_set_commander has a gui/mcp wrapper but zero app call sites; the commander is set once via a blind text field at deck creation and can never be changed; command_zone_kind (partner/background/doctor_companion) is never surfaced; deck_set_companion has no wrapper at all; the CommandZone component only displays. Work: make CommandZone editable — set/replace commander(s) with name autocomplete backed by card_search (reuse the whole-word grammar autocomplete pattern, think:154) filtered to is_commander_eligible; partner/background second slot per command_zone_kind; companion slot (add deck_set_companion wrapper); surface validate_commander verdicts inline; replace the create-dialog's blind text input with the same autocomplete. Engine already supports everything — this is GUI + one wrapper.
   - deps: gui-ux-polish
   - acceptance: Commander can be set, replaced, and cleared from the Workbench CommandZone with autocomplete of eligible cards
