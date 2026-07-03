@@ -1,5 +1,23 @@
 # Roadmap — mtg-edh-mcp-4d66ba
 
+## Pending
+
+- [ ] **GUI · Browse pagination — surface next_cursor as load-more** — Audit find (think:186): card_search returns next_cursor and Browse drops it — users see exactly one page of results with no way to continue (zero cursor references in browse.rs). Work: a 'Load more' affordance appending the next page (accumulate results, keep the cursor in a signal, reset on query change), plus the total shown ('120 of 4,382') so the truncation is honest rather than silent.
+  - deps: gui-ux-polish
+  - acceptance: A broad search can page through all results via load-more
+  - acceptance: Result count shows returned-of-total
+  - acceptance: Cursor resets on query change; owned-only filter still composes
+- [ ] **GUI · Make the TopBar '⌘K Search the universe' real (it currently does nothing)** — Audit find (think:186) — fake UI: the TopBar 'Search the universe ⌘K' span has role=button and tabindex but NO onclick; the actual ⌘K listener is registered by the Oracle (Workbench-only) and focuses the Oracle ask input, not a search. Work: make the affordance honest — clicking it (and ⌘K globally, registered once in the shell, not per-screen) navigates to Browse and focuses the search input; the Oracle input gets a different binding (⌘J or none). Alternative if search-focus is judged wrong: remove the affordance entirely — decorative chrome that promises a missing feature is worse than nothing.
+  - deps: gui-ux-polish
+  - acceptance: Clicking the TopBar search affordance focuses a real search (Browse) from any screen
+  - acceptance: ⌘K registered once globally; behavior consistent regardless of active screen
+  - acceptance: No affordance remains that has no handler (grep role=button without onclick)
+- [ ] **GUI · Meta rail error states — no raw engine strings with UUIDs** — Audit find (think:186): with no commander set, the Meta rail renders 'engine error [INELIGIBLE_COMMANDER]: deck <uuid> has no resolvable commander' — three times, raw, with the internal deck UUID. This violates the enrichment degradation matrix (think:137: unavailable upstream renders as an honest, friendly empty state). Work: map the known error codes to human states — INELIGIBLE_COMMANDER → 'Set a commander to see EDHREC recommendations' (with a jump-to-command-zone link), UPSTREAM_UNAVAILABLE → the existing offline pattern; unknown errors keep the code but drop the UUID; dedupe repeated identical states in the rail.
+  - deps: gui-command-zone
+  - acceptance: Commanderless deck shows a friendly 'set a commander' state in the meta sections, once, with a CTA
+  - acceptance: No raw deck UUIDs render anywhere in the rail
+  - acceptance: Genuine upstream failures keep the existing degradation pattern
+
 ## Done
 
 - [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
@@ -270,10 +288,27 @@
   - acceptance: budget tools can treat owned cards as already-acquired ($0) so the buy cost reflects only un-owned cards
   - acceptance: Opt-in; with no collection the budget output is identical to today
   - acceptance: Pure budget core stays IO-free; the collection is passed in at the tool layer; unit + tool tests
+- [x] **Fix · Test data isolation — round-trip tests must never touch the user's decks.json** — Empirical audit find (think:186): the stdio + http round-trip tests run against the repo's real data dir; the LIVE app's deck switcher showed 8 leftover test decks with indistinguishable duplicate names ('stdio round-trip' ×4, 'e2e round-trip' ×4). Since deck persistence landed, every test run pollutes the user's actual decks.json. Fix: both round-trips take a temp MCP_DATA_DIR pointed at a copy/symlink of the card index (they need a real index — the cold-start and restart tests already model the temp-dir pattern); one cleanup note in the report tells the user to prune existing test decks (now deletable in-app). Small, do first — it's a bug, and every future test run makes it worse.
+  - deps: release-deck-persistence
+  - acceptance: stdio + http round-trips run against a temp data dir (real index, isolated decks.json)
+  - acceptance: A full ignored-tests run leaves the repo decks.json byte-identical
+  - acceptance: All four round-trips still green
+- [x] **GUI · Mutation feedback — no silent verdicts, ever** — Empirical audit find (think:186) — the worst basics gap: every deck_add/deck_remove call site is `let _ =`; verdicts (rejected/added_illegal) and transport errors vanish. PROVEN LIVE: adding Sol Ring twice — the second click was silently rejected by the singleton rule with ZERO feedback; a user cannot tell a successful click from a no-op. Work: (a) a small toast/flash primitive in the design system (the Oracle's `flash` signal is a seed pattern; Manabase tokens, auto-dismiss, data-toast attrs for scrutiny); (b) every mutation call site surfaces its outcome — added ('Sol Ring added'), added_illegal (warning + why), rejected (danger + the verdict text via the existing violation_text helper), Err (transport error); (c) sweep ALL `let _ = client.` sites (browse add, meta rec add, workbench remove, snapshot, collection ops, oracle apply) — grep-auditable acceptance: zero `let _ = client.` remains in gui/app.
+  - deps: gui-deck-lifecycle
+  - acceptance: Toast/flash primitive exists (tokens, auto-dismiss, mechanically probeable)
+  - acceptance: Add-rejected and added-illegal outcomes are visibly distinct from success at every mutation site
+  - acceptance: grep 'let _ = client' in gui/app/src returns nothing
+  - acceptance: Empirical re-run of the double-Sol-Ring flow shows the rejection
 - [x] **Portfolio · Support links — GitHub Sponsors + Buy Me a Coffee** — Human decision (think:164, 2026-07-01): portfolio direction reaffirmed; monetization = casual donations only. Add .github/FUNDING.yml (github: AlrikOlson + buy_me_a_coffee) so GitHub renders the Sponsor button, and a short Support section in README.md. GitHub Sponsors is the 2026 default for OSS repos (0% fee on personal sponsorships); Buy Me a Coffee per the user's ask. The BMAC handle must be claimed by the user (guessed as alrikolson).
   - acceptance: ./.github/FUNDING.yml exists with github + buy_me_a_coffee entries
   - acceptance: README has a Support section linking both
   - acceptance: ROADMAP.md view regenerated
+- [x] **GUI · Quantities — visible ×N and steppers (35 basics must not be 35 clicks)** — Empirical audit find (think:186): DeckCardEntry.qty is tracked and summed into the 3/100 counter, but rows NEVER render the quantity — a two-copy state renders as one unmarked row (proven live); there are no +/− steppers; every add site hardcodes qty 1, so a Commander deck's ~35 basic lands are 35 separate clicks. Work: (a) rows (list + card views) render ×N whenever qty > 1; (b) +/− steppers on deck rows (deck_add/deck_remove already take (oracle_id, qty) pairs — plus is singleton-rejected for non-basics, which gui-add-feedback will surface properly); (c) a qty field next to the Browse Inspector's Add button (default 1) so basics can be added in bulk. Depends on gui-add-feedback so the stepper's rejections are visible.
+  - deps: gui-add-feedback
+  - acceptance: Rows show ×N for qty > 1 in both list and cards views
+  - acceptance: +/− steppers mutate qty; singleton rejections on + are visible (via gui-add-feedback)
+  - acceptance: Browse add accepts a quantity; adding 35 Forest is one action
+  - acceptance: Wire proof: a qty-35 basic round-trips and renders ×35
 - [x] **GUI · Command zone editing — set/change commander, partners, companion** — Gap audit (think:178-179): the flagship object of a Commander deckbuilder is READ-ONLY — deck_set_commander has a gui/mcp wrapper but zero app call sites; the commander is set once via a blind text field at deck creation and can never be changed; command_zone_kind (partner/background/doctor_companion) is never surfaced; deck_set_companion has no wrapper at all; the CommandZone component only displays. Work: make CommandZone editable — set/replace commander(s) with name autocomplete backed by card_search (reuse the whole-word grammar autocomplete pattern, think:154) filtered to is_commander_eligible; partner/background second slot per command_zone_kind; companion slot (add deck_set_companion wrapper); surface validate_commander verdicts inline; replace the create-dialog's blind text input with the same autocomplete. Engine already supports everything — this is GUI + one wrapper.
   - deps: gui-ux-polish
   - acceptance: Commander can be set, replaced, and cleared from the Workbench CommandZone with autocomplete of eligible cards
@@ -379,38 +414,6 @@
 
 ## Backlog
 
-- [ ] **Fix · Test data isolation — round-trip tests must never touch the user's decks.json** — Empirical audit find (think:186): the stdio + http round-trip tests run against the repo's real data dir; the LIVE app's deck switcher showed 8 leftover test decks with indistinguishable duplicate names ('stdio round-trip' ×4, 'e2e round-trip' ×4). Since deck persistence landed, every test run pollutes the user's actual decks.json. Fix: both round-trips take a temp MCP_DATA_DIR pointed at a copy/symlink of the card index (they need a real index — the cold-start and restart tests already model the temp-dir pattern); one cleanup note in the report tells the user to prune existing test decks (now deletable in-app). Small, do first — it's a bug, and every future test run makes it worse.
-  - deps: release-deck-persistence
-  - acceptance: stdio + http round-trips run against a temp data dir (real index, isolated decks.json)
-  - acceptance: A full ignored-tests run leaves the repo decks.json byte-identical
-  - acceptance: All four round-trips still green
-- [ ] **GUI · Mutation feedback — no silent verdicts, ever** — Empirical audit find (think:186) — the worst basics gap: every deck_add/deck_remove call site is `let _ =`; verdicts (rejected/added_illegal) and transport errors vanish. PROVEN LIVE: adding Sol Ring twice — the second click was silently rejected by the singleton rule with ZERO feedback; a user cannot tell a successful click from a no-op. Work: (a) a small toast/flash primitive in the design system (the Oracle's `flash` signal is a seed pattern; Manabase tokens, auto-dismiss, data-toast attrs for scrutiny); (b) every mutation call site surfaces its outcome — added ('Sol Ring added'), added_illegal (warning + why), rejected (danger + the verdict text via the existing violation_text helper), Err (transport error); (c) sweep ALL `let _ = client.` sites (browse add, meta rec add, workbench remove, snapshot, collection ops, oracle apply) — grep-auditable acceptance: zero `let _ = client.` remains in gui/app.
-  - deps: gui-deck-lifecycle
-  - acceptance: Toast/flash primitive exists (tokens, auto-dismiss, mechanically probeable)
-  - acceptance: Add-rejected and added-illegal outcomes are visibly distinct from success at every mutation site
-  - acceptance: grep 'let _ = client' in gui/app/src returns nothing
-  - acceptance: Empirical re-run of the double-Sol-Ring flow shows the rejection
-- [ ] **GUI · Quantities — visible ×N and steppers (35 basics must not be 35 clicks)** — Empirical audit find (think:186): DeckCardEntry.qty is tracked and summed into the 3/100 counter, but rows NEVER render the quantity — a two-copy state renders as one unmarked row (proven live); there are no +/− steppers; every add site hardcodes qty 1, so a Commander deck's ~35 basic lands are 35 separate clicks. Work: (a) rows (list + card views) render ×N whenever qty > 1; (b) +/− steppers on deck rows (deck_add/deck_remove already take (oracle_id, qty) pairs — plus is singleton-rejected for non-basics, which gui-add-feedback will surface properly); (c) a qty field next to the Browse Inspector's Add button (default 1) so basics can be added in bulk. Depends on gui-add-feedback so the stepper's rejections are visible.
-  - deps: gui-add-feedback
-  - acceptance: Rows show ×N for qty > 1 in both list and cards views
-  - acceptance: +/− steppers mutate qty; singleton rejections on + are visible (via gui-add-feedback)
-  - acceptance: Browse add accepts a quantity; adding 35 Forest is one action
-  - acceptance: Wire proof: a qty-35 basic round-trips and renders ×35
-- [ ] **GUI · Browse pagination — surface next_cursor as load-more** — Audit find (think:186): card_search returns next_cursor and Browse drops it — users see exactly one page of results with no way to continue (zero cursor references in browse.rs). Work: a 'Load more' affordance appending the next page (accumulate results, keep the cursor in a signal, reset on query change), plus the total shown ('120 of 4,382') so the truncation is honest rather than silent.
-  - deps: gui-ux-polish
-  - acceptance: A broad search can page through all results via load-more
-  - acceptance: Result count shows returned-of-total
-  - acceptance: Cursor resets on query change; owned-only filter still composes
-- [ ] **GUI · Make the TopBar '⌘K Search the universe' real (it currently does nothing)** — Audit find (think:186) — fake UI: the TopBar 'Search the universe ⌘K' span has role=button and tabindex but NO onclick; the actual ⌘K listener is registered by the Oracle (Workbench-only) and focuses the Oracle ask input, not a search. Work: make the affordance honest — clicking it (and ⌘K globally, registered once in the shell, not per-screen) navigates to Browse and focuses the search input; the Oracle input gets a different binding (⌘J or none). Alternative if search-focus is judged wrong: remove the affordance entirely — decorative chrome that promises a missing feature is worse than nothing.
-  - deps: gui-ux-polish
-  - acceptance: Clicking the TopBar search affordance focuses a real search (Browse) from any screen
-  - acceptance: ⌘K registered once globally; behavior consistent regardless of active screen
-  - acceptance: No affordance remains that has no handler (grep role=button without onclick)
-- [ ] **GUI · Meta rail error states — no raw engine strings with UUIDs** — Audit find (think:186): with no commander set, the Meta rail renders 'engine error [INELIGIBLE_COMMANDER]: deck <uuid> has no resolvable commander' — three times, raw, with the internal deck UUID. This violates the enrichment degradation matrix (think:137: unavailable upstream renders as an honest, friendly empty state). Work: map the known error codes to human states — INELIGIBLE_COMMANDER → 'Set a commander to see EDHREC recommendations' (with a jump-to-command-zone link), UPSTREAM_UNAVAILABLE → the existing offline pattern; unknown errors keep the code but drop the UUID; dedupe repeated identical states in the rail.
-  - deps: gui-command-zone
-  - acceptance: Commanderless deck shows a friendly 'set a commander' state in the meta sections, once, with a CTA
-  - acceptance: No raw deck UUIDs render anywhere in the rail
-  - acceptance: Genuine upstream failures keep the existing degradation pattern
 - [ ] **GUI · Playtest hands — draw and mulligan sample opening hands with card images** — Gap audit (think:178-179): simulate_deck reports keepable-hand statistics, but the market's headline playtest feature (TopDecked: 'simulate decks on a virtual battlefield') is SEEING hands — draw 7, mulligan, draw for turns. The GUI can do this client-side with a seeded shuffle over the known decklist (deterministic like the engine sim; no engine change) rendered with card images. Fold in the image-pipeline nit: images currently live-hit api.scryfall.com/cards/named per card (a redirect per render) — at hand/grid scale, switch to direct CDN image URIs; that likely means storing image_uris (or scryfall_id-derived CDN paths) in the index at ingest (small engine schema addition) — decide during exploration. Ties the stats to the experience: show the sim's keepable % next to the hand you're looking at.
   - deps: gui-command-zone
   - acceptance: Draw-a-hand UI: 7-card opening hand with images, mulligan (draw N-1), draw-for-turn
