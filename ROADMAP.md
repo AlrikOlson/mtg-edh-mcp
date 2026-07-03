@@ -1,5 +1,20 @@
 # Roadmap — mtg-edh-mcp-4d66ba
 
+## Pending
+
+- [ ] **GUI · Command zone editing — set/change commander, partners, companion** — Gap audit (think:178-179): the flagship object of a Commander deckbuilder is READ-ONLY — deck_set_commander has a gui/mcp wrapper but zero app call sites; the commander is set once via a blind text field at deck creation and can never be changed; command_zone_kind (partner/background/doctor_companion) is never surfaced; deck_set_companion has no wrapper at all; the CommandZone component only displays. Work: make CommandZone editable — set/replace commander(s) with name autocomplete backed by card_search (reuse the whole-word grammar autocomplete pattern, think:154) filtered to is_commander_eligible; partner/background second slot per command_zone_kind; companion slot (add deck_set_companion wrapper); surface validate_commander verdicts inline; replace the create-dialog's blind text input with the same autocomplete. Engine already supports everything — this is GUI + one wrapper.
+  - deps: gui-ux-polish
+  - acceptance: Commander can be set, replaced, and cleared from the Workbench CommandZone with autocomplete of eligible cards
+  - acceptance: Partner/background and companion slots work per command_zone_kind; deck_set_companion wrapper added
+  - acceptance: Ineligible choices are rejected with the engine's verdict shown, not silently
+  - acceptance: Create dialog uses the same autocomplete; gates + a round-trip exercise set_commander from the GUI wrapper
+- [ ] **GUI · Deck lifecycle — delete and rename (decks are currently immortal)** — Gap audit (think:178-179): deck_delete exists in the engine but has NO gui/mcp wrapper and NO UI — and since release-deck-persistence, every deck now persists FOREVER with no way to remove it. Rename doesn't exist end-to-end: DeckStore.setName is implemented but no MCP tool exposes it. Work: (a) engine — add a deck_rename tool over setName (tiny; follow deckTools.ts conventions; update the cardTools registration-inventory test); (b) gui/mcp — deck_delete + deck_rename wrappers; (c) GUI — delete with a confirm dialog (destructive; deck persister already handles delete via onDirty) and inline rename in the DeckSwitcher/TopBar; clear active-deck state gracefully when the active deck is deleted (fall back like restore_session does).
+  - deps: release-deck-persistence
+  - acceptance: A deck can be deleted from the UI with confirmation; the persisted decks.json reflects it after restart
+  - acceptance: A deck can be renamed inline; deck_rename engine tool + wrapper exist with tests
+  - acceptance: Deleting the active deck falls back gracefully (no wedged pointer)
+  - acceptance: All gates green incl. the tool-inventory test
+
 ## Done
 
 - [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
@@ -367,18 +382,6 @@
 
 ## Backlog
 
-- [ ] **GUI · Command zone editing — set/change commander, partners, companion** — Gap audit (think:178-179): the flagship object of a Commander deckbuilder is READ-ONLY — deck_set_commander has a gui/mcp wrapper but zero app call sites; the commander is set once via a blind text field at deck creation and can never be changed; command_zone_kind (partner/background/doctor_companion) is never surfaced; deck_set_companion has no wrapper at all; the CommandZone component only displays. Work: make CommandZone editable — set/replace commander(s) with name autocomplete backed by card_search (reuse the whole-word grammar autocomplete pattern, think:154) filtered to is_commander_eligible; partner/background second slot per command_zone_kind; companion slot (add deck_set_companion wrapper); surface validate_commander verdicts inline; replace the create-dialog's blind text input with the same autocomplete. Engine already supports everything — this is GUI + one wrapper.
-  - deps: gui-ux-polish
-  - acceptance: Commander can be set, replaced, and cleared from the Workbench CommandZone with autocomplete of eligible cards
-  - acceptance: Partner/background and companion slots work per command_zone_kind; deck_set_companion wrapper added
-  - acceptance: Ineligible choices are rejected with the engine's verdict shown, not silently
-  - acceptance: Create dialog uses the same autocomplete; gates + a round-trip exercise set_commander from the GUI wrapper
-- [ ] **GUI · Deck lifecycle — delete and rename (decks are currently immortal)** — Gap audit (think:178-179): deck_delete exists in the engine but has NO gui/mcp wrapper and NO UI — and since release-deck-persistence, every deck now persists FOREVER with no way to remove it. Rename doesn't exist end-to-end: DeckStore.setName is implemented but no MCP tool exposes it. Work: (a) engine — add a deck_rename tool over setName (tiny; follow deckTools.ts conventions; update the cardTools registration-inventory test); (b) gui/mcp — deck_delete + deck_rename wrappers; (c) GUI — delete with a confirm dialog (destructive; deck persister already handles delete via onDirty) and inline rename in the DeckSwitcher/TopBar; clear active-deck state gracefully when the active deck is deleted (fall back like restore_session does).
-  - deps: release-deck-persistence
-  - acceptance: A deck can be deleted from the UI with confirmation; the persisted decks.json reflects it after restart
-  - acceptance: A deck can be renamed inline; deck_rename engine tool + wrapper exist with tests
-  - acceptance: Deleting the active deck falls back gracefully (no wedged pointer)
-  - acceptance: All gates green incl. the tool-inventory test
 - [ ] **GUI · Playtest hands — draw and mulligan sample opening hands with card images** — Gap audit (think:178-179): simulate_deck reports keepable-hand statistics, but the market's headline playtest feature (TopDecked: 'simulate decks on a virtual battlefield') is SEEING hands — draw 7, mulligan, draw for turns. The GUI can do this client-side with a seeded shuffle over the known decklist (deterministic like the engine sim; no engine change) rendered with card images. Fold in the image-pipeline nit: images currently live-hit api.scryfall.com/cards/named per card (a redirect per render) — at hand/grid scale, switch to direct CDN image URIs; that likely means storing image_uris (or scryfall_id-derived CDN paths) in the index at ingest (small engine schema addition) — decide during exploration. Ties the stats to the experience: show the sim's keepable % next to the hand you're looking at.
   - deps: gui-command-zone
   - acceptance: Draw-a-hand UI: 7-card opening hand with images, mulligan (draw N-1), draw-for-turn
