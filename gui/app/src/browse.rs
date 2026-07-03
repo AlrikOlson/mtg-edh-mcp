@@ -322,25 +322,43 @@ fn InspectorBody(card: CardRef, detail: CardDetail, printings: Vec<Printing>) ->
             {
                 let state = use_app_state();
                 let oracle_id = card.oracle_id.clone();
+                let card_name = card.name.clone();
+                let mut qty_input = use_signal(|| 1u32);
                 let has_deck = (state.active_deck_id)().is_some();
                 rsx! {
-                    Button {
-                        variant: "primary".to_string(),
-                        full_width: true,
-                        disabled: !has_deck,
-                        onclick: move |_| {
-                            let conn = (state.conn)();
-                            let deck_id = (state.active_deck_id)();
-                            let id = oracle_id.clone();
-                            spawn(async move {
-                                if let (Some(client), Some(deck_id)) = (ready_client(&conn), deck_id) {
-                                    let _ = client.deck_add(&deck_id, &[(id, 1)]).await;
-                                    let mut rev = state.deck_rev;
-                                    rev += 1;
-                                }
-                            });
-                        },
-                        if has_deck { "Add to deck" } else { "No active deck" }
+                    div { style: "display: flex; gap: var(--space-2); align-items: center;",
+                        div { class: "mb-input mb-input--sm", style: "width: 64px;",
+                            input {
+                                r#type: "number",
+                                min: "1",
+                                max: "99",
+                                "data-add": "qty",
+                                value: "{qty_input()}",
+                                oninput: move |e| qty_input.set(e.value().parse().unwrap_or(1).max(1)),
+                            }
+                        }
+                        Button {
+                            variant: "primary".to_string(),
+                            full_width: true,
+                            disabled: !has_deck,
+                            onclick: move |_| {
+                                let conn = (state.conn)();
+                                let deck_id = (state.active_deck_id)();
+                                let id = oracle_id.clone();
+                                let name = card_name.clone();
+                                let qty = qty_input();
+                                spawn(async move {
+                                    if let (Some(client), Some(deck_id)) = (ready_client(&conn), deck_id) {
+                                        let res = client.deck_add(&deck_id, &[(id, qty)]).await;
+                                        let label = if qty > 1 { format!("{qty}× {name}") } else { name };
+                                        crate::state::toast_add_outcome(state, &label, &res);
+                                        let mut rev = state.deck_rev;
+                                        rev += 1;
+                                    }
+                                });
+                            },
+                            if has_deck { "Add to deck" } else { "No active deck" }
+                        }
                     }
                 }
             }

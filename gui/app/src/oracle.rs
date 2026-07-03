@@ -145,16 +145,46 @@ pub fn OracleBar(deck_id: String) -> Element {
                     if !set.cuts.is_empty() {
                         let cuts: Vec<(String, u32)> =
                             set.cuts.iter().map(|c| (c.oracle_id.clone(), 1)).collect();
-                        let _ = client.deck_remove(&deck_id, &cuts).await;
+                        if let Err(e) = client.deck_remove(&deck_id, &cuts).await {
+                            crate::state::toast(state, "danger", format!("Cuts failed: {e}"));
+                        }
                     }
+                    let mut applied: Vec<String> = Vec::new();
                     if !set.adds.is_empty() {
                         let cards: Vec<(String, u32)> =
                             set.adds.iter().map(|c| (c.oracle_id.clone(), 1)).collect();
-                        // Verdicts are the engine's pre-check gate; illegal adds
-                        // are rejected server-side, never silently forced.
-                        let _ = client.deck_add(&deck_id, &cards).await;
+                        // Verdicts are the engine's pre-check gate; report them
+                        // honestly instead of assuming every add landed.
+                        match client.deck_add(&deck_id, &cards).await {
+                            Ok(r) => {
+                                let mut rejected: Vec<String> = Vec::new();
+                                for v in &r.verdicts {
+                                    let name = set
+                                        .adds
+                                        .iter()
+                                        .find(|c| c.oracle_id == v.oracle_id)
+                                        .map(|c| c.name.clone())
+                                        .unwrap_or_else(|| v.oracle_id.clone());
+                                    if v.status == "rejected" {
+                                        rejected.push(name);
+                                    } else {
+                                        applied.push(name);
+                                    }
+                                }
+                                if !rejected.is_empty() {
+                                    crate::state::toast(
+                                        state,
+                                        "danger",
+                                        format!("Rejected: {}", rejected.join(", ")),
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                crate::state::toast(state, "danger", format!("Adds failed: {e}"))
+                            }
+                        }
                     }
-                    flash.set(set.adds.iter().map(|c| c.name.clone()).collect());
+                    flash.set(applied);
                     rev += 1;
                 }
             });
@@ -511,41 +541,50 @@ async fn project_whatif(
     .await?;
     finish(&mut caps, format!("{} (what-if)", snap.snapshot_id));
 
-    // Apply the change-set transiently.
+    // Apply the change-set transiently. A failed apply must NOT early-return:
+    // the restore at the end of this fn is what makes the projection invisible
+    // to the real deck, so a failure only skips the analysis.
+    let mut apply_ok = true;
     if !set.cuts.is_empty() {
         let cuts: Vec<(String, u32)> = set.cuts.iter().map(|c| (c.oracle_id.clone(), 1)).collect();
-        let _ = client.deck_remove(deck_id, &cuts).await;
+        apply_ok &= client.deck_remove(deck_id, &cuts).await.is_ok();
     }
-    if !set.adds.is_empty() {
+    if apply_ok && !set.adds.is_empty() {
         let adds: Vec<(String, u32)> = set.adds.iter().map(|c| (c.oracle_id.clone(), 1)).collect();
-        let _ = client.deck_add(deck_id, &adds).await;
+        apply_ok &= client.deck_add(deck_id, &adds).await.is_ok();
     }
 
-    // Analyze the projected deck (fast sim: 300 trials, fixed seed).
-    let curve = step(
-        &mut caps,
-        "analyze_curve",
-        "projected".to_string(),
-        client.analyze_curve(deck_id),
-    )
-    .await;
-    if let Some(c) = &curve {
-        finish(&mut caps, format!("{} cards", c.total));
-    }
-    let stats = client.analyze_stats(deck_id).await.ok();
-    let sim = step(
-        &mut caps,
-        "simulate_deck",
-        "projected seed:42 trials:300".to_string(),
-        client.simulate_deck(deck_id, Some(42), Some(300)),
-    )
-    .await;
-    if let Some(s) = &sim {
-        finish(
+    // Analyze the projected deck (fast sim: 300 trials, fixed seed). Skipped
+    // when the apply failed — projecting an unchanged deck would lie.
+    let (curve, stats, sim) = if apply_ok {
+        let curve = step(
             &mut caps,
-            format!("keepable {:.1}%", s.keepable_rate * 100.0),
-        );
-    }
+            "analyze_curve",
+            "projected".to_string(),
+            client.analyze_curve(deck_id),
+        )
+        .await;
+        if let Some(c) = &curve {
+            finish(&mut caps, format!("{} cards", c.total));
+        }
+        let stats = client.analyze_stats(deck_id).await.ok();
+        let sim = step(
+            &mut caps,
+            "simulate_deck",
+            "projected seed:42 trials:300".to_string(),
+            client.simulate_deck(deck_id, Some(42), Some(300)),
+        )
+        .await;
+        if let Some(s) = &sim {
+            finish(
+                &mut caps,
+                format!("keepable {:.1}%", s.keepable_rate * 100.0),
+            );
+        }
+        (curve, stats, sim)
+    } else {
+        (None, None, None)
+    };
 
     // ALWAYS restore — the projection must be invisible to the real deck.
     let restored = step(

@@ -55,15 +55,7 @@ fn use_card_suggestions(input: Signal<String>, prefix: &'static str) -> impl Fn(
     move || suggestions.read().clone().unwrap_or_default()
 }
 
-/// Extract a human line from an engine Violation value.
-fn violation_text(v: &mtg_edh_mcp_client::serde_json::Value) -> String {
-    v.get("message")
-        .or_else(|| v.get("detail"))
-        .or_else(|| v.get("code"))
-        .and_then(|m| m.as_str())
-        .unwrap_or("violation")
-        .to_string()
-}
+use crate::state::{toast, toast_add_outcome, violation_text};
 
 /// Deck entry joined with its card detail (via one batched card_get).
 #[derive(Clone, PartialEq)]
@@ -342,7 +334,9 @@ pub fn WorkbenchScreen() -> Element {
                                         let deck_id = (state.active_deck_id)();
                                         spawn(async move {
                                             if let (Some(client), Some(deck_id)) = (ready_client(&conn), deck_id) {
-                                                let _ = client.deck_remove(&deck_id, &[(oracle_id, 1)]).await;
+                                                if let Err(e) = client.deck_remove(&deck_id, &[(oracle_id, 1)]).await {
+                                                    toast(state, "danger", format!("Remove failed: {e}"));
+                                                }
                                                 rev += 1;
                                             }
                                         });

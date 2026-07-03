@@ -8,7 +8,8 @@
 //! mirroring the engine's graceful-degradation ethos.
 
 use dioxus::prelude::*;
-use mtg_edh_mcp_client::{serde_json, DataStatusResult, EngineClient};
+use mtg_edh_mcp_client::{serde_json, DataStatusResult, DeckAddResult, EngineClient, EngineError};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
@@ -57,6 +58,75 @@ pub struct AppState {
     /// Card-data status from the connected engine (release-first-run): whether
     /// an index exists + any in-flight ingest. None until the first fetch.
     pub data: Signal<Option<DataStatusResult>>,
+    /// Transient mutation feedback (gui-add-feedback): every engine verdict or
+    /// error becomes a visible toast — no silent no-ops, ever.
+    pub toasts: Signal<Vec<Toast>>,
+}
+
+/// One toast. `tone` is a Badge tone: "success" | "warning" | "danger" | "info".
+#[derive(Clone, PartialEq)]
+pub struct Toast {
+    pub id: u64,
+    pub tone: &'static str,
+    pub msg: String,
+}
+
+static NEXT_TOAST_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Push a toast (newest last, capped at 4). Native auto-dismisses after 5s;
+/// every platform can dismiss by click.
+pub fn toast(state: AppState, tone: &'static str, msg: impl Into<String>) {
+    let mut toasts = state.toasts;
+    let id = NEXT_TOAST_ID.fetch_add(1, Ordering::Relaxed);
+    let mut list = toasts();
+    list.push(Toast {
+        id,
+        tone,
+        msg: msg.into(),
+    });
+    while list.len() > 4 {
+        list.remove(0);
+    }
+    toasts.set(list);
+    #[cfg(not(target_arch = "wasm32"))]
+    spawn(async move {
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        let mut list = toasts();
+        list.retain(|t| t.id != id);
+        toasts.set(list);
+    });
+}
+
+/// Extract a human line from an engine Violation value (shared by CommandZone
+/// verdicts and add-outcome toasts).
+pub fn violation_text(v: &serde_json::Value) -> String {
+    v.get("message")
+        .or_else(|| v.get("detail"))
+        .or_else(|| v.get("code"))
+        .and_then(|m| m.as_str())
+        .unwrap_or("violation")
+        .to_string()
+}
+
+/// Toast the outcome of a single-card deck_add — the ok / added-with-violations
+/// / rejected / transport-error cases are all visibly distinct.
+pub fn toast_add_outcome(state: AppState, name: &str, res: &Result<DeckAddResult, EngineError>) {
+    match res {
+        Ok(r) => match r.verdicts.first() {
+            Some(v) if v.status == "ok" => toast(state, "success", format!("{name} added")),
+            Some(v) if v.status == "added_illegal" => toast(
+                state,
+                "warning",
+                format!("{name} added with violations — see Validation"),
+            ),
+            Some(v) => {
+                let why = v.violations.first().map(violation_text).unwrap_or_default();
+                toast(state, "danger", format!("{name} rejected — {why}"));
+            }
+            None => toast(state, "info", format!("{name}: no change")),
+        },
+        Err(e) => toast(state, "danger", format!("{name}: {e}")),
+    }
 }
 
 /// Fetch `data_status` into the shared signal (called at every Ready point and
@@ -201,6 +271,7 @@ pub fn use_provide_app_state() -> AppState {
         hydrated: Signal::new(false),
         whatif: Signal::new(None),
         data: Signal::new(None),
+        toasts: Signal::new(Vec::new()),
     });
     use_effect(move || {
         connect(state);

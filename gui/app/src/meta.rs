@@ -297,15 +297,18 @@ fn RecList(title: &'static str, items: Vec<Recommendation>, deck_id: String) -> 
                         size: "sm".to_string(),
                         onclick: {
                             let id = item.oracle_id.clone();
+                            let name = item.name.clone();
                             let deck_id = deck_id.clone();
                             move |_| {
                                 let conn = (state.conn)();
-                                let (id, deck_id) = (id.clone(), deck_id.clone());
+                                let (id, name, deck_id) = (id.clone(), name.clone(), deck_id.clone());
                                 let mut rev = state.deck_rev;
                                 spawn(async move {
                                     if let Some(client) = ready_client(&conn) {
-                                        // The engine's pre-check verdict gates it.
-                                        let _ = client.deck_add(&deck_id, &[(id, 1)]).await;
+                                        // The engine's pre-check verdict gates it —
+                                        // and the outcome is toasted, never silent.
+                                        let res = client.deck_add(&deck_id, &[(id, 1)]).await;
+                                        crate::state::toast_add_outcome(state, &name, &res);
                                         rev += 1;
                                     }
                                 });

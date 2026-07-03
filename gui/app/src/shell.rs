@@ -65,6 +65,28 @@ pub fn AppShell() -> Element {
         if matches!((state.conn)(), ConnState::Ready(_)) && (state.data)().is_some_and(|d| !d.has_index) {
             DataOnboarding {}
         }
+        // Mutation feedback (gui-add-feedback): every verdict/error surfaces here.
+        if !(state.toasts)().is_empty() {
+            div { style: "position: fixed; bottom: var(--space-4); right: var(--space-4); z-index: 50; display: flex; flex-direction: column; gap: var(--space-2); max-width: 420px;",
+                "data-toast-stack": "",
+                for t in (state.toasts)() {
+                    div {
+                        "data-toast": t.tone,
+                        style: "cursor: pointer; background: var(--surface-overlay); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-3); padding: var(--space-2) var(--space-3);",
+                        onclick: {
+                            let id = t.id;
+                            move |_| {
+                                let mut toasts = state.toasts;
+                                let mut list = toasts();
+                                list.retain(|x| x.id != id);
+                                toasts.set(list);
+                            }
+                        },
+                        Badge { tone: t.tone.to_string(), dot: true, "{t.msg}" }
+                    }
+                }
+            }
+        }
         // Engine-offline banner with retry, per the graceful-degradation ethos.
         if let ConnState::Offline(reason) = (state.conn)() {
             div { style: "position: fixed; bottom: var(--space-4); left: 50%; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: var(--space-3); background: var(--surface-overlay); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-3); padding: var(--space-2_5) var(--space-4);",
@@ -198,10 +220,18 @@ fn TopBar() -> Element {
                         if let (Some(client), Some(deck_id)) =
                             (crate::browse::ready_client(&conn), deck_id)
                         {
-                            if let Ok(snap) = client.deck_snapshot(&deck_id).await {
-                                let mut list = snapshots();
-                                list.push((snap.snapshot_id, snap.version));
-                                snapshots.set(list);
+                            match client.deck_snapshot(&deck_id).await {
+                                Ok(snap) => {
+                                    let mut list = snapshots();
+                                    list.push((snap.snapshot_id.clone(), snap.version));
+                                    snapshots.set(list);
+                                    crate::state::toast(state, "success", "Snapshot taken");
+                                }
+                                Err(e) => crate::state::toast(
+                                    state,
+                                    "danger",
+                                    format!("Snapshot failed: {e}"),
+                                ),
                             }
                         }
                     });

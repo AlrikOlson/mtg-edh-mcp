@@ -333,7 +333,9 @@ pub fn CollectionScreen() -> Element {
                                 let conn = (state.conn)();
                                 spawn(async move {
                                     if let Some(client) = ready_client(&conn) {
-                                        let _ = client.collection_clear().await;
+                                        if let Err(e) = client.collection_clear().await {
+                                            crate::state::toast(state, "danger", format!("Clear failed: {e}"));
+                                        }
                                         rev += 1;
                                     }
                                 });
@@ -363,7 +365,9 @@ fn remove_owned(state: crate::state::AppState, oracle_id: String, mut rev: Signa
                     .into_iter()
                     .filter(|id| *id != oracle_id)
                     .collect();
-                let _ = client.collection_set(&remaining).await;
+                if let Err(e) = client.collection_set(&remaining).await {
+                    crate::state::toast(state, "danger", format!("Remove failed: {e}"));
+                }
                 rev += 1;
             }
         }
