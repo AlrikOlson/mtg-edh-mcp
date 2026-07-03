@@ -417,6 +417,52 @@ async fn cold_start_without_data_dir() {
     std::fs::remove_dir_all(&empty).ok();
 }
 
+/// Deck durability (release-deck-persistence): a deck created in one engine
+/// process must be served by the NEXT engine process from the same data dir —
+/// the exact restart the update-card-data reconnect performs.
+#[tokio::test]
+#[ignore = "spawns node dist/main.js — run `npm run build` first, then `cargo test -- --ignored`"]
+async fn deck_survives_engine_restart() {
+    let root = repo_root();
+    assert!(root.join("dist/main.js").exists());
+    let data = std::env::temp_dir().join(format!("mtg-edh-persist-{}", std::process::id()));
+    std::fs::create_dir_all(&data).expect("mk data dir");
+
+    let spawn = |root: &std::path::Path, data: &std::path::Path| {
+        let mut cmd = tokio::process::Command::new("node");
+        cmd.arg("dist/main.js").current_dir(root).env("MCP_DATA_DIR", data);
+        cmd
+    };
+
+    // First life: create a deck, then shut down cleanly.
+    let client = EngineClient::connect_stdio(spawn(&root, &data))
+        .await
+        .expect("first engine life");
+    let created = client
+        .deck_create(DeckCreateParams {
+            name: "persisted across lives".into(),
+            format: Some("commander".into()),
+            ..Default::default()
+        })
+        .await
+        .expect("deck_create");
+    let deck_id = created.deck_id;
+    client.shutdown().await.ok();
+
+    // Second life: a brand-new child on the same data dir must serve the deck.
+    let client = EngineClient::connect_stdio(spawn(&root, &data))
+        .await
+        .expect("second engine life");
+    let fetched = client.deck_get(&deck_id).await.expect("deck_get after restart");
+    assert_eq!(fetched.deck.deck_id, deck_id);
+    assert_eq!(fetched.deck.name, "persisted across lives");
+    let listed = client.deck_list().await.expect("deck_list after restart");
+    assert!(listed.decks.iter().any(|d| d.deck_id == deck_id));
+    client.shutdown().await.ok();
+
+    std::fs::remove_dir_all(&data).ok();
+}
+
 /// Retry `connect` + a trivial `card_search` until the server answers, up to 30s.
 async fn await_ready(url: &str, principal: &str) -> EngineClient {
     let deadline = Instant::now() + Duration::from_secs(30);

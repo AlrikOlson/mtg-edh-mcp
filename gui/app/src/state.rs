@@ -394,10 +394,10 @@ pub fn connect(state: AppState) {
 }
 
 /// Kick off a card-data ingest and (on native) poll `data_status` each second
-/// until it settles. `reconnect_on_done` is for onboarding — no index means no
-/// live decks to lose. The Settings update flow passes false: the engine's
-/// DeckStore is in-memory, so an automatic engine restart would drop the
-/// session's decks; the user reconnects explicitly instead.
+/// until it settles. On `reconnect_on_done` the app reconnects so a fresh
+/// engine boot serves the new index — safe since decks are engine-persisted
+/// (release-deck-persistence). Callers can pass false to leave the running
+/// engine on the old index until the next launch.
 pub fn run_ingest(state: AppState, force: bool, reconnect_on_done: bool) {
     spawn(async move {
         let ConnState::Ready(client) = (state.conn)() else {

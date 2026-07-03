@@ -406,8 +406,8 @@ fn SettingsDialog(on_close: EventHandler<()>) -> Element {
 }
 
 /// Settings section: card-data freshness + the update action (release-first-run).
-/// Deliberately does NOT auto-restart the engine on completion — the in-memory
-/// DeckStore would drop the session's decks; the user reconnects explicitly.
+/// Auto-reconnects on completion — decks are engine-persisted now
+/// (release-deck-persistence), so an engine restart loses nothing.
 #[component]
 fn CardDataSection() -> Element {
     let state = crate::state::use_app_state();
@@ -431,7 +431,7 @@ fn CardDataSection() -> Element {
                     variant: "secondary".to_string(),
                     size: "sm".to_string(),
                     disabled: busy,
-                    onclick: move |_| run_ingest(state, true, false),
+                    onclick: move |_| run_ingest(state, true, true),
                     "Update card data"
                 }
                 if busy {
@@ -441,19 +441,8 @@ fn CardDataSection() -> Element {
                 }
             }
             if phase == "done" {
-                div { style: "display: flex; align-items: center; gap: var(--space-2);",
-                    Badge { tone: "success".to_string(), dot: true,
-                        "Updated to {fresh.clone().unwrap_or_default()}"
-                    }
-                    span { style: "font: var(--type-body-sm); color: var(--text-secondary);",
-                        "Takes effect after a reconnect — unsaved decks are lost on reconnect."
-                    }
-                    Button {
-                        variant: "ghost".to_string(),
-                        size: "sm".to_string(),
-                        onclick: move |_| connect(state),
-                        "Reconnect now"
-                    }
+                Badge { tone: "success".to_string(), dot: true,
+                    "Updated to {fresh.clone().unwrap_or_default()} — reconnecting…"
                 }
             }
             if phase == "error" {

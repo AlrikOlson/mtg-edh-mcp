@@ -7,10 +7,11 @@
  * HTTP. `MCP_HTTP_PORT` / `MCP_HTTP_HOST` configure the HTTP bind.
  */
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { VersionedStore } from "../ingest/index.js";
 import { CollectionStore } from "../collection/index.js";
 import { CardIndex, DEFAULT_DATA_ROOT, DEFAULT_INDEX_NAME, readSnapshot } from "../index/index.js";
-import { DeckStore } from "../deck/index.js";
+import { DeckPersister, DeckStore } from "../deck/index.js";
 import { cachedSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { IngestRunner } from "./dataTools.js";
 import { startStdio } from "./stdio.js";
@@ -32,9 +33,13 @@ interface Boot {
  * the card tools + card:// resource are simply not registered (ping still works).
  */
 async function boot(): Promise<Boot> {
-  const store = new VersionedStore(process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT);
+  const root = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
+  const store = new VersionedStore(root);
   const snapshot = cachedSnapshotProvider((await readSnapshot(store)) ?? undefined).provider;
   const deckStore = new DeckStore();
+  // Deck durability (release-deck-persistence): load persisted decks, then
+  // write-through on every mutation. One persister on the ONE shared store.
+  new DeckPersister(join(root, "decks.json")).attach(deckStore);
   const version = await store.readCurrent();
   if (version) {
     const dbPath = store.filePath(version, DEFAULT_INDEX_NAME);

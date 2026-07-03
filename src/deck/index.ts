@@ -8,6 +8,8 @@ export {
   type DeckChangeListener,
   type DeckStoreOptions,
   type DeckSnapshot,
+  type DeckStoreDump,
 } from "./deckStore.js";
+export { DeckPersister } from "./persistence.js";
 export { diffDecks, type DeckDiff, type CardQtyChange, type FieldChange } from "./diff.js";
 export { parseDecklist, formatDecklist, type ParsedEntry } from "./decklist.js";
