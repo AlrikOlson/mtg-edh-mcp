@@ -29,14 +29,15 @@ pub use types::{
     AddVerdict, AnalyzeCompositionResult, AnalyzeCurveResult, AnalyzeStatsResult, BracketPushers,
     BracketResult, BudgetPlanResult, BudgetSwap, BudgetSwapsResult, CardDetail, CardGetResult,
     CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, CollectionView, Combo,
+    CompanionRef,
     CombosResult, CostDriver, DataIngestResult, DataStatusResult, Deck, DeckAddResult,
     DeckCardEntry, DeckCreateParams,
     DeckCreateResult, DeckDiffResult, DeckGetResult, DeckListResult, DeckMutateResult,
     DeckSummaryResult, ExportResult, ImportResult, IngestStatus, ManaBaseReport,
     MissingStaplesResult, OwnedCard,
     Printing, Recommendation, RecommendationsResult, ReprintSuggestion, RestoreResult,
-    RoleCoverageResult, RoleGap, SetCommanderResult, SimResult, SnapshotResult, SwapCard,
-    ValidateDeckResult,
+    RoleCoverageResult, RoleGap, SetCommanderResult, SetCompanionResult, SimResult, SnapshotResult,
+    SwapCard, ValidateDeckResult,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -264,11 +265,15 @@ impl EngineClient {
         self.call("deck_remove", args).await
     }
 
-    /// `deck_set_commander` — set commander(s) by name or oracle_id.
+    /// `deck_set_commander` — set/replace commander(s) by name or oracle_id.
+    /// `kind` is the command-zone pairing ("single" | "partner" | "background" |
+    /// "doctor_companion"); None keeps the engine default. An illegal zone comes
+    /// back as ok=false + violations, not an error.
     pub async fn deck_set_commander(
         &self,
         deck_id: &str,
         commanders: &[String],
+        kind: Option<&str>,
     ) -> Result<SetCommanderResult, EngineError> {
         let mut args = Map::new();
         args.insert("deck_id".into(), Value::String(deck_id.to_string()));
@@ -276,7 +281,25 @@ impl EngineClient {
             "commanders".into(),
             Value::Array(commanders.iter().cloned().map(Value::String).collect()),
         );
+        if let Some(kind) = kind {
+            args.insert("command_zone_kind".into(), Value::String(kind.to_string()));
+        }
         self.call("deck_set_commander", args).await
+    }
+
+    /// `deck_set_companion` — declare (or clear, with None) the deck's companion
+    /// by name or oracle_id. Non-companions come back as ok=false + detail.
+    pub async fn deck_set_companion(
+        &self,
+        deck_id: &str,
+        companion: Option<&str>,
+    ) -> Result<SetCompanionResult, EngineError> {
+        let mut args = Map::new();
+        args.insert("deck_id".into(), Value::String(deck_id.to_string()));
+        if let Some(companion) = companion {
+            args.insert("companion".into(), Value::String(companion.to_string()));
+        }
+        self.call("deck_set_companion", args).await
     }
 
     /// `analyze_curve` — the mana-curve histogram.

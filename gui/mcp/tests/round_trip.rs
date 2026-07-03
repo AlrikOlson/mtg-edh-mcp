@@ -354,6 +354,51 @@ async fn round_trip_over_stdio() {
         .expect("deck_add over stdio");
     assert_eq!(added.verdicts.len(), 1);
 
+    // Command zone (gui-command-zone): eligible-by-name applies; ineligible and
+    // non-companion choices come back ok=false with reasons — never silently.
+    if !hits.results.is_empty() {
+        let eligible = client
+            .card_search(CardSearchParams {
+                query: "is:commander".into(),
+                limit: Some(1),
+                ..Default::default()
+            })
+            .await
+            .expect("is:commander search");
+        if let Some(cmdr) = eligible.results.first() {
+            let set = client
+                .deck_set_commander(&deck_id, std::slice::from_ref(&cmdr.name), Some("single"))
+                .await
+                .expect("deck_set_commander (eligible)");
+            assert!(set.ok, "eligible commander should apply: {:?}", set.violations);
+            assert_eq!(set.commanders.len(), 1);
+        }
+        let bad = client
+            .deck_set_commander(&deck_id, &["Forest".into()], Some("single"))
+            .await
+            .expect("deck_set_commander (ineligible)");
+        assert!(!bad.ok, "Forest must be rejected as a commander");
+        assert!(!bad.violations.is_empty(), "rejection must carry violations");
+
+        let comp = client
+            .deck_set_companion(&deck_id, Some("Lurrus of the Dream-Den"))
+            .await
+            .expect("deck_set_companion");
+        assert!(comp.ok, "Lurrus is a companion: {:?}", comp.detail);
+        let not_comp = client
+            .deck_set_companion(&deck_id, Some("Forest"))
+            .await
+            .expect("deck_set_companion (non-companion)");
+        assert!(!not_comp.ok, "Forest is not a companion");
+        assert!(not_comp.detail.is_some());
+        let cleared = client
+            .deck_set_companion(&deck_id, None)
+            .await
+            .expect("deck_set_companion (clear)");
+        assert!(cleared.ok);
+        assert!(cleared.companion.is_none());
+    }
+
     // The stdio server is one long-lived process — the single "local" session
     // must see the deck across calls (no per-request store resets).
     let validated = client.validate_deck(&deck_id).await.expect("validate_deck");

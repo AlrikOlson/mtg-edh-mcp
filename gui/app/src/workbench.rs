@@ -11,6 +11,60 @@ use dioxus::prelude::*;
 use mtg_edh_mcp_client::{CardDetail, Deck, DeckCreateParams};
 use std::collections::{HashMap, HashSet};
 
+/// card_search-backed name suggestions (the collection.rs whole-word-fallback
+/// pattern), with an optional grammar prefix like "is:commander" so the engine
+/// pre-filters eligibility. An unmatched trailing partial word yields nothing,
+/// so retry on the completed head words.
+fn use_card_suggestions(input: Signal<String>, prefix: &'static str) -> impl Fn() -> Vec<String> {
+    let state = use_app_state();
+    let suggestions = use_resource(move || {
+        let conn = (state.conn)();
+        let frag = input().trim().to_string();
+        async move {
+            if frag.len() < 3 {
+                return Vec::new();
+            }
+            let Some(client) = ready_client(&conn) else {
+                return Vec::new();
+            };
+            let search = |q: String| {
+                let client = client.clone();
+                async move {
+                    let query = if prefix.is_empty() { q } else { format!("{prefix} {q}") };
+                    client
+                        .card_search(mtg_edh_mcp_client::CardSearchParams {
+                            query,
+                            limit: Some(6),
+                            ..Default::default()
+                        })
+                        .await
+                        .map(|r| r.results.into_iter().map(|c| c.name).collect::<Vec<_>>())
+                        .unwrap_or_default()
+                }
+            };
+            let full = search(frag.clone()).await;
+            if !full.is_empty() {
+                return full;
+            }
+            match frag.rsplit_once(' ') {
+                Some((head, _)) if head.len() >= 3 => search(head.to_string()).await,
+                _ => Vec::new(),
+            }
+        }
+    });
+    move || suggestions.read().clone().unwrap_or_default()
+}
+
+/// Extract a human line from an engine Violation value.
+fn violation_text(v: &mtg_edh_mcp_client::serde_json::Value) -> String {
+    v.get("message")
+        .or_else(|| v.get("detail"))
+        .or_else(|| v.get("code"))
+        .and_then(|m| m.as_str())
+        .unwrap_or("violation")
+        .to_string()
+}
+
 /// Deck entry joined with its card detail (via one batched card_get).
 #[derive(Clone, PartialEq)]
 struct DeckCard {
@@ -139,6 +193,7 @@ pub fn WorkbenchScreen() -> Element {
     let mut show_create = use_signal(|| false);
     let mut new_name = use_signal(String::new);
     let mut new_commander = use_signal(String::new);
+    let create_suggest = use_card_suggestions(new_commander, "is:commander");
 
     // The active deck + joined card details (deck_get lean + one batched card_get).
     let deck_data = use_resource(move || {
@@ -151,6 +206,7 @@ pub fn WorkbenchScreen() -> Element {
             let deck = client.deck_get(&deck_id).await.ok()?.deck;
             let mut ids: Vec<String> = deck.cards.iter().map(|c| c.oracle_id.clone()).collect();
             ids.extend(deck.commanders.iter().cloned());
+            ids.extend(deck.companion.iter().cloned());
             let details: HashMap<String, CardDetail> = if ids.is_empty() {
                 HashMap::new()
             } else {
@@ -227,13 +283,20 @@ pub fn WorkbenchScreen() -> Element {
                         }
                     }
                     let commander_detail = deck.commanders.first().and_then(|id| details.get(id)).cloned();
+                    let partner_detail = deck.commanders.get(1).and_then(|id| details.get(id)).cloned();
+                    let companion_detail = deck.companion.as_ref().and_then(|id| details.get(id)).cloned();
                     let errors = validation.as_ref().map(|v| v.errors.len()).unwrap_or(0);
                     let rail_deck_id = deck.deck_id.clone();
                     let rail_version = deck.version;
                     rsx! {
                         div { style: "flex: 1; display: flex; min-height: 0;",
                             div { style: "flex: 1; min-width: 400px; overflow-y: auto; display: flex; flex-direction: column;",
-                        CommandZone { deck: deck.clone(), commander: commander_detail }
+                        CommandZone {
+                            deck: deck.clone(),
+                            commander: commander_detail,
+                            partner: partner_detail,
+                            companion: companion_detail,
+                        }
                             crate::oracle::OracleBar { deck_id: deck.deck_id.clone() }
                         DeckToolbar { deck: deck.clone(), errors, view, group_by, sort_by }
                         div { style: "padding: 0 var(--space-4) var(--space-2);",
@@ -338,8 +401,14 @@ pub fn WorkbenchScreen() -> Element {
                                 input {
                                     r#type: "text",
                                     placeholder: "Atraxa, Praetors' Voice",
+                                    list: "create-cmdr-suggest",
                                     value: new_commander(),
-                                    onchange: move |e| new_commander.set(e.value()),
+                                    oninput: move |e| new_commander.set(e.value()),
+                                }
+                            }
+                            datalist { id: "create-cmdr-suggest",
+                                for name in create_suggest() {
+                                    option { value: "{name}" }
                                 }
                             }
                         }
@@ -351,8 +420,108 @@ pub fn WorkbenchScreen() -> Element {
 }
 
 #[component]
-fn CommandZone(deck: Deck, commander: Option<CardDetail>) -> Element {
+fn CommandZone(
+    deck: Deck,
+    commander: Option<CardDetail>,
+    partner: Option<CardDetail>,
+    companion: Option<CardDetail>,
+) -> Element {
+    let state = use_app_state();
     let name = commander.as_ref().map(|c| c.name.clone());
+    let mut editing = use_signal(|| false);
+    let mut primary = use_signal(String::new);
+    let mut second = use_signal(String::new);
+    let mut kind = use_signal(|| "single".to_string());
+    let mut companion_input = use_signal(String::new);
+    // Engine verdict from the last rejected mutation; cleared on success.
+    let mut verdict = use_signal(|| Option::<String>::None);
+    let primary_suggest = use_card_suggestions(primary, "is:commander");
+    // Backgrounds/Doctor's-companions aren't themselves `is:commander`; the
+    // engine validates the pairing, so the second slot suggests by name only.
+    let second_suggest = use_card_suggestions(second, "");
+    let companion_suggest = use_card_suggestions(companion_input, "");
+
+    let deck_id = deck.deck_id.clone();
+    let set_commanders = move |_| {
+        let conn = (state.conn)();
+        let deck_id = deck_id.clone();
+        let lead = primary().trim().to_string();
+        let mate = second().trim().to_string();
+        let zone_kind = kind();
+        if lead.is_empty() {
+            return;
+        }
+        spawn(async move {
+            let Some(client) = ready_client(&conn) else {
+                return;
+            };
+            let mut commanders = vec![lead];
+            if zone_kind != "single" && !mate.is_empty() {
+                commanders.push(mate);
+            }
+            match client
+                .deck_set_commander(&deck_id, &commanders, Some(&zone_kind))
+                .await
+            {
+                Ok(res) if res.ok => {
+                    verdict.set(None);
+                    editing.set(false);
+                    primary.set(String::new());
+                    second.set(String::new());
+                    let mut rev = state.deck_rev;
+                    rev += 1;
+                }
+                Ok(res) => {
+                    let lines: Vec<String> = res.violations.iter().map(violation_text).collect();
+                    verdict.set(Some(if lines.is_empty() {
+                        "the engine rejected this command zone".to_string()
+                    } else {
+                        lines.join(" · ")
+                    }));
+                }
+                Err(e) => verdict.set(Some(format!("{e}"))),
+            }
+        });
+    };
+
+    let deck_id_comp = deck.deck_id.clone();
+    let has_companion = companion.is_some();
+    let set_companion = move |_| {
+        let conn = (state.conn)();
+        let deck_id = deck_id_comp.clone();
+        let raw = companion_input().trim().to_string();
+        // Empty input with an existing companion = clear it.
+        let request = if raw.is_empty() {
+            if !has_companion {
+                return;
+            }
+            None
+        } else {
+            Some(raw)
+        };
+        spawn(async move {
+            let Some(client) = ready_client(&conn) else {
+                return;
+            };
+            match client.deck_set_companion(&deck_id, request.as_deref()).await {
+                Ok(res) if res.ok => {
+                    verdict.set(None);
+                    companion_input.set(String::new());
+                    let mut rev = state.deck_rev;
+                    rev += 1;
+                }
+                Ok(res) => {
+                    let mut lines: Vec<String> = res.violations.iter().map(violation_text).collect();
+                    if let Some(d) = res.detail {
+                        lines.insert(0, d);
+                    }
+                    verdict.set(Some(lines.join(" · ")));
+                }
+                Err(e) => verdict.set(Some(format!("{e}"))),
+            }
+        });
+    };
+
     rsx! {
         div { class: "cz",
             div { class: "cz__base" }
@@ -364,22 +533,122 @@ fn CommandZone(deck: Deck, commander: Option<CardDetail>) -> Element {
                 span { class: "cz__eyebrow",
                     Ico { svg: icons::CROWN }
                     "Command zone"
-                }
-                div { class: "cz__name",
-                    if let Some(c) = &commander { "{c.name}" } else { "No commander" }
-                }
-                if let Some(c) = &commander {
-                    div { class: "cz__type", "{c.type_line}" }
-                    div { class: "cz__row",
-                        span { class: "cz__mi",
-                            span { class: "cz__milbl", "Cost" }
-                            ManaCost { cost: c.mana_cost.clone() }
+                    span { "data-cz": "edit",
+                        Button {
+                            variant: "ghost".to_string(),
+                            size: "sm".to_string(),
+                            onclick: move |_| {
+                                verdict.set(None);
+                                editing.toggle();
+                            },
+                            if editing() { "Cancel" } else if name.is_some() { "Change" } else { "Set commander" }
                         }
-                        span { class: "cz__div" }
-                        span { class: "cz__mi",
-                            span { class: "cz__milbl", "Identity" }
-                            ColorIdentity { identity: deck.computed_color_identity.clone() }
+                    }
+                }
+                if !editing() {
+                    div { class: "cz__name",
+                        if let Some(c) = &commander { "{c.name}" } else { "No commander" }
+                        if let Some(p) = &partner { " // {p.name}" }
+                    }
+                    if let Some(c) = &commander {
+                        div { class: "cz__type", "{c.type_line}" }
+                        div { class: "cz__row",
+                            span { class: "cz__mi",
+                                span { class: "cz__milbl", "Cost" }
+                                ManaCost { cost: c.mana_cost.clone() }
+                            }
+                            span { class: "cz__div" }
+                            span { class: "cz__mi",
+                                span { class: "cz__milbl", "Identity" }
+                                ColorIdentity { identity: deck.computed_color_identity.clone() }
+                            }
                         }
+                    }
+                } else {
+                    div { style: "display: flex; flex-direction: column; gap: var(--space-2); max-width: 460px;",
+                        "data-cz": "editor",
+                        div { style: "display: flex; gap: var(--space-2);",
+                            div { class: "mb-input mb-input--sm", style: "flex: 1;",
+                                input {
+                                    r#type: "text",
+                                    placeholder: "Commander…",
+                                    list: "cz-suggest-primary",
+                                    value: primary(),
+                                    oninput: move |e| primary.set(e.value()),
+                                }
+                            }
+                            datalist { id: "cz-suggest-primary",
+                                for name in primary_suggest() {
+                                    option { value: "{name}" }
+                                }
+                            }
+                            select {
+                                class: "mb-input mb-input--sm",
+                                value: kind(),
+                                onchange: move |e| kind.set(e.value()),
+                                option { value: "single", "Single" }
+                                option { value: "partner", "Partner" }
+                                option { value: "background", "Background" }
+                                option { value: "doctor_companion", "Doctor + companion" }
+                            }
+                        }
+                        if kind() != "single" {
+                            div { class: "mb-input mb-input--sm",
+                                input {
+                                    r#type: "text",
+                                    placeholder: if kind() == "background" { "Background…" } else { "Second commander…" },
+                                    list: "cz-suggest-second",
+                                    value: second(),
+                                    oninput: move |e| second.set(e.value()),
+                                }
+                            }
+                            datalist { id: "cz-suggest-second",
+                                for name in second_suggest() {
+                                    option { value: "{name}" }
+                                }
+                            }
+                        }
+                        span { "data-cz": "apply",
+                            Button {
+                                variant: "primary".to_string(),
+                                size: "sm".to_string(),
+                                onclick: set_commanders,
+                                "Set command zone"
+                            }
+                        }
+                    }
+                }
+                // Companion — outside the 100, validated by the engine on set.
+                div { style: "display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);",
+                    "data-cz": "companion",
+                    span { class: "cz__milbl", "Companion" }
+                    if let Some(c) = &companion {
+                        span { style: "font: var(--type-body-sm); color: var(--text-primary);", "{c.name}" }
+                    }
+                    div { class: "mb-input mb-input--sm", style: "width: 200px;",
+                        input {
+                            r#type: "text",
+                            placeholder: if companion.is_some() { "Replace (empty = clear)…" } else { "None — set one…" },
+                            list: "cz-suggest-companion",
+                            value: companion_input(),
+                            oninput: move |e| companion_input.set(e.value()),
+                        }
+                    }
+                    datalist { id: "cz-suggest-companion",
+                        for name in companion_suggest() {
+                            option { value: "{name}" }
+                        }
+                    }
+                    Button {
+                        variant: "ghost".to_string(),
+                        size: "sm".to_string(),
+                        onclick: set_companion,
+                        if companion.is_some() && companion_input().trim().is_empty() { "Clear" } else { "Set" }
+                    }
+                }
+                if let Some(v) = verdict() {
+                    div { "data-cz": "verdict",
+                        Badge { tone: "danger".to_string(), dot: true, "{v}" }
                     }
                 }
                 div { class: "cz__chips",

@@ -655,3 +655,31 @@ pub struct DataIngestResult {
     #[serde(default)]
     pub already_running: bool,
 }
+
+/// The companion as resolved by `deck_set_companion`.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct CompanionRef {
+    pub oracle_id: String,
+    #[serde(default)]
+    pub name: String,
+}
+
+/// `deck_set_companion` structuredContent. `companion` is the resolved card
+/// when set, null when cleared; `detail` explains an ok=false; `condition_met`
+/// is the advisory deckbuilding-condition check.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct SetCompanionResult {
+    #[serde(default)]
+    pub ok: bool,
+    pub deck_id: String,
+    #[serde(default)]
+    pub companion: Option<CompanionRef>,
+    #[serde(default)]
+    pub condition_met: Option<bool>,
+    #[serde(default)]
+    pub detail: Option<String>,
+    #[serde(default)]
+    pub violations: Vec<Value>,
+    #[serde(default)]
+    pub version: u64,
+}
