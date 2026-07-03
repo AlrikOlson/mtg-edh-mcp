@@ -79,17 +79,8 @@ pub fn OracleBar(deck_id: String) -> Element {
     let mut proposal = use_signal(ChangeSet::default);
     let mut flash = use_signal(Vec::<String>::new);
 
-    // ⌘K focuses the ask input (shell button shows the same hint).
-    use_effect(move || {
-        document::eval(
-            r#"document.addEventListener('keydown', (e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-                    e.preventDefault();
-                    document.querySelector('.ask__in')?.focus();
-                }
-            });"#,
-        );
-    });
+    // ⌘K belongs to the shell's search-the-universe affordance now
+    // (gui-topbar-search); the Oracle input is plain click-to-focus.
 
     let run = {
         let deck_id = deck_id.clone();
@@ -238,7 +229,7 @@ pub fn OracleBar(deck_id: String) -> Element {
                 if phase() == Phase::Thinking {
                     span { style: "font: var(--type-label-sm); color: var(--accent-text);", "Working…" }
                 } else {
-                    span { class: "ask__kbd", "⌘K" }
+                    span { class: "ask__kbd", "Enter" }
                 }
             }
             if phase() == Phase::Idle {

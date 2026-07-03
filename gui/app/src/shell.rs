@@ -43,7 +43,7 @@ pub fn AppShell() -> Element {
         div { style: "display: flex; height: 100vh; width: 100%; background: var(--surface-canvas); overflow: hidden;",
             NavRail { active, light }
             div { style: "flex: 1; display: flex; flex-direction: column; min-width: 0;",
-                TopBar {}
+                TopBar { active }
                 match active() {
                     Screen::Gallery => rsx! {
                         div { style: "flex: 1; overflow-y: auto;", crate::gallery::Gallery {} }
@@ -160,9 +160,32 @@ fn NavRail(active: Signal<Screen>, light: Signal<bool>) -> Element {
 }
 
 #[component]
-fn TopBar() -> Element {
+fn TopBar(active: Signal<Screen>) -> Element {
     let state = crate::state::use_app_state();
     let conn = (state.conn)();
+    // The one honest search entry point (gui-topbar-search): click or ⌘K from
+    // ANY screen lands on Browse with the query input focused. The global ⌘K
+    // listener (registered once) routes through this element's click so the
+    // navigation itself stays in Rust.
+    let go_search = move |_| {
+        active.set(Screen::Browse);
+        document::eval(
+            r#"setTimeout(() => document.querySelector('[data-search="universe"]')?.focus(), 120);"#,
+        );
+    };
+    use_effect(move || {
+        document::eval(
+            r#"if (!window.__mtgCmdK) {
+                window.__mtgCmdK = true;
+                document.addEventListener('keydown', (e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                        e.preventDefault();
+                        document.querySelector('.mb-cmdk')?.click();
+                    }
+                });
+            }"#,
+        );
+    });
     rsx! {
         div { style: "height: var(--topbar-h); flex: none; border-bottom: 1px solid var(--border-subtle); background: var(--surface-panel); display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-4); min-width: 0; overflow: hidden;",
             div { style: "font: var(--type-h2); display: flex; align-items: center; gap: var(--space-2); white-space: nowrap; min-width: 0; flex: 0 1 auto;",
@@ -199,7 +222,7 @@ fn TopBar() -> Element {
                 },
             }
             div { style: "flex: 1;" }
-            span { class: "mb-cmdk", role: "button", tabindex: "0",
+            span { class: "mb-cmdk", role: "button", tabindex: "0", onclick: go_search,
                 Ico { svg: icons::SEARCH }
                 span { class: "mb-cmdk__lbl", " Search the universe " }
                 span { class: "mb-cmdk__kbd", "⌘K" }

@@ -189,6 +189,7 @@ pub fn BrowseScreen() -> Element {
                         span { class: "mb-input__icon", Ico { svg: icons::SEARCH } }
                         input {
                             r#type: "text",
+                            "data-search": "universe",
                             value: query(),
                             placeholder: "id<=wubg t:creature mv<=4",
                             aria_label: "Scryfall grammar query",
