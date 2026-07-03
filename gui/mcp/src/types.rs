@@ -683,3 +683,26 @@ pub struct SetCompanionResult {
     #[serde(default)]
     pub version: u64,
 }
+
+/// `deck_delete` structuredContent.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckDeleteResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub deleted: bool,
+}
+
+/// `deck_rename` structuredContent (carries the conflict shape on a stale
+/// expected_version, like the other deck mutators).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckRenameResult {
+    #[serde(default)]
+    pub ok: bool,
+    pub deck_id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub version: u64,
+    #[serde(default)]
+    pub conflict: bool,
+}

@@ -668,7 +668,71 @@ fn DeckToolbar(
     group_by: Signal<String>,
     sort_by: Signal<String>,
 ) -> Element {
+    let state = use_app_state();
     let count: u32 = deck.cards.iter().map(|c| c.qty).sum();
+    let mut renaming = use_signal(|| false);
+    let mut rename_input = use_signal(String::new);
+    // Two-step destructive delete: first click arms, second confirms.
+    let mut confirm_delete = use_signal(|| false);
+
+    let deck_id_rename = deck.deck_id.clone();
+    let commit_rename = move |_| {
+        let conn = (state.conn)();
+        let deck_id = deck_id_rename.clone();
+        let name = rename_input().trim().to_string();
+        if name.is_empty() {
+            renaming.set(false);
+            return;
+        }
+        spawn(async move {
+            let Some(client) = ready_client(&conn) else {
+                return;
+            };
+            if let Ok(res) = client.deck_rename(&deck_id, &name).await {
+                if res.ok {
+                    let mut dname = state.active_deck_name;
+                    dname.set(Some(res.name));
+                    let mut rev = state.deck_rev;
+                    rev += 1;
+                }
+            }
+            renaming.set(false);
+        });
+    };
+
+    let deck_id_delete = deck.deck_id.clone();
+    let delete_deck = move |_| {
+        if !confirm_delete() {
+            confirm_delete.set(true);
+            return;
+        }
+        let conn = (state.conn)();
+        let deck_id = deck_id_delete.clone();
+        spawn(async move {
+            let Some(client) = ready_client(&conn) else {
+                return;
+            };
+            if client.deck_delete(&deck_id).await.is_ok() {
+                // Fall back like restore_session: newest remaining deck, or none.
+                let mut did = state.active_deck_id;
+                let mut dname = state.active_deck_name;
+                match client.deck_list().await.ok().and_then(|l| l.decks.into_iter().next_back()) {
+                    Some(next) => {
+                        did.set(Some(next.deck_id));
+                        dname.set(Some(next.name));
+                    }
+                    None => {
+                        did.set(None);
+                        dname.set(None);
+                    }
+                }
+                let mut rev = state.deck_rev;
+                rev += 1;
+            }
+            confirm_delete.set(false);
+        });
+    };
+
     rsx! {
         div { style: "display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4) 0;",
             span { style: "font: var(--type-h2); color: var(--text-primary);", "The 99" }
@@ -683,6 +747,52 @@ fn DeckToolbar(
                 Badge { tone: "success".to_string(), dot: true, "Legal" }
             }
             div { style: "flex: 1;" }
+            if renaming() {
+                div { class: "mb-input mb-input--sm", style: "width: 200px;", "data-deck": "rename",
+                    input {
+                        r#type: "text",
+                        placeholder: "New deck name…",
+                        value: rename_input(),
+                        oninput: move |e| rename_input.set(e.value()),
+                        onkeydown: move |e| {
+                            if e.key() == Key::Escape {
+                                renaming.set(false);
+                            }
+                        },
+                    }
+                }
+                span {
+                    Button {
+                        variant: "secondary".to_string(),
+                        size: "sm".to_string(),
+                        onclick: commit_rename,
+                        "Save"
+                    }
+                }
+            } else {
+                span { "data-deck": "rename-toggle",
+                    Button {
+                        variant: "ghost".to_string(),
+                        size: "sm".to_string(),
+                        onclick: {
+                            let current = deck.name.clone();
+                            move |_| {
+                                rename_input.set(current.clone());
+                                renaming.set(true);
+                            }
+                        },
+                        "Rename"
+                    }
+                }
+            }
+            span { "data-deck": "delete",
+                Button {
+                    variant: if confirm_delete() { "danger".to_string() } else { "ghost".to_string() },
+                    size: "sm".to_string(),
+                    onclick: delete_deck,
+                    if confirm_delete() { "Really delete?" } else { "Delete" }
+                }
+            }
             SegmentedControl {
                 options: vec![
                     SegOption { value: "list", label: "List", icon: Some(icons::LIST) },

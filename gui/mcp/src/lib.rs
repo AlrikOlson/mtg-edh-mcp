@@ -31,7 +31,7 @@ pub use types::{
     CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, CollectionView, Combo,
     CompanionRef,
     CombosResult, CostDriver, DataIngestResult, DataStatusResult, Deck, DeckAddResult,
-    DeckCardEntry, DeckCreateParams,
+    DeckCardEntry, DeckCreateParams, DeckDeleteResult, DeckRenameResult,
     DeckCreateResult, DeckDiffResult, DeckGetResult, DeckListResult, DeckMutateResult,
     DeckSummaryResult, ExportResult, ImportResult, IngestStatus, ManaBaseReport,
     MissingStaplesResult, OwnedCard,
@@ -285,6 +285,24 @@ impl EngineClient {
             args.insert("command_zone_kind".into(), Value::String(kind.to_string()));
         }
         self.call("deck_set_commander", args).await
+    }
+
+    /// `deck_delete` — remove a deck permanently. Unknown ids surface as the
+    /// typed DeckNotFound error.
+    pub async fn deck_delete(&self, deck_id: &str) -> Result<DeckDeleteResult, EngineError> {
+        self.call("deck_delete", deck_arg(deck_id)).await
+    }
+
+    /// `deck_rename` — rename a deck (version bump; conflict shape on a stale
+    /// expected_version, which this wrapper doesn't send).
+    pub async fn deck_rename(
+        &self,
+        deck_id: &str,
+        name: &str,
+    ) -> Result<DeckRenameResult, EngineError> {
+        let mut args = deck_arg(deck_id);
+        args.insert("name".into(), Value::String(name.to_string()));
+        self.call("deck_rename", args).await
     }
 
     /// `deck_set_companion` — declare (or clear, with None) the deck's companion

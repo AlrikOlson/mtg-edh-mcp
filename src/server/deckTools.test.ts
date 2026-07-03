@@ -118,4 +118,33 @@ describe("deck lifecycle tools", () => {
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
+
+  it("deck_rename renames (version bump), conflicts on stale expected_version", async () => {
+    await client.callTool({ name: "deck_create", arguments: { name: "Old Name" } });
+    const renamed = await client.callTool({
+      name: "deck_rename",
+      arguments: { deck_id: "deck-1", name: "New Name" },
+    });
+    expect(renamed.structuredContent).toMatchObject({
+      ok: true,
+      deck_id: "deck-1",
+      name: "New Name",
+      version: 2,
+    });
+    const got = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    expect((got.structuredContent as { deck: DeckShape }).deck.name).toBe("New Name");
+
+    const stale = await client.callTool({
+      name: "deck_rename",
+      arguments: { deck_id: "deck-1", name: "Nope", expected_version: 1 },
+    });
+    expect(stale.structuredContent).toMatchObject({ ok: false, conflict: true });
+
+    const unknown = await client.callTool({
+      name: "deck_rename",
+      arguments: { deck_id: "nope", name: "X" },
+    });
+    expect(unknown.isError).toBe(true);
+    expect(unknown.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+  });
 });

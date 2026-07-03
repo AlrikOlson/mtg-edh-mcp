@@ -424,6 +424,30 @@ async fn round_trip_over_stdio() {
     assert_eq!(ds.ingest.phase, "idle");
     assert!(ds.data_snapshot.is_some(), "stamped snapshot date expected");
 
+    // Deck lifecycle (gui-deck-lifecycle): rename shows everywhere; delete is
+    // terminal and surfaces as the typed DeckNotFound afterward.
+    let renamed = client
+        .deck_rename(&deck_id, "stdio renamed")
+        .await
+        .expect("deck_rename");
+    assert!(renamed.ok);
+    assert_eq!(renamed.name, "stdio renamed");
+    let listed = client.deck_list().await.expect("deck_list after rename");
+    assert!(listed
+        .decks
+        .iter()
+        .any(|d| d.deck_id == deck_id && d.name == "stdio renamed"));
+    let deleted = client.deck_delete(&deck_id).await.expect("deck_delete");
+    assert!(deleted.deleted);
+    let gone = client
+        .deck_get(&deck_id)
+        .await
+        .expect_err("deck_get after delete should error");
+    assert!(
+        matches!(gone, EngineError::DeckNotFound { .. }),
+        "expected DeckNotFound after delete, got {gone:?}"
+    );
+
     client.shutdown().await.ok();
 }
 
@@ -479,7 +503,7 @@ async fn deck_survives_engine_restart() {
         cmd
     };
 
-    // First life: create a deck, then shut down cleanly.
+    // First life: create two decks, rename one, delete the other.
     let client = EngineClient::connect_stdio(spawn(&root, &data))
         .await
         .expect("first engine life");
@@ -492,17 +516,33 @@ async fn deck_survives_engine_restart() {
         .await
         .expect("deck_create");
     let deck_id = created.deck_id;
+    let doomed = client
+        .deck_create(DeckCreateParams::new("doomed"))
+        .await
+        .expect("deck_create (doomed)");
+    let renamed = client
+        .deck_rename(&deck_id, "renamed across lives")
+        .await
+        .expect("deck_rename");
+    assert!(renamed.ok);
+    let deleted = client.deck_delete(&doomed.deck_id).await.expect("deck_delete");
+    assert!(deleted.deleted);
     client.shutdown().await.ok();
 
-    // Second life: a brand-new child on the same data dir must serve the deck.
+    // Second life: a brand-new child on the same data dir must serve the
+    // renamed deck and must NOT resurrect the deleted one.
     let client = EngineClient::connect_stdio(spawn(&root, &data))
         .await
         .expect("second engine life");
     let fetched = client.deck_get(&deck_id).await.expect("deck_get after restart");
     assert_eq!(fetched.deck.deck_id, deck_id);
-    assert_eq!(fetched.deck.name, "persisted across lives");
+    assert_eq!(fetched.deck.name, "renamed across lives");
     let listed = client.deck_list().await.expect("deck_list after restart");
     assert!(listed.decks.iter().any(|d| d.deck_id == deck_id));
+    assert!(
+        !listed.decks.iter().any(|d| d.deck_id == doomed.deck_id),
+        "deleted deck must stay deleted across restarts"
+    );
     client.shutdown().await.ok();
 
     std::fs::remove_dir_all(&data).ok();

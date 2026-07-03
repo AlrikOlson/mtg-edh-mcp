@@ -159,6 +159,41 @@ function deckListTool(store: DeckStore, session: string): ToolDefinition {
   };
 }
 
+function deckRenameTool(store: DeckStore, session: string): ToolDefinition {
+  return {
+    name: "deck_rename",
+    config: {
+      title: "Rename deck",
+      description:
+        "Rename a deck by deck_id. Pass expected_version for optimistic concurrency: " +
+        "a mismatch returns a conflict without mutating.",
+      inputSchema: {
+        deck_id: z.string(),
+        name: z.string().min(1),
+        expected_version: z.number().int().nonnegative().optional(),
+      },
+    },
+    handler: (args) => {
+      const deckId = String(args.deck_id ?? "");
+      const deck = store.get(deckId, session);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      if (typeof args.expected_version === "number" && deck.version !== args.expected_version) {
+        return conflict(deckId, deck.version, args.expected_version);
+      }
+      const updated = store.setName(deckId, String(args.name), session);
+      return {
+        content: [{ type: "text", text: `renamed deck ${deckId} to '${updated.name}'` }],
+        structuredContent: {
+          ok: true,
+          deck_id: deckId,
+          name: updated.name,
+          version: updated.version,
+        },
+      };
+    },
+  };
+}
+
 function deckDeleteTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_delete",
@@ -690,6 +725,7 @@ export function makeDeckTools(
     deckCreateTool(store, session, index, snapshot),
     deckGetTool(store, session, index),
     deckListTool(store, session),
+    deckRenameTool(store, session),
     deckDeleteTool(store, session),
     deckSnapshotTool(store, session),
     deckDiffTool(store, session),
