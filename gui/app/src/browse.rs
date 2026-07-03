@@ -44,24 +44,37 @@ pub fn BrowseScreen() -> Element {
     let mut ci = use_signal(Vec::<&'static str>::new);
     let mut owned_only = use_signal(|| false);
     let mut selected = use_signal(|| Option::<CardRef>::None);
+    // Pagination (gui-browse-pagination): pages after the first accumulate in
+    // `extra`; `more_cursor` holds the cursor to continue from once a load-more
+    // has run (page 1's cursor lives in the resource result itself).
+    let mut extra = use_signal(Vec::<CardRef>::new);
+    let mut more_cursor = use_signal(|| Option::<Option<String>>::None);
+
+    // The effective grammar query, shared by page 1 and every load-more page.
+    let effective_query = move || {
+        let mut q = query().trim().to_string();
+        if q.is_empty() {
+            q = "t:creature".to_string();
+        }
+        let ci_now = ci();
+        if !ci_now.is_empty() {
+            let pips: String = ci_now.iter().map(|c| c.to_lowercase()).collect();
+            q = format!("{q} id<={pips}");
+        }
+        q
+    };
 
     // Search resource — re-runs whenever query/filters/order/connection change.
+    // Any re-run is a NEW page 1, so the accumulated pages reset.
     let results = use_resource(move || {
         let conn = (state.conn)();
-        let base = query();
-        let ci_now = ci();
+        let q = effective_query();
         let owned = owned_only();
         let ord = order();
+        extra.set(Vec::new());
+        more_cursor.set(None);
         async move {
             let client = ready_client(&conn)?;
-            let mut q = base.trim().to_string();
-            if q.is_empty() {
-                q = "t:creature".to_string();
-            }
-            if !ci_now.is_empty() {
-                let pips: String = ci_now.iter().map(|c| c.to_lowercase()).collect();
-                q = format!("{q} id<={pips}");
-            }
             let params = CardSearchParams {
                 query: q,
                 order: Some(ord),
@@ -72,6 +85,48 @@ pub fn BrowseScreen() -> Element {
             Some(client.card_search(params).await)
         }
     });
+
+    // The cursor a load-more should use: the last appended page's, or page 1's.
+    let pending_cursor = move || -> Option<String> {
+        match more_cursor() {
+            Some(c) => c,
+            None => match &*results.read() {
+                Some(Some(Ok(r))) => r.next_cursor.clone(),
+                _ => None,
+            },
+        }
+    };
+
+    let load_more = move |_| {
+        let conn = (state.conn)();
+        let Some(cursor) = pending_cursor() else {
+            return;
+        };
+        let q = effective_query();
+        let owned = owned_only();
+        let ord = order();
+        spawn(async move {
+            let Some(client) = ready_client(&conn) else {
+                return;
+            };
+            let params = CardSearchParams {
+                query: q,
+                order: Some(ord),
+                limit: Some(60),
+                owned_only: if owned { Some(true) } else { None },
+                cursor: Some(cursor),
+            };
+            match client.card_search(params).await {
+                Ok(page) => {
+                    let mut list = extra();
+                    list.extend(page.results);
+                    extra.set(list);
+                    more_cursor.set(Some(page.next_cursor));
+                }
+                Err(e) => crate::state::toast(state, "danger", format!("Load more failed: {e}")),
+            }
+        });
+    };
 
     rsx! {
         div { style: "flex: 1; display: flex; min-height: 0; min-width: 0;",
@@ -142,9 +197,9 @@ pub fn BrowseScreen() -> Element {
                     }
                 }
                 div { style: "display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4);",
-                    span { style: "font: var(--type-label-sm); color: var(--text-muted);",
+                    span { style: "font: var(--type-label-sm); color: var(--text-muted);", "data-results": "count",
                         match &*results.read() {
-                            Some(Some(Ok(r))) => format!("{} of {} cards", r.returned, r.total),
+                            Some(Some(Ok(r))) => format!("{} of {} cards", r.returned + extra().len() as u64, r.total),
                             Some(Some(Err(_))) => "search failed".to_string(),
                             Some(None) => "engine offline".to_string(),
                             None => "searching…".to_string(),
@@ -170,7 +225,7 @@ pub fn BrowseScreen() -> Element {
                         Some(Some(Ok(res))) => rsx! {
                             if view() == "grid" {
                                 div { style: "display: grid; grid-template-columns: repeat(auto-fill, minmax(182px, 1fr)); gap: var(--space-4); padding: var(--space-3);",
-                                    for card in res.results.clone() {
+                                    for card in res.results.iter().cloned().chain(extra()) {
                                         div {
                                             onclick: {
                                                 let card = card.clone();
@@ -188,7 +243,7 @@ pub fn BrowseScreen() -> Element {
                                 }
                             } else {
                                 div { style: "display: flex; flex-direction: column; gap: var(--space-1);",
-                                    for card in res.results.clone() {
+                                    for card in res.results.iter().cloned().chain(extra()) {
                                         div {
                                             onclick: {
                                                 let card = card.clone();
@@ -204,6 +259,18 @@ pub fn BrowseScreen() -> Element {
                                                     ColorIdentity { identity: card.ci.clone(), size: 13 }
                                                 }),
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                            if pending_cursor().is_some() {
+                                div { style: "display: flex; justify-content: center; padding: var(--space-3);",
+                                    span { "data-browse": "load-more",
+                                        Button {
+                                            variant: "secondary".to_string(),
+                                            size: "sm".to_string(),
+                                            onclick: load_more,
+                                            "Load more"
                                         }
                                     }
                                 }
