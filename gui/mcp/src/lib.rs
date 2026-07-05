@@ -29,15 +29,14 @@ pub use types::{
     AddVerdict, AnalyzeCompositionResult, AnalyzeCurveResult, AnalyzeStatsResult, BracketPushers,
     BracketResult, BudgetPlanResult, BudgetSwap, BudgetSwapsResult, CardDetail, CardGetResult,
     CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, CollectionView, Combo,
-    CompanionRef,
-    CombosResult, CostDriver, DataIngestResult, DataStatusResult, Deck, DeckAddResult,
-    DeckCardEntry, DeckCreateParams, DeckDeleteResult, DeckRenameResult,
-    DeckCreateResult, DeckDiffResult, DeckGetResult, DeckListResult, DeckMutateResult,
-    DeckSummaryResult, ExportResult, ImportResult, IngestStatus, ManaBaseReport,
-    MissingStaplesResult, OwnedCard,
-    Printing, Recommendation, RecommendationsResult, ReprintSuggestion, RestoreResult,
-    RoleCoverageResult, RoleGap, SetCommanderResult, SetCompanionResult, SimResult, SnapshotResult,
-    SwapCard, ValidateDeckResult,
+    CombosResult, CompanionRef, CostDriver, DataIngestResult, DataStatusResult, Deck,
+    DeckAddResult, DeckCardEntry, DeckCreateParams, DeckCreateResult, DeckDeleteResult,
+    DeckDiffResult, DeckGetResult, DeckListResult, DeckMutateResult, DeckRenameResult,
+    DeckStatusResult, DeckSummaryResult, DeckVitals, ExportResult, ImportResult, IngestStatus,
+    ManaBaseReport, MissingStaplesResult, OwnedCard, Printing, Recommendation,
+    RecommendationsResult, ReprintSuggestion, RestoreResult, RoleCoverageResult, RoleGap,
+    SetCommanderResult, SetCompanionResult, SimResult, SnapshotResult, SwapCard,
+    ValidateDeckResult,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -352,6 +351,12 @@ impl EngineClient {
         deck_id: &str,
     ) -> Result<RoleCoverageResult, EngineError> {
         self.call("analyze_role_coverage", deck_arg(deck_id)).await
+    }
+
+    /// `deck_status` — the one-call offline dashboard (vitals + legality +
+    /// curve + mana + role gaps + price).
+    pub async fn deck_status(&self, deck_id: &str) -> Result<DeckStatusResult, EngineError> {
+        self.call("deck_status", deck_arg(deck_id)).await
     }
 
     /// `simulate_deck` — the deterministic Monte Carlo goldfish.

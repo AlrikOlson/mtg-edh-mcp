@@ -2,11 +2,6 @@
 
 ## Pending
 
-- [ ] **Ergonomics · Deck vitals on every mutation + offline deck_status composite** — New src/server/vitals.ts DeckVitals {card_count, land_count, color_identity, commander_count, legal, violation_count, version} attached to all 8 deck mutators' structuredContent + text summary (incl. ok:false rejections, excl. conflict results). New deck_status tool (analyzeTools.ts, fully offline): vitals + legality (errors capped 20 + counts) + curve + mana + role gaps + price in one call. Bracket stays in meta_classify_bracket. GUI: DeckVitals/DeckStatusResult types + deck_status method.
-  - deps: ergo-resolve
-  - acceptance: every mutation response vitals equals an independently computed value in tests
-  - acceptance: deck_status returns vitals/legality/curve/mana/roles/price in one offline call on the fixture index
-  - acceptance: full TS + Rust gates green
 - [ ] **Ergonomics · Meta consolidation 8→5 + output limit defaults** — Delete meta_themes (subset of profile) and meta_deck_summary (superseded by deck_status + meta_classify_bracket); merge meta_recommendations + meta_missing_staples into meta_recommend (rank: synergy|inclusion, min_inclusion, limit 25) on one shared profile-filter helper also reused by meta_budget_swaps; profile limit 50 + total_cards; combos limit 20. Limits elsewhere: collection_get 200+total+cursor, deck_list 50+total lean projection, validate_deck violations capped 50 with counts. GUI: remove 2 methods+structs, add meta_recommend, rewire dashboard callers.
   - deps: ergo-vitals
   - acceptance: tools/list shows exactly 5 meta_* tools
@@ -273,6 +268,11 @@
   - acceptance: mixed name+id batch with one typo applies the rest and returns failed[] with suggestions
   - acceptance: every UNKNOWN_CARD error anywhere carries did-you-mean suggestions
   - acceptance: npm test && typecheck && lint && build green; cargo build + cargo test green under gui/
+- [x] **Ergonomics · Deck vitals on every mutation + offline deck_status composite** — New src/server/vitals.ts DeckVitals {card_count, land_count, color_identity, commander_count, legal, violation_count, version} attached to all 8 deck mutators' structuredContent + text summary (incl. ok:false rejections, excl. conflict results). New deck_status tool (analyzeTools.ts, fully offline): vitals + legality (errors capped 20 + counts) + curve + mana + role gaps + price in one call. Bracket stays in meta_classify_bracket. GUI: DeckVitals/DeckStatusResult types + deck_status method.
+  - deps: ergo-resolve
+  - acceptance: every mutation response vitals equals an independently computed value in tests
+  - acceptance: deck_status returns vitals/legality/curve/mana/roles/price in one offline call on the fixture index
+  - acceptance: full TS + Rust gates green
 - [x] **Oracle · Agent brain ladder — Claude Code shell-out → BYO key → structured intents** — USER DECISION RECORDED (2026-07-01): the LLM brain is a three-tier ladder, not BYO-key-only. TIER 1 (preferred, desktop-only): shell out to the user's own `claude` CLI in headless mode — `claude -p --output-format stream-json` with `--mcp-config` pointing at the app's OWN engine (127.0.0.1:3000) and `--allowedTools "mcp__<name>__*"` so Claude drives card_search/analyze_*/meta_* itself; stream-json tool events map 1:1 onto the existing Cap caption stream; the reply carries a strict-JSON change-set the existing spectral-rows UI renders; engine pre-check verdicts still gate application. Detection: `claude --version` on PATH at startup; cfg-gated native-only (web/wasm cannot spawn). Zero key-handling — uses the user's existing Claude auth. TIER 2: BYO Anthropic API key (direct API, for users without Claude Code) — needs key entry+storage UX (keychain on macOS?), model choice (haiku for cost), and clear cost expectations. TIER 3: the shipped structured intents (think:142) remain the always-available offline fallback. Remaining sub-decisions before/while implementing: change-set JSON schema for the prompt contract; timeout/cancel UX for multi-second turns; whether Tier 2 lands in the same chunk or splits (Tier 1 alone is shippable and needs no new UX surfaces beyond a settings row + detection badge).
   - deps: gui-oracle
   - acceptance: Tier 1: with `claude` on PATH, an Oracle ask shells out headless with the engine as MCP config; tool events stream as captions; a JSON change-set renders in the existing UI and applies through pre-check verdicts

@@ -30,11 +30,28 @@ pub struct CardSearchResult {
     pub results: Vec<CardRef>,
 }
 
+/// The lean deck-state block every deck mutation now carries (ergo-vitals):
+/// no follow-up `deck_get` needed to know where the deck stands.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckVitals {
+    /// Quantity-weighted count INCLUDING the command zone (target: exactly 100).
+    pub card_count: u32,
+    pub land_count: u32,
+    #[serde(default)]
+    pub color_identity: Vec<String>,
+    pub commander_count: u32,
+    pub legal: bool,
+    pub violation_count: u32,
+    pub version: u64,
+}
+
 /// `deck_create` structuredContent. `deck` kept opaque for now.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DeckCreateResult {
     pub deck_id: String,
     pub deck: Value,
+    #[serde(default)]
+    pub vitals: Option<DeckVitals>,
 }
 
 /// One entry of `deck_add`'s `verdicts`.
@@ -53,6 +70,11 @@ pub struct DeckAddResult {
     pub deck_id: String,
     pub version: u64,
     pub verdicts: Vec<AddVerdict>,
+    /// Inputs that failed to resolve (unknown/ambiguous), reported in-band.
+    #[serde(default)]
+    pub failed: Vec<Value>,
+    #[serde(default)]
+    pub vitals: Option<DeckVitals>,
 }
 
 /// `validate_deck` structuredContent. Violations kept opaque for now.
@@ -236,6 +258,10 @@ pub struct DeckMutateResult {
     pub version: u64,
     #[serde(default)]
     pub conflict: bool,
+    #[serde(default)]
+    pub failed: Vec<Value>,
+    #[serde(default)]
+    pub vitals: Option<DeckVitals>,
 }
 
 /// `deck_set_commander` structuredContent.
@@ -252,6 +278,8 @@ pub struct SetCommanderResult {
     pub version: u64,
     #[serde(default)]
     pub violations: Vec<Value>,
+    #[serde(default)]
+    pub vitals: Option<DeckVitals>,
 }
 
 // ---- analyze_* / simulate_deck (gui-analysis) --------------------------------
@@ -592,6 +620,8 @@ pub struct RestoreResult {
     pub deck_id: String,
     pub restored_from: String,
     pub deck: Deck,
+    #[serde(default)]
+    pub vitals: Option<DeckVitals>,
 }
 
 /// `deck_import` structuredContent — unresolved lines are never dropped.
@@ -602,6 +632,8 @@ pub struct ImportResult {
     pub resolved_count: u32,
     #[serde(default)]
     pub unresolved: Vec<Value>,
+    #[serde(default)]
+    pub vitals: Option<DeckVitals>,
 }
 
 /// `deck_export` structuredContent.
@@ -682,6 +714,8 @@ pub struct SetCompanionResult {
     pub violations: Vec<Value>,
     #[serde(default)]
     pub version: u64,
+    #[serde(default)]
+    pub vitals: Option<DeckVitals>,
 }
 
 /// `deck_delete` structuredContent.
@@ -705,4 +739,27 @@ pub struct DeckRenameResult {
     pub version: u64,
     #[serde(default)]
     pub conflict: bool,
+    #[serde(default)]
+    pub vitals: Option<DeckVitals>,
+}
+
+/// `deck_status` structuredContent — the one-call offline dashboard.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckStatusResult {
+    pub deck_id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub version: u64,
+    pub vitals: DeckVitals,
+    /// `{ok, errors (capped), error_count, warning_count}` — kept loose.
+    pub legality: Value,
+    #[serde(default)]
+    pub curve: Value,
+    #[serde(default)]
+    pub mana: Value,
+    #[serde(default)]
+    pub roles: Value,
+    #[serde(default)]
+    pub price: Value,
 }

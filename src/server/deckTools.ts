@@ -33,6 +33,7 @@ import {
   resolveCardIdLenient,
   resolveCardInputs,
 } from "./resolve.js";
+import { deckVitals, formatVitals } from "./vitals.js";
 import type { SnapshotProvider } from "./snapshot.js";
 import type { ToolDefinition } from "./registry.js";
 
@@ -114,9 +115,10 @@ function deckCreateTool(
         },
         session,
       );
+      const vitals = deckVitals(deck, index);
       return {
-        content: [{ type: "text", text: `created deck ${deck.deck_id}` }],
-        structuredContent: { deck_id: deck.deck_id, deck },
+        content: [{ type: "text", text: `created deck ${deck.deck_id} — ${formatVitals(vitals)}` }],
+        structuredContent: { deck_id: deck.deck_id, deck, vitals },
       };
     },
   };
@@ -162,7 +164,7 @@ function deckListTool(store: DeckStore, session: string): ToolDefinition {
   };
 }
 
-function deckRenameTool(store: DeckStore, session: string): ToolDefinition {
+function deckRenameTool(store: DeckStore, session: string, index?: CardIndex): ToolDefinition {
   return {
     name: "deck_rename",
     config: {
@@ -184,6 +186,7 @@ function deckRenameTool(store: DeckStore, session: string): ToolDefinition {
         return conflict(deckId, deck.version, args.expected_version);
       }
       const updated = store.setName(deckId, String(args.name), session);
+      const vitals = deckVitals(updated, index);
       return {
         content: [{ type: "text", text: `renamed deck ${deckId} to '${updated.name}'` }],
         structuredContent: {
@@ -191,6 +194,7 @@ function deckRenameTool(store: DeckStore, session: string): ToolDefinition {
           deck_id: deckId,
           name: updated.name,
           version: updated.version,
+          vitals,
         },
       };
     },
@@ -290,7 +294,7 @@ function deckDiffTool(store: DeckStore, session: string): ToolDefinition {
   };
 }
 
-function deckRestoreTool(store: DeckStore, session: string): ToolDefinition {
+function deckRestoreTool(store: DeckStore, session: string, index?: CardIndex): ToolDefinition {
   return {
     name: "deck_restore",
     config: {
@@ -304,11 +308,15 @@ function deckRestoreTool(store: DeckStore, session: string): ToolDefinition {
       const deckId = String(args.deck_id ?? "");
       const snapshotId = String(args.snapshot_id ?? "");
       const deck = store.restore(deckId, snapshotId, session);
+      const vitals = deckVitals(deck, index);
       return {
         content: [
-          { type: "text", text: `restored ${deckId} from ${snapshotId} (now v${deck.version})` },
+          {
+            type: "text",
+            text: `restored ${deckId} from ${snapshotId} — ${formatVitals(vitals)}`,
+          },
         ],
-        structuredContent: { deck_id: deckId, restored_from: snapshotId, deck },
+        structuredContent: { deck_id: deckId, restored_from: snapshotId, deck, vitals },
       };
     },
   };
@@ -379,9 +387,10 @@ function deckImportTool(
 
       const additions = mergeEntries([], resolved);
       let deckId: string;
+      let updated: Deck;
       if (typeof args.deck_id === "string") {
         deckId = args.deck_id;
-        store.update(
+        updated = store.update(
           deckId,
           (deck) => ({ ...deck, cards: mergeEntries(deck.cards, additions) }),
           session,
@@ -395,17 +404,23 @@ function deckImportTool(
           session,
         );
         deckId = deck.deck_id;
-        store.update(deckId, (d) => ({ ...d, cards: additions }), session);
+        updated = store.update(deckId, (d) => ({ ...d, cards: additions }), session);
       }
 
+      const vitals = deckVitals(updated, index);
       return {
         content: [
           {
             type: "text",
-            text: `imported ${additions.length} cards into ${deckId}; ${unresolved.length} unresolved`,
+            text: `imported ${additions.length} cards into ${deckId}; ${unresolved.length} unresolved — ${formatVitals(vitals)}`,
           },
         ],
-        structuredContent: { deck_id: deckId, resolved_count: additions.length, unresolved },
+        structuredContent: {
+          deck_id: deckId,
+          resolved_count: additions.length,
+          unresolved,
+          vitals,
+        },
       };
     },
   };
@@ -515,12 +530,16 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
       }
 
       const updated = store.update(deckId, (d) => ({ ...d, cards: working }), session);
+      const vitals = deckVitals(updated, index);
       const failedNote = failed.length ? `, ${failed.length} unresolved` : "";
       return {
         content: [
-          { type: "text", text: `${verdicts.length} add verdict(s) for ${deckId}${failedNote}` },
+          {
+            type: "text",
+            text: `${verdicts.length} add verdict(s) for ${deckId}${failedNote} — ${formatVitals(vitals)}`,
+          },
         ],
-        structuredContent: { deck_id: deckId, version: updated.version, verdicts, failed },
+        structuredContent: { deck_id: deckId, version: updated.version, verdicts, failed, vitals },
       };
     },
   };
@@ -560,15 +579,16 @@ function deckRemoveTool(store: DeckStore, session: string, index?: CardIndex): T
         .filter((e) => e.qty > 0);
 
       const updated = store.update(deckId, (d) => ({ ...d, cards }), session);
+      const vitals = deckVitals(updated, index);
       const failedNote = failed.length ? `; ${failed.length} unresolved` : "";
       return {
         content: [
           {
             type: "text",
-            text: `removed from ${deckId} (${cards.length} entries left)${failedNote}`,
+            text: `removed from ${deckId}${failedNote} — ${formatVitals(vitals)}`,
           },
         ],
-        structuredContent: { deck_id: deckId, version: updated.version, failed },
+        structuredContent: { deck_id: deckId, version: updated.version, failed, vitals },
       };
     },
   };
@@ -640,9 +660,15 @@ function deckSetCommanderTool(
 
       const violations = index ? validateCommander(prospective, lookup) : [];
       if (violations.length > 0) {
+        // Current-state vitals so the agent still learns where the deck stands.
         return {
           content: [{ type: "text", text: `rejected: ${violations.length} violation(s)` }],
-          structuredContent: { ok: false, deck_id: deckId, violations },
+          structuredContent: {
+            ok: false,
+            deck_id: deckId,
+            violations,
+            vitals: deckVitals(deck, index),
+          },
         };
       }
 
@@ -656,8 +682,14 @@ function deckSetCommanderTool(
         }),
         session,
       );
+      const vitals = deckVitals(updated, index);
       return {
-        content: [{ type: "text", text: `set ${commanders.length} commander(s) on ${deckId}` }],
+        content: [
+          {
+            type: "text",
+            text: `set ${commanders.length} commander(s) on ${deckId} — ${formatVitals(vitals)}`,
+          },
+        ],
         structuredContent: {
           ok: true,
           deck_id: deckId,
@@ -665,6 +697,7 @@ function deckSetCommanderTool(
           command_zone_kind: kind,
           computed_color_identity: identity,
           version: updated.version,
+          vitals,
         },
       };
     },
@@ -710,6 +743,7 @@ function deckSetCompanionTool(
             deck_id: deckId,
             companion: null,
             version: updated.version,
+            vitals: deckVitals(updated, index),
           },
         };
       }
@@ -723,6 +757,7 @@ function deckSetCompanionTool(
             ok: false,
             deck_id: deckId,
             detail: `${card?.name ?? raw} is not a companion card`,
+            vitals: deckVitals(deck, index),
           },
         };
       }
@@ -746,6 +781,7 @@ function deckSetCompanionTool(
           condition_met: violations.length === 0,
           violations,
           version: updated.version,
+          vitals: deckVitals(updated, index),
         },
       };
     },
@@ -763,11 +799,11 @@ export function makeDeckTools(
     deckCreateTool(store, session, index, snapshot),
     deckGetTool(store, session, index),
     deckListTool(store, session),
-    deckRenameTool(store, session),
+    deckRenameTool(store, session, index),
     deckDeleteTool(store, session),
     deckSnapshotTool(store, session),
     deckDiffTool(store, session),
-    deckRestoreTool(store, session),
+    deckRestoreTool(store, session, index),
     deckImportTool(store, session, index, snapshot),
     deckExportTool(store, session, index),
     deckAddTool(store, session, index),
