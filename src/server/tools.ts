@@ -13,7 +13,12 @@ export const pingTool: ToolDefinition = {
   name: "ping",
   config: {
     title: "Ping",
-    description: "Liveness/echo check. Returns the supplied message (or 'pong').",
+    description:
+      "Echo a liveness check.\n" +
+      "USE: verifying the server is reachable. NOT: card-data readiness (data_status).\n" +
+      "FLOW: (connect) -> ping -> data_status.\n" +
+      "ARGS: message (optional; echoed back, default 'pong').\n" +
+      "RETURNS: message.",
     inputSchema: { message: z.string().optional() },
   },
   handler: (args) => {

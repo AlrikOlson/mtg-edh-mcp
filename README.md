@@ -10,7 +10,7 @@ strategic decisions of its own.
 See [`commander-deckbuilder-mcp-spec.md`](./commander-deckbuilder-mcp-spec.md) for
 the full design and [`ROADMAP.md`](./ROADMAP.md) for delivery status.
 
-> **Status:** pre-1.0, feature-complete. The engine (332 tests green) ships with
+> **Status:** pre-1.0, feature-complete. The engine (344 tests green) ships with
 > a macOS desktop app — deck workbench, analysis rail, collection, and the Oracle
 > in-app agent — plus first-run data onboarding and durable decks. **1.0.0 will be
 > the first signed, notarized public release**; until then see the Gatekeeper note
@@ -53,14 +53,28 @@ check that returns a conflict instead of clobbering a concurrent edit.
 
 ## Tool catalog
 
-| Group        | Tools                                                                                                   |
-| ------------ | ------------------------------------------------------------------------------------------------------- |
-| Card         | `card_search`, `card_get`, `card_resolve_name`, `card_printings`                                        |
-| Deck (state) | `deck_create`, `deck_get`, `deck_list`, `deck_delete`, `deck_set_commander`, `deck_add`, `deck_remove`  |
-| Versioning   | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                              |
-| Validation   | `validate_deck`, `validate_card`, `validate_commander`                                                  |
-| Analysis     | `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`   |
-| Meta         | `meta_commander_profile`, `meta_themes`, `meta_recommendations`, `meta_combos`, `meta_classify_bracket` |
+41 tools, built agent-first: every card-referencing input accepts **names or
+oracle_ids** (singular or array) with per-item `failed[]` + did-you-mean
+suggestions; every deck mutation returns a **`vitals`** block (count/100,
+lands, identity, legality, version) so no follow-up read is needed; and
+**`deck_status`** answers "where does this deck stand" in one offline call.
+Every list output has a documented default limit.
+
+| Group        | Tools                                                                                                                                                |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Data         | `data_status`, `data_ingest` (+ `ping`)                                                                                                              |
+| Card         | `card_search`, `card_get`, `card_resolve_name`, `card_printings`                                                                                     |
+| Collection   | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                             |
+| Deck (state) | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_add`, `deck_remove`          |
+| Versioning   | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                           |
+| Validation   | `validate_deck`, `validate_card`, `validate_commander`                                                                                               |
+| Analysis     | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `simulate_deck`, `budget_plan` |
+| Meta (live)  | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`                                              |
+
+Every description follows a fixed workflow-teaching template (one-liner /
+USE / NOT / FLOW / ARGS / RETURNS), enforced by a conformance test
+(`src/server/descriptions.test.ts`) that also verifies FLOW cross-references
+against the live registry.
 
 The server makes **zero strategic decisions** — it answers questions, mutates
 state, computes statistics, and validates. The agent supplies the taste.

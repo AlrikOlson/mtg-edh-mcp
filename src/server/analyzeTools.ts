@@ -55,8 +55,11 @@ function analyzeCurveTool(store: DeckStore, index: CardIndex, session: string): 
     config: {
       title: "Analyze mana curve",
       description:
-        "Quantity-weighted mana-value histogram for a deck (buckets 0..6, 7+). Optional " +
-        "filters: exclude_lands, role, color.",
+        "Compute the deck's quantity-weighted mana-value histogram.\n" +
+        "USE: curve-shape questions, incl. filtered views by role/color. NOT: the one-call overview (deck_status includes the curve).\n" +
+        "FLOW: deck_status -> analyze_curve -> deck_remove.\n" +
+        "ARGS: deck_id; exclude_lands; role (functional role); color W|U|B|R|G.\n" +
+        "RETURNS: buckets {0..6, 7+}, total.",
       inputSchema: {
         deck_id: z.string(),
         exclude_lands: z.boolean().optional(),
@@ -96,7 +99,12 @@ function analyzeCompositionTool(
     name: "analyze_composition",
     config: {
       title: "Analyze composition",
-      description: "Quantity-weighted counts by card type and by functional role for a deck.",
+      description:
+        "Count deck cards by card type and functional role, quantity-weighted.\n" +
+        "USE: type/role breakdowns. NOT: gaps vs target bands (analyze_role_coverage).\n" +
+        "FLOW: deck_status -> analyze_composition -> card_search.\n" +
+        "ARGS: deck_id.\n" +
+        "RETURNS: by_type, by_role, total.",
       inputSchema: { deck_id: z.string() },
     },
     handler: (args) => {
@@ -119,9 +127,11 @@ function analyzeStatsTool(store: DeckStore, index: CardIndex, session: string): 
     config: {
       title: "Analyze stats",
       description:
-        "Exact deck stats: card counts, average mana value (overall + nonland), color-pip " +
-        "distribution, total USD price (default printings) and min_buy_usd (sum of each " +
-        "card's cheapest printing). (EDHREC rank summary is not yet available.)",
+        "Compute exact deck stats: counts, average mana value, color pips, prices.\n" +
+        "USE: precise numbers for tuning (LLMs miscount — this doesn't). NOT: the one-call overview (deck_status).\n" +
+        "FLOW: deck_status -> analyze_stats -> budget_plan.\n" +
+        "ARGS: deck_id.\n" +
+        "RETURNS: total_cards, nonland_cards, avg_mv, avg_mv_nonland, color_pips, total_price_usd (default printings), min_buy_usd (cheapest printings).",
       inputSchema: { deck_id: z.string() },
     },
     handler: (args) => {
@@ -149,9 +159,11 @@ function analyzeManaBaseTool(store: DeckStore, index: CardIndex, session: string
     config: {
       title: "Analyze mana base",
       description:
-        "Per-color source counts (lands + mana rocks/dorks), tapped vs untapped land split, " +
-        "fixing density, and which of the deck's colors look under-supported. 'Any color' " +
-        "sources count toward each color in the deck's identity.",
+        "Analyze mana sources: per-color counts, tapped/untapped, fixing, under-supported colors.\n" +
+        "USE: land-base tuning ('any color' sources count toward each identity color). NOT: curve shape (analyze_curve).\n" +
+        "FLOW: deck_status -> analyze_mana_base -> card_search (t:land).\n" +
+        "ARGS: deck_id; threshold (per-color source floor, default 10).\n" +
+        "RETURNS: total_lands, untapped_lands/tapped_lands, sources (per color, lands + rocks + dorks), fixing_sources, under_supported.",
       inputSchema: { deck_id: z.string(), threshold: z.number().int().positive().optional() },
     },
     handler: (args) => {
@@ -186,9 +198,11 @@ function analyzeRoleCoverageTool(
     config: {
       title: "Analyze role coverage",
       description:
-        "Quantity-weighted functional-role counts vs target bands, reporting under/ok/over " +
-        "gaps. Bands are configurable; sensible Commander defaults are used otherwise. " +
-        "Advisory only — this does not feed validate_deck.",
+        "Compare functional-role counts against target bands (under/ok/over).\n" +
+        "USE: finding what the deck lacks (ramp, draw, removal...). NOT: EDHREC suggestions (meta_recommend).\n" +
+        "FLOW: deck_status -> analyze_role_coverage -> card_search.\n" +
+        "ARGS: deck_id; bands {role: {min, max}} (sensible Commander defaults otherwise).\n" +
+        "RETURNS: gaps[] {role, have, want_min, want_max, status}. Advisory — never feeds validate_deck.",
       inputSchema: {
         deck_id: z.string(),
         bands: z.record(z.string(), z.object({ min: z.number(), max: z.number() })).optional(),
@@ -220,13 +234,13 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
     config: {
       title: "Deck status (one-call dashboard)",
       description:
-        "One lean, fully offline call for where the deck stands: vitals (card_count/100, " +
-        "lands, color identity, legality, version), legality detail (errors capped at " +
-        `${STATUS_ERROR_CAP} with full error/warning counts), mana curve (buckets + avg_mv), ` +
-        "mana coverage (sources per color + under-supported), functional-role gaps " +
-        "(below-band only), and price (default + min-buy totals). The natural call after a " +
-        "batch of edits — replaces a validate_deck + analyze_* fan-out. Bracket lives in " +
-        "meta_classify_bracket (needs live data).",
+        "Report the deck's full standing in one offline call.\n" +
+        "USE: after any batch of edits — the default orientation call, replacing a validate_deck + analyze fan-out. NOT: power bracket (meta_classify_bracket, live data); the full card list (deck_get).\n" +
+        "FLOW: deck_add/deck_import -> deck_status -> card_search/meta_recommend.\n" +
+        "ARGS: deck_id.\n" +
+        "RETURNS: vitals (card_count/100, land_count, color_identity, legal, version); legality (errors capped at " +
+        `${STATUS_ERROR_CAP}, exact error_count/warning_count); curve (buckets, avg_mv); mana (sources_by_color, ` +
+        "under_supported); roles (below-band gaps); price (total_usd, min_buy_usd).",
       inputSchema: { deck_id: z.string() },
     },
     handler: (args) => {
@@ -298,10 +312,11 @@ function simulateDeckTool(store: DeckStore, index: CardIndex, session: string): 
     config: {
       title: "Simulate deck (goldfish)",
       description:
-        "Monte Carlo goldfish over N seeded games: opening-hand keepable/mulligan/dead-on-arrival " +
-        "rates, average opening lands, lands-by-turn, and turn-to-first-castable-spell. Deterministic " +
-        "for a fixed seed. Advisory + mana/curve-focused: it measures hand quality and castability, " +
-        "NOT combat, interaction, or expected damage / turn-to-win.",
+        "Goldfish the deck: Monte Carlo opening hands and early turns, deterministic per seed.\n" +
+        "USE: keepable-hand, mulligan, and castability rates. NOT: combat, interaction, or turn-to-win; land counts (analyze_mana_base).\n" +
+        "FLOW: deck_status -> simulate_deck -> analyze_mana_base.\n" +
+        "ARGS: deck_id; trials (max 100000); seed (fixed seed = identical results); on_the_play; hand_size; max_turns.\n" +
+        "RETURNS: keepable_rate, dead_on_arrival_rate, lands-by-turn, avg_turn_to_first_spell. Advisory, mana/curve-focused.",
       inputSchema: {
         deck_id: z.string(),
         trials: z.number().int().positive().max(100000).optional(),
@@ -349,12 +364,11 @@ function budgetPlanTool(
     config: {
       title: "Budget plan",
       description:
-        "Plan a deck toward a price target: default vs min-buy (cheapest-printing) totals, total " +
-        "reprint_savings (buy the cheap printing — no deck change), ranked reprint_suggestions, and " +
-        "cost_drivers (the priciest cards by cheapest×qty, with roles, to consider cutting). Pass " +
-        "target_usd for the over-budget gap. Set use_collection:true to also report acquire_usd — " +
-        "the cost to buy only the cards you don't already own (per collection_set). Figures are " +
-        "local-index price floors (conservative for bulk commons), advisory only.",
+        "Plan the deck toward a price target with zero card changes.\n" +
+        "USE: reprint savings, cost drivers, over-budget gap, acquire cost vs the owned collection. NOT: replacement suggestions (meta_budget_swaps).\n" +
+        "FLOW: analyze_stats -> budget_plan -> meta_budget_swaps.\n" +
+        "ARGS: deck_id; target_usd; limit (max 100); use_collection:true for acquire_usd (needs collection_set).\n" +
+        "RETURNS: min_buy_usd, default_total_usd, reprint_savings_usd, reprint_suggestions[], cost_drivers[], over_min_buy_by_usd, acquire_usd. Local-index price floors, advisory.",
       inputSchema: {
         deck_id: z.string(),
         target_usd: z.number().nonnegative().optional(),

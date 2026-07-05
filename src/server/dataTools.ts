@@ -118,10 +118,13 @@ export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
     config: {
       title: "Card-data status",
       description:
-        "Whether this server booted with a card index, plus the state of any in-flight or " +
-        "finished data ingest (phase download|build|done|error). The response's data_snapshot " +
-        "stamp is the date the RUNNING index was built from; after a 'done' ingest, restart " +
-        "the server (or reconnect the client) to serve the fresh index.",
+        "Report card-index readiness and any in-flight ingest.\n" +
+        "USE: checking data exists before searching; polling during data_ingest. NOT: deck state (deck_status).\n" +
+        "FLOW: ping -> data_status -> card_search.\n" +
+        "ARGS: none.\n" +
+        "RETURNS: has_index; ingest {running, phase download|build|done|error, snapshot, cards, error}. " +
+        "data_snapshot on every response is the RUNNING index's build date; after a 'done' ingest, " +
+        "restart/reconnect to serve the fresh index.",
       inputSchema: {},
     },
     handler: () => {
@@ -144,10 +147,12 @@ export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
     config: {
       title: "Card-data ingest",
       description:
-        "Download the Scryfall bulk exports (~700MB) and rebuild the local card index, " +
-        "atomically (a failed run never corrupts the served index). Returns immediately; " +
-        "poll data_status for phase progress. Idempotent on upstream freshness unless " +
-        "force is set. One run at a time.",
+        "Download Scryfall bulk data (~700MB) and rebuild the local card index atomically.\n" +
+        "USE: first-run setup; refreshing a stale snapshot. NOT: quick checks (data_status).\n" +
+        "FLOW: data_status -> data_ingest -> data_status (poll).\n" +
+        "ARGS: force:true rebuilds even when upstream is unchanged.\n" +
+        "RETURNS: started, already_running — returns immediately; poll data_status for phase. " +
+        "One run at a time; a failed run never corrupts the served index.",
       inputSchema: { force: z.boolean().optional() },
     },
     handler: (args) => {

@@ -52,9 +52,11 @@ function collectionSetTool(
     config: {
       title: "Set collection",
       description:
-        "Replace the owned-card collection with these cards (by oracle_id or name). " +
-        "Unresolvable entries are reported in unresolved[]. The collection is optional and " +
-        "only used when card_search is called with owned_only:true.",
+        "Replace the owned-card collection.\n" +
+        "USE: loading what the user owns before ownership-aware search or budgeting. NOT: adding a few cards (collection_add).\n" +
+        "FLOW: (owned list) -> collection_set -> card_search (owned_only) / budget_plan (use_collection).\n" +
+        "ARGS: cards: name-or-id, single string or array.\n" +
+        "RETURNS: owned_count, total, owned[]/cards[] (echo capped at 200), unresolved[]. Session-scoped; resets on restart.",
       inputSchema: { cards: CARDS_INPUT },
     },
     handler: (args) => {
@@ -77,7 +79,12 @@ function collectionAddTool(
     name: "collection_add",
     config: {
       title: "Add to collection",
-      description: "Add cards (by oracle_id or name) to the owned-card collection.",
+      description:
+        "Add cards to the owned-card collection.\n" +
+        "USE: growing the owned set incrementally. NOT: replacing it wholesale (collection_set).\n" +
+        "FLOW: collection_get -> collection_add -> card_search (owned_only).\n" +
+        "ARGS: cards: name-or-id, single string or array.\n" +
+        "RETURNS: owned_count, total, owned[]/cards[] (echo capped at 200), unresolved[].",
       inputSchema: { cards: CARDS_INPUT },
     },
     handler: (args) => {
@@ -101,9 +108,11 @@ function collectionGetTool(
     config: {
       title: "Get collection",
       description:
-        "Return the owned-card collection (oracle_ids + names), paginated: limit defaults " +
-        "to 200; pass the returned next_cursor to fetch the next page. total always " +
-        "reports the full collection size.",
+        "Read the owned-card collection, paginated.\n" +
+        "USE: reviewing what's loaded. NOT: ownership-filtered search (card_search owned_only).\n" +
+        "FLOW: collection_set -> collection_get -> (page with cursor).\n" +
+        "ARGS: limit (default 200); cursor (from next_cursor).\n" +
+        "RETURNS: owned[]/cards[] page, total (exact), next_cursor.",
       inputSchema: {
         limit: z.number().int().positive().max(1000).optional(),
         cursor: z.string().optional(),
@@ -140,7 +149,12 @@ function collectionClearTool(collection: CollectionStore, session: string): Tool
     name: "collection_clear",
     config: {
       title: "Clear collection",
-      description: "Empty the owned-card collection for this session.",
+      description:
+        "Empty the owned-card collection for this session.\n" +
+        "USE: starting ownership tracking over. NOT: swapping in a new list (collection_set replaces in one call).\n" +
+        "FLOW: collection_get -> collection_clear -> collection_set.\n" +
+        "ARGS: none.\n" +
+        "RETURNS: owned_count 0.",
       inputSchema: {},
     },
     handler: () => {

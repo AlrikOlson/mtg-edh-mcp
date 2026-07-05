@@ -1,13 +1,5 @@
 # Roadmap — mtg-edh-mcp-4d66ba
 
-## Pending
-
-- [ ] **Ergonomics · Workflow-teaching description template + conformance lint** — Rewrite all ~41 tool descriptions to the fixed template (imperative one-liner / USE-NOT / FLOW / ARGS / RETURNS, ≤700 chars) across the 8 tool files. New src/server/descriptions.test.ts lints every registered ToolDefinition against the template regex + length and cross-checks FLOW tool names against the registry. Update README tool table + spec §1 grounding wording.
-  - deps: ergo-meta
-  - acceptance: every registered tool description passes the template lint test
-  - acceptance: FLOW lines only reference tools that exist in the registry
-  - acceptance: README + spec updated; full gates green
-
 ## Done
 
 - [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
@@ -273,6 +265,11 @@
   - acceptance: meta_recommend rank:inclusion + min_inclusion reproduces old missing_staples output on fixtures
   - acceptance: no unbounded array output remains without a documented default limit
   - acceptance: Rust round-trip green
+- [x] **Ergonomics · Workflow-teaching description template + conformance lint** — Rewrite all ~41 tool descriptions to the fixed template (imperative one-liner / USE-NOT / FLOW / ARGS / RETURNS, ≤700 chars) across the 8 tool files. New src/server/descriptions.test.ts lints every registered ToolDefinition against the template regex + length and cross-checks FLOW tool names against the registry. Update README tool table + spec §1 grounding wording.
+  - deps: ergo-meta
+  - acceptance: every registered tool description passes the template lint test
+  - acceptance: FLOW lines only reference tools that exist in the registry
+  - acceptance: README + spec updated; full gates green
 - [x] **Oracle · Agent brain ladder — Claude Code shell-out → BYO key → structured intents** — USER DECISION RECORDED (2026-07-01): the LLM brain is a three-tier ladder, not BYO-key-only. TIER 1 (preferred, desktop-only): shell out to the user's own `claude` CLI in headless mode — `claude -p --output-format stream-json` with `--mcp-config` pointing at the app's OWN engine (127.0.0.1:3000) and `--allowedTools "mcp__<name>__*"` so Claude drives card_search/analyze_*/meta_* itself; stream-json tool events map 1:1 onto the existing Cap caption stream; the reply carries a strict-JSON change-set the existing spectral-rows UI renders; engine pre-check verdicts still gate application. Detection: `claude --version` on PATH at startup; cfg-gated native-only (web/wasm cannot spawn). Zero key-handling — uses the user's existing Claude auth. TIER 2: BYO Anthropic API key (direct API, for users without Claude Code) — needs key entry+storage UX (keychain on macOS?), model choice (haiku for cost), and clear cost expectations. TIER 3: the shipped structured intents (think:142) remain the always-available offline fallback. Remaining sub-decisions before/while implementing: change-set JSON schema for the prompt contract; timeout/cancel UX for multi-second turns; whether Tier 2 lands in the same chunk or splits (Tier 1 alone is shippable and needs no new UX surfaces beyond a settings row + detection badge).
   - deps: gui-oracle
   - acceptance: Tier 1: with `claude` on PATH, an Oracle ask shells out headless with the engine as MCP config; tool events stream as captions; a JSON change-set renders in the existing UI and applies through pre-check verdicts

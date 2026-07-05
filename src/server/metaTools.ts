@@ -141,10 +141,11 @@ function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
     config: {
       title: "Commander profile (EDHREC)",
       description:
-        "EDHREC average-deck profile for a commander: top cards by category with inclusion " +
-        "and synergy (limit, default 50; total_cards reports the full profile size), plus " +
-        "themes. Live data via EDHREC, cached; degrades when upstream is down. For " +
-        "deck-grounded suggestions use meta_recommend instead.",
+        "Fetch a commander's EDHREC average-deck profile.\n" +
+        "USE: raw meta context for a commander (top cards + themes). NOT: deck-grounded suggestions (meta_recommend).\n" +
+        "FLOW: deck_set_commander -> meta_commander_profile -> meta_recommend.\n" +
+        "ARGS: commander (name); limit (default 50).\n" +
+        "RETURNS: cards[] {name, inclusion, synergy, category}, total_cards (full profile size), themes[]. Live EDHREC, cached; degrades when upstream is down.",
       inputSchema: {
         commander: z.string(),
         limit: z.number().int().positive().max(500).optional(),
@@ -182,13 +183,11 @@ function metaRecommendTool(
     config: {
       title: "Recommend cards (EDHREC)",
       description:
-        "Suggest cards to ADD, drawn from the commander's EDHREC profile and grounded " +
-        "against the deck (in color identity, not already present; unresolved names " +
-        "reported, not dropped). rank:'synergy' (default) keeps EDHREC's " +
-        "commander-specific fit ordering — 'what fits next'; rank:'inclusion' sorts by raw " +
-        "prevalence with optional min_inclusion — 'what staples am I missing'. Optional " +
-        "exclude_lands; limit default 25 (max 100). Suggestions carry oracle_ids ready for " +
-        "deck_add. For cheaper replacements use meta_budget_swaps.",
+        "Suggest cards to add from the commander's EDHREC profile, grounded against the deck.\n" +
+        "USE: rank:synergy (default) for 'what fits next'; rank:inclusion (+min_inclusion) for 'what staples am I missing'. NOT: cheaper replacements (meta_budget_swaps); offline gap analysis (deck_status).\n" +
+        "FLOW: deck_set_commander/deck_status -> meta_recommend -> deck_add.\n" +
+        "ARGS: deck_id; rank synergy|inclusion; min_inclusion; exclude_lands; limit (default 25, max 100).\n" +
+        "RETURNS: suggestions[] {oracle_id, name, synergy, inclusion, category} — in identity, not already present, ready for deck_add; unresolved[]. Live EDHREC, cached; degrades when down.",
       inputSchema: {
         deck_id: z.string(),
         rank: z.enum(["synergy", "inclusion"]).optional(),
@@ -263,13 +262,11 @@ function metaBudgetSwapsTool(
     config: {
       title: "Budget swaps (EDHREC)",
       description:
-        "Suggest cheaper functional REPLACEMENTS for a deck's most expensive cards: candidates are " +
-        "drawn from the commander's EDHREC profile (in color identity, not already in the deck), and " +
-        "a swap is proposed when a candidate shares a functional role and is cheaper (by cheapest " +
-        "printing). Reports per-swap savings + the projected min-buy. Pass target_usd to stop once " +
-        "the floor is under budget. Heuristic + advisory: role match is coarse (shares any role, not " +
-        "semantic equivalence) and prices are conservative local-index floors — review before swapping. " +
-        "For zero-change reprint savings (no swaps) use budget_plan.",
+        "Suggest cheaper functional replacements for the deck's most expensive cards.\n" +
+        "USE: cutting cost via out/in swaps from the commander's EDHREC profile. NOT: additions (meta_recommend); zero-change reprint savings (budget_plan).\n" +
+        "FLOW: budget_plan -> meta_budget_swaps -> deck_remove.\n" +
+        "ARGS: deck_id; target_usd (stop once under budget); limit (default 10, max 50).\n" +
+        "RETURNS: swaps[] {out, in, roles_matched, savings}, current_min_buy_usd, projected_min_buy_usd. Heuristic role match + local price floors — review before swapping.",
       inputSchema: {
         deck_id: z.string(),
         target_usd: z.number().nonnegative().optional(),
@@ -394,10 +391,11 @@ function metaCombosTool(
     config: {
       title: "Combos (Commander Spellbook)",
       description:
-        "Combos reachable from a deck (pieces, result, steps) via Commander Spellbook. " +
-        "Returns combos fully present in the deck; set include_almost to also return combos " +
-        "that are one card away. Each combo carries its source and confidence. limit " +
-        "defaults to 20 (included_count/almost_count always report full totals).",
+        "Find combos reachable from the deck via Commander Spellbook.\n" +
+        "USE: what the deck can assemble (pieces, result, steps). NOT: bracket impact (meta_classify_bracket counts combos itself).\n" +
+        "FLOW: deck_status -> meta_combos -> deck_add.\n" +
+        "ARGS: deck_id; include_almost:true for one-card-away combos; limit (default 20).\n" +
+        "RETURNS: combos[] (with source + confidence), included_count, almost_count (exact totals).",
       inputSchema: {
         deck_id: z.string(),
         include_almost: z.boolean().optional(),
@@ -452,10 +450,11 @@ function metaClassifyBracketTool(
     config: {
       title: "Classify bracket",
       description:
-        "Classify a deck into the official Commander brackets (1 Exhibition … 5 cEDH) and " +
-        "report what pushes it up: Game Changers, fast mana, tutors, mass land denial, two-card " +
-        "combos, and extra turns. Game Changers come from the live list; combos from Commander " +
-        "Spellbook (degrades gracefully). cEDH (5) is not auto-assigned.",
+        "Classify the deck into the official Commander brackets (1 Exhibition … 5 cEDH).\n" +
+        "USE: power-level conversations and pod matching. NOT: legality (validate_deck); offline stats (deck_status).\n" +
+        "FLOW: deck_status -> meta_classify_bracket -> deck_remove.\n" +
+        "ARGS: deck_id.\n" +
+        "RETURNS: bracket, rationale, pushers (Game Changers, fast mana, tutors, mass land denial, two-card combos, extra turns). Live Game Changers list + Spellbook (degrades gracefully); cEDH (5) never auto-assigned.",
       inputSchema: { deck_id: z.string() },
     },
     handler: async (args) => {

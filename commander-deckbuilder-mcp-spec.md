@@ -11,7 +11,7 @@ The server is **not** a deckbuilder. It is the deterministic substrate a deckbui
 
 1. **Deterministic substrate, strategic agent.** There is no `build_deck` tool and no tool that makes a card-selection decision. Tools answer questions, mutate state, compute statistics, and validate. The creative/strategic layer lives entirely in the agent. This is what makes "any deck imaginable" possible — the server never constrains the *kind* of deck, only enforces the *rules* of the format.
 
-2. **Everything is grounded.** No card can be referenced except by a canonical identifier resolved against real data. The agent physically cannot add a hallucinated card to a deck — `deck_add` accepts `oracle_id`s, and the only way to get one is to resolve a real name or run a real search. This single constraint eliminates the dominant failure mode of LLM deckbuilding.
+2. **Everything is grounded.** No card can enter a deck except by resolving against real data. Tools accept card *names* for ergonomics (ergo-resolve), but resolution happens **server-side** against the local index: a hallucinated name never mutates state — it comes back in `failed[]` with did-you-mean suggestions (or as a typed `UNKNOWN_CARD`/`AMBIGUOUS_NAME` error with candidates). Grounding moved from "ids-only inputs" to "server-enforced resolution with loud per-item failures", which keeps the anti-hallucination guarantee while killing the per-card resolve round-trip.
 
 3. **Composable, orthogonal primitives.** Each tool does exactly one thing and composes with the others. Search → resolve → validate-precheck → add → analyze → re-validate is a pipeline the agent assembles, not a workflow the server hardcodes.
 
@@ -259,10 +259,12 @@ All tool errors return MCP `isError` with a structured `code` so the agent branc
 ## 9. Token economy & response shaping
 
 - Default responses are `CardRef`-lean; full `Card` objects only via `card_get` or explicit `fields`/`expand`.
-- All list-returning tools paginate with opaque cursors and a hard `limit`.
+- Every list-returning tool has a documented default `limit` (profile 50, recommend 25, combos 20, collection 200 + cursor, deck_list 50, validate echoes 50) with exact totals always reported; `card_search` and `collection_get` page with opaque cursors.
 - Large search results return `total` + a window; the agent narrows the query rather than paging blindly.
 - `deck_get` defaults to ids+names+qty; the agent expands only the slice it's reasoning about.
+- Every deck mutation returns a `vitals` block (card_count/100, lands, identity, legality, version) so the agent never follows a mutation with a read; `deck_status` replaces the validate + analyze fan-out with one offline call.
 - Structured output (machine-parseable JSON) is the contract; any prose is supplementary.
+- Tool descriptions follow a fixed workflow-teaching template (one-liner / USE / NOT / FLOW / ARGS / RETURNS), lint-enforced with FLOW cross-reference checks (`src/server/descriptions.test.ts`).
 
 ---
 

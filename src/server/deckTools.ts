@@ -82,8 +82,11 @@ function deckCreateTool(
     config: {
       title: "Create deck",
       description:
-        "Create a new versioned deck and return its deck_id. Initial commanders may be " +
-        "given by oracle_id or card name, as a single string or an array.",
+        "Create a versioned deck and return its deck_id.\n" +
+        "USE: starting a new build. NOT: loading an existing list (deck_import).\n" +
+        "FLOW: (idea) -> deck_create -> deck_set_commander.\n" +
+        "ARGS: name; commanders (name-or-id, single string or array; lenient — legality is checked by deck_set_commander); command_zone_kind single|partner|background|doctor_companion; format.\n" +
+        "RETURNS: deck_id, deck, vitals (card_count/100 incl. command zone, land_count, color_identity, legal, version).",
       inputSchema: {
         name: z.string(),
         format: z.literal("commander").optional(),
@@ -130,8 +133,11 @@ function deckGetTool(store: DeckStore, session: string, index?: CardIndex): Tool
     config: {
       title: "Get deck",
       description:
-        "Fetch a deck by deck_id. Lean by default (cards as oracle_id+qty+name); " +
-        "expand:true includes the full Card per entry.",
+        "Fetch a deck's full contents.\n" +
+        "USE: reading the card list. NOT: a health overview (deck_status); finding decks (deck_list).\n" +
+        "FLOW: deck_list -> deck_get -> deck_add/deck_remove.\n" +
+        "ARGS: deck_id; expand:true for the full Card per entry (default lean oracle_id+qty+name).\n" +
+        "RETURNS: deck (cards[], commanders, computed_color_identity, version).",
       inputSchema: { deck_id: z.string(), expand: z.boolean().optional() },
     },
     handler: (args) => {
@@ -154,9 +160,11 @@ function deckListTool(store: DeckStore, session: string, index?: CardIndex): Too
     config: {
       title: "List decks",
       description:
-        "List decks in the current session as lean entries (deck_id, name, version, " +
-        "commander names, card_count) — full contents via deck_get. limit defaults to 50; " +
-        "total reports the full count.",
+        "List decks as lean entries.\n" +
+        "USE: finding a deck_id or surveying builds. NOT: full contents (deck_get).\n" +
+        "FLOW: (session start) -> deck_list -> deck_get.\n" +
+        "ARGS: limit (default 50).\n" +
+        "RETURNS: decks[] {deck_id, name, version, commanders (names), card_count}, total.",
       inputSchema: { limit: z.number().int().positive().max(500).optional() },
     },
     handler: (args) => {
@@ -183,8 +191,11 @@ function deckRenameTool(store: DeckStore, session: string, index?: CardIndex): T
     config: {
       title: "Rename deck",
       description:
-        "Rename a deck by deck_id. Pass expected_version for optimistic concurrency: " +
-        "a mismatch returns a conflict without mutating.",
+        "Rename a deck.\n" +
+        "USE: retitling. NOT: content changes (deck_add/deck_remove).\n" +
+        "FLOW: deck_list -> deck_rename -> deck_status.\n" +
+        "ARGS: deck_id; name; expected_version for optimistic concurrency (mismatch returns conflict, no mutation).\n" +
+        "RETURNS: ok, name, version, vitals.",
       inputSchema: {
         deck_id: z.string(),
         name: z.string().min(1),
@@ -219,7 +230,12 @@ function deckDeleteTool(store: DeckStore, session: string): ToolDefinition {
     name: "deck_delete",
     config: {
       title: "Delete deck",
-      description: "Delete a deck by deck_id.",
+      description:
+        "Delete a deck permanently.\n" +
+        "USE: discarding a build. NOT: undoable experiments (deck_snapshot then deck_restore).\n" +
+        "FLOW: deck_list -> deck_delete -> deck_list.\n" +
+        "ARGS: deck_id.\n" +
+        "RETURNS: deleted:true.",
       inputSchema: { deck_id: z.string() },
     },
     handler: (args) => {
@@ -241,8 +257,11 @@ function deckSnapshotTool(store: DeckStore, session: string): ToolDefinition {
     config: {
       title: "Snapshot deck",
       description:
-        "Capture an immutable copy of a deck's current state under a snapshot_id, " +
-        "so it can later be diffed or restored.",
+        "Capture an immutable snapshot of a deck's current state.\n" +
+        "USE: checkpointing before risky edits. NOT: copying to a new deck (deck_export then deck_import).\n" +
+        "FLOW: deck_status -> deck_snapshot -> (edit) -> deck_diff.\n" +
+        "ARGS: deck_id.\n" +
+        "RETURNS: snapshot_id, version.",
       inputSchema: { deck_id: z.string() },
     },
     handler: (args) => {
@@ -264,9 +283,11 @@ function deckDiffTool(store: DeckStore, session: string): ToolDefinition {
     config: {
       title: "Diff deck",
       description:
-        "Compare a snapshot against the deck's current state (or against a second " +
-        "snapshot via to_snapshot_id). Reports added/removed/qty-changed cards and " +
-        "metadata changes, going from the baseline snapshot to the target.",
+        "Compare a snapshot against the current deck (or a second snapshot).\n" +
+        "USE: reviewing what changed since a checkpoint. NOT: legality (validate_deck).\n" +
+        "FLOW: deck_snapshot -> (edits) -> deck_diff -> deck_restore.\n" +
+        "ARGS: deck_id; snapshot_id (baseline); to_snapshot_id (optional target, default current).\n" +
+        "RETURNS: diff {cards {added, removed, changed}, metadata changes}.",
       inputSchema: {
         deck_id: z.string(),
         snapshot_id: z.string(),
@@ -313,8 +334,11 @@ function deckRestoreTool(store: DeckStore, session: string, index?: CardIndex): 
     config: {
       title: "Restore deck",
       description:
-        "Roll a deck back to a snapshot. The deck keeps its deck_id; version is " +
-        "bumped (restore is itself a mutation) and subscribers are notified.",
+        "Roll a deck back to a snapshot.\n" +
+        "USE: undoing edits since a checkpoint. NOT: deleting the deck (deck_delete).\n" +
+        "FLOW: deck_diff -> deck_restore -> deck_status.\n" +
+        "ARGS: deck_id; snapshot_id.\n" +
+        "RETURNS: deck, vitals. Keeps deck_id; version bumps (restore is itself a mutation).",
       inputSchema: { deck_id: z.string(), snapshot_id: z.string() },
     },
     handler: (args) => {
@@ -362,9 +386,11 @@ function deckImportTool(
     config: {
       title: "Import decklist",
       description:
-        "Parse a decklist (Moxfield/Archidekt/MTGO/Arena/plaintext) and resolve each " +
-        "line to a card. Adds to deck_id when given, otherwise creates a new deck. " +
-        "Unresolved lines are reported (never silently dropped).",
+        "Parse decklist text (Moxfield/Archidekt/MTGO/Arena/plaintext) into a deck.\n" +
+        "USE: bulk-loading an existing list. NOT: adding a few cards (deck_add).\n" +
+        "FLOW: (list text) -> deck_import -> deck_status.\n" +
+        "ARGS: text; deck_id (add to existing) or name (create new).\n" +
+        "RETURNS: deck_id, resolved_count, unresolved[] (per line, with candidates/suggestions — never silently dropped), vitals.",
       inputSchema: {
         text: z.string(),
         deck_id: z.string().optional(),
@@ -445,8 +471,11 @@ function deckExportTool(store: DeckStore, session: string, index?: CardIndex): T
     config: {
       title: "Export decklist",
       description:
-        "Emit a deck as plaintext '<qty> <name>' decklist lines. Set/collector data " +
-        "is not stored per entry, so export carries quantity + card identity only.",
+        "Export a deck as plaintext '<qty> <name>' decklist lines.\n" +
+        "USE: sharing or moving a list out. NOT: reading structured contents (deck_get).\n" +
+        "FLOW: validate_deck -> deck_export -> (share).\n" +
+        "ARGS: deck_id; format text.\n" +
+        "RETURNS: text (quantity + card identity only; per-entry set/collector data is not stored).",
       inputSchema: { deck_id: z.string(), format: z.enum(["text"]).optional() },
     },
     handler: (args) => {
@@ -489,14 +518,11 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
     config: {
       title: "Add cards",
       description:
-        "Add cards by name or oracle_id — a bare string, {card, qty} objects, or an array " +
-        "of either (batch, idempotent on (deck_id, oracle_id)). Names are resolved " +
-        "server-side; unresolvable/ambiguous entries come back in failed[] (with " +
-        "did-you-mean suggestions / candidates) without aborting the rest. Returns a " +
-        "per-card pre-check verdict: ok, or rejected with Violations (identity/legality/" +
-        "singleton). Rejected cards are not applied unless force:true, which adds them " +
-        "flagged illegal in state. Pass expected_version for optimistic concurrency: a " +
-        "mismatch returns a conflict without mutating.",
+        "Add cards to a deck; accepts names or oracle_ids, singular or array.\n" +
+        "USE: putting specific cards into a deck. NOT: bulk decklist text (deck_import); browsing candidates (card_search).\n" +
+        "FLOW: card_search/meta_recommend -> deck_add -> deck_status.\n" +
+        'ARGS: deck_id; cards: "Sol Ring" | ["Sol Ring", {card:"Island", qty:8}]; force:true applies rule-breaking cards flagged illegal; expected_version for optimistic concurrency.\n' +
+        "RETURNS: verdicts[] (ok | rejected+violations | added_illegal), failed[] (unresolved inputs with suggestions/candidates — one typo never aborts the batch), vitals — no follow-up deck_get needed.",
       inputSchema: {
         deck_id: z.string(),
         cards: CardInputsSchema,
@@ -564,12 +590,11 @@ function deckRemoveTool(store: DeckStore, session: string, index?: CardIndex): T
     config: {
       title: "Remove cards",
       description:
-        "Remove cards by name or oracle_id — a bare string, {card, qty} objects, or an " +
-        "array of either (batch; qty defaults to 1). Decrements quantity; an entry is " +
-        "dropped when its quantity reaches zero. Idempotent — removing more than present " +
-        "clears it. Unresolvable entries come back in failed[] without aborting the rest. " +
-        "Pass expected_version for optimistic concurrency: a mismatch returns a conflict " +
-        "without mutating.",
+        "Remove cards from a deck; accepts names or oracle_ids, singular or array (qty defaults to 1).\n" +
+        "USE: cutting cards. NOT: rolling back many edits (deck_restore).\n" +
+        "FLOW: deck_status/analyze_curve -> deck_remove -> deck_status.\n" +
+        'ARGS: deck_id; cards: "Island" | [{card, qty}]; expected_version for optimistic concurrency.\n' +
+        "RETURNS: version, failed[] (unresolved inputs), vitals. Decrements quantity; entries drop at zero; over-removal clears (idempotent).",
       inputSchema: {
         deck_id: z.string(),
         cards: CardInputsSchema,
@@ -633,12 +658,11 @@ function deckSetCommanderTool(
     config: {
       title: "Set commander(s)",
       description:
-        "Set or replace a deck's commander(s), given by oracle_id or card name — a single " +
-        "string or an array. Validates " +
-        "eligibility + partner/background/Doctor pairings and recomputes the deck's combined " +
-        "color identity. Rejects an illegal command zone with Violations rather than applying " +
-        "it. Pass expected_version for optimistic concurrency: a mismatch returns a conflict " +
-        "without mutating.",
+        "Set or replace the deck's commander(s) by name or oracle_id, single string or array.\n" +
+        "USE: choosing the command zone; changing color identity. NOT: the other 99 (deck_add); a what-if check (validate_commander).\n" +
+        "FLOW: card_search (is:commander) -> deck_set_commander -> meta_recommend.\n" +
+        "ARGS: deck_id; commanders; command_zone_kind single|partner|background|doctor_companion (inferred when omitted); expected_version.\n" +
+        "RETURNS: ok, computed_color_identity, version, vitals — or ok:false + violations (nothing applied; current-state vitals).",
       inputSchema: {
         deck_id: z.string(),
         commanders: COMMANDERS_INPUT,
@@ -727,11 +751,11 @@ function deckSetCompanionTool(
     config: {
       title: "Set companion",
       description:
-        "Declare (or clear) the deck's companion, given by oracle_id or card name. Validates " +
-        "the card is actually a companion and reports — advisory — whether the deck currently " +
-        "meets its deckbuilding condition (the full check is run by validate_deck). Pass an " +
-        "empty/omitted companion to clear it. Pass expected_version for optimistic concurrency: " +
-        "a mismatch returns a conflict without mutating.",
+        "Declare or clear the deck's companion by name or oracle_id.\n" +
+        "USE: setting a companion (empty/omitted clears it). NOT: commanders (deck_set_commander).\n" +
+        "FLOW: deck_set_commander -> deck_set_companion -> validate_deck.\n" +
+        "ARGS: deck_id; companion; expected_version.\n" +
+        "RETURNS: ok, companion, condition_met (advisory — validate_deck runs the full deckbuilding-condition check), violations, vitals.",
       inputSchema: {
         deck_id: z.string(),
         companion: z.string().optional(),

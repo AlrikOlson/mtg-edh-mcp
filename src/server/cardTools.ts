@@ -26,10 +26,11 @@ function cardSearchTool(
     config: {
       title: "Card search",
       description:
-        "Evaluate a Scryfall-grammar query against the local index. Returns lean CardRefs " +
-        "(oracle_id, name, mv, ci, type) with total/returned and an opaque next_cursor. " +
-        "Set owned_only:true to restrict results to the owned collection (a no-op until a " +
-        "collection is set via collection_set).",
+        "Search cards with Scryfall query grammar against the local index.\n" +
+        'USE: finding candidates by type/color/cost/text, e.g. "t:instant ci<=wu mv<=2 o:draw". NOT: one known card (card_get); resolving a name (card_resolve_name).\n' +
+        "FLOW: deck_status/analyze_role_coverage -> card_search -> deck_add.\n" +
+        "ARGS: query (Scryfall grammar); order name|mv|price; limit (max 175); cursor (from next_cursor); owned_only:true restricts to the collection (no-op until collection_set).\n" +
+        "RETURNS: results[] lean CardRefs (oracle_id, name, mv, ci, type), total, returned, next_cursor.",
       inputSchema: {
         query: z.string(),
         order: z.enum(["name", "mv", "price"]).optional(),
@@ -69,13 +70,11 @@ function cardGetTool(index: CardIndex): ToolDefinition {
     config: {
       title: "Card get",
       description:
-        "Fetch Card objects by oracle_id OR card name (batch). Unresolvable entries are " +
-        "reported in missing[]. Lean by default: the full printings[] array is omitted (it " +
-        "can overflow large batches) — each card instead carries default_usd (chosen " +
-        "printing's price) and cheapest_usd (floor across all printings) for budget-aware " +
-        "decisions. Set include_printings:true for the full printings array (or use " +
-        "card_printings for one card). `cards` accepts a single string or an array " +
-        "(oracle_ids is a legacy alias).",
+        "Fetch full Card objects by name or oracle_id, singular or array.\n" +
+        "USE: reading oracle text/roles/legality/prices for known cards. NOT: browsing (card_search).\n" +
+        "FLOW: card_search/deck_get -> card_get -> deck_add.\n" +
+        'ARGS: cards: "Sol Ring" | [names or ids] (oracle_ids is a legacy alias); include_printings:true for the heavy printings[] (default lean: each card carries default_usd + cheapest_usd instead).\n' +
+        "RETURNS: cards[] (full Card + pricing), missing[] (unresolvable inputs).",
       inputSchema: {
         cards: StringOrStringsSchema.optional(),
         oracle_ids: StringOrStringsSchema.optional(),
@@ -123,8 +122,11 @@ function cardResolveNameTool(index: CardIndex): ToolDefinition {
     config: {
       title: "Resolve card name",
       description:
-        "Resolve a card name to an oracle_id (the anti-hallucination gateway). " +
-        "Ambiguous names return AMBIGUOUS_NAME with candidates; unknown names return UNKNOWN_CARD.",
+        "Resolve one card name to its canonical oracle_id.\n" +
+        "USE: explicit disambiguation when a name may be ambiguous. NOT: routine adds — deck_add and card_get accept names directly.\n" +
+        "FLOW: (name in hand) -> card_resolve_name -> deck_add.\n" +
+        "ARGS: name; exact:true disables the fuzzy fallback.\n" +
+        "RETURNS: oracle_id + lean card. Errors: AMBIGUOUS_NAME carries candidates[]; UNKNOWN_CARD carries did-you-mean suggestions[].",
       inputSchema: { name: z.string(), exact: z.boolean().optional() },
     },
     handler: (args) => {
@@ -156,8 +158,11 @@ function cardPrintingsTool(index: CardIndex): ToolDefinition {
     config: {
       title: "Card printings",
       description:
-        "All printings (set, collector number, prices) for a card, given by name or " +
-        "oracle_id (`card`; oracle_id is a legacy alias).",
+        "List every printing of a card (set, collector number, prices), newest first.\n" +
+        "USE: picking a printing or price-shopping one card. NOT: batch pricing (card_get's default_usd/cheapest_usd).\n" +
+        "FLOW: card_get -> card_printings -> (choose printing).\n" +
+        "ARGS: card (name or oracle_id; oracle_id is a legacy alias).\n" +
+        "RETURNS: oracle_id, printings[].",
       inputSchema: { card: z.string().optional(), oracle_id: z.string().optional() },
     },
     handler: (args) => {

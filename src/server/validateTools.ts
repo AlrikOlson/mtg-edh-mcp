@@ -36,9 +36,11 @@ function validateDeckTool(store: DeckStore, index: CardIndex, session: string): 
     config: {
       title: "Validate deck",
       description:
-        "Authoritative legality gate: runs all core + commander rules (and a declared " +
-        "companion's deckbuilding condition) over a deck and returns structured Violations " +
-        "split into hard errors and advisory warnings. ok is true only when there are no errors.",
+        "Run the authoritative Commander legality gate over a deck.\n" +
+        "USE: the final is-this-legal verdict (core + commander + companion rules). NOT: a quick standing check (deck_status); one candidate card (validate_card).\n" +
+        "FLOW: deck_add/deck_import -> validate_deck -> deck_export.\n" +
+        "ARGS: deck_id.\n" +
+        "RETURNS: ok (true only with zero errors), violations/errors/warnings (echoes capped at 50), error_count, warning_count (exact), exemptions (legal qty>1 cards).",
       inputSchema: { deck_id: z.string() },
     },
     handler: (args) => {
@@ -83,9 +85,11 @@ function validateCardTool(store: DeckStore, index: CardIndex, session: string): 
     config: {
       title: "Validate card (precheck)",
       description:
-        "Read-only pre-check: would adding this card to the deck be legal? Accepts a card " +
-        "name or oracle_id (`card`; oracle_id is a legacy alias). Returns the " +
-        "card-scoped Violations (identity/legality/singleton) without mutating the deck.",
+        "Pre-check whether adding one card would be legal — read-only, no mutation.\n" +
+        "USE: testing a candidate before committing. NOT: applying it (deck_add already pre-checks per card); whole-deck legality (validate_deck).\n" +
+        "FLOW: card_search -> validate_card -> deck_add.\n" +
+        "ARGS: deck_id; card (name or oracle_id; oracle_id is a legacy alias); qty.\n" +
+        "RETURNS: ok, violations[] (card-scoped identity/banlist/singleton).",
       inputSchema: {
         deck_id: z.string(),
         card: z.string().optional(),
@@ -141,10 +145,11 @@ function validateCommanderTool(
     config: {
       title: "Validate commander(s)",
       description:
-        "Check command-zone legality: pass a deck_id to validate its commanders, or pass " +
-        "commanders (by oracle_id or card name, a single string or an array) + " +
-        "command_zone_kind directly. Returns " +
-        "legality, Violations, and the combined color identity.",
+        "Check command-zone legality for a deck or a transient commander set.\n" +
+        "USE: what-if pairings before committing. NOT: applying (deck_set_commander validates on write).\n" +
+        "FLOW: card_search (is:commander) -> validate_commander -> deck_set_commander.\n" +
+        "ARGS: deck_id, OR commanders (name-or-id, single string or array) + command_zone_kind.\n" +
+        "RETURNS: ok, violations[], computed_color_identity.",
       inputSchema: {
         deck_id: z.string().optional(),
         commanders: z.union([z.string(), z.array(z.string())]).optional(),
