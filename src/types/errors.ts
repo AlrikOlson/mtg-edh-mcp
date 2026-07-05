@@ -34,6 +34,7 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
  * AMBIGUOUS_NAME returns the candidate cards to pick from).
  */
 export interface ErrorDetailMap {
+  UNKNOWN_CARD: { input?: string; suggestions?: readonly CardRef[] };
   AMBIGUOUS_NAME: { candidates: readonly CardRef[] };
   INVALID_QUERY: { position?: number };
   STALE_CARD: { requested?: string; snapshot?: string };

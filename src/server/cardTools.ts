@@ -13,7 +13,7 @@ import { cheapestUsd, defaultUsd } from "../analyze/index.js";
 import { StructuredError } from "../types/index.js";
 import type { Card } from "../types/index.js";
 import type { CollectionStore } from "../collection/index.js";
-import { resolveCardIdLenient } from "./resolve.js";
+import { StringOrStringsSchema, resolveCardId, resolveCardIdLenient } from "./resolve.js";
 import type { ToolDefinition } from "./registry.js";
 
 function cardSearchTool(
@@ -74,16 +74,25 @@ function cardGetTool(index: CardIndex): ToolDefinition {
         "can overflow large batches) — each card instead carries default_usd (chosen " +
         "printing's price) and cheapest_usd (floor across all printings) for budget-aware " +
         "decisions. Set include_printings:true for the full printings array (or use " +
-        "card_printings for one card).",
-      inputSchema: { oracle_ids: z.array(z.string()), include_printings: z.boolean().optional() },
+        "card_printings for one card). `cards` accepts a single string or an array " +
+        "(oracle_ids is a legacy alias).",
+      inputSchema: {
+        cards: StringOrStringsSchema.optional(),
+        oracle_ids: StringOrStringsSchema.optional(),
+        include_printings: z.boolean().optional(),
+      },
     },
     handler: (args) => {
-      const raw = args.oracle_ids;
+      const raw = args.cards ?? args.oracle_ids;
+      const entries =
+        typeof raw === "string"
+          ? [raw]
+          : Array.isArray(raw)
+            ? raw.filter((x): x is string => typeof x === "string")
+            : [];
       // Accept name-or-id: resolve each entry to an oracle_id (unknown/ambiguous stays
       // as the original string and falls through to missing[] — no wholesale batch throw).
-      const ids = (
-        Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []
-      ).map((entry) => resolveCardIdLenient(index, entry));
+      const ids = entries.map((entry) => resolveCardIdLenient(index, entry));
       const includePrintings = args.include_printings === true;
       const cards: Array<
         Partial<Card> & { default_usd: number | null; cheapest_usd: number | null }
@@ -127,7 +136,12 @@ function cardResolveNameTool(index: CardIndex): ToolDefinition {
         });
       }
       const only = matches[0];
-      if (!only) throw new StructuredError("UNKNOWN_CARD", `no card named '${name}'`);
+      if (!only) {
+        throw new StructuredError("UNKNOWN_CARD", `no card named '${name}'`, {
+          input: name,
+          suggestions: index.suggestNames(name),
+        });
+      }
       return {
         content: [{ type: "text", text: only.name }],
         structuredContent: { oracle_id: only.oracle_id, card: only },
@@ -141,11 +155,14 @@ function cardPrintingsTool(index: CardIndex): ToolDefinition {
     name: "card_printings",
     config: {
       title: "Card printings",
-      description: "All printings (set, collector number, prices) for an oracle_id.",
-      inputSchema: { oracle_id: z.string() },
+      description:
+        "All printings (set, collector number, prices) for a card, given by name or " +
+        "oracle_id (`card`; oracle_id is a legacy alias).",
+      inputSchema: { card: z.string().optional(), oracle_id: z.string().optional() },
     },
     handler: (args) => {
-      const oracleId = String(args.oracle_id ?? "");
+      const raw = String(args.card ?? args.oracle_id ?? "");
+      const oracleId = resolveCardId(index, raw);
       const card = index.getCard(oracleId);
       if (!card) throw new StructuredError("UNKNOWN_CARD", `unknown oracle_id '${oracleId}'`);
       return {

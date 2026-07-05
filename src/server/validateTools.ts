@@ -78,17 +78,19 @@ function validateCardTool(store: DeckStore, index: CardIndex, session: string): 
     config: {
       title: "Validate card (precheck)",
       description:
-        "Read-only pre-check: would adding this card to the deck be legal? Returns the " +
+        "Read-only pre-check: would adding this card to the deck be legal? Accepts a card " +
+        "name or oracle_id (`card`; oracle_id is a legacy alias). Returns the " +
         "card-scoped Violations (identity/legality/singleton) without mutating the deck.",
       inputSchema: {
         deck_id: z.string(),
-        oracle_id: z.string(),
+        card: z.string().optional(),
+        oracle_id: z.string().optional(),
         qty: z.number().int().positive().optional(),
       },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      const oracleId = String(args.oracle_id ?? "");
+      const oracleId = resolveCardId(index, String(args.card ?? args.oracle_id ?? ""));
       const qty = typeof args.qty === "number" ? args.qty : 1;
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
@@ -135,11 +137,12 @@ function validateCommanderTool(
       title: "Validate commander(s)",
       description:
         "Check command-zone legality: pass a deck_id to validate its commanders, or pass " +
-        "commanders (by oracle_id or card name) + command_zone_kind directly. Returns " +
+        "commanders (by oracle_id or card name, a single string or an array) + " +
+        "command_zone_kind directly. Returns " +
         "legality, Violations, and the combined color identity.",
       inputSchema: {
         deck_id: z.string().optional(),
-        commanders: z.array(z.string()).optional(),
+        commanders: z.union([z.string(), z.array(z.string())]).optional(),
         command_zone_kind: z
           .enum(["single", "partner", "background", "doctor_companion"])
           .optional(),
@@ -153,12 +156,14 @@ function validateCommanderTool(
         if (!found) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${args.deck_id}'`);
         deck = found;
       } else {
-        // Accept name-or-id: resolve each commander to an oracle_id.
-        const commanders = (
-          Array.isArray(args.commanders)
-            ? args.commanders.filter((x): x is string => typeof x === "string")
-            : []
-        ).map((c) => resolveCardId(index, c));
+        // Accept name-or-id, singular-or-array: resolve each commander to an oracle_id.
+        const rawCommanders =
+          typeof args.commanders === "string"
+            ? [args.commanders]
+            : Array.isArray(args.commanders)
+              ? args.commanders.filter((x): x is string => typeof x === "string")
+              : [];
+        const commanders = rawCommanders.map((c) => resolveCardId(index, c));
         const kind: CommandZoneKind =
           typeof args.command_zone_kind === "string"
             ? (args.command_zone_kind as CommandZoneKind)

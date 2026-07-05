@@ -296,6 +296,37 @@ export class CardIndex {
     );
   }
 
+  /**
+   * Did-you-mean suggestions for a name that failed to resolve. Per-token
+   * substring matches against card names (longest tokens first, so the most
+   * distinctive word drives the ranking), deterministic and safe for any input
+   * (plain LIKE — no FTS MATCH syntax to trip on). Token/emblem rows are
+   * de-ranked like resolveName. Returns [] when nothing plausibly matches.
+   */
+  suggestNames(name: string, limit = 5): CardRef[] {
+    const tokens = (name.match(/[A-Za-z0-9']+/g) ?? [])
+      .map((t) => t.replace(/'/g, ""))
+      .filter((t) => t.length > 0);
+    // Drop short glue words unless they're all we have.
+    const meaningful = tokens.filter((t) => t.length >= 3);
+    const candidates = (meaningful.length > 0 ? meaningful : tokens).sort(
+      (a, b) => b.length - a.length,
+    );
+    const seen = new Set<string>();
+    const refs: CardRef[] = [];
+    for (const token of candidates) {
+      if (refs.length >= limit) break;
+      const rows = this.resolveFuzzyStmt.all(`%${token}%`, limit) as CardRefRow[];
+      for (const ref of preferRealCards(rows.map(rowToRef))) {
+        if (refs.length >= limit) break;
+        if (seen.has(ref.oracle_id)) continue;
+        seen.add(ref.oracle_id);
+        refs.push(ref);
+      }
+    }
+    return refs;
+  }
+
   /** All printings for an oracle_id (newest first), or [] if the card is unknown. */
   getPrintings(oracleId: string): Printing[] {
     return (this.getPrintingsStmt.all(oracleId) as PrintingRow[]).map(rowToPrinting);

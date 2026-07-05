@@ -10,12 +10,12 @@
 import { z } from "zod";
 import type { CardIndex } from "../index/index.js";
 import type { CollectionStore } from "../collection/index.js";
-import { resolveCardIdLenient } from "./resolve.js";
+import { normalizeStrings, resolveCardIdLenient } from "./resolve.js";
 import type { ToolDefinition } from "./registry.js";
 
 /** Resolve name-or-id inputs to owned oracle_ids; unresolved entries are reported, not stored. */
 function resolveOwned(index: CardIndex, raw: unknown): { ids: string[]; unresolved: string[] } {
-  const entries = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
+  const entries = normalizeStrings(raw).filter((x): x is string => typeof x === "string");
   const ids: string[] = [];
   const unresolved: string[] = [];
   for (const entry of entries) {
@@ -35,7 +35,7 @@ function ownedView(collection: CollectionStore, index: CardIndex, session: strin
   };
 }
 
-const CARDS_INPUT = z.array(z.string());
+const CARDS_INPUT = z.union([z.string(), z.array(z.string())]);
 
 function collectionSetTool(
   collection: CollectionStore,

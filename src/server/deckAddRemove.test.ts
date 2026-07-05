@@ -68,6 +68,7 @@ let client: Client;
 
 interface Verdict {
   oracle_id: string;
+  name?: string;
   status: string;
   violations?: Array<{ rule: string }>;
 }
@@ -75,6 +76,12 @@ interface AddResult {
   deck_id: string;
   version: number;
   verdicts: Verdict[];
+  failed: Array<{
+    input: string;
+    reason: string;
+    suggestions?: Array<{ name: string }>;
+    candidates?: Array<{ name: string }>;
+  }>;
 }
 interface DeckCards {
   deck: { cards: Array<{ oracle_id: string; qty: number; illegal?: boolean }> };
@@ -127,8 +134,39 @@ describe("deck_add / deck_remove tools", () => {
 
   it("adds a legal card with an ok verdict and applies it", async () => {
     const r = await add([{ oracle_id: "o-sol", qty: 1 }]);
-    expect(r.verdicts).toEqual([{ oracle_id: "o-sol", status: "ok" }]);
+    expect(r.verdicts).toEqual([{ oracle_id: "o-sol", name: "Sol Ring", status: "ok" }]);
     expect(await deckCards("deck-1")).toEqual([{ oracle_id: "o-sol", qty: 1, name: "Sol Ring" }]);
+  });
+
+  it("accepts a bare card name string (singular, no array, no resolve round-trip)", async () => {
+    const r = await add("Sol Ring");
+    expect(r.verdicts).toEqual([{ oracle_id: "o-sol", name: "Sol Ring", status: "ok" }]);
+    expect(r.failed).toEqual([]);
+    expect(await deckCards("deck-1")).toEqual([{ oracle_id: "o-sol", qty: 1, name: "Sol Ring" }]);
+  });
+
+  it("accepts a mixed name+id batch and reports a typo in failed[] with suggestions, applying the rest", async () => {
+    const r = await add(["Sol Rng", { card: "Plains", qty: 3 }, { oracle_id: "o-sol", qty: 1 }]);
+    expect(r.verdicts.map((v) => v.oracle_id).sort()).toEqual(["o-plains", "o-sol"]);
+    expect(r.failed).toHaveLength(1);
+    expect(r.failed[0]).toMatchObject({ input: "Sol Rng", reason: "UNKNOWN_CARD" });
+    expect(r.failed[0]?.suggestions?.map((s) => s.name)).toContain("Sol Ring");
+    const cards = await deckCards("deck-1");
+    expect(cards).toEqual(
+      expect.arrayContaining([
+        { oracle_id: "o-sol", qty: 1, name: "Sol Ring" },
+        { oracle_id: "o-plains", qty: 3, name: "Plains" },
+      ]),
+    );
+  });
+
+  it("merges duplicate references (name + id of the same card) by summing qty", async () => {
+    const r = await add([
+      { card: "Plains", qty: 2 },
+      { oracle_id: "o-plains", qty: 3 },
+    ]);
+    expect(r.verdicts).toHaveLength(1);
+    expect(await deckCards("deck-1")).toEqual([{ oracle_id: "o-plains", qty: 5, name: "Plains" }]);
   });
 
   it("rejects an off-color card with a COLOR_IDENTITY violation and does not apply it", async () => {
@@ -175,6 +213,18 @@ describe("deck_add / deck_remove tools", () => {
       arguments: { deck_id: "deck-1", cards: [{ oracle_id: "o-plains", qty: 2 }] },
     });
     expect((await deckCards("deck-1"))[0]?.qty).toBe(3);
+
+    // Bare name string removes one copy (qty defaults to 1).
+    await client.callTool({
+      name: "deck_remove",
+      arguments: { deck_id: "deck-1", cards: "Plains" },
+    });
+    expect((await deckCards("deck-1"))[0]?.qty).toBe(2);
+    await client.callTool({
+      name: "deck_remove",
+      arguments: { deck_id: "deck-1", cards: [{ card: "Plains", qty: 1 }] },
+    });
+    expect((await deckCards("deck-1"))[0]?.qty).toBe(1);
 
     await client.callTool({
       name: "deck_remove",

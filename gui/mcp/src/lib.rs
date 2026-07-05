@@ -191,7 +191,9 @@ impl EngineClient {
         self.call("deck_create", args).await
     }
 
-    /// `deck_add` — add `(oracle_id, qty)` cards to a deck (batch, idempotent).
+    /// `deck_add` — add `(card, qty)` cards to a deck (batch, idempotent).
+    /// The engine accepts names or oracle_ids under the canonical `card` key;
+    /// the GUI always sends resolved oracle_ids.
     pub async fn deck_add(
         &self,
         deck_id: &str,
@@ -199,9 +201,9 @@ impl EngineClient {
     ) -> Result<DeckAddResult, EngineError> {
         let entries: Vec<Value> = cards
             .iter()
-            .map(|(oracle_id, qty)| {
+            .map(|(card, qty)| {
                 let mut entry = Map::new();
-                entry.insert("oracle_id".into(), Value::String(oracle_id.clone()));
+                entry.insert("card".into(), Value::String(card.clone()));
                 entry.insert("qty".into(), Value::from(*qty));
                 Value::Object(entry)
             })
@@ -244,7 +246,8 @@ impl EngineClient {
         self.call("deck_list", Map::new()).await
     }
 
-    /// `deck_remove` — remove `(oracle_id, qty)` cards from a deck.
+    /// `deck_remove` — remove `(card, qty)` cards from a deck (canonical `card`
+    /// key; the GUI always sends resolved oracle_ids).
     pub async fn deck_remove(
         &self,
         deck_id: &str,
@@ -252,9 +255,9 @@ impl EngineClient {
     ) -> Result<DeckMutateResult, EngineError> {
         let entries: Vec<Value> = cards
             .iter()
-            .map(|(oracle_id, qty)| {
+            .map(|(card, qty)| {
                 let mut entry = Map::new();
-                entry.insert("oracle_id".into(), Value::String(oracle_id.clone()));
+                entry.insert("card".into(), Value::String(card.clone()));
                 entry.insert("qty".into(), Value::from(*qty));
                 Value::Object(entry)
             })

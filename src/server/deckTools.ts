@@ -27,7 +27,12 @@ import {
   isCompanionCard,
 } from "../validate/index.js";
 import type { CommandZoneKind } from "../types/index.js";
-import { resolveCardId, resolveCardIdLenient } from "./resolve.js";
+import {
+  CardInputsSchema,
+  resolveCardId,
+  resolveCardIdLenient,
+  resolveCardInputs,
+} from "./resolve.js";
 import type { SnapshotProvider } from "./snapshot.js";
 import type { ToolDefinition } from "./registry.js";
 
@@ -77,20 +82,18 @@ function deckCreateTool(
       title: "Create deck",
       description:
         "Create a new versioned deck and return its deck_id. Initial commanders may be " +
-        "given by oracle_id or card name.",
+        "given by oracle_id or card name, as a single string or an array.",
       inputSchema: {
         name: z.string(),
         format: z.literal("commander").optional(),
-        commanders: z.array(z.string()).optional(),
+        commanders: COMMANDERS_INPUT.optional(),
         command_zone_kind: z
           .enum(["single", "partner", "background", "doctor_companion"])
           .optional(),
       },
     },
     handler: (args) => {
-      const rawCommanders = Array.isArray(args.commanders)
-        ? args.commanders.filter((x): x is string => typeof x === "string")
-        : undefined;
+      const rawCommanders = normalizeCommanders(args.commanders);
       // Accept name-or-id: resolve names to oracle_ids when unambiguous. Lenient
       // here — deck_create is a constructor, not the legality gate; unknown
       // commanders are stored as-is and caught later by deck_set_commander.
@@ -365,7 +368,12 @@ function deckImportTool(
             candidates: matches,
           });
         } else {
-          unresolved.push({ line: entry.raw, name: entry.name, reason: "UNKNOWN_CARD" });
+          unresolved.push({
+            line: entry.raw,
+            name: entry.name,
+            reason: "UNKNOWN_CARD",
+            suggestions: index?.suggestNames(entry.name) ?? [],
+          });
         }
       }
 
@@ -426,8 +434,15 @@ function deckExportTool(store: DeckStore, session: string, index?: CardIndex): T
   };
 }
 
-/** zod raw shape for a batch of {oracle_id, qty} card entries. */
-const CARD_ENTRIES = z.array(z.object({ oracle_id: z.string(), qty: z.number().int().positive() }));
+/** Singular-or-array commanders input (agents naturally pass one name). */
+const COMMANDERS_INPUT = z.union([z.string(), z.array(z.string())]);
+
+/** Normalize a commanders input to a string[] (undefined stays undefined). */
+function normalizeCommanders(raw: unknown): string[] | undefined {
+  if (typeof raw === "string") return [raw];
+  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string");
+  return undefined;
+}
 
 /** Card-scoped violations from adding `oracleId` to a prospective deck (count is deck-level, excluded). */
 function addVerdict(prospective: Deck, oracleId: string, index?: CardIndex): Violation[] {
@@ -446,14 +461,17 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
     config: {
       title: "Add cards",
       description:
-        "Add cards by oracle_id (batch, idempotent on (deck_id, oracle_id)). Returns a " +
+        "Add cards by name or oracle_id — a bare string, {card, qty} objects, or an array " +
+        "of either (batch, idempotent on (deck_id, oracle_id)). Names are resolved " +
+        "server-side; unresolvable/ambiguous entries come back in failed[] (with " +
+        "did-you-mean suggestions / candidates) without aborting the rest. Returns a " +
         "per-card pre-check verdict: ok, or rejected with Violations (identity/legality/" +
         "singleton). Rejected cards are not applied unless force:true, which adds them " +
         "flagged illegal in state. Pass expected_version for optimistic concurrency: a " +
         "mismatch returns a conflict without mutating.",
       inputSchema: {
         deck_id: z.string(),
-        cards: CARD_ENTRIES,
+        cards: CardInputsSchema,
         force: z.boolean().optional(),
         expected_version: z.number().int().nonnegative().optional(),
       },
@@ -461,7 +479,7 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
       const force = args.force === true;
-      const additions = CARD_ENTRIES.parse(args.cards);
+      const { resolved, failed } = resolveCardInputs(index, args.cards);
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       if (typeof args.expected_version === "number" && deck.version !== args.expected_version) {
@@ -470,50 +488,65 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
 
       let working: DeckCardEntry[] = deck.cards.map((e) => ({ ...e }));
       const verdicts: Record<string, unknown>[] = [];
-      for (const add of additions) {
+      for (const add of resolved) {
         const merged = mergeEntries(working, [{ oracle_id: add.oracle_id, qty: add.qty }]);
         const violations = addVerdict({ ...deck, cards: merged }, add.oracle_id, index);
         if (violations.length === 0) {
           working = merged;
-          verdicts.push({ oracle_id: add.oracle_id, status: "ok" });
+          verdicts.push({ oracle_id: add.oracle_id, name: add.name, status: "ok" });
         } else if (force) {
           working = merged.map((e) =>
             e.oracle_id === add.oracle_id ? { ...e, illegal: true } : e,
           );
-          verdicts.push({ oracle_id: add.oracle_id, status: "added_illegal", violations });
+          verdicts.push({
+            oracle_id: add.oracle_id,
+            name: add.name,
+            status: "added_illegal",
+            violations,
+          });
         } else {
-          verdicts.push({ oracle_id: add.oracle_id, status: "rejected", violations });
+          verdicts.push({
+            oracle_id: add.oracle_id,
+            name: add.name,
+            status: "rejected",
+            violations,
+          });
         }
       }
 
       const updated = store.update(deckId, (d) => ({ ...d, cards: working }), session);
+      const failedNote = failed.length ? `, ${failed.length} unresolved` : "";
       return {
-        content: [{ type: "text", text: `${verdicts.length} add verdict(s) for ${deckId}` }],
-        structuredContent: { deck_id: deckId, version: updated.version, verdicts },
+        content: [
+          { type: "text", text: `${verdicts.length} add verdict(s) for ${deckId}${failedNote}` },
+        ],
+        structuredContent: { deck_id: deckId, version: updated.version, verdicts, failed },
       };
     },
   };
 }
 
-function deckRemoveTool(store: DeckStore, session: string): ToolDefinition {
+function deckRemoveTool(store: DeckStore, session: string, index?: CardIndex): ToolDefinition {
   return {
     name: "deck_remove",
     config: {
       title: "Remove cards",
       description:
-        "Remove cards by oracle_id (batch). Decrements quantity; an entry is dropped " +
-        "when its quantity reaches zero. Idempotent — removing more than present clears it. " +
+        "Remove cards by name or oracle_id — a bare string, {card, qty} objects, or an " +
+        "array of either (batch; qty defaults to 1). Decrements quantity; an entry is " +
+        "dropped when its quantity reaches zero. Idempotent — removing more than present " +
+        "clears it. Unresolvable entries come back in failed[] without aborting the rest. " +
         "Pass expected_version for optimistic concurrency: a mismatch returns a conflict " +
         "without mutating.",
       inputSchema: {
         deck_id: z.string(),
-        cards: CARD_ENTRIES,
+        cards: CardInputsSchema,
         expected_version: z.number().int().nonnegative().optional(),
       },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      const removals = CARD_ENTRIES.parse(args.cards);
+      const { resolved: removals, failed } = resolveCardInputs(index, args.cards);
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       if (typeof args.expected_version === "number" && deck.version !== args.expected_version) {
@@ -527,9 +560,15 @@ function deckRemoveTool(store: DeckStore, session: string): ToolDefinition {
         .filter((e) => e.qty > 0);
 
       const updated = store.update(deckId, (d) => ({ ...d, cards }), session);
+      const failedNote = failed.length ? `; ${failed.length} unresolved` : "";
       return {
-        content: [{ type: "text", text: `removed from ${deckId} (${cards.length} entries left)` }],
-        structuredContent: { deck_id: deckId, version: updated.version },
+        content: [
+          {
+            type: "text",
+            text: `removed from ${deckId} (${cards.length} entries left)${failedNote}`,
+          },
+        ],
+        structuredContent: { deck_id: deckId, version: updated.version, failed },
       };
     },
   };
@@ -561,23 +600,22 @@ function deckSetCommanderTool(
     config: {
       title: "Set commander(s)",
       description:
-        "Set or replace a deck's commander(s), given by oracle_id or card name. Validates " +
+        "Set or replace a deck's commander(s), given by oracle_id or card name — a single " +
+        "string or an array. Validates " +
         "eligibility + partner/background/Doctor pairings and recomputes the deck's combined " +
         "color identity. Rejects an illegal command zone with Violations rather than applying " +
         "it. Pass expected_version for optimistic concurrency: a mismatch returns a conflict " +
         "without mutating.",
       inputSchema: {
         deck_id: z.string(),
-        commanders: z.array(z.string()),
+        commanders: COMMANDERS_INPUT,
         command_zone_kind: z.enum(COMMAND_ZONE_KINDS).optional(),
         expected_version: z.number().int().nonnegative().optional(),
       },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
-      const rawCommanders = Array.isArray(args.commanders)
-        ? args.commanders.filter((x): x is string => typeof x === "string")
-        : [];
+      const rawCommanders = normalizeCommanders(args.commanders) ?? [];
       // Accept name-or-id: resolve names to oracle_ids so identity computes correctly.
       const commanders = index ? rawCommanders.map((c) => resolveCardId(index, c)) : rawCommanders;
       const deck = store.get(deckId, session);
@@ -733,7 +771,7 @@ export function makeDeckTools(
     deckImportTool(store, session, index, snapshot),
     deckExportTool(store, session, index),
     deckAddTool(store, session, index),
-    deckRemoveTool(store, session),
+    deckRemoveTool(store, session, index),
     deckSetCommanderTool(store, session, index),
     deckSetCompanionTool(store, session, index),
   ];

@@ -134,6 +134,17 @@ describe("deck_set_commander", () => {
     expect(deck.commanders).toEqual([]);
   });
 
+  it("accepts a single commander as a bare string (no array)", async () => {
+    const res = await client.callTool({
+      name: "deck_set_commander",
+      arguments: { deck_id: "deck-1", commanders: "o-atraxa" },
+    });
+    const r = res.structuredContent as SetResult;
+    expect(r.ok).toBe(true);
+    expect(r.command_zone_kind).toBe("single");
+    expect(r.computed_color_identity).toEqual(["W", "U", "B", "G"]);
+  });
+
   it("sets two Partner commanders and unions their identities", async () => {
     const r = await setCommander(["o-tymna", "o-thrasios"]);
     expect(r.ok).toBe(true);

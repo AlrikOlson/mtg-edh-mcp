@@ -1,5 +1,24 @@
 # Roadmap — mtg-edh-mcp-4d66ba
 
+## Pending
+
+- [ ] **Ergonomics · Deck vitals on every mutation + offline deck_status composite** — New src/server/vitals.ts DeckVitals {card_count, land_count, color_identity, commander_count, legal, violation_count, version} attached to all 8 deck mutators' structuredContent + text summary (incl. ok:false rejections, excl. conflict results). New deck_status tool (analyzeTools.ts, fully offline): vitals + legality (errors capped 20 + counts) + curve + mana + role gaps + price in one call. Bracket stays in meta_classify_bracket. GUI: DeckVitals/DeckStatusResult types + deck_status method.
+  - deps: ergo-resolve
+  - acceptance: every mutation response vitals equals an independently computed value in tests
+  - acceptance: deck_status returns vitals/legality/curve/mana/roles/price in one offline call on the fixture index
+  - acceptance: full TS + Rust gates green
+- [ ] **Ergonomics · Meta consolidation 8→5 + output limit defaults** — Delete meta_themes (subset of profile) and meta_deck_summary (superseded by deck_status + meta_classify_bracket); merge meta_recommendations + meta_missing_staples into meta_recommend (rank: synergy|inclusion, min_inclusion, limit 25) on one shared profile-filter helper also reused by meta_budget_swaps; profile limit 50 + total_cards; combos limit 20. Limits elsewhere: collection_get 200+total+cursor, deck_list 50+total lean projection, validate_deck violations capped 50 with counts. GUI: remove 2 methods+structs, add meta_recommend, rewire dashboard callers.
+  - deps: ergo-vitals
+  - acceptance: tools/list shows exactly 5 meta_* tools
+  - acceptance: meta_recommend rank:inclusion + min_inclusion reproduces old missing_staples output on fixtures
+  - acceptance: no unbounded array output remains without a documented default limit
+  - acceptance: Rust round-trip green
+- [ ] **Ergonomics · Workflow-teaching description template + conformance lint** — Rewrite all ~41 tool descriptions to the fixed template (imperative one-liner / USE-NOT / FLOW / ARGS / RETURNS, ≤700 chars) across the 8 tool files. New src/server/descriptions.test.ts lints every registered ToolDefinition against the template regex + length and cross-checks FLOW tool names against the registry. Update README tool table + spec §1 grounding wording.
+  - deps: ergo-meta
+  - acceptance: every registered tool description passes the template lint test
+  - acceptance: FLOW lines only reference tools that exist in the registry
+  - acceptance: README + spec updated; full gates green
+
 ## Done
 
 - [x] **P0 · TypeScript project scaffold** — Stand up the TS/Node project: package.json, tsconfig, build (tsup/esbuild), lint (eslint+prettier), test runner (vitest), repo layout src/{server,ingest,index,query,deck,validate,analyze,meta,types}. Install @modelcontextprotocol/sdk + better-sqlite3. Stack confirmed by 2026 research (think:2): TS SDK is the most mature.
@@ -249,6 +268,11 @@
   - acceptance: Compliance checklist met (User-Agent, no paywalling)
   - acceptance: Package installs and runs from a clean clone
   - acceptance: Docs cover every tool + both transports
+- [x] **Ergonomics · Name-or-id everywhere + did-you-mean suggestions** — Kill the per-card resolve round-trip: shared CardInputSchema (string | {card|oracle_id|name, qty}) + resolveCardInputs batch resolver with per-item soft failures in src/server/resolve.ts; adopt in deck_add/deck_remove (failed[] in response), deck_set_commander/deck_create singular commanders, card_printings/validate_card name-or-id, card_get cards alias; CardIndex.suggestNames FTS did-you-mean attached to every UNKNOWN_CARD (ErrorDetailMap entry); deck_import lines gain suggestions. GUI: gui/mcp deck_add/deck_remove emit {card,qty}.
+  - acceptance: deck_add {deck_id, cards: "Sol Ring"} works (bare string, name resolution server-side)
+  - acceptance: mixed name+id batch with one typo applies the rest and returns failed[] with suggestions
+  - acceptance: every UNKNOWN_CARD error anywhere carries did-you-mean suggestions
+  - acceptance: npm test && typecheck && lint && build green; cargo build + cargo test green under gui/
 - [x] **Oracle · Agent brain ladder — Claude Code shell-out → BYO key → structured intents** — USER DECISION RECORDED (2026-07-01): the LLM brain is a three-tier ladder, not BYO-key-only. TIER 1 (preferred, desktop-only): shell out to the user's own `claude` CLI in headless mode — `claude -p --output-format stream-json` with `--mcp-config` pointing at the app's OWN engine (127.0.0.1:3000) and `--allowedTools "mcp__<name>__*"` so Claude drives card_search/analyze_*/meta_* itself; stream-json tool events map 1:1 onto the existing Cap caption stream; the reply carries a strict-JSON change-set the existing spectral-rows UI renders; engine pre-check verdicts still gate application. Detection: `claude --version` on PATH at startup; cfg-gated native-only (web/wasm cannot spawn). Zero key-handling — uses the user's existing Claude auth. TIER 2: BYO Anthropic API key (direct API, for users without Claude Code) — needs key entry+storage UX (keychain on macOS?), model choice (haiku for cost), and clear cost expectations. TIER 3: the shipped structured intents (think:142) remain the always-available offline fallback. Remaining sub-decisions before/while implementing: change-set JSON schema for the prompt contract; timeout/cancel UX for multi-second turns; whether Tier 2 lands in the same chunk or splits (Tier 1 alone is shippable and needs no new UX surfaces beyond a settings row + detection badge).
   - deps: gui-oracle
   - acceptance: Tier 1: with `claude` on PATH, an Oracle ask shells out headless with the engine as MCP config; tool events stream as captions; a JSON change-set renders in the existing UI and applies through pre-check verdicts

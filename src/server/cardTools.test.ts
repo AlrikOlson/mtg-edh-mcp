@@ -226,6 +226,21 @@ describe("card_resolve_name", () => {
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "UNKNOWN_CARD" });
   });
+
+  it("attaches did-you-mean suggestions to UNKNOWN_CARD for a near-miss typo", async () => {
+    const res = await client.callTool({
+      name: "card_resolve_name",
+      arguments: { name: "Sol Rng" },
+    });
+    expect(res.isError).toBe(true);
+    const sc = res.structuredContent as {
+      code: string;
+      details: { input: string; suggestions: Array<{ name: string }> };
+    };
+    expect(sc.code).toBe("UNKNOWN_CARD");
+    expect(sc.details.input).toBe("Sol Rng");
+    expect(sc.details.suggestions.map((s) => s.name)).toContain("Sol Ring");
+  });
 });
 
 describe("card_printings", () => {
@@ -245,5 +260,15 @@ describe("card_printings", () => {
     });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "UNKNOWN_CARD" });
+  });
+
+  it("accepts a card name via the canonical `card` key", async () => {
+    const res = await client.callTool({
+      name: "card_printings",
+      arguments: { card: "Sol Ring" },
+    });
+    const sc = res.structuredContent as { oracle_id: string; printings: Array<{ set: string }> };
+    expect(sc.oracle_id).toBe("o-sol");
+    expect(sc.printings.map((p) => p.set)).toEqual(["cmm", "c21"]);
   });
 });
