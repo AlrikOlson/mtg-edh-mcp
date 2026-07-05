@@ -1,16 +1,20 @@
 /**
- * EDHREC enrichment tools (spec §5E): meta_commander_profile, meta_themes,
- * meta_recommendations. Each reads EDHREC via an injected {@link EdhrecClient}
- * (cached + degrading through the CacheStore), and meta_recommendations grounds
- * the suggestions against the deck — resolving names to oracle_ids, filtering to
- * the deck's color identity, excluding cards already in the deck.
+ * EDHREC enrichment tools (spec §5E, consolidated in ergo-meta): five
+ * non-overlapping tools — meta_commander_profile (the raw profile),
+ * meta_recommend (cards to ADD, ranked by synergy or inclusion),
+ * meta_budget_swaps (cheaper REPLACEMENTS), meta_combos (Spellbook),
+ * meta_classify_bracket (power verdict). All deck-grounded suggestions flow
+ * through one shared profile-filter pipeline: resolve profile names to
+ * oracle_ids, filter to the deck's color identity, exclude cards already in
+ * the deck, report unresolved names. Each reads live data via injected
+ * clients (cached + degrading through the CacheStore).
  */
 import { z } from "zod";
 import { StructuredError } from "../types/index.js";
-import type { Deck, Role } from "../types/index.js";
+import type { CardRef, Deck, Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
-import { cheapestUsd, analyzeStats } from "../analyze/index.js";
+import { cheapestUsd } from "../analyze/index.js";
 import type {
   EdhrecClient,
   SpellbookClient,
@@ -59,6 +63,78 @@ import type { ToolDefinition } from "./registry.js";
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
+/** A deck-grounded candidate from the commander's EDHREC profile. */
+interface ProfileCandidate {
+  oracle_id: string;
+  name: string;
+  synergy: number;
+  inclusion: number;
+  category: string;
+  /** Lean ref (type line for land filtering, ci already checked). */
+  ref: CardRef;
+}
+
+/** Resolve the deck's primary commander card or throw INELIGIBLE_COMMANDER. */
+function requireCommander(deck: Deck, index: CardIndex, deckId: string) {
+  const commanderId = deck.commanders[0];
+  const commanderCard = commanderId ? index.getCard(commanderId) : null;
+  if (!commanderCard) {
+    throw new StructuredError(
+      "INELIGIBLE_COMMANDER",
+      `deck '${deckId}' has no resolvable commander`,
+    );
+  }
+  return commanderCard;
+}
+
+/**
+ * The shared profile-filter pipeline (used by meta_recommend and
+ * meta_budget_swaps): resolve each profile card name to an oracle_id
+ * (exact), keep in-identity cards not already in the deck, optionally drop
+ * lands, and report unresolved/ambiguous names instead of dropping them.
+ * Preserves EDHREC profile order (its synergy ordering).
+ */
+function profileCandidates(
+  deck: Deck,
+  index: CardIndex,
+  profile: {
+    cards: Array<{ name: string; synergy?: number; inclusion?: number; category: string }>;
+  },
+  options: { excludeLands?: boolean } = {},
+): { candidates: ProfileCandidate[]; unresolved: Record<string, unknown>[] } {
+  const identity = new Set(deck.computed_color_identity.map((c) => c.toUpperCase()));
+  const inDeck = new Set<string>([...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]);
+  const candidates: ProfileCandidate[] = [];
+  const unresolved: Record<string, unknown>[] = [];
+  const seen = new Set<string>();
+  for (const card of profile.cards) {
+    const matches = index.resolveName(card.name, { exact: true });
+    const ref = matches.length === 1 ? matches[0] : undefined;
+    if (!ref) {
+      unresolved.push({
+        name: card.name,
+        reason: matches.length === 0 ? "UNKNOWN_CARD" : "AMBIGUOUS_NAME",
+      });
+      continue;
+    }
+    if (inDeck.has(ref.oracle_id) || seen.has(ref.oracle_id)) continue;
+    if (ref.ci.some((c) => c !== "C" && !identity.has(c))) continue;
+    if (options.excludeLands && /\bLand\b/.test(ref.type)) continue;
+    seen.add(ref.oracle_id);
+    candidates.push({
+      oracle_id: ref.oracle_id,
+      name: ref.name,
+      synergy: card.synergy ?? 0,
+      inclusion: card.inclusion ?? 0,
+      category: card.category,
+      ref,
+    });
+  }
+  return { candidates, unresolved };
+}
+
+const PROFILE_CARD_LIMIT = 50;
+
 function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
   return {
     name: "meta_commander_profile",
@@ -66,222 +142,102 @@ function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
       title: "Commander profile (EDHREC)",
       description:
         "EDHREC average-deck profile for a commander: top cards by category with inclusion " +
-        "and synergy, plus themes. Live data via EDHREC, cached; degrades when upstream is down.",
-      inputSchema: { commander: z.string() },
+        "and synergy (limit, default 50; total_cards reports the full profile size), plus " +
+        "themes. Live data via EDHREC, cached; degrades when upstream is down. For " +
+        "deck-grounded suggestions use meta_recommend instead.",
+      inputSchema: {
+        commander: z.string(),
+        limit: z.number().int().positive().max(500).optional(),
+      },
     },
     handler: async (args) => {
       const commander = String(args.commander ?? "");
+      const limit = typeof args.limit === "number" ? args.limit : PROFILE_CARD_LIMIT;
       const profile = await edhrec.profile(commander);
       return {
         content: [
           { type: "text", text: `${profile.cards.length} cards, ${profile.themes.length} themes` },
         ],
-        structuredContent: { commander, ...profile },
-      };
-    },
-  };
-}
-
-function metaThemesTool(edhrec: EdhrecClient): ToolDefinition {
-  return {
-    name: "meta_themes",
-    config: {
-      title: "Commander themes (EDHREC)",
-      description:
-        "The themes/archetypes EDHREC associates with a SPECIFIC commander (per-commander, " +
-        "not a global list) — pass the commander's name in `commander` (required).",
-      inputSchema: { commander: z.string().min(1, "commander name is required") },
-    },
-    handler: async (args) => {
-      const commander = String(args.commander ?? "");
-      const themes = await edhrec.themes(commander);
-      return {
-        content: [{ type: "text", text: themes.join(", ") || "(no themes)" }],
-        structuredContent: { commander, themes },
-      };
-    },
-  };
-}
-
-function metaRecommendationsTool(
-  store: DeckStore,
-  index: CardIndex,
-  edhrec: EdhrecClient,
-  session: string,
-): ToolDefinition {
-  return {
-    name: "meta_recommendations",
-    config: {
-      title: "Recommendations (EDHREC)",
-      description:
-        "EDHREC 'what fits next' for a deck: the commander's top cards, resolved to oracle_ids, " +
-        "filtered to the deck's color identity, excluding cards already in the deck. Optional " +
-        "exclude_lands. Unresolved names are reported, not dropped.",
-      inputSchema: {
-        deck_id: z.string(),
-        exclude_lands: z.boolean().optional(),
-        limit: z.number().int().positive().optional(),
-      },
-    },
-    handler: async (args) => {
-      const deckId = String(args.deck_id ?? "");
-      const excludeLands = args.exclude_lands === true;
-      const limit = typeof args.limit === "number" ? args.limit : 50;
-      const deck = store.get(deckId, session);
-      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-
-      const commanderId = deck.commanders[0];
-      const commanderCard = commanderId ? index.getCard(commanderId) : null;
-      if (!commanderCard) {
-        throw new StructuredError(
-          "INELIGIBLE_COMMANDER",
-          `deck '${deckId}' has no resolvable commander`,
-        );
-      }
-
-      const profile = await edhrec.profile(commanderCard.name);
-      const identity = new Set(deck.computed_color_identity.map((c) => c.toUpperCase()));
-      const inDeck = new Set<string>([...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]);
-
-      const recommendations: Record<string, unknown>[] = [];
-      const unresolved: Record<string, unknown>[] = [];
-      const seen = new Set<string>();
-      for (const card of profile.cards) {
-        const matches = index.resolveName(card.name, { exact: true });
-        const ref = matches.length === 1 ? matches[0] : undefined;
-        if (!ref) {
-          unresolved.push({
-            name: card.name,
-            reason: matches.length === 0 ? "UNKNOWN_CARD" : "AMBIGUOUS_NAME",
-          });
-          continue;
-        }
-        if (inDeck.has(ref.oracle_id) || seen.has(ref.oracle_id)) continue;
-        const offColor = ref.ci.some((c) => c !== "C" && !identity.has(c));
-        if (offColor) continue;
-        if (excludeLands && /\bLand\b/.test(ref.type)) continue;
-        seen.add(ref.oracle_id);
-        recommendations.push({
-          oracle_id: ref.oracle_id,
-          name: ref.name,
-          synergy: card.synergy,
-          inclusion: card.inclusion,
-          category: card.category,
-        });
-        if (recommendations.length >= limit) break;
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `${recommendations.length} recommendations (${unresolved.length} unresolved)`,
-          },
-        ],
         structuredContent: {
-          deck_id: deckId,
-          commander: commanderCard.name,
-          recommendations,
-          unresolved,
+          commander,
+          ...profile,
+          cards: profile.cards.slice(0, limit),
+          total_cards: profile.cards.length,
         },
       };
     },
   };
 }
 
-function metaMissingStaplesTool(
+const RECOMMEND_LIMIT = 25;
+
+function metaRecommendTool(
   store: DeckStore,
   index: CardIndex,
   edhrec: EdhrecClient,
   session: string,
 ): ToolDefinition {
   return {
-    name: "meta_missing_staples",
+    name: "meta_recommend",
     config: {
-      title: "Missing staples (EDHREC)",
+      title: "Recommend cards (EDHREC)",
       description:
-        "Diff a deck against its commander's typical EDHREC list: the in-identity cards NOT in the " +
-        "deck, ranked by inclusion (EDHREC's prevalence figure — higher = run by more typical decks; " +
-        "it is a raw figure, not a normalized %). Distinct from meta_recommendations ('what fits') — " +
-        "this is 'what conspicuous staples are you missing'. Optional min_inclusion threshold, " +
-        "exclude_lands, limit. Unresolved names are reported, not dropped.",
+        "Suggest cards to ADD, drawn from the commander's EDHREC profile and grounded " +
+        "against the deck (in color identity, not already present; unresolved names " +
+        "reported, not dropped). rank:'synergy' (default) keeps EDHREC's " +
+        "commander-specific fit ordering — 'what fits next'; rank:'inclusion' sorts by raw " +
+        "prevalence with optional min_inclusion — 'what staples am I missing'. Optional " +
+        "exclude_lands; limit default 25 (max 100). Suggestions carry oracle_ids ready for " +
+        "deck_add. For cheaper replacements use meta_budget_swaps.",
       inputSchema: {
         deck_id: z.string(),
+        rank: z.enum(["synergy", "inclusion"]).optional(),
         min_inclusion: z.number().nonnegative().optional(),
         exclude_lands: z.boolean().optional(),
-        limit: z.number().int().positive().optional(),
+        limit: z.number().int().positive().max(100).optional(),
       },
     },
     handler: async (args) => {
       const deckId = String(args.deck_id ?? "");
+      const rank = args.rank === "inclusion" ? "inclusion" : "synergy";
       const minInclusion = typeof args.min_inclusion === "number" ? args.min_inclusion : 0;
-      const excludeLands = args.exclude_lands === true;
-      const limit = typeof args.limit === "number" ? args.limit : 25;
+      const limit = typeof args.limit === "number" ? args.limit : RECOMMEND_LIMIT;
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-
-      const commanderId = deck.commanders[0];
-      const commanderCard = commanderId ? index.getCard(commanderId) : null;
-      if (!commanderCard) {
-        throw new StructuredError(
-          "INELIGIBLE_COMMANDER",
-          `deck '${deckId}' has no resolvable commander`,
-        );
-      }
+      const commanderCard = requireCommander(deck, index, deckId);
 
       const profile = await edhrec.profile(commanderCard.name);
-      const identity = new Set(deck.computed_color_identity.map((c) => c.toUpperCase()));
-      const inDeck = new Set<string>([...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]);
+      const { candidates, unresolved } = profileCandidates(deck, index, profile, {
+        excludeLands: args.exclude_lands === true,
+      });
 
-      const missing: Array<{
-        oracle_id: string;
-        name: string;
-        inclusion: number;
-        synergy: number;
-        category: string;
-      }> = [];
-      const unresolved: Record<string, unknown>[] = [];
-      const seen = new Set<string>();
-      for (const card of profile.cards) {
-        const inclusion = card.inclusion ?? 0;
-        const synergy = card.synergy ?? 0;
-        if (inclusion < minInclusion) continue;
-        const matches = index.resolveName(card.name, { exact: true });
-        const ref = matches.length === 1 ? matches[0] : undefined;
-        if (!ref) {
-          unresolved.push({
-            name: card.name,
-            reason: matches.length === 0 ? "UNKNOWN_CARD" : "AMBIGUOUS_NAME",
-          });
-          continue;
-        }
-        if (inDeck.has(ref.oracle_id) || seen.has(ref.oracle_id)) continue;
-        if (ref.ci.some((c) => c !== "C" && !identity.has(c))) continue;
-        if (excludeLands && /\bLand\b/.test(ref.type)) continue;
-        seen.add(ref.oracle_id);
-        missing.push({
-          oracle_id: ref.oracle_id,
-          name: ref.name,
-          inclusion,
-          synergy,
-          category: card.category,
-        });
+      let pool = candidates.filter((c) => c.inclusion >= minInclusion);
+      if (rank === "inclusion") {
+        // Prevalence desc; deterministic oracle_id tiebreak.
+        pool = [...pool].sort(
+          (a, b) => b.inclusion - a.inclusion || a.oracle_id.localeCompare(b.oracle_id),
+        );
       }
-      // Rank by prevalence (inclusion) desc; deterministic oracle_id tiebreak.
-      missing.sort((a, b) => b.inclusion - a.inclusion || a.oracle_id.localeCompare(b.oracle_id));
-      const top = missing.slice(0, limit);
+      const suggestions = pool.slice(0, limit).map((c) => ({
+        oracle_id: c.oracle_id,
+        name: c.name,
+        synergy: c.synergy,
+        inclusion: c.inclusion,
+        category: c.category,
+      }));
 
       return {
         content: [
           {
             type: "text",
-            text: `${top.length} missing staple(s) for ${commanderCard.name} (${unresolved.length} unresolved)`,
+            text: `${suggestions.length} ${rank}-ranked suggestion(s) for ${commanderCard.name} (${unresolved.length} unresolved)`,
           },
         ],
         structuredContent: {
           deck_id: deckId,
           commander: commanderCard.name,
-          missing: top,
+          rank,
+          suggestions,
           unresolved,
         },
       };
@@ -326,36 +282,19 @@ function metaBudgetSwapsTool(
       const limit = typeof args.limit === "number" ? args.limit : 10;
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-
-      const commanderId = deck.commanders[0];
-      const commanderCard = commanderId ? index.getCard(commanderId) : null;
-      if (!commanderCard) {
-        throw new StructuredError(
-          "INELIGIBLE_COMMANDER",
-          `deck '${deckId}' has no resolvable commander`,
-        );
-      }
+      const commanderCard = requireCommander(deck, index, deckId);
 
       const profile = await edhrec.profile(commanderCard.name);
-      const identity = new Set(deck.computed_color_identity.map((c) => c.toUpperCase()));
-      const inDeck = new Set<string>([...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]);
-
-      // Candidate pool: priced, in-identity, not-in-deck cards from the EDHREC profile.
+      // Candidate pool: the shared profile pipeline, narrowed to priced cards.
       const candidates: SwapCandidate[] = [];
-      const seenCand = new Set<string>();
-      for (const pc of profile.cards) {
-        const matches = index.resolveName(pc.name, { exact: true });
-        const ref = matches.length === 1 ? matches[0] : undefined;
-        if (!ref || inDeck.has(ref.oracle_id) || seenCand.has(ref.oracle_id)) continue;
-        if (ref.ci.some((c) => c !== "C" && !identity.has(c))) continue;
-        const full = index.getCard(ref.oracle_id);
+      for (const pc of profileCandidates(deck, index, profile).candidates) {
+        const full = index.getCard(pc.oracle_id);
         if (!full) continue;
         const cheap = cheapestUsd(full);
         if (cheap === null) continue;
-        seenCand.add(ref.oracle_id);
         candidates.push({
-          oracle_id: ref.oracle_id,
-          name: ref.name,
+          oracle_id: pc.oracle_id,
+          name: pc.name,
           roles: [...full.roles],
           cheapest: cheap,
         });
@@ -457,11 +396,17 @@ function metaCombosTool(
       description:
         "Combos reachable from a deck (pieces, result, steps) via Commander Spellbook. " +
         "Returns combos fully present in the deck; set include_almost to also return combos " +
-        "that are one card away. Each combo carries its source and confidence.",
-      inputSchema: { deck_id: z.string(), include_almost: z.boolean().optional() },
+        "that are one card away. Each combo carries its source and confidence. limit " +
+        "defaults to 20 (included_count/almost_count always report full totals).",
+      inputSchema: {
+        deck_id: z.string(),
+        include_almost: z.boolean().optional(),
+        limit: z.number().int().positive().max(200).optional(),
+      },
     },
     handler: async (args) => {
       const deckId = String(args.deck_id ?? "");
+      const limit = typeof args.limit === "number" ? args.limit : 20;
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
 
@@ -476,7 +421,7 @@ function metaCombosTool(
       const combos = [
         ...results.included,
         ...(args.include_almost === true ? results.almostIncluded : []),
-      ];
+      ].slice(0, limit);
       return {
         content: [
           {
@@ -528,63 +473,6 @@ function metaClassifyBracketTool(
   };
 }
 
-function metaDeckSummaryTool(
-  store: DeckStore,
-  index: CardIndex,
-  gameChangers: GameChangersClient,
-  spellbook: SpellbookClient,
-  session: string,
-): ToolDefinition {
-  return {
-    name: "meta_deck_summary",
-    config: {
-      title: "Deck summary",
-      description:
-        "One-call deck overview: exact stats (counts, average mana value, total + cheapest-printing " +
-        "min-buy price, color pips) bundled with the power-level bracket verdict + pushers, so the " +
-        "bracket surfaces alongside the numbers during tuning. Advisory; the bracket degrades to null " +
-        "(bracket_unavailable) if the live Game Changers list can't be reached.",
-      inputSchema: { deck_id: z.string() },
-    },
-    handler: async (args) => {
-      const deckId = String(args.deck_id ?? "");
-      const deck = store.get(deckId, session);
-      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-      const lookup = (id: string) => index.getCard(id);
-      const stats = analyzeStats(deck.cards, lookup);
-
-      // Bracket needs the live Game Changers list — degrade to null rather than
-      // failing the whole summary when it's unavailable.
-      let bracket: ReturnType<typeof classifyBracket> | null = null;
-      let bracketUnavailable = false;
-      try {
-        const combos = await deckTwoCardCombos(deck, index, spellbook);
-        bracket = classifyBracket(deck, lookup, await gameChangers.list(), combos);
-      } catch {
-        bracketUnavailable = true;
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text:
-              `${stats.total_cards} cards, avg MV ${stats.avg_mv}, min buy $${stats.min_buy_usd}` +
-              (bracket ? `, bracket ${bracket.bracket}` : ", bracket unavailable"),
-          },
-        ],
-        structuredContent: {
-          deck_id: deckId,
-          commander_count: deck.commanders.length,
-          stats,
-          bracket,
-          ...(bracketUnavailable ? { bracket_unavailable: true } : {}),
-        },
-      };
-    },
-  };
-}
-
 /** Build the enrichment tools bound to a DeckStore + CardIndex + EDHREC/Spellbook/GameChangers clients. */
 export function makeMetaTools(
   store: DeckStore,
@@ -596,12 +484,9 @@ export function makeMetaTools(
 ): ToolDefinition[] {
   return [
     metaCommanderProfileTool(edhrec),
-    metaThemesTool(edhrec),
-    metaRecommendationsTool(store, index, edhrec, session),
-    metaMissingStaplesTool(store, index, edhrec, session),
+    metaRecommendTool(store, index, edhrec, session),
     metaBudgetSwapsTool(store, index, edhrec, session),
     metaCombosTool(store, index, spellbook, session),
     metaClassifyBracketTool(store, index, gameChangers, spellbook, session),
-    metaDeckSummaryTool(store, index, gameChangers, spellbook, session),
   ];
 }

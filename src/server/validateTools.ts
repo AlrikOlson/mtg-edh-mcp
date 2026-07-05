@@ -55,6 +55,9 @@ function validateDeckTool(store: DeckStore, index: CardIndex, session: string): 
       // Advisory (review #14): qty>1 cards legally exempt from singleton (basics,
       // allowlist, "any number" oracle text) — confirms the exception applied.
       const exemptions = anyNumberExemptions(deck, lookup);
+      // Echo caps (pathological imports can produce hundreds of violations);
+      // error_count/warning_count always carry the full totals.
+      const CAP = 50;
       return {
         content: [
           { type: "text", text: `${errors.length} error(s), ${warnings.length} warning(s)` },
@@ -62,9 +65,11 @@ function validateDeckTool(store: DeckStore, index: CardIndex, session: string): 
         structuredContent: {
           deck_id: deckId,
           ok: errors.length === 0,
-          violations,
-          errors,
-          warnings,
+          violations: violations.slice(0, CAP),
+          errors: errors.slice(0, CAP),
+          warnings: warnings.slice(0, CAP),
+          error_count: errors.length,
+          warning_count: warnings.length,
           exemptions,
         },
       };

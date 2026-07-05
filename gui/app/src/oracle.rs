@@ -381,16 +381,16 @@ async fn run_intent(
         "staples" => {
             let staples = step(
                 &mut caps,
-                "meta_missing_staples",
-                format!("deck:{deck_id} limit:4"),
-                client.meta_missing_staples(deck_id, Some(4)),
+                "meta_recommend",
+                format!("deck:{deck_id} rank:inclusion limit:4"),
+                client.meta_recommend(deck_id, "inclusion", Some(4)),
             )
             .await;
             match staples {
                 Some(s) => {
-                    finish(&mut caps, format!("{} candidates", s.missing.len()));
+                    finish(&mut caps, format!("{} candidates", s.suggestions.len()));
                     set.adds = s
-                        .missing
+                        .suggestions
                         .into_iter()
                         .map(|m| ProposedCard {
                             oracle_id: m.oracle_id,
@@ -958,7 +958,7 @@ fn api_tools() -> serde_json::Value {
         {"name":"card_search","description":"Scryfall-grammar card search (t:, c:, o:, name words). Returns oracle_id+name.","input_schema": q("Scryfall-style query")},
         {"name":"deck_get","description":"The deck's current cards (oracle_id, qty, name).","input_schema": d},
         {"name":"analyze_stats","description":"Deck stats: totals, avg mv, pips, prices.","input_schema": d},
-        {"name":"meta_missing_staples","description":"High-inclusion EDHREC staples the deck lacks (oracle_id+name).","input_schema": d},
+        {"name":"meta_recommend","description":"EDHREC staples the deck lacks, rank:inclusion (oracle_id+name).","input_schema": d},
         {"name":"budget_plan","description":"Budget: min-buy, cost drivers, reprints.","input_schema": d},
     ])
 }
@@ -1003,8 +1003,8 @@ async fn run_api_tool(
             Ok(r) => trunc(serde_json::json!({"total_cards": r.total_cards, "avg_mv_nonland": r.avg_mv_nonland, "min_buy_usd": r.min_buy_usd})),
             Err(e) => format!("error: {e}"),
         },
-        "meta_missing_staples" => match client.meta_missing_staples(deck_id, Some(8)).await {
-            Ok(r) => trunc(serde_json::json!(r.missing.iter().map(|m| serde_json::json!({"oracle_id": m.oracle_id, "name": m.name, "inclusion": m.inclusion})).collect::<Vec<_>>())),
+        "meta_recommend" => match client.meta_recommend(deck_id, "inclusion", Some(8)).await {
+            Ok(r) => trunc(serde_json::json!(r.suggestions.iter().map(|m| serde_json::json!({"oracle_id": m.oracle_id, "name": m.name, "inclusion": m.inclusion})).collect::<Vec<_>>())),
             Err(e) => format!("error: {e}"),
         },
         "budget_plan" => match client.budget_plan(deck_id, true).await {

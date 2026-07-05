@@ -244,10 +244,27 @@ pub struct DeckGetResult {
     pub deck: Deck,
 }
 
-/// `deck_list` structuredContent.
+/// One lean `deck_list` entry (full contents via `deck_get`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct DeckListEntry {
+    pub deck_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub version: u64,
+    /// Commander names (falls back to ids for unresolvable cards).
+    #[serde(default)]
+    pub commanders: Vec<String>,
+    /// Quantity-weighted count including the command zone.
+    #[serde(default)]
+    pub card_count: u32,
+}
+
+/// `deck_list` structuredContent (lean entries + exact total).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DeckListResult {
-    pub decks: Vec<Deck>,
+    pub decks: Vec<DeckListEntry>,
+    #[serde(default)]
+    pub total: u64,
 }
 
 /// `deck_remove` structuredContent (also carries version-conflict shape).
@@ -423,20 +440,6 @@ pub struct BracketResult {
     pub rationale: String,
 }
 
-/// `meta_deck_summary` structuredContent — never throws; bracket may be null
-/// with bracket_unavailable=true when enrichment is down.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct DeckSummaryResult {
-    pub deck_id: String,
-    #[serde(default)]
-    pub commander_count: u32,
-    pub stats: AnalyzeStatsResult,
-    #[serde(default)]
-    pub bracket: Option<BracketResult>,
-    #[serde(default)]
-    pub bracket_unavailable: bool,
-}
-
 /// One EDHREC-backed recommendation / missing staple.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Recommendation {
@@ -450,26 +453,17 @@ pub struct Recommendation {
     pub category: String,
 }
 
-/// `meta_recommendations` structuredContent.
+/// `meta_recommend` structuredContent.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct RecommendationsResult {
+pub struct RecommendResult {
     pub deck_id: String,
     #[serde(default)]
     pub commander: String,
+    /// `"synergy"` (what fits) or `"inclusion"` (missing staples).
     #[serde(default)]
-    pub recommendations: Vec<Recommendation>,
+    pub rank: String,
     #[serde(default)]
-    pub unresolved: Vec<Value>,
-}
-
-/// `meta_missing_staples` structuredContent.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-pub struct MissingStaplesResult {
-    pub deck_id: String,
-    #[serde(default)]
-    pub commander: String,
-    #[serde(default)]
-    pub missing: Vec<Recommendation>,
+    pub suggestions: Vec<Recommendation>,
     #[serde(default)]
     pub unresolved: Vec<Value>,
 }

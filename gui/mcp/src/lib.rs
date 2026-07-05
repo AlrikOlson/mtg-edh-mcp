@@ -31,12 +31,11 @@ pub use types::{
     CardPrintingsResult, CardRef, CardSearchParams, CardSearchResult, CollectionView, Combo,
     CombosResult, CompanionRef, CostDriver, DataIngestResult, DataStatusResult, Deck,
     DeckAddResult, DeckCardEntry, DeckCreateParams, DeckCreateResult, DeckDeleteResult,
-    DeckDiffResult, DeckGetResult, DeckListResult, DeckMutateResult, DeckRenameResult,
-    DeckStatusResult, DeckSummaryResult, DeckVitals, ExportResult, ImportResult, IngestStatus,
-    ManaBaseReport, MissingStaplesResult, OwnedCard, Printing, Recommendation,
-    RecommendationsResult, ReprintSuggestion, RestoreResult, RoleCoverageResult, RoleGap,
-    SetCommanderResult, SetCompanionResult, SimResult, SnapshotResult, SwapCard,
-    ValidateDeckResult,
+    DeckDiffResult, DeckGetResult, DeckListEntry, DeckListResult, DeckMutateResult,
+    DeckRenameResult, DeckStatusResult, DeckVitals, ExportResult, ImportResult, IngestStatus,
+    ManaBaseReport, OwnedCard, Printing, Recommendation, RecommendResult, ReprintSuggestion,
+    RestoreResult, RoleCoverageResult, RoleGap, SetCommanderResult, SetCompanionResult, SimResult,
+    SnapshotResult, SwapCard, ValidateDeckResult,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -428,36 +427,20 @@ impl EngineClient {
         self.call("meta_classify_bracket", deck_arg(deck_id)).await
     }
 
-    /// `meta_deck_summary` — one-call overview; never throws on enrichment
-    /// failure (bracket=null + bracket_unavailable instead).
-    pub async fn meta_deck_summary(&self, deck_id: &str) -> Result<DeckSummaryResult, EngineError> {
-        self.call("meta_deck_summary", deck_arg(deck_id)).await
-    }
-
-    /// `meta_recommendations` — EDHREC synergy/inclusion picks.
-    pub async fn meta_recommendations(
+    /// `meta_recommend` — EDHREC picks grounded against the deck.
+    /// `rank` is `"synergy"` (what fits next) or `"inclusion"` (missing staples).
+    pub async fn meta_recommend(
         &self,
         deck_id: &str,
+        rank: &str,
         limit: Option<u32>,
-    ) -> Result<RecommendationsResult, EngineError> {
+    ) -> Result<RecommendResult, EngineError> {
         let mut args = deck_arg(deck_id);
+        args.insert("rank".into(), Value::String(rank.to_string()));
         if let Some(limit) = limit {
             args.insert("limit".into(), Value::from(limit));
         }
-        self.call("meta_recommendations", args).await
-    }
-
-    /// `meta_missing_staples` — high-inclusion cards the deck lacks.
-    pub async fn meta_missing_staples(
-        &self,
-        deck_id: &str,
-        limit: Option<u32>,
-    ) -> Result<MissingStaplesResult, EngineError> {
-        let mut args = deck_arg(deck_id);
-        if let Some(limit) = limit {
-            args.insert("limit".into(), Value::from(limit));
-        }
-        self.call("meta_missing_staples", args).await
+        self.call("meta_recommend", args).await
     }
 
     /// `meta_budget_swaps` — role-matched cheaper replacements.

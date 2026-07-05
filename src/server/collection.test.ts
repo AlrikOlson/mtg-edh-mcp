@@ -118,6 +118,28 @@ describe("collection tools", () => {
     expect(got.cards).toEqual([{ oracle_id: "o-counter", name: "Counterspell" }]);
   });
 
+  it("collection_get paginates with limit + next_cursor and reports total", async () => {
+    await client.callTool({
+      name: "collection_set",
+      arguments: { cards: ["o-counter", "o-rift"] },
+    });
+    const page1 = (await client.callTool({ name: "collection_get", arguments: { limit: 1 } }))
+      .structuredContent as CollectionView & { total: number; next_cursor: string | null };
+    expect(page1.owned).toHaveLength(1);
+    expect(page1.total).toBe(2);
+    expect(page1.next_cursor).toBe("1");
+
+    const page2 = (
+      await client.callTool({
+        name: "collection_get",
+        arguments: { limit: 1, cursor: page1.next_cursor },
+      })
+    ).structuredContent as CollectionView & { total: number; next_cursor: string | null };
+    expect(page2.owned).toHaveLength(1);
+    expect(page2.next_cursor).toBeNull();
+    expect(page2.owned[0]).not.toBe(page1.owned[0]);
+  });
+
   it("clear empties the collection", async () => {
     await client.callTool({ name: "collection_set", arguments: { cards: ["o-counter"] } });
     const cleared = (await client.callTool({ name: "collection_clear", arguments: {} }))

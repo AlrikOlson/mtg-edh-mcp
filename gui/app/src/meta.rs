@@ -11,8 +11,8 @@ use crate::icons;
 use crate::state::use_app_state;
 use dioxus::prelude::*;
 use mtg_edh_mcp_client::{
-    BracketResult, BudgetPlanResult, BudgetSwapsResult, CombosResult, EngineError,
-    MissingStaplesResult, Recommendation, RecommendationsResult,
+    BracketResult, BudgetPlanResult, BudgetSwapsResult, CombosResult, EngineError, Recommendation,
+    RecommendResult,
 };
 
 /// A typed enrichment outcome: data, a graceful upstream advisory, or an error.
@@ -105,10 +105,10 @@ pub fn MetaCards(deck_id: String, version: u64) -> Element {
         let _ = (state.deck_rev)();
         async move {
             let client = ready_client(&conn)?;
-            let recs: Enriched<RecommendationsResult> =
-                client.meta_recommendations(&deck_id, Some(5)).await;
-            let staples: Enriched<MissingStaplesResult> =
-                client.meta_missing_staples(&deck_id, Some(5)).await;
+            let recs: Enriched<RecommendResult> =
+                client.meta_recommend(&deck_id, "synergy", Some(5)).await;
+            let staples: Enriched<RecommendResult> =
+                client.meta_recommend(&deck_id, "inclusion", Some(5)).await;
             let swaps: Enriched<BudgetSwapsResult> =
                 client.meta_budget_swaps(&deck_id, Some(5)).await;
             let combos: Enriched<CombosResult> = client.meta_combos(&deck_id).await;
@@ -262,10 +262,10 @@ pub fn MetaCards(deck_id: String, version: u64) -> Element {
                         }
                     }
                     if let Ok(r) = recs {
-                        RecList { title: "Recommendations", items: r.recommendations.clone(), deck_id: deck_id.clone() }
+                        RecList { title: "Recommendations", items: r.suggestions.clone(), deck_id: deck_id.clone() }
                     }
                     if let Ok(s) = staples {
-                        RecList { title: "Missing staples", items: s.missing.clone(), deck_id: deck_id.clone() }
+                        RecList { title: "Missing staples", items: s.suggestions.clone(), deck_id: deck_id.clone() }
                     }
                     if let Ok(s) = swaps {
                         if !s.swaps.is_empty() {

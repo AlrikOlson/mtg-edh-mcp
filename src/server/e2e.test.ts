@@ -395,13 +395,14 @@ describe("§10 worked examples — built by composing tools only", () => {
     await addOne(deckId, payoff.oracle_id);
 
     // 3. EDHREC may have no theme for jank — that's fine; local search carried it.
-    const themes = sc(
+    //    (themes ride the commander profile since ergo-meta consolidated meta_themes away)
+    const profile = sc(
       await client.callTool({
-        name: "meta_themes",
+        name: "meta_commander_profile",
         arguments: { commander: "Kwain, Itinerant Meddler" },
       }),
     );
-    expect(Array.isArray(themes.themes)).toBe(true);
+    expect(Array.isArray(profile.themes)).toBe(true);
 
     // 4. composition is computable; pad + validate.
     const comp = sc(

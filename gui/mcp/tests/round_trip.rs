@@ -281,18 +281,13 @@ async fn round_trip_against_engine() {
         );
     }
 
-    // gui-meta wrappers. deck_summary NEVER throws on enrichment failure
-    // (bracket=null + bracket_unavailable). Bracket/combos may legitimately be
-    // UpstreamUnavailable in test runs — both outcomes are valid; only the
-    // wire+shape contract is asserted.
-    let summary = client
-        .meta_deck_summary(&deck_id)
-        .await
-        .expect("meta_deck_summary must not throw");
-    assert_eq!(summary.deck_id, deck_id);
-    assert!(
-        summary.bracket.is_some() || summary.bracket_unavailable || summary.stats.total_cards == 0
-    );
+    // gui-meta wrappers. deck_status is the offline one-call dashboard
+    // (replaced meta_deck_summary in ergo-meta); it never needs live data.
+    // Bracket/combos may legitimately be UpstreamUnavailable in test runs —
+    // both outcomes are valid; only the wire+shape contract is asserted.
+    let status = client.deck_status(&deck_id).await.expect("deck_status");
+    assert_eq!(status.deck_id, deck_id);
+    assert!(status.vitals.card_count > 0);
     match client.meta_classify_bracket(&deck_id).await {
         Ok(b) => assert!((1..=5).contains(&b.bracket)),
         Err(EngineError::UpstreamUnavailable { .. }) => {}

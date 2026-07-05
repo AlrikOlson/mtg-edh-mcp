@@ -146,19 +146,32 @@ function deckGetTool(store: DeckStore, session: string, index?: CardIndex): Tool
   };
 }
 
-function deckListTool(store: DeckStore, session: string): ToolDefinition {
+const DECK_LIST_LIMIT = 50;
+
+function deckListTool(store: DeckStore, session: string, index?: CardIndex): ToolDefinition {
   return {
     name: "deck_list",
     config: {
       title: "List decks",
-      description: "List all decks in the current session.",
-      inputSchema: {},
+      description:
+        "List decks in the current session as lean entries (deck_id, name, version, " +
+        "commander names, card_count) — full contents via deck_get. limit defaults to 50; " +
+        "total reports the full count.",
+      inputSchema: { limit: z.number().int().positive().max(500).optional() },
     },
-    handler: () => {
-      const decks = store.list(session);
+    handler: (args) => {
+      const limit = typeof args.limit === "number" ? args.limit : DECK_LIST_LIMIT;
+      const all = store.list(session);
+      const decks = all.slice(0, limit).map((deck) => ({
+        deck_id: deck.deck_id,
+        name: deck.name,
+        version: deck.version,
+        commanders: deck.commanders.map((id) => index?.getCard(id)?.name ?? id),
+        card_count: deck.cards.reduce((sum, e) => sum + e.qty, 0) + deck.commanders.length,
+      }));
       return {
-        content: [{ type: "text", text: `${decks.length} decks` }],
-        structuredContent: { decks },
+        content: [{ type: "text", text: `${decks.length} of ${all.length} decks` }],
+        structuredContent: { decks, total: all.length },
       };
     },
   };
@@ -798,7 +811,7 @@ export function makeDeckTools(
   return [
     deckCreateTool(store, session, index, snapshot),
     deckGetTool(store, session, index),
-    deckListTool(store, session),
+    deckListTool(store, session, index),
     deckRenameTool(store, session, index),
     deckDeleteTool(store, session),
     deckSnapshotTool(store, session),

@@ -26,16 +26,21 @@ function resolveOwned(index: CardIndex, raw: unknown): { ids: string[]; unresolv
   return { ids, unresolved };
 }
 
+/** Mutation-echo view of the collection, capped at the page limit (total is exact). */
 function ownedView(collection: CollectionStore, index: CardIndex, session: string) {
   const owned = [...collection.get(session)];
+  const page = owned.slice(0, COLLECTION_PAGE_LIMIT);
   return {
     owned_count: owned.length,
-    owned,
-    cards: owned.map((id) => ({ oracle_id: id, name: index.getCard(id)?.name })),
+    total: owned.length,
+    owned: page,
+    cards: page.map((id) => ({ oracle_id: id, name: index.getCard(id)?.name })),
   };
 }
 
 const CARDS_INPUT = z.union([z.string(), z.array(z.string())]);
+
+const COLLECTION_PAGE_LIMIT = 200;
 
 function collectionSetTool(
   collection: CollectionStore,
@@ -95,14 +100,36 @@ function collectionGetTool(
     name: "collection_get",
     config: {
       title: "Get collection",
-      description: "Return the owned-card collection (oracle_ids + names).",
-      inputSchema: {},
+      description:
+        "Return the owned-card collection (oracle_ids + names), paginated: limit defaults " +
+        "to 200; pass the returned next_cursor to fetch the next page. total always " +
+        "reports the full collection size.",
+      inputSchema: {
+        limit: z.number().int().positive().max(1000).optional(),
+        cursor: z.string().optional(),
+      },
     },
-    handler: () => {
-      const view = ownedView(collection, index, session);
+    handler: (args) => {
+      const limit = typeof args.limit === "number" ? args.limit : COLLECTION_PAGE_LIMIT;
+      const offset =
+        typeof args.cursor === "string" && /^\d+$/.test(args.cursor) ? Number(args.cursor) : 0;
+      const owned = [...collection.get(session)];
+      const page = owned.slice(offset, offset + limit);
+      const nextOffset = offset + page.length;
       return {
-        content: [{ type: "text", text: `${view.owned_count} card(s) owned` }],
-        structuredContent: view,
+        content: [
+          {
+            type: "text",
+            text: `${page.length} of ${owned.length} owned card(s)`,
+          },
+        ],
+        structuredContent: {
+          owned_count: page.length,
+          total: owned.length,
+          next_cursor: nextOffset < owned.length ? String(nextOffset) : null,
+          owned: page,
+          cards: page.map((id) => ({ oracle_id: id, name: index.getCard(id)?.name })),
+        },
       };
     },
   };

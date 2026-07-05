@@ -80,9 +80,21 @@ describe("deck lifecycle tools", () => {
     expect((got.structuredContent as { deck: DeckShape }).deck.name).toBe("Atraxa");
 
     const listed = await client.callTool({ name: "deck_list", arguments: {} });
-    expect(
-      (listed.structuredContent as { decks: DeckShape[] }).decks.map((d) => d.deck_id),
-    ).toEqual(["deck-1"]);
+    const listing = listed.structuredContent as {
+      decks: Array<{
+        deck_id: string;
+        name: string;
+        version: number;
+        commanders: string[];
+        card_count: number;
+      }>;
+      total: number;
+    };
+    // Lean entries: identity + vitals-adjacent counts, never full card lists.
+    expect(listing.decks.map((d) => d.deck_id)).toEqual(["deck-1"]);
+    expect(listing.total).toBe(1);
+    expect(listing.decks[0]).toMatchObject({ name: "Atraxa", card_count: 1 });
+    expect(listing.decks[0]).not.toHaveProperty("cards");
 
     const deleted = await client.callTool({
       name: "deck_delete",

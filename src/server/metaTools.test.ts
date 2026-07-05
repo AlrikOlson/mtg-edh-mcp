@@ -125,59 +125,58 @@ afterEach(async () => {
 });
 
 describe("EDHREC meta tools", () => {
-  it("registers meta_commander_profile, meta_themes, meta_recommendations", async () => {
+  it("registers exactly five meta_* tools (ergo-meta consolidation)", async () => {
     const names = (await client.listTools()).tools.map((t) => t.name);
-    expect(names).toEqual(
-      expect.arrayContaining(["meta_commander_profile", "meta_themes", "meta_recommendations"]),
-    );
+    const meta = names.filter((n) => n.startsWith("meta_")).sort();
+    expect(meta).toEqual([
+      "meta_budget_swaps",
+      "meta_classify_bracket",
+      "meta_combos",
+      "meta_commander_profile",
+      "meta_recommend",
+    ]);
   });
 
-  it("meta_commander_profile parses cards + themes", async () => {
+  it("meta_commander_profile parses cards + themes (limit + total_cards)", async () => {
     const res = await client.callTool({
       name: "meta_commander_profile",
       arguments: { commander: "Talrand, Sky Summoner" },
     });
-    const r = res.structuredContent as { cards: unknown[]; themes: string[] };
+    const r = res.structuredContent as { cards: unknown[]; themes: string[]; total_cards: number };
     expect(r.cards).toHaveLength(4);
+    expect(r.total_cards).toBe(4);
     expect(r.themes).toEqual(["Spellslinger", "Counters"]);
+
+    const limited = await client.callTool({
+      name: "meta_commander_profile",
+      arguments: { commander: "Talrand, Sky Summoner", limit: 2 },
+    });
+    const lr = limited.structuredContent as { cards: unknown[]; total_cards: number };
+    expect(lr.cards).toHaveLength(2);
+    expect(lr.total_cards).toBe(4);
   });
 
-  it("meta_recommendations filters identity, excludes in-deck, reports unresolved", async () => {
+  it("meta_recommend (default synergy rank) filters identity, excludes in-deck, reports unresolved", async () => {
     const res = await client.callTool({
-      name: "meta_recommendations",
+      name: "meta_recommend",
       arguments: { deck_id: "deck-1" },
     });
     const r = res.structuredContent as {
-      recommendations: Array<{ oracle_id: string; name: string }>;
+      rank: string;
+      suggestions: Array<{ oracle_id: string; name: string }>;
       unresolved: Array<{ name: string; reason: string }>;
     };
-    const names = r.recommendations.map((x) => x.name);
+    expect(r.rank).toBe("synergy");
+    const names = r.suggestions.map((x) => x.name);
     expect(names).toContain("Arcane Signet"); // colorless, not in deck
     expect(names).not.toContain("Sol Ring"); // already in deck
     expect(names).not.toContain("Lightning Bolt"); // off-color (R) for a mono-U deck
     expect(r.unresolved.map((u) => u.name)).toContain("Nonexistent Card");
   });
 
-  it("meta_themes returns the commander's themes", async () => {
+  it("meta_recommend returns DECK_NOT_FOUND for an unknown deck", async () => {
     const res = await client.callTool({
-      name: "meta_themes",
-      arguments: { commander: "Talrand, Sky Summoner" },
-    });
-    expect((res.structuredContent as { themes: string[] }).themes).toEqual([
-      "Spellslinger",
-      "Counters",
-    ]);
-  });
-
-  it("meta_themes rejects an empty commander with a clear error (review #7)", async () => {
-    const res = await client.callTool({ name: "meta_themes", arguments: { commander: "" } });
-    expect(res.isError).toBe(true);
-    expect(JSON.stringify(res.content)).toMatch(/commander name is required/);
-  });
-
-  it("meta_recommendations returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({
-      name: "meta_recommendations",
+      name: "meta_recommend",
       arguments: { deck_id: "nope" },
     });
     expect(res.isError).toBe(true);
@@ -205,46 +204,34 @@ describe("EDHREC meta tools", () => {
   });
 });
 
-describe("meta_missing_staples (review #11)", () => {
-  it("is registered", async () => {
-    const names = (await client.listTools()).tools.map((t) => t.name);
-    expect(names).toContain("meta_missing_staples");
-  });
-
+describe("meta_recommend rank:'inclusion' (the missing-staples mode)", () => {
   it("lists in-identity staples not in the deck, ranked by inclusion; reports unresolved", async () => {
     const res = await client.callTool({
-      name: "meta_missing_staples",
-      arguments: { deck_id: "deck-1" },
+      name: "meta_recommend",
+      arguments: { deck_id: "deck-1", rank: "inclusion" },
     });
     const r = res.structuredContent as {
       commander: string;
-      missing: Array<{ oracle_id: string; name: string; inclusion: number }>;
+      rank: string;
+      suggestions: Array<{ oracle_id: string; name: string; inclusion: number }>;
       unresolved: Array<{ name: string; reason: string }>;
     };
     expect(r.commander).toBe("Talrand, Sky Summoner");
+    expect(r.rank).toBe("inclusion");
     // Sol Ring is in-deck (excluded); Lightning Bolt is off-color (excluded);
     // Arcane Signet (colorless, on-color) is the missing staple. Nonexistent → unresolved.
-    expect(r.missing.map((m) => m.name)).toEqual(["Arcane Signet"]);
-    expect(r.missing[0]?.inclusion).toBe(800);
+    expect(r.suggestions.map((m) => m.name)).toEqual(["Arcane Signet"]);
+    expect(r.suggestions[0]?.inclusion).toBe(800);
     expect(r.unresolved).toEqual([{ name: "Nonexistent Card", reason: "UNKNOWN_CARD" }]);
   });
 
   it("honors the min_inclusion threshold", async () => {
     const res = await client.callTool({
-      name: "meta_missing_staples",
-      arguments: { deck_id: "deck-1", min_inclusion: 850 },
+      name: "meta_recommend",
+      arguments: { deck_id: "deck-1", rank: "inclusion", min_inclusion: 850 },
     });
-    const r = res.structuredContent as { missing: unknown[] };
-    expect(r.missing).toEqual([]); // Arcane Signet (800) is below the threshold
-  });
-
-  it("returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({
-      name: "meta_missing_staples",
-      arguments: { deck_id: "x" },
-    });
-    expect(res.isError).toBe(true);
-    expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+    const r = res.structuredContent as { suggestions: unknown[] };
+    expect(r.suggestions).toEqual([]); // Arcane Signet (800) is below the threshold
   });
 });
 
