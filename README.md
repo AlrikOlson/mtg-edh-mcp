@@ -74,7 +74,12 @@ Every list output has a documented default limit.
 Every description follows a fixed workflow-teaching template (one-liner /
 USE / NOT / FLOW / ARGS / RETURNS), enforced by a conformance test
 (`src/server/descriptions.test.ts`) that also verifies FLOW cross-references
-against the live registry.
+against the live registry. The server also advertises three **MCP prompts**
+(`build_commander_deck`, `tune_deck`, `fit_budget`) that hand an agent the
+complete workflow recipes with its arguments interpolated — see
+[`docs/AGENT-COOKBOOK.md`](./docs/AGENT-COOKBOOK.md) for the condensed
+agent operating manual (the 3-call build loop, error recovery, and what a
+harness may auto-approve).
 
 The server makes **zero strategic decisions** — it answers questions, mutates
 state, computes statistics, and validates. The agent supplies the taste.

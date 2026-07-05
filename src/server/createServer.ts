@@ -22,6 +22,7 @@ import { makeAnalyzeTools } from "./analyzeTools.js";
 import { makeMetaTools } from "./metaTools.js";
 import { IngestRunner, makeDataTools } from "./dataTools.js";
 import { registerResources } from "./resources.js";
+import { registerPrompts } from "./prompts.js";
 
 export const SERVER_NAME = "mtg-edh-mcp";
 export const SERVER_VERSION = "0.0.0";
@@ -73,6 +74,10 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     deckStore: options.deckStore,
     collection: options.index ? collection : undefined,
   });
+  // Workflow prompts (ergo-prompts): only meaningful when decks can be built.
+  if (options.index && options.deckStore) {
+    registerPrompts(server);
+  }
   const cardTools = options.index ? makeCardTools(options.index, collection, session) : [];
   const collectionTools = options.index
     ? makeCollectionTools(collection, options.index, session)
