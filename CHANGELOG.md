@@ -10,6 +10,14 @@ under 0.x, and breaking changes may land in minor versions.
 
 ## [Unreleased]
 
+### Security
+
+- Audited CVE-2026-25536 (MCP SDK cross-client leak in stateless deployments):
+  not affected — the pinned SDK (`^1.29.0`) is past the 1.26.0 fix, and the
+  HTTP transport constructs a fresh server + transport per request, so the
+  vulnerable shared-instance pattern is structurally absent. An interleaved
+  two-principal regression test now guards the property permanently.
+
 ### Added
 
 - MCP server (stdio + streamable HTTP) with card knowledge (local Scryfall

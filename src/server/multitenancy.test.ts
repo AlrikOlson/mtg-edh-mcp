@@ -122,6 +122,51 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
     await bob.close();
   });
 
+  it("never leaks across principals under interleaved stateless POSTs (CVE-2026-25536 guard)", async () => {
+    // CVE-2026-25536: sharing one McpServer/transport across clients in
+    // stateless deployments can leak cross-client response data (vulnerable
+    // SDK <=1.25.3; fixed 1.26.0 — we pin ^1.29.0). Our http.ts constructs a
+    // FRESH server + transport per POST, so the precondition is structurally
+    // absent. This test pins that property: strictly interleaved requests
+    // from two principals must never observe each other's data.
+    const alice = await connectAs("alice", url);
+    const bob = await connectAs("bob", url);
+
+    const aCreated = await alice.callTool({ name: "deck_create", arguments: { name: "A deck" } });
+    const aId = (aCreated.structuredContent as { deck_id: string }).deck_id;
+    const bCreated = await bob.callTool({ name: "deck_create", arguments: { name: "B deck" } });
+    const bId = (bCreated.structuredContent as { deck_id: string }).deck_id;
+    expect(aId).not.toBe(bId);
+
+    // Interleave mutations and reads A/B/A/B over the same shared stores.
+    await alice.callTool({ name: "deck_add", arguments: { deck_id: aId, cards: "Sol Ring" } });
+    await bob.callTool({ name: "deck_add", arguments: { deck_id: bId, cards: "Sol Ring" } });
+    const aStatus = await alice.callTool({ name: "deck_status", arguments: { deck_id: aId } });
+    const bStatus = await bob.callTool({ name: "deck_status", arguments: { deck_id: bId } });
+
+    // Each principal's response references only their own deck…
+    expect((aStatus.structuredContent as { deck_id: string; name: string }).name).toBe("A deck");
+    expect((bStatus.structuredContent as { deck_id: string; name: string }).name).toBe("B deck");
+    // …and never carries the other principal's identifiers anywhere in the payload.
+    expect(JSON.stringify(aStatus.structuredContent)).not.toContain(bId);
+    expect(JSON.stringify(bStatus.structuredContent)).not.toContain(aId);
+
+    // Cross-reads and cross-lists stay walled off after the interleaving.
+    const aList = await alice.callTool({ name: "deck_list", arguments: {} });
+    const bList = await bob.callTool({ name: "deck_list", arguments: {} });
+    expect(
+      (aList.structuredContent as { decks: { deck_id: string }[] }).decks.map((d) => d.deck_id),
+    ).toEqual([aId]);
+    expect(
+      (bList.structuredContent as { decks: { deck_id: string }[] }).decks.map((d) => d.deck_id),
+    ).toEqual([bId]);
+    const crossGet = await bob.callTool({ name: "deck_get", arguments: { deck_id: aId } });
+    expect(crossGet.isError).toBe(true);
+
+    await alice.close();
+    await bob.close();
+  });
+
   it("defaults to the 'local' session when no principal header is sent", async () => {
     const transport = new StreamableHTTPClientTransport(url);
     const anon = new Client({ name: "anon", version: "0.0.0" });

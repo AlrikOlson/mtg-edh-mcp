@@ -9,6 +9,14 @@
  * servers) isolates each principal's decks, while the shared {@link CardIndex}
  * serves bulk card data read-only to every session. Requests without the header
  * fall back to the single default "local" session.
+ *
+ * Security note (CVE-2026-25536, audited 2026-07-04): sharing one McpServer or
+ * transport instance across clients in stateless deployments could leak
+ * cross-client response data in SDK <=1.25.3 (fixed 1.26.0; we pin ^1.29.0).
+ * The fresh-server-plus-fresh-transport-per-POST construction below makes the
+ * precondition structurally absent — keep it that way. Regression guard:
+ * multitenancy.test.ts "never leaks across principals under interleaved
+ * stateless POSTs".
  */
 import http from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
