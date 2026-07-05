@@ -31,6 +31,17 @@ uninstall:
     rm -rf "/Applications/{{app_name}}.app"
     @echo "removed /Applications/{{app_name}}.app"
 
+# Build + symlink the engine globally (npm link — local only, never the registry)
+link:
+    npm run build
+    npm link
+    @echo "linked: $(which mtg-edh-mcp)"
+
+# Remove the global symlink
+unlink:
+    npm unlink -g mtg-edh-mcp
+    @echo "unlinked mtg-edh-mcp"
+
 # Full verification gates (engine + gui + wire round-trips + web build)
 gates:
     npm test && npm run typecheck && npm run lint
