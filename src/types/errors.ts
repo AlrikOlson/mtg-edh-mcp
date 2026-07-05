@@ -36,7 +36,7 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
 export interface ErrorDetailMap {
   UNKNOWN_CARD: { input?: string; suggestions?: readonly CardRef[] };
   AMBIGUOUS_NAME: { candidates: readonly CardRef[] };
-  INVALID_QUERY: { position?: number };
+  INVALID_QUERY: { position?: number; examples?: readonly string[] };
   STALE_CARD: { requested?: string; snapshot?: string };
   UPSTREAM_UNAVAILABLE: { url?: string; status?: number; reason?: string };
 }

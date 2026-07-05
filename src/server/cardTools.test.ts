@@ -150,10 +150,13 @@ describe("card_search", () => {
     expect(sc.data_snapshot).toBe(SNAPSHOT);
   });
 
-  it("surfaces a malformed query as INVALID_QUERY", async () => {
+  it("surfaces a malformed query as INVALID_QUERY with teaching examples", async () => {
     const res = await client.callTool({ name: "card_search", arguments: { query: "(t:dragon" } });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "INVALID_QUERY" });
+    const details = (res.structuredContent as { details?: { examples?: string[] } }).details;
+    expect(details?.examples?.length).toBeGreaterThanOrEqual(3);
+    expect(details?.examples?.[0]).toContain("t:instant");
   });
 });
 

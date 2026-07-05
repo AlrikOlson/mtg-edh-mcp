@@ -18,6 +18,7 @@
 import { z } from "zod";
 import { BulkClient, ingestBulk, VersionedStore } from "../ingest/index.js";
 import { buildIndex, DEFAULT_DATA_ROOT } from "../index/index.js";
+import { READS_LOCAL, mutates } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 export type IngestPhase = "idle" | "download" | "build" | "done" | "error";
@@ -116,6 +117,7 @@ export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
   const statusTool: ToolDefinition = {
     name: "data_status",
     config: {
+      annotations: READS_LOCAL,
       title: "Card-data status",
       description:
         "Report card-index readiness and any in-flight ingest.\n" +
@@ -145,6 +147,7 @@ export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
   const ingestTool: ToolDefinition = {
     name: "data_ingest",
     config: {
+      annotations: mutates({ destructive: false, idempotent: false, openWorld: true }),
       title: "Card-data ingest",
       description:
         "Download Scryfall bulk data (~700MB) and rebuild the local card index atomically.\n" +

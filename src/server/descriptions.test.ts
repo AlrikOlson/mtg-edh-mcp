@@ -49,10 +49,66 @@ const TEMPLATE =
 const FLOW_TOOL_TOKEN =
   /\b(?:ping|budget_plan|simulate_deck|(?:card|deck|meta|analyze|validate|collection|data)_[a-z_]+)\b/g;
 
+/** The lint-pinned read-only set (ergo-protocol): drift in either direction fails. */
+const READ_ONLY_TOOLS = [
+  "ping",
+  "data_status",
+  "card_search",
+  "card_get",
+  "card_resolve_name",
+  "card_printings",
+  "collection_get",
+  "deck_get",
+  "deck_list",
+  "deck_diff",
+  "deck_export",
+  "deck_status",
+  "validate_deck",
+  "validate_card",
+  "validate_commander",
+  "analyze_curve",
+  "analyze_composition",
+  "analyze_stats",
+  "analyze_mana_base",
+  "analyze_role_coverage",
+  "simulate_deck",
+  "budget_plan",
+  "meta_commander_profile",
+  "meta_recommend",
+  "meta_budget_swaps",
+  "meta_combos",
+  "meta_classify_bracket",
+].sort();
+
+/** Tools that reach the network (openWorldHint: true). */
+const OPEN_WORLD_TOOLS = [
+  "data_ingest",
+  "meta_commander_profile",
+  "meta_recommend",
+  "meta_budget_swaps",
+  "meta_combos",
+  "meta_classify_bracket",
+].sort();
+
+/** Hot-path tools that must declare an outputSchema over the wire. */
+const OUTPUT_SCHEMA_TOOLS = ["card_search", "deck_add", "deck_status"];
+
+interface WireTool {
+  name: string;
+  description?: string;
+  annotations?: {
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+  };
+  outputSchema?: Record<string, unknown>;
+}
+
 let root: string;
 let index: CardIndex;
 let client: Client;
-let tools: Array<{ name: string; description?: string }>;
+let tools: WireTool[];
 
 beforeAll(async () => {
   root = await mkdtemp(path.join(tmpdir(), "mtg-desc-"));
@@ -113,5 +169,47 @@ describe("tool description conformance (the wire is the contract)", () => {
       /not yet available|deprecated|TODO/i.test(t.description ?? ""),
     );
     expect(stale.map((t) => t.name)).toEqual([]);
+  });
+});
+
+describe("tool annotations (ergo-protocol)", () => {
+  it("every tool carries annotations", () => {
+    const missing = tools.filter((t) => !t.annotations).map((t) => t.name);
+    expect(missing).toEqual([]);
+  });
+
+  it("the read-only set exactly matches the pinned list", () => {
+    const readOnly = tools
+      .filter((t) => t.annotations?.readOnlyHint === true)
+      .map((t) => t.name)
+      .sort();
+    expect(readOnly).toEqual(READ_ONLY_TOOLS);
+  });
+
+  it("mutators declare destructive + idempotent hints explicitly", () => {
+    const incomplete = tools
+      .filter((t) => t.annotations?.readOnlyHint === false)
+      .filter(
+        (t) =>
+          typeof t.annotations?.destructiveHint !== "boolean" ||
+          typeof t.annotations?.idempotentHint !== "boolean",
+      )
+      .map((t) => t.name);
+    expect(incomplete).toEqual([]);
+  });
+
+  it("openWorldHint marks exactly the network-reaching tools", () => {
+    const openWorld = tools
+      .filter((t) => t.annotations?.openWorldHint === true)
+      .map((t) => t.name)
+      .sort();
+    expect(openWorld).toEqual(OPEN_WORLD_TOOLS);
+  });
+
+  it("the hot-path tools declare an outputSchema over the wire", () => {
+    for (const name of OUTPUT_SCHEMA_TOOLS) {
+      const tool = tools.find((t) => t.name === name);
+      expect(tool?.outputSchema, `${name} outputSchema`).toBeTruthy();
+    }
   });
 });

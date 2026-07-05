@@ -20,6 +20,7 @@ import {
   anyNumberExemptions,
 } from "../validate/index.js";
 import { resolveCardId } from "./resolve.js";
+import { READS_LOCAL } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 /** Partition violations into hard errors and advisory warnings by severity. */
@@ -34,6 +35,7 @@ function validateDeckTool(store: DeckStore, index: CardIndex, session: string): 
   return {
     name: "validate_deck",
     config: {
+      annotations: READS_LOCAL,
       title: "Validate deck",
       description:
         "Run the authoritative Commander legality gate over a deck.\n" +
@@ -83,6 +85,7 @@ function validateCardTool(store: DeckStore, index: CardIndex, session: string): 
   return {
     name: "validate_card",
     config: {
+      annotations: READS_LOCAL,
       title: "Validate card (precheck)",
       description:
         "Pre-check whether adding one card would be legal — read-only, no mutation.\n" +
@@ -143,6 +146,7 @@ function validateCommanderTool(
   return {
     name: "validate_commander",
     config: {
+      annotations: READS_LOCAL,
       title: "Validate commander(s)",
       description:
         "Check command-zone legality for a deck or a transient commander set.\n" +

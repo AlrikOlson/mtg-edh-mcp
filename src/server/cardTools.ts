@@ -14,7 +14,16 @@ import { StructuredError } from "../types/index.js";
 import type { Card } from "../types/index.js";
 import type { CollectionStore } from "../collection/index.js";
 import { StringOrStringsSchema, resolveCardId, resolveCardIdLenient } from "./resolve.js";
+import { READS_LOCAL } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
+import { isStructuredError } from "../types/index.js";
+
+/** Canonical query examples attached to INVALID_QUERY so the error teaches the grammar. */
+const QUERY_EXAMPLES = [
+  "t:instant ci<=wu mv<=2 o:draw",
+  "is:commander c:g",
+  'o:"draw a card" -t:creature',
+] as const;
 
 function cardSearchTool(
   index: CardIndex,
@@ -24,6 +33,7 @@ function cardSearchTool(
   return {
     name: "card_search",
     config: {
+      annotations: READS_LOCAL,
       title: "Card search",
       description:
         "Search cards with Scryfall query grammar against the local index.\n" +
@@ -38,9 +48,28 @@ function cardSearchTool(
         cursor: z.string().optional(),
         owned_only: z.boolean().optional(),
       },
+      outputSchema: {
+        total: z.number().optional(),
+        returned: z.number().optional(),
+        next_cursor: z.string().nullable().optional(),
+        results: z.array(z.unknown()).optional(),
+        data_snapshot: z.string().optional(),
+      },
     },
     handler: (args) => {
-      const node = parseQuery(String(args.query ?? ""));
+      let node;
+      try {
+        node = parseQuery(String(args.query ?? ""));
+      } catch (err) {
+        // Teach the grammar: rethrow with canonical examples beside the parse position.
+        if (isStructuredError(err) && err.code === "INVALID_QUERY") {
+          throw new StructuredError("INVALID_QUERY", err.message, {
+            ...(err.details as { position?: number } | undefined),
+            examples: QUERY_EXAMPLES,
+          });
+        }
+        throw err;
+      }
       const opts: SearchOptions = {};
       if (typeof args.order === "string") opts.order = args.order;
       if (typeof args.limit === "number") opts.limit = args.limit;
@@ -68,6 +97,7 @@ function cardGetTool(index: CardIndex): ToolDefinition {
   return {
     name: "card_get",
     config: {
+      annotations: READS_LOCAL,
       title: "Card get",
       description:
         "Fetch full Card objects by name or oracle_id, singular or array.\n" +
@@ -120,6 +150,7 @@ function cardResolveNameTool(index: CardIndex): ToolDefinition {
   return {
     name: "card_resolve_name",
     config: {
+      annotations: READS_LOCAL,
       title: "Resolve card name",
       description:
         "Resolve one card name to its canonical oracle_id.\n" +
@@ -156,6 +187,7 @@ function cardPrintingsTool(index: CardIndex): ToolDefinition {
   return {
     name: "card_printings",
     config: {
+      annotations: READS_LOCAL,
       title: "Card printings",
       description:
         "List every printing of a card (set, collector number, prices), newest first.\n" +

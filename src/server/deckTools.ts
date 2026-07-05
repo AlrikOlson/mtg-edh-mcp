@@ -35,6 +35,7 @@ import {
 } from "./resolve.js";
 import { deckVitals, formatVitals } from "./vitals.js";
 import type { SnapshotProvider } from "./snapshot.js";
+import { READS_LOCAL, mutates } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 /** Project a deck's card entries for output (lean names, or full cards on expand). */
@@ -80,6 +81,7 @@ function deckCreateTool(
   return {
     name: "deck_create",
     config: {
+      annotations: mutates({ destructive: false, idempotent: false }),
       title: "Create deck",
       description:
         "Create a versioned deck and return its deck_id.\n" +
@@ -131,6 +133,7 @@ function deckGetTool(store: DeckStore, session: string, index?: CardIndex): Tool
   return {
     name: "deck_get",
     config: {
+      annotations: READS_LOCAL,
       title: "Get deck",
       description:
         "Fetch a deck's full contents.\n" +
@@ -158,6 +161,7 @@ function deckListTool(store: DeckStore, session: string, index?: CardIndex): Too
   return {
     name: "deck_list",
     config: {
+      annotations: READS_LOCAL,
       title: "List decks",
       description:
         "List decks as lean entries.\n" +
@@ -189,6 +193,7 @@ function deckRenameTool(store: DeckStore, session: string, index?: CardIndex): T
   return {
     name: "deck_rename",
     config: {
+      annotations: mutates({ destructive: false, idempotent: true }),
       title: "Rename deck",
       description:
         "Rename a deck.\n" +
@@ -229,6 +234,7 @@ function deckDeleteTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_delete",
     config: {
+      annotations: mutates({ destructive: true, idempotent: true }),
       title: "Delete deck",
       description:
         "Delete a deck permanently.\n" +
@@ -255,6 +261,7 @@ function deckSnapshotTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_snapshot",
     config: {
+      annotations: mutates({ destructive: false, idempotent: false }),
       title: "Snapshot deck",
       description:
         "Capture an immutable snapshot of a deck's current state.\n" +
@@ -281,6 +288,7 @@ function deckDiffTool(store: DeckStore, session: string): ToolDefinition {
   return {
     name: "deck_diff",
     config: {
+      annotations: READS_LOCAL,
       title: "Diff deck",
       description:
         "Compare a snapshot against the current deck (or a second snapshot).\n" +
@@ -332,6 +340,7 @@ function deckRestoreTool(store: DeckStore, session: string, index?: CardIndex): 
   return {
     name: "deck_restore",
     config: {
+      annotations: mutates({ destructive: true, idempotent: true }),
       title: "Restore deck",
       description:
         "Roll a deck back to a snapshot.\n" +
@@ -384,6 +393,7 @@ function deckImportTool(
   return {
     name: "deck_import",
     config: {
+      annotations: mutates({ destructive: false, idempotent: false }),
       title: "Import decklist",
       description:
         "Parse decklist text (Moxfield/Archidekt/MTGO/Arena/plaintext) into a deck.\n" +
@@ -469,6 +479,7 @@ function deckExportTool(store: DeckStore, session: string, index?: CardIndex): T
   return {
     name: "deck_export",
     config: {
+      annotations: READS_LOCAL,
       title: "Export decklist",
       description:
         "Export a deck as plaintext '<qty> <name>' decklist lines.\n" +
@@ -516,6 +527,7 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
   return {
     name: "deck_add",
     config: {
+      annotations: mutates({ destructive: false, idempotent: false }),
       title: "Add cards",
       description:
         "Add cards to a deck; accepts names or oracle_ids, singular or array.\n" +
@@ -528,6 +540,19 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
         cards: CardInputsSchema,
         force: z.boolean().optional(),
         expected_version: z.number().int().nonnegative().optional(),
+      },
+      // All-optional: the conflict variant carries none of the success keys.
+      outputSchema: {
+        deck_id: z.string().optional(),
+        version: z.number().optional(),
+        verdicts: z.array(z.unknown()).optional(),
+        failed: z.array(z.unknown()).optional(),
+        vitals: z.unknown().optional(),
+        ok: z.boolean().optional(),
+        conflict: z.boolean().optional(),
+        expected_version: z.number().optional(),
+        current_version: z.number().optional(),
+        data_snapshot: z.string().optional(),
       },
     },
     handler: (args) => {
@@ -588,6 +613,7 @@ function deckRemoveTool(store: DeckStore, session: string, index?: CardIndex): T
   return {
     name: "deck_remove",
     config: {
+      annotations: mutates({ destructive: false, idempotent: false }),
       title: "Remove cards",
       description:
         "Remove cards from a deck; accepts names or oracle_ids, singular or array (qty defaults to 1).\n" +
@@ -656,6 +682,7 @@ function deckSetCommanderTool(
   return {
     name: "deck_set_commander",
     config: {
+      annotations: mutates({ destructive: false, idempotent: true }),
       title: "Set commander(s)",
       description:
         "Set or replace the deck's commander(s) by name or oracle_id, single string or array.\n" +
@@ -749,6 +776,7 @@ function deckSetCompanionTool(
   return {
     name: "deck_set_companion",
     config: {
+      annotations: mutates({ destructive: false, idempotent: true }),
       title: "Set companion",
       description:
         "Declare or clear the deck's companion by name or oracle_id.\n" +

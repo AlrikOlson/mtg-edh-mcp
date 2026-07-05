@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { CardIndex } from "../index/index.js";
 import type { CollectionStore } from "../collection/index.js";
 import { normalizeStrings, resolveCardIdLenient } from "./resolve.js";
+import { READS_LOCAL, mutates } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 /** Resolve name-or-id inputs to owned oracle_ids; unresolved entries are reported, not stored. */
@@ -50,6 +51,7 @@ function collectionSetTool(
   return {
     name: "collection_set",
     config: {
+      annotations: mutates({ destructive: true, idempotent: true }),
       title: "Set collection",
       description:
         "Replace the owned-card collection.\n" +
@@ -78,6 +80,7 @@ function collectionAddTool(
   return {
     name: "collection_add",
     config: {
+      annotations: mutates({ destructive: false, idempotent: true }),
       title: "Add to collection",
       description:
         "Add cards to the owned-card collection.\n" +
@@ -106,6 +109,7 @@ function collectionGetTool(
   return {
     name: "collection_get",
     config: {
+      annotations: READS_LOCAL,
       title: "Get collection",
       description:
         "Read the owned-card collection, paginated.\n" +
@@ -148,6 +152,7 @@ function collectionClearTool(collection: CollectionStore, session: string): Tool
   return {
     name: "collection_clear",
     config: {
+      annotations: mutates({ destructive: true, idempotent: true }),
       title: "Clear collection",
       description:
         "Empty the owned-card collection for this session.\n" +

@@ -24,6 +24,7 @@ import {
 } from "../analyze/index.js";
 import { validateCore, validateCommander, validateCompanion } from "../validate/index.js";
 import { deckVitals, formatVitals } from "./vitals.js";
+import { READS_LOCAL } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 const ROLE_ENUM = [
@@ -53,6 +54,7 @@ function analyzeCurveTool(store: DeckStore, index: CardIndex, session: string): 
   return {
     name: "analyze_curve",
     config: {
+      annotations: READS_LOCAL,
       title: "Analyze mana curve",
       description:
         "Compute the deck's quantity-weighted mana-value histogram.\n" +
@@ -98,6 +100,7 @@ function analyzeCompositionTool(
   return {
     name: "analyze_composition",
     config: {
+      annotations: READS_LOCAL,
       title: "Analyze composition",
       description:
         "Count deck cards by card type and functional role, quantity-weighted.\n" +
@@ -125,6 +128,7 @@ function analyzeStatsTool(store: DeckStore, index: CardIndex, session: string): 
   return {
     name: "analyze_stats",
     config: {
+      annotations: READS_LOCAL,
       title: "Analyze stats",
       description:
         "Compute exact deck stats: counts, average mana value, color pips, prices.\n" +
@@ -157,6 +161,7 @@ function analyzeManaBaseTool(store: DeckStore, index: CardIndex, session: string
   return {
     name: "analyze_mana_base",
     config: {
+      annotations: READS_LOCAL,
       title: "Analyze mana base",
       description:
         "Analyze mana sources: per-color counts, tapped/untapped, fixing, under-supported colors.\n" +
@@ -196,6 +201,7 @@ function analyzeRoleCoverageTool(
   return {
     name: "analyze_role_coverage",
     config: {
+      annotations: READS_LOCAL,
       title: "Analyze role coverage",
       description:
         "Compare functional-role counts against target bands (under/ok/over).\n" +
@@ -232,6 +238,7 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
   return {
     name: "deck_status",
     config: {
+      annotations: READS_LOCAL,
       title: "Deck status (one-call dashboard)",
       description:
         "Report the deck's full standing in one offline call.\n" +
@@ -242,6 +249,18 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
         `${STATUS_ERROR_CAP}, exact error_count/warning_count); curve (buckets, avg_mv); mana (sources_by_color, ` +
         "under_supported); roles (below-band gaps); price (total_usd, min_buy_usd).",
       inputSchema: { deck_id: z.string() },
+      outputSchema: {
+        deck_id: z.string().optional(),
+        name: z.string().optional(),
+        version: z.number().optional(),
+        vitals: z.unknown().optional(),
+        legality: z.unknown().optional(),
+        curve: z.unknown().optional(),
+        mana: z.unknown().optional(),
+        roles: z.unknown().optional(),
+        price: z.unknown().optional(),
+        data_snapshot: z.string().optional(),
+      },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
@@ -310,6 +329,7 @@ function simulateDeckTool(store: DeckStore, index: CardIndex, session: string): 
   return {
     name: "simulate_deck",
     config: {
+      annotations: READS_LOCAL,
       title: "Simulate deck (goldfish)",
       description:
         "Goldfish the deck: Monte Carlo opening hands and early turns, deterministic per seed.\n" +
@@ -362,6 +382,7 @@ function budgetPlanTool(
   return {
     name: "budget_plan",
     config: {
+      annotations: READS_LOCAL,
       title: "Budget plan",
       description:
         "Plan the deck toward a price target with zero card changes.\n" +

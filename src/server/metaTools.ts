@@ -59,6 +59,7 @@ async function deckTwoCardCombos(
     return [];
   }
 }
+import { READS_LIVE } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -139,6 +140,7 @@ function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
   return {
     name: "meta_commander_profile",
     config: {
+      annotations: READS_LIVE,
       title: "Commander profile (EDHREC)",
       description:
         "Fetch a commander's EDHREC average-deck profile.\n" +
@@ -181,6 +183,7 @@ function metaRecommendTool(
   return {
     name: "meta_recommend",
     config: {
+      annotations: READS_LIVE,
       title: "Recommend cards (EDHREC)",
       description:
         "Suggest cards to add from the commander's EDHREC profile, grounded against the deck.\n" +
@@ -260,6 +263,7 @@ function metaBudgetSwapsTool(
   return {
     name: "meta_budget_swaps",
     config: {
+      annotations: READS_LIVE,
       title: "Budget swaps (EDHREC)",
       description:
         "Suggest cheaper functional replacements for the deck's most expensive cards.\n" +
@@ -389,6 +393,7 @@ function metaCombosTool(
   return {
     name: "meta_combos",
     config: {
+      annotations: READS_LIVE,
       title: "Combos (Commander Spellbook)",
       description:
         "Find combos reachable from the deck via Commander Spellbook.\n" +
@@ -448,6 +453,7 @@ function metaClassifyBracketTool(
   return {
     name: "meta_classify_bracket",
     config: {
+      annotations: READS_LIVE,
       title: "Classify bracket",
       description:
         "Classify the deck into the official Commander brackets (1 Exhibition … 5 cEDH).\n" +

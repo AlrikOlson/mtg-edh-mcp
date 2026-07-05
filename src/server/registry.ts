@@ -10,7 +10,7 @@
  * Unexpected (non-structured) throws propagate to the SDK's generic isError path.
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape } from "zod";
 import { isStructuredError, toolError } from "../types/errors.js";
 import type { SnapshotProvider } from "./snapshot.js";
@@ -30,8 +30,33 @@ export interface ToolDefinition {
     description?: string;
     /** zod raw shape; the SDK validates input against it before the handler runs. */
     inputSchema?: ZodRawShape;
+    /**
+     * zod raw shape; the SDK advertises it over tools/list and safeParse-validates
+     * structuredContent on success results (isError results are skipped — verified
+     * in SDK 1.29 validateToolOutput). Keep fields optional so response variants
+     * (conflicts, degraded paths) and the registry's data_snapshot stamp never fail.
+     */
+    outputSchema?: ZodRawShape;
+    /** MCP tool annotations (readOnlyHint etc.) — harness-facing behavior hints. */
+    annotations?: ToolAnnotations;
   };
   handler: ToolHandler;
+}
+
+/** Annotation presets (ergo-protocol): local read-only, live read-only, local mutator. */
+export const READS_LOCAL: ToolAnnotations = { readOnlyHint: true, openWorldHint: false };
+export const READS_LIVE: ToolAnnotations = { readOnlyHint: true, openWorldHint: true };
+export function mutates(hints: {
+  destructive: boolean;
+  idempotent: boolean;
+  openWorld?: boolean;
+}): ToolAnnotations {
+  return {
+    readOnlyHint: false,
+    destructiveHint: hints.destructive,
+    idempotentHint: hints.idempotent,
+    openWorldHint: hints.openWorld ?? false,
+  };
 }
 
 /** The SDK's registerTool callback type, at the registration boundary. */

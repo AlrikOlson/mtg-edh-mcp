@@ -3,6 +3,7 @@
  * validate_*, analyze_*, meta_*) register from their own engines in later phases.
  */
 import { z } from "zod";
+import { READS_LOCAL } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 /**
@@ -12,6 +13,7 @@ import type { ToolDefinition } from "./registry.js";
 export const pingTool: ToolDefinition = {
   name: "ping",
   config: {
+    annotations: READS_LOCAL,
     title: "Ping",
     description:
       "Echo a liveness check.\n" +
