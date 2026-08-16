@@ -460,14 +460,16 @@ function metaClassifyBracketTool(
         "USE: power-level conversations and pod matching. NOT: legality (validate_deck); offline stats (deck_status).\n" +
         "FLOW: deck_status -> meta_classify_bracket -> deck_remove.\n" +
         "ARGS: deck_id.\n" +
-        "RETURNS: bracket, rationale, pushers (Game Changers, fast mana, tutors, mass land denial, two-card combos, extra turns). Live Game Changers list + Spellbook (degrades gracefully); cEDH (5) never auto-assigned.",
+        "RETURNS: bracket, rationale, pushers (Game Changers, fast mana, tutors, mass land denial, two-card combos, extra turns). Game Changers come from the local index snapshot (live-list fallback for old indexes) + Spellbook (degrades gracefully); cEDH (5) never auto-assigned.",
       inputSchema: { deck_id: z.string() },
     },
     handler: async (args) => {
       const deckId = String(args.deck_id ?? "");
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-      const set = await gameChangers.list();
+      // Prefer the snapshot-versioned local list (offline, provenance-stamped);
+      // fall back to the live client only for indexes built before the column.
+      const set = index.gameChangerNames() ?? (await gameChangers.list());
       const combos = await deckTwoCardCombos(deck, index, spellbook);
       const result = classifyBracket(deck, (id) => index.getCard(id), set, combos);
       return {

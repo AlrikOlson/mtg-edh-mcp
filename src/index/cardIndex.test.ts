@@ -21,6 +21,7 @@ const ORACLE = [
     keywords: [],
     legalities: { commander: "legal" },
     prices: { usd: "1.50" },
+    game_changer: true,
   },
   {
     oracle_id: "o-atraxa",
@@ -196,6 +197,66 @@ describe("index schema", () => {
     for (const expected of SECONDARY_INDEXES) {
       expect(names).toContain(expected);
     }
+  });
+});
+
+describe("CardIndex.gameChangerNames", () => {
+  it("returns the snapshot's Game Changers name set", () => {
+    expect(index.gameChangerNames()).toEqual(new Set(["Sol Ring"]));
+  });
+
+  it("returns null (fallback signal) when the index carries no flags", async () => {
+    // Rebuild from a fixture without any game_changer flags.
+    const r2 = await mkdtemp(path.join(tmpdir(), "mtg-nogc-"));
+    try {
+      const s = new VersionedStore(r2);
+      await s.createVersion("v1");
+      const noFlags = ORACLE.map((card) => {
+        const { game_changer, ...rest } = card as { game_changer?: boolean };
+        void game_changer;
+        return rest;
+      });
+      await writeFile(s.filePath("v1", "oracle_cards.json"), JSON.stringify(noFlags), "utf8");
+      await writeFile(s.filePath("v1", "default_cards.json"), JSON.stringify([]), "utf8");
+      await s.publish("v1");
+      const plain = CardIndex.open((await buildIndex({ store: s })).dbPath);
+      expect(plain.gameChangerNames()).toBeNull();
+      plain.close();
+    } finally {
+      await rm(r2, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("CardIndex.reopen (hot-swap)", () => {
+  it("re-binds the SAME instance onto a freshly built index", async () => {
+    // Build a second version with an extra card, as a bulk refresh would.
+    const version = "v-next";
+    await store.createVersion(version);
+    const extra = [
+      ...ORACLE,
+      {
+        oracle_id: "o-new",
+        name: "Brand New Legend",
+        cmc: 3,
+        colors: ["U"],
+        color_identity: ["U"],
+        type_line: "Legendary Creature — Wizard",
+        oracle_text: "Flash.",
+        legalities: { commander: "legal" },
+        prices: {},
+      },
+    ];
+    await writeFile(store.filePath(version, "oracle_cards.json"), JSON.stringify(extra), "utf8");
+    await writeFile(store.filePath(version, "default_cards.json"), JSON.stringify([]), "utf8");
+    await store.publish(version);
+    const built = await buildIndex({ store, version });
+
+    expect(index.getCard("o-new")).toBeNull(); // old data before the swap
+    index.reopen(built.dbPath);
+    expect(index.getCard("o-new")?.name).toBe("Brand New Legend"); // new data after
+    expect(index.getCard("o-sol")?.name).toBe("Sol Ring"); // old cards still resolve
+    expect(index.count()).toBe(4);
   });
 });
 

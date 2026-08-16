@@ -18,6 +18,7 @@ const ORACLE = [
     oracle_text: "{T}: Add {C}{C}.",
     legalities: { commander: "legal" },
     prices: { usd: "1.50" },
+    game_changer: true,
   },
   {
     oracle_id: "o-llan",
@@ -74,6 +75,50 @@ const ORACLE = [
   },
 ];
 
+/** Printings for the printing-level predicates (set:/rarity:/year, order:released). */
+const DEFAULT = [
+  {
+    oracle_id: "o-sol",
+    id: "p-sol-lea",
+    name: "Sol Ring",
+    set: "lea",
+    set_name: "Limited Edition Alpha",
+    rarity: "uncommon",
+    released_at: "1993-08-05",
+    prices: { usd: "5000.00" },
+  },
+  {
+    oracle_id: "o-sol",
+    id: "p-sol-cmm",
+    name: "Sol Ring",
+    set: "cmm",
+    set_name: "Commander Masters",
+    rarity: "uncommon",
+    released_at: "2023-08-04",
+    prices: { usd: "1.50" },
+  },
+  {
+    oracle_id: "o-llan",
+    id: "p-llan-m10",
+    name: "Llanowar Elves",
+    set: "m10",
+    set_name: "Magic 2010",
+    rarity: "common",
+    released_at: "2009-07-17",
+    prices: { usd: "0.25" },
+  },
+  {
+    oracle_id: "o-atra",
+    id: "p-atra-c16",
+    name: "Atraxa, Praetors' Voice",
+    set: "c16",
+    set_name: "Commander 2016",
+    rarity: "mythic",
+    released_at: "2016-11-11",
+    prices: { usd: "10.00" },
+  },
+];
+
 let root: string;
 let index: CardIndex;
 
@@ -82,7 +127,7 @@ beforeEach(async () => {
   const store = new VersionedStore(root);
   await store.createVersion("v1");
   await writeFile(store.filePath("v1", "oracle_cards.json"), JSON.stringify(ORACLE), "utf8");
-  await writeFile(store.filePath("v1", "default_cards.json"), JSON.stringify([]), "utf8");
+  await writeFile(store.filePath("v1", "default_cards.json"), JSON.stringify(DEFAULT), "utf8");
   await store.publish("v1");
   const built = await buildIndex({ store });
   index = CardIndex.open(built.dbPath);
@@ -128,6 +173,48 @@ describe("query evaluation — predicate families", () => {
 
   it("inline regex over oracle text", () => {
     expect(ids("o:/Add \\{[CG]\\}/")).toEqual(["o-llan", "o-sol"]);
+  });
+
+  it("is:gamechanger reads the indexed flag", () => {
+    expect(ids("is:gamechanger")).toEqual(["o-sol"]);
+  });
+});
+
+describe("query evaluation — printing-level predicates", () => {
+  it("set: matches by code (any printing) and by full set name", () => {
+    expect(ids("set:cmm")).toEqual(["o-sol"]);
+    expect(ids("set:LEA")).toEqual(["o-sol"]); // case-insensitive code
+    expect(ids('set:"Commander 2016"')).toEqual(["o-atra"]);
+    expect(ids("e:m10")).toEqual(["o-llan"]); // e: alias
+  });
+
+  it("rarity: accepts the word and the Scryfall letter", () => {
+    expect(ids("rarity:mythic")).toEqual(["o-atra"]);
+    expect(ids("r:c")).toEqual(["o-llan"]);
+    expect(ids("r:u")).toEqual(["o-sol"]);
+  });
+
+  it("year compares against any printing's release year", () => {
+    expect(ids("year<=1994")).toEqual(["o-sol"]); // Alpha printing
+    expect(ids("year=2009")).toEqual(["o-llan"]);
+  });
+
+  it("ANDed printing predicates must hit a SINGLE printing (merged EXISTS)", () => {
+    // Sol Ring has 1993 and 2023 printings but none inside [2016, 2020]:
+    // separate EXISTS per predicate would wrongly match it via different rows.
+    expect(ids("year>=2016 year<=2020")).toEqual(["o-atra"]);
+    expect(ids("set:cmm r:u")).toEqual(["o-sol"]);
+    expect(ids("set:lea year>=2016")).toEqual([]); // Alpha printing is 1993
+  });
+
+  it("cards with no printings never match a printing-level predicate", () => {
+    expect(ids("set:lea or set:m10 or set:c16 or set:cmm")).toEqual(["o-atra", "o-llan", "o-sol"]);
+    expect(ids("year>=1900")).toEqual(["o-atra", "o-llan", "o-sol"]); // bolt/cult excluded
+  });
+
+  it("order:released sorts by first-printing date, oldest first", () => {
+    const res = index.evaluate(parseQuery("set:lea or set:m10 or set:c16"), { order: "released" });
+    expect(res.results.map((r) => r.oracle_id)).toEqual(["o-sol", "o-llan", "o-atra"]);
   });
 });
 

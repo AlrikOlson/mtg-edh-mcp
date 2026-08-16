@@ -111,15 +111,25 @@ form, so older staged versions keep working.
 
 Refresh cadence (spec §3) is configurable via env vars:
 
-| Variable                | Default      | Meaning                             |
-| ----------------------- | ------------ | ----------------------------------- |
-| `MCP_DATA_DIR`          | `data/cards` | Root of the versioned card store    |
-| `MCP_BULK_INTERVAL_MS`  | `43200000`   | Full bulk re-ingest cadence (~12h)  |
-| `MCP_PRICE_INTERVAL_MS` | `86400000`   | Price-only refresh cadence (~daily) |
+| Variable                | Default      | Meaning                              |
+| ----------------------- | ------------ | ------------------------------------ |
+| `MCP_DATA_DIR`          | `data/cards` | Root of the versioned card store     |
+| `MCP_BULK_INTERVAL_MS`  | `43200000`   | Full bulk re-ingest cadence (~12h)   |
+| `MCP_PRICE_INTERVAL_MS` | `86400000`   | Price-only refresh cadence (~daily)  |
+| `MCP_AUTO_REFRESH`      | on           | `0` disables the freshness scheduler |
+
+The long-running server runs a **freshness scheduler**: it checks bulk-data age
+at startup and every bulk interval, re-ingests when upstream has actually
+changed (the check is idempotent — an unchanged upstream costs one list
+request), and **hot-swaps** the served index + `data_snapshot` onto the new
+version without a restart. `data_status` reports `bulk_age_hours` and a
+`stale` flag so clients can see data aging even with the scheduler off.
 
 A **price-only refresh** (`refreshPrices`) re-downloads `default_cards` and
 updates the printings' prices in place — no rebuild of the cards table or FTS
-index. Oracle-level card prices refresh on a full bulk rebuild.
+index. Oracle-level card prices refresh on a full bulk rebuild. (The scheduler
+does not run it on a separate timer: the bulk pass runs at least as often and
+refreshes prices as a side effect.)
 
 ## Observability & graceful degradation
 
@@ -148,8 +158,11 @@ honestly:
 - **Commander Spellbook** (combo detection) — public API, same
   graceful-degradation treatment.
 - **Commander brackets / Game Changers** — WotC's published list, read from
-  Scryfall's `is:gamechanger` search and cached. (It was previously read from
-  `json.edhrec.com/pages/game-changers.json`, which upstream withdrew.)
+  the local index (Scryfall bulk data carries a per-card `game_changer` flag,
+  so the list is offline and versioned with the snapshot). Indexes built
+  before the flag fall back to Scryfall's live `is:gamechanger` search. (It
+  was previously read from `json.edhrec.com/pages/game-changers.json`, which
+  upstream withdrew.)
 
 Durability of _your_ data: decks and snapshots are persisted (`decks.json`
 under the data dir) and survive restarts; the owned-card **collection is

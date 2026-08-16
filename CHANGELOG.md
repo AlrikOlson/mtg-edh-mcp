@@ -10,6 +10,26 @@ under 0.x, and breaking changes may land in minor versions.
 
 ## [Unreleased]
 
+### Added
+
+- Query grammar: `set:`/`e:` (code or full set name), `rarity:`/`r:` (word or
+  c/u/r/m/s/b letter), `year` comparisons, `is:gamechanger`, and
+  `order:released` now evaluate against the local index instead of returning
+  INVALID_QUERY. Several printing-level predicates under one AND merge into a
+  single EXISTS, so `set:lea year<=1994` requires one printing satisfying both
+  (Scryfall semantics).
+- Freshness scheduler (spec §3, previously documented but never run): the
+  server checks bulk-data age at startup and every `MCP_BULK_INTERVAL_MS`,
+  re-ingests when upstream changed, and hot-swaps the served index +
+  `data_snapshot` without a restart (also after GUI-triggered `data_ingest`).
+  `data_status` now reports `bulk_age_hours` + `stale`. Opt out with
+  `MCP_AUTO_REFRESH=0`.
+- Bracket classification reads the Game Changers list from the local index
+  (`game_changer` flag in Scryfall bulk data) — offline and versioned with the
+  snapshot; pre-flag indexes fall back to the live Scryfall search.
+- `serverInfo.version` now reports the real package version instead of a
+  hardcoded `0.0.0`.
+
 ### Fixed
 
 - Scryfall bulk ingestion: upstream retired the single-JSON-array

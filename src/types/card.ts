@@ -119,6 +119,8 @@ export interface Card {
   prices: Prices;
   /** Server-derived: is this card legal in the command zone? */
   is_commander_eligible: boolean;
+  /** On WotC's official Game Changers list (Scryfall `game_changer`). */
+  game_changer?: boolean;
   /** Server-derived functional roles (§7). */
   roles: readonly Role[];
   printings: readonly Printing[];

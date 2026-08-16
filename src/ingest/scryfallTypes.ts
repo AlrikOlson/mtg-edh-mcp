@@ -40,4 +40,6 @@ export interface ScryfallCardRaw {
   collector_number?: string;
   rarity?: string;
   released_at?: string;
+  /** True when the card is on WotC's official Game Changers list. */
+  game_changer?: boolean;
 }

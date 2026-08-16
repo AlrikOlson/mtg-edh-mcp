@@ -62,10 +62,20 @@ export class IngestRunner {
   private current: IngestStatus = { running: false, phase: "idle" };
   private readonly root: string;
   private readonly pipeline: IngestPipeline;
+  private readonly successListeners: Array<(status: IngestStatus) => void> = [];
 
   constructor(root?: string, pipeline: IngestPipeline = realPipeline) {
     this.root = root ?? process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
     this.pipeline = pipeline;
+  }
+
+  /**
+   * Register a callback fired after every successful run (phase "done"),
+   * including skipped ones. The running server uses this to hot-swap the
+   * served index + data_snapshot without a restart.
+   */
+  onSuccess(listener: (status: IngestStatus) => void): void {
+    this.successListeners.push(listener);
   }
 
   status(): IngestStatus {
@@ -93,6 +103,13 @@ export class IngestRunner {
         finished_at: new Date().toISOString(),
         ...result,
       };
+      for (const listener of this.successListeners) {
+        try {
+          listener(this.current);
+        } catch {
+          // A listener failure never corrupts the run status.
+        }
+      }
     } catch (err) {
       this.current = {
         running: false,
@@ -105,42 +122,58 @@ export class IngestRunner {
   }
 }
 
+/** Staleness of the served bulk data, surfaced by data_status. */
+export interface StalenessInfo {
+  /** Age of the current bulk data in hours (from upstream updated_at), or null when unknown. */
+  bulk_age_hours: number | null;
+  /** True when the age exceeds the configured bulk refresh interval. */
+  stale: boolean;
+}
+
+/** Async provider so the tool handler never caches a stale answer about staleness. */
+export type StalenessProvider = () => Promise<StalenessInfo>;
+
 export interface DataToolsOptions {
   /** Whether the running server booted with a card index. */
   hasIndex: boolean;
   runner: IngestRunner;
+  /** When provided, data_status reports bulk data age + a stale flag. */
+  staleness?: StalenessProvider;
 }
 
 /** `data_status` + `data_ingest` — the GUI onboarding/update surface. */
 export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
-  const { hasIndex, runner } = options;
+  const { hasIndex, runner, staleness } = options;
   const statusTool: ToolDefinition = {
     name: "data_status",
     config: {
       annotations: READS_LOCAL,
       title: "Card-data status",
       description:
-        "Report card-index readiness and any in-flight ingest.\n" +
+        "Report card-index readiness, bulk-data staleness, and any in-flight ingest.\n" +
         "USE: checking data exists before searching; polling during data_ingest. NOT: deck state (deck_status).\n" +
         "FLOW: ping -> data_status -> card_search.\n" +
         "ARGS: none.\n" +
-        "RETURNS: has_index; ingest {running, phase download|build|done|error, snapshot, cards, error}. " +
-        "data_snapshot on every response is the RUNNING index's build date; after a 'done' ingest, " +
-        "restart/reconnect to serve the fresh index.",
+        "RETURNS: has_index; bulk_age_hours + stale (age of the served bulk data vs the refresh " +
+        "interval); ingest {running, phase download|build|done|error, snapshot, cards, error}. " +
+        "A server that booted WITH an index hot-swaps onto a finished ingest automatically; " +
+        "after a first-ever ingest (has_index false) restart/reconnect to get the card tools.",
       inputSchema: {},
     },
-    handler: () => {
+    handler: async () => {
       const ingest = runner.status();
+      const freshness = staleness ? await staleness() : undefined;
+      const staleNote = freshness?.stale ? " (STALE — refresh due)" : "";
       return {
         content: [
           {
             type: "text",
             text: hasIndex
-              ? `index loaded; ingest ${ingest.phase}`
+              ? `index loaded${staleNote}; ingest ${ingest.phase}`
               : `no index; ingest ${ingest.phase}`,
           },
         ],
-        structuredContent: { has_index: hasIndex, ingest },
+        structuredContent: { has_index: hasIndex, ...(freshness ?? {}), ingest },
       };
     },
   };

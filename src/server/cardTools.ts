@@ -37,13 +37,13 @@ function cardSearchTool(
       title: "Card search",
       description:
         "Search cards with Scryfall query grammar against the local index.\n" +
-        'USE: finding candidates by type/color/cost/text, e.g. "t:instant ci<=wu mv<=2 o:draw". NOT: one known card (card_get); resolving a name (card_resolve_name).\n' +
+        'USE: finding candidates by type/color/cost/text/set, e.g. "t:instant ci<=wu mv<=2 o:draw" or "set:hob t:legendary". NOT: one known card (card_get); resolving a name (card_resolve_name).\n' +
         "FLOW: deck_status/analyze_role_coverage -> card_search -> deck_add.\n" +
-        "ARGS: query (Scryfall grammar); order name|mv|price; limit (max 175); cursor (from next_cursor); owned_only:true restricts to the collection (no-op until collection_set).\n" +
+        "ARGS: query (Scryfall grammar incl. set:/e:, rarity:/r:, year, is:commander, is:gamechanger); order name|mv|price|released; limit (max 175); cursor (from next_cursor); owned_only:true restricts to the collection (no-op until collection_set).\n" +
         "RETURNS: results[] lean CardRefs (oracle_id, name, mv, ci, type), total, returned, next_cursor.",
       inputSchema: {
         query: z.string(),
-        order: z.enum(["name", "mv", "price"]).optional(),
+        order: z.enum(["name", "mv", "price", "released"]).optional(),
         limit: z.number().int().positive().max(175).optional(),
         cursor: z.string().optional(),
         owned_only: z.boolean().optional(),

@@ -68,6 +68,26 @@ describe("IngestRunner", () => {
     });
     expect(runner.start(false)).toBe(true); // retryable
   });
+
+  it("fires onSuccess listeners after a successful run, not a failed one", async () => {
+    const good = controlledPipeline();
+    const runner = new IngestRunner("unused", good.pipeline);
+    const seen: string[] = [];
+    runner.onSuccess((status) => seen.push(status.snapshot ?? "?"));
+
+    runner.start(false);
+    good.finish(1);
+    await tick();
+    expect(seen).toEqual(["2026-07-02"]);
+
+    const bad = controlledPipeline();
+    const failing = new IngestRunner("unused", bad.pipeline);
+    failing.onSuccess(() => seen.push("should-not-fire"));
+    failing.start(false);
+    bad.fail("down");
+    await tick();
+    expect(seen).toEqual(["2026-07-02"]);
+  });
 });
 
 describe("data tools", () => {
@@ -80,6 +100,26 @@ describe("data tools", () => {
       has_index: false,
       ingest: { running: false, phase: "idle" },
     });
+  });
+
+  it("data_status surfaces bulk age + stale flag when a staleness provider is wired", async () => {
+    const { pipeline } = controlledPipeline();
+    const runner = new IngestRunner("unused", pipeline);
+    const status = tool(
+      makeDataTools({
+        hasIndex: true,
+        runner,
+        staleness: async () => ({ bulk_age_hours: 1176.5, stale: true }),
+      }),
+      "data_status",
+    );
+    const result = await status.handler({}, undefined);
+    expect(result.structuredContent).toMatchObject({
+      has_index: true,
+      bulk_age_hours: 1176.5,
+      stale: true,
+    });
+    expect((result.content[0] as { text: string }).text).toContain("STALE");
   });
 
   it("data_ingest starts a run and reports already_running on the second call", async () => {

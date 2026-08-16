@@ -6,6 +6,9 @@
  * stamping + structured-error mapping), and returns it ready to `connect` to a
  * transport.
  */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
@@ -20,12 +23,38 @@ import { makeDeckTools } from "./deckTools.js";
 import { makeValidateTools } from "./validateTools.js";
 import { makeAnalyzeTools } from "./analyzeTools.js";
 import { makeMetaTools } from "./metaTools.js";
-import { IngestRunner, makeDataTools } from "./dataTools.js";
+import { IngestRunner, makeDataTools, type StalenessProvider } from "./dataTools.js";
 import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
 
 export const SERVER_NAME = "mtg-edh-mcp";
-export const SERVER_VERSION = "0.0.0";
+
+/**
+ * Resolve the package version for serverInfo by walking up from this module to
+ * the nearest package.json that names this package — works from src/ (dev,
+ * vitest) and from the bundled dist/ alike. Falls back to 0.0.0 only if the
+ * package.json is genuinely unreachable.
+ */
+function readPackageVersion(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 4; i += 1) {
+    try {
+      const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
+        name?: string;
+        version?: string;
+      };
+      if (pkg.name === SERVER_NAME && typeof pkg.version === "string") return pkg.version;
+    } catch {
+      // keep walking up
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return "0.0.0";
+}
+
+export const SERVER_VERSION = readPackageVersion();
 
 export interface CreateServerOptions {
   /** Supplies the data_snapshot stamped on every response. Defaults to a placeholder. */
@@ -57,6 +86,8 @@ export interface CreateServerOptions {
    * poll would see a fresh idle runner. Default-constructed so the tools always exist.
    */
   ingest?: IngestRunner;
+  /** When provided, data_status reports bulk-data age + a stale flag. */
+  staleness?: StalenessProvider;
 }
 
 /** Construct a fully wired (but not yet connected) MCP server. */
@@ -107,6 +138,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
   const dataTools = makeDataTools({
     hasIndex: Boolean(options.index),
     runner: options.ingest ?? new IngestRunner(),
+    staleness: options.staleness,
   });
   registerTools(
     server,

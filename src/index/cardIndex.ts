@@ -139,10 +139,11 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
     const insertCard = db.prepare(
       `INSERT OR REPLACE INTO cards
        (oracle_id, name, mv, type_line, color_identity, colors, legalities_commander, oracle_text,
-        keywords, pow, tou, loy, price_usd, price_eur, price_tix, is_commander_eligible, card)
+        keywords, pow, tou, loy, price_usd, price_eur, price_tix, is_commander_eligible,
+        is_game_changer, card)
        VALUES (@oracle_id, @name, @mv, @type_line, @color_identity, @colors, @legalities_commander,
         @oracle_text, @keywords, @pow, @tou, @loy, @price_usd, @price_eur, @price_tix,
-        @is_commander_eligible, @card)`,
+        @is_commander_eligible, @is_game_changer, @card)`,
     );
     const insertFts = db.prepare(
       `INSERT INTO cards_fts (oracle_id, name, oracle_text) VALUES (@oracle_id, @name, @oracle_text)`,
@@ -177,6 +178,7 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
         price_eur: cols.price_eur,
         price_tix: cols.price_tix,
         is_commander_eligible: cols.is_commander_eligible,
+        is_game_changer: cols.is_game_changer,
         card: JSON.stringify(card),
       });
       insertFts.run({ oracle_id: card.oracle_id, name: card.name, oracle_text: card.oracle_text });
@@ -206,15 +208,22 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
 }
 
 export class CardIndex {
-  private readonly db: Db;
-  private readonly getCardStmt: Database.Statement<[string]>;
-  private readonly getPrintingsStmt: Database.Statement<[string]>;
-  private readonly searchStmt: Database.Statement<[string, number]>;
-  private readonly countStmt: Database.Statement<[]>;
-  private readonly resolveExactStmt: Database.Statement<[string]>;
-  private readonly resolveFuzzyStmt: Database.Statement<[string, number]>;
+  // Definite-assignment (!): all fields are assigned in bind(), which both the
+  // constructor and reopen() call.
+  private db!: Db;
+  private getCardStmt!: Database.Statement<[string]>;
+  private getPrintingsStmt!: Database.Statement<[string]>;
+  private searchStmt!: Database.Statement<[string, number]>;
+  private countStmt!: Database.Statement<[]>;
+  private resolveExactStmt!: Database.Statement<[string]>;
+  private resolveFuzzyStmt!: Database.Statement<[string, number]>;
 
   private constructor(db: Db) {
+    this.bind(db);
+  }
+
+  /** Register functions + prepare all statements against `db`. */
+  private bind(db: Db): void {
     this.db = db;
     // Register REGEXP so `column REGEXP ?` works in evaluated queries.
     db.function("regexp", (pattern: unknown, value: unknown): number => {
@@ -249,6 +258,24 @@ export class CardIndex {
     return new CardIndex(new Database(dbPath, { readonly: true }));
   }
 
+  /**
+   * Hot-swap this instance onto a freshly built index (after an atomic bulk
+   * swap): every tool closure holds this CardIndex, so re-binding internally
+   * makes the new data visible without re-registering tools. The old DB handle
+   * is closed; on any failure the old handle is kept and the error rethrown.
+   */
+  reopen(dbPath: string): void {
+    const next = new Database(dbPath, { readonly: true });
+    try {
+      const old = this.db;
+      this.bind(next);
+      old.close();
+    } catch (err) {
+      next.close();
+      throw err;
+    }
+  }
+
   /** Full §4 Card by oracle_id (with joined printings), or null. */
   getCard(oracleId: string): Card | null {
     const row = this.getCardStmt.get(oracleId) as { card: string } | undefined;
@@ -278,6 +305,23 @@ export class CardIndex {
 
   count(): number {
     return (this.countStmt.get() as { n: number }).n;
+  }
+
+  /**
+   * The Game Changers card names carried by this index's snapshot, or null when
+   * the index predates the `is_game_changer` column (or stores no flags) — the
+   * caller then falls back to the live list. Prepared lazily (not in bind) so
+   * old indexes keep opening.
+   */
+  gameChangerNames(): Set<string> | null {
+    try {
+      const rows = this.db
+        .prepare(`SELECT name FROM cards WHERE is_game_changer = 1`)
+        .all() as Array<{ name: string }>;
+      return rows.length > 0 ? new Set(rows.map((r) => r.name)) : null;
+    } catch {
+      return null; // pre-column schema
+    }
   }
 
   /**

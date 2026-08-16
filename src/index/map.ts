@@ -80,6 +80,7 @@ export function mapScryfallCard(raw: ScryfallCardRaw): Card {
     legalities: (raw.legalities ?? {}) as Legalities,
     prices: (raw.prices ?? {}) as Prices,
     is_commander_eligible: isCommanderEligible(type_line, oracle_text, raw.power, raw.toughness),
+    game_changer: raw.game_changer === true,
     roles: classifyRoles({
       name: raw.name,
       type_line,
@@ -102,6 +103,7 @@ export interface CardColumns {
   price_eur: number | null;
   price_tix: number | null;
   is_commander_eligible: number;
+  is_game_changer: number;
 }
 
 function numericOrNull(value: string | undefined): number | null {
@@ -128,6 +130,7 @@ export function projectedColumns(card: Card): CardColumns {
     price_eur: priceOrNull(card.prices.eur),
     price_tix: priceOrNull(card.prices.tix),
     is_commander_eligible: card.is_commander_eligible ? 1 : 0,
+    is_game_changer: card.game_changer ? 1 : 0,
   };
 }
 

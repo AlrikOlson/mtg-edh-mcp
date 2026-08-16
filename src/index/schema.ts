@@ -30,6 +30,8 @@ CREATE TABLE cards (
   price_eur            REAL,
   price_tix            REAL,
   is_commander_eligible INTEGER NOT NULL DEFAULT 0,
+  -- On WotC's official Game Changers list (Scryfall bulk game_changer flag).
+  is_game_changer      INTEGER NOT NULL DEFAULT 0,
   -- The full §4 Card object (printings filled at read time from the join).
   card                 TEXT NOT NULL
 );
@@ -57,6 +59,10 @@ CREATE TABLE printings (
 );
 
 CREATE INDEX idx_printings_oracle ON printings(oracle_id);
+-- Printing-level query predicates (set:/rarity:/year) filter on these.
+CREATE INDEX idx_printings_set ON printings(set_code);
+CREATE INDEX idx_printings_rarity ON printings(rarity);
+CREATE INDEX idx_printings_released ON printings(released_at);
 `;
 
 /** Secondary index names asserted by the index smoke test (acceptance §9). */
