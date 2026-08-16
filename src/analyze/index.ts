@@ -20,7 +20,14 @@ export {
   type RoleBands,
   type CoverageGap,
 } from "./mana.js";
-export { simulateDeck, type SimOptions, type SimResult } from "./sim.js";
+export {
+  simulateDeck,
+  classifyHand,
+  type SimOptions,
+  type SimResult,
+  type HandScenario,
+  type LibraryCard,
+} from "./sim.js";
 export {
   budgetPlan,
   type BudgetOptions,

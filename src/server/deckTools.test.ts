@@ -23,6 +23,34 @@ const ORACLE = [
     legalities: { commander: "legal" },
     prices: { usd: "1.50" },
   },
+  {
+    oracle_id: "o-marwyn",
+    id: "p-marwyn",
+    name: "Marwyn, the Nurturer",
+    cmc: 3,
+    colors: ["G"],
+    color_identity: ["G"],
+    type_line: "Legendary Creature — Elf Druid",
+    oracle_text: "Whenever another Elf you control enters, put a +1/+1 counter on Marwyn.",
+    power: "1",
+    toughness: "1",
+    legalities: { commander: "legal" },
+    prices: { usd: "0.50" },
+  },
+  {
+    oracle_id: "o-llan",
+    id: "p-llan",
+    name: "Llanowar Elves",
+    cmc: 1,
+    colors: ["G"],
+    color_identity: ["G"],
+    type_line: "Creature — Elf Druid",
+    oracle_text: "{T}: Add {G}.",
+    power: "1",
+    toughness: "1",
+    legalities: { commander: "legal" },
+    prices: { usd: "0.25" },
+  },
 ];
 
 let root: string;
@@ -105,6 +133,30 @@ describe("deck lifecycle tools", () => {
     const gone = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
     expect(gone.isError).toBe(true);
     expect(gone.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+  });
+
+  it("deck_create with commanders computes color identity immediately (no deck_set_commander needed)", async () => {
+    const res = await client.callTool({
+      name: "deck_create",
+      arguments: { name: "Elves", commanders: "Marwyn, the Nurturer" },
+    });
+    const sc = res.structuredContent as {
+      deck_id: string;
+      deck: { computed_color_identity: string[]; commanders: string[]; version: number };
+    };
+    // The historic bug: identity stayed [] until deck_set_commander, so the
+    // next import rejected every colored card as a COLOR_IDENTITY violation.
+    expect(sc.deck.computed_color_identity).toEqual(["G"]);
+    expect(sc.deck.commanders).toEqual(["o-marwyn"]); // name resolved to oracle_id
+    expect(sc.deck.version).toBe(1); // applied at create, not via a hidden update
+
+    // And a colored add now passes without any commander call in between.
+    const add = await client.callTool({
+      name: "deck_add",
+      arguments: { deck_id: sc.deck_id, cards: [{ oracle_id: "o-llan", qty: 1 }] },
+    });
+    const verdicts = (add.structuredContent as { verdicts: Array<{ status: string }> }).verdicts;
+    expect(verdicts[0]?.status).toBe("ok");
   });
 
   it("deck_get projects cards lean by default and full on expand", async () => {

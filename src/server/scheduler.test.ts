@@ -95,7 +95,10 @@ describe("startScheduler", () => {
 
     clock = NOW + DEFAULT_FRESHNESS.bulkIntervalMs; // 12h later: now stale
     tick?.();
-    await new Promise((r) => setTimeout(r, 0));
+    // The tick's check is async (two fs reads); poll until it lands.
+    for (let i = 0; i < 200 && starts() === 0; i += 1) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
     expect(starts()).toBe(1);
     sched.stop();
   });

@@ -64,8 +64,11 @@ export function isCommanderEligible(card: Card): boolean {
   );
 }
 
-/** Union of the commanders' color identities, in WUBRG order. */
-export function commanderColorIdentity(deck: Deck, lookup: CardLookup): Color[] {
+/** Union of the commanders' color identities, in WUBRG order. Only reads `commanders`. */
+export function commanderColorIdentity(
+  deck: Pick<Deck, "commanders">,
+  lookup: CardLookup,
+): Color[] {
   const seen = new Set<string>();
   for (const id of deck.commanders) {
     const card = lookup(id);

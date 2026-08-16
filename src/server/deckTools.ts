@@ -87,7 +87,7 @@ function deckCreateTool(
         "Create a versioned deck and return its deck_id.\n" +
         "USE: starting a new build. NOT: loading an existing list (deck_import).\n" +
         "FLOW: (idea) -> deck_create -> deck_set_commander.\n" +
-        "ARGS: name; commanders (name-or-id, single string or array; lenient — legality is checked by deck_set_commander); command_zone_kind single|partner|background|doctor_companion; format.\n" +
+        "ARGS: name; commanders (name-or-id, single string or array; applied immediately — color identity is computed at create; legality is still checked by deck_set_commander/validate_deck); command_zone_kind single|partner|background|doctor_companion (inferred when omitted); format.\n" +
         "RETURNS: deck_id, deck, vitals (card_count/100 incl. command zone, land_count, color_identity, legal, version).",
       inputSchema: {
         name: z.string(),
@@ -107,15 +107,31 @@ function deckCreateTool(
         rawCommanders && index
           ? rawCommanders.map((c) => resolveCardIdLenient(index, c))
           : rawCommanders;
+      // Commanders given at create time take effect NOW: compute the color
+      // identity (and infer the zone kind) exactly like deck_set_commander does.
+      // Historically the identity stayed [] (colorless) until an explicit
+      // deck_set_commander call, and the very next import rejected every colored
+      // card — dozens of spurious COLOR_IDENTITY violations from one missing
+      // call. Still lenient: unresolved commanders contribute nothing to the
+      // identity, and legality stays deck_set_commander/validate_deck's job.
+      const hasCommanders = Boolean(commanders && commanders.length > 0 && index);
+      const identity =
+        hasCommanders && index
+          ? commanderColorIdentity({ commanders: commanders! }, (id: string) => index.getCard(id))
+          : undefined;
+      const kind =
+        typeof args.command_zone_kind === "string"
+          ? (args.command_zone_kind as "single" | "partner" | "background" | "doctor_companion")
+          : hasCommanders
+            ? inferZoneKind(commanders!, index)
+            : undefined;
       const deck = store.create(
         {
           name: String(args.name ?? ""),
           format: args.format === "commander" ? "commander" : undefined,
           commanders,
-          command_zone_kind:
-            typeof args.command_zone_kind === "string"
-              ? (args.command_zone_kind as "single" | "partner" | "background" | "doctor_companion")
-              : undefined,
+          command_zone_kind: kind,
+          computedColorIdentity: identity,
           dataSnapshot: snapshot?.(),
         },
         session,
@@ -542,18 +558,8 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
         expected_version: z.number().int().nonnegative().optional(),
       },
       // All-optional: the conflict variant carries none of the success keys.
-      outputSchema: {
-        deck_id: z.string().optional(),
-        version: z.number().optional(),
-        verdicts: z.array(z.unknown()).optional(),
-        failed: z.array(z.unknown()).optional(),
-        vitals: z.unknown().optional(),
-        ok: z.boolean().optional(),
-        conflict: z.boolean().optional(),
-        expected_version: z.number().optional(),
-        current_version: z.number().optional(),
-        data_snapshot: z.string().optional(),
-      },
+      // No outputSchema — strict clients reject the SDK's draft-07 rendering
+      // of it ("invalid outputSchema"); see the note on card_search.
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");

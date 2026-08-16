@@ -189,6 +189,27 @@ describe("card_get", () => {
     expect(Array.isArray(sc.cards[0]?.printings)).toBe(true);
   });
 
+  it("compact:true trims to gameplay essentials (batch-friendly)", async () => {
+    const res = await client.callTool({
+      name: "card_get",
+      arguments: { cards: ["o-sol"], compact: true },
+    });
+    const sc = res.structuredContent as {
+      cards: Array<Record<string, unknown> & { legalities: Record<string, string> }>;
+    };
+    const sol = sc.cards[0]!;
+    // Keeps what deckbuilding reads…
+    expect(sol.name).toBe("Sol Ring");
+    expect(sol.oracle_text).toBeTruthy();
+    expect(sol.roles).toBeTruthy();
+    expect(sol).toHaveProperty("default_usd");
+    expect(sol.legalities).toEqual({ commander: "legal" }); // only the format that matters here
+    // …and drops the bulk.
+    expect(sol).not.toHaveProperty("prices");
+    expect(sol).not.toHaveProperty("keywords");
+    expect(sol).not.toHaveProperty("printings");
+  });
+
   it("accepts a card NAME or oracle_id (review #3), reporting unresolved in missing[]", async () => {
     const res = await client.callTool({
       name: "card_get",

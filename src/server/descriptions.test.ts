@@ -90,8 +90,11 @@ const OPEN_WORLD_TOOLS = [
   "meta_classify_bracket",
 ].sort();
 
-/** Hot-path tools that must declare an outputSchema over the wire. */
-const OUTPUT_SCHEMA_TOOLS = ["card_search", "deck_add", "deck_status"];
+// Policy REVERSED (skill feedback): outputSchema is banned catalog-wide. The SDK
+// serializes it with a draft-07 $schema marker and strict clients (Claude
+// Desktop) reject the declaring tool outright with "invalid outputSchema" —
+// exactly the three tools that used to declare one. Revisit when the SDK
+// emits the 2020-12 dialect.
 
 interface WireTool {
   name: string;
@@ -206,10 +209,8 @@ describe("tool annotations (ergo-protocol)", () => {
     expect(openWorld).toEqual(OPEN_WORLD_TOOLS);
   });
 
-  it("the hot-path tools declare an outputSchema over the wire", () => {
-    for (const name of OUTPUT_SCHEMA_TOOLS) {
-      const tool = tools.find((t) => t.name === name);
-      expect(tool?.outputSchema, `${name} outputSchema`).toBeTruthy();
-    }
+  it("no tool declares an outputSchema (strict clients reject the SDK's draft-07 rendering)", () => {
+    const offenders = tools.filter((t) => t.outputSchema !== undefined).map((t) => t.name);
+    expect(offenders).toEqual([]);
   });
 });

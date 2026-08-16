@@ -249,18 +249,8 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
         `${STATUS_ERROR_CAP}, exact error_count/warning_count); curve (buckets, avg_mv); mana (sources_by_color, ` +
         "under_supported); roles (below-band gaps); price (total_usd, min_buy_usd).",
       inputSchema: { deck_id: z.string() },
-      outputSchema: {
-        deck_id: z.string().optional(),
-        name: z.string().optional(),
-        version: z.number().optional(),
-        vitals: z.unknown().optional(),
-        legality: z.unknown().optional(),
-        curve: z.unknown().optional(),
-        mana: z.unknown().optional(),
-        roles: z.unknown().optional(),
-        price: z.unknown().optional(),
-        data_snapshot: z.string().optional(),
-      },
+      // No outputSchema — strict clients reject the SDK's draft-07 rendering
+      // of it ("invalid outputSchema"); see the note on card_search.
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
@@ -333,10 +323,13 @@ function simulateDeckTool(store: DeckStore, index: CardIndex, session: string): 
       title: "Simulate deck (goldfish)",
       description:
         "Goldfish the deck: Monte Carlo opening hands and early turns, deterministic per seed.\n" +
-        "USE: keepable-hand, mulligan, and castability rates. NOT: combat, interaction, or turn-to-win; land counts (analyze_mana_base).\n" +
+        "USE: keepable/mulligan rates and opening-hand SHAPES (mulligan-guide material). NOT: combat, interaction, turn-to-win; land counts (analyze_mana_base).\n" +
         "FLOW: deck_status -> simulate_deck -> analyze_mana_base.\n" +
         "ARGS: deck_id; trials (max 100000); seed (fixed seed = identical results); on_the_play; hand_size; max_turns.\n" +
-        "RETURNS: keepable_rate, dead_on_arrival_rate, lands-by-turn, avg_turn_to_first_spell. Advisory, mana/curve-focused.",
+        "RETURNS: keepable_rate, dead_on_arrival_rate, opening_land_distribution, scenarios " +
+        "(hand-shape rates from type lines + roles: textbook, land_light_mulligan, " +
+        "two_lands_no_accel_mulligan, lean_and_accelerated, explosive, top_heavy_trap, " +
+        "playable_no_accel, flood), lands-by-turn.",
       inputSchema: {
         deck_id: z.string(),
         trials: z.number().int().positive().max(100000).optional(),
