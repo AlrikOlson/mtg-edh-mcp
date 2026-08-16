@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Card, Deck, DeckCardEntry, Role } from "../types/index.js";
 import {
   CacheStore,
+  GAME_CHANGERS_URL,
   GameChangersClient,
   classifyBracket,
   parseGameChangers,
@@ -257,6 +258,28 @@ describe("GameChangersClient", () => {
     await client.list();
     expect(calls).toBe(1);
     expect(a.has("Cyclonic Rift")).toBe(true);
+  });
+
+  it("reads the Scryfall search shape and follows next_page", async () => {
+    const seen: string[] = [];
+    const client = new GameChangersClient(new CacheStore({ now: () => 1000 }), {
+      fetchJson: async (url: string) => {
+        seen.push(url);
+        return seen.length === 1
+          ? {
+              object: "list",
+              has_more: true,
+              next_page: "https://api.scryfall.com/cards/search?page=2",
+              data: [{ name: "Ad Nauseam" }, { name: "Ancient Tomb" }],
+            }
+          : { object: "list", has_more: false, data: [{ name: "Aura Shards" }] };
+      },
+    });
+
+    const names = await client.list();
+    expect([...names]).toEqual(["Ad Nauseam", "Ancient Tomb", "Aura Shards"]);
+    expect(seen[0]).toBe(GAME_CHANGERS_URL);
+    expect(seen[1]).toBe("https://api.scryfall.com/cards/search?page=2");
   });
 
   it("throws UPSTREAM_UNAVAILABLE when the fetch fails cold", async () => {

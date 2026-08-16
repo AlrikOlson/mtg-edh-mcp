@@ -7,14 +7,16 @@ export {
   BULK_TYPES,
   USER_AGENT,
   MIN_REQUEST_SPACING_MS,
+  resolveBulkDownload,
   type BulkType,
   type BulkDataEntry,
   type BulkClientOptions,
+  type ResolvedBulkDownload,
   type FetchFn,
 } from "./scryfall.js";
 export { VersionedStore, type Manifest, type ManifestFile } from "./store.js";
 export { ingestBulk, type IngestOptions, type IngestResult } from "./ingest.js";
-export { streamCardArray, readCardArray } from "./stream.js";
+export { streamCards, streamCardArray, readCardArray } from "./stream.js";
 export { Throttle, type ThrottleOptions } from "./throttle.js";
 export type { ScryfallCardRaw, ScryfallCardFace } from "./scryfallTypes.js";
 export {

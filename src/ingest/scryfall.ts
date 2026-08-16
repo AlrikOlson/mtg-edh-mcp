@@ -3,9 +3,15 @@
  *
  * Reads the /bulk-data list, resolves the `oracle_cards` (gameplay base) and
  * `default_cards` (printings/prices) entries, and opens streaming downloads of
- * their `download_uri`. Good-citizen rate limiting: a mandatory descriptive
+ * their payload. Good-citizen rate limiting: a mandatory descriptive
  * User-Agent and >=100ms spacing between requests (§3). Upstream failures map to
  * StructuredError("UPSTREAM_UNAVAILABLE").
+ *
+ * Payload format: Scryfall now publishes bulk exports as gzipped JSONL
+ * (`jsonl_download_uri`); the legacy single-JSON-array `download_uri` was
+ * retired (its URLs 404). {@link resolveBulkDownload} prefers the JSONL form and
+ * still accepts the legacy field when present, and {@link BulkClient.openBulkStream}
+ * gunzips on the fly so callers always see plain text bytes.
  */
 import { StructuredError } from "../types/errors.js";
 import { USER_AGENT } from "../types/index.js";
@@ -23,11 +29,37 @@ export const BULK_TYPES: readonly BulkType[] = ["oracle_cards", "default_cards"]
 /** A single bulk-data descriptor from the /bulk-data list (subset we use). */
 export interface BulkDataEntry {
   type: string;
-  download_uri: string;
+  /** Current format: gzipped JSONL, one card object per line. */
+  jsonl_download_uri?: string;
+  /** Legacy format: a single JSON array. Retired upstream; kept for old fixtures. */
+  download_uri?: string;
   /** ISO-8601 timestamp of the last upstream rebuild; drives idempotency. */
   updated_at: string;
+  /** Byte size of the gzipped JSONL payload. */
+  compressed_size?: number;
   size?: number;
   content_type?: string;
+}
+
+/** The download to fetch for a bulk entry, and how to decode it. */
+export interface ResolvedBulkDownload {
+  uri: string;
+  /** True when the payload is gzipped JSONL rather than a plain JSON array. */
+  jsonl: boolean;
+}
+
+/**
+ * Pick the download URI for a bulk entry, preferring the current gzipped-JSONL
+ * form over the retired JSON-array one.
+ */
+export function resolveBulkDownload(entry: BulkDataEntry): ResolvedBulkDownload {
+  if (entry.jsonl_download_uri) return { uri: entry.jsonl_download_uri, jsonl: true };
+  if (entry.download_uri) return { uri: entry.download_uri, jsonl: false };
+  throw new StructuredError(
+    "UPSTREAM_UNAVAILABLE",
+    `Scryfall bulk entry '${entry.type}' has no download URI`,
+    { reason: "neither jsonl_download_uri nor download_uri is present" },
+  );
 }
 
 export type FetchFn = typeof fetch;
@@ -123,5 +155,23 @@ export class BulkClient {
       );
     }
     return response.body;
+  }
+
+  /**
+   * Open a bulk entry's payload as decoded text bytes: the gzipped-JSONL export
+   * is gunzipped on the fly, a legacy JSON-array body is passed through.
+   */
+  async openBulkStream(
+    entry: BulkDataEntry,
+  ): Promise<{ body: ReadableStream<Uint8Array>; download: ResolvedBulkDownload }> {
+    const download = resolveBulkDownload(entry);
+    const body = await this.openDownload(download.uri);
+    // DecompressionStream is typed with a BufferSource-writable side, which does
+    // not unify with ReadableStream<Uint8Array>; the cast bridges that one seam.
+    const gunzip = new DecompressionStream("gzip") as unknown as {
+      readable: ReadableStream<Uint8Array>;
+      writable: WritableStream<Uint8Array>;
+    };
+    return { body: download.jsonl ? body.pipeThrough(gunzip) : body, download };
   }
 }

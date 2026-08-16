@@ -10,6 +10,18 @@ under 0.x, and breaking changes may land in minor versions.
 
 ## [Unreleased]
 
+### Fixed
+
+- Scryfall bulk ingestion: upstream retired the single-JSON-array
+  `download_uri` (its URLs now 404) in favour of gzipped JSONL
+  (`jsonl_download_uri`), which broke `npm run ingest` outright. The client now
+  resolves and gunzips the JSONL export, versions stage as
+  `oracle_cards.jsonl` / `default_cards.jsonl`, and the streaming reader sniffs
+  the file shape so legacy staged versions and JSON-array fixtures still read.
+- Game Changers list: `json.edhrec.com/pages/game-changers.json` was withdrawn
+  upstream (403), leaving bracket classification with no source. It now reads
+  WotC's list from Scryfall's `is:gamechanger` search, following `next_page`.
+
 ### Security
 
 - Audited CVE-2026-25536 (MCP SDK cross-client leak in stateless deployments):

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, readdir } from "node:fs/promises";
+import { gzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { BulkClient, type FetchFn } from "./scryfall.js";
@@ -52,6 +53,51 @@ function makeFetch(routes: Routes): FetchFn {
   }) as FetchFn;
 }
 
+/** Gzip a JSONL rendering of `cards`, as Scryfall's current bulk export ships it. */
+function gzippedJsonl(cards: readonly unknown[]): Buffer {
+  return gzipSync(Buffer.from(cards.map((c) => JSON.stringify(c)).join("\n") + "\n", "utf8"));
+}
+
+/** Stub fetch serving the current /bulk-data shape: gzipped JSONL, no download_uri. */
+function jsonlFetch(updatedAt: string): FetchFn {
+  return ((input: string | URL | Request): Promise<Response> => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.endsWith("/bulk-data")) {
+      return Promise.resolve(
+        Response.json({
+          data: [
+            {
+              type: "oracle_cards",
+              jsonl_download_uri: "https://x/oracle.jsonl.gz",
+              updated_at: updatedAt,
+              compressed_size: 1,
+            },
+            {
+              type: "default_cards",
+              jsonl_download_uri: "https://x/default.jsonl.gz",
+              updated_at: updatedAt,
+              compressed_size: 1,
+            },
+          ],
+        }),
+      );
+    }
+    if (url.endsWith("/oracle.jsonl.gz"))
+      return Promise.resolve(new Response(gzippedJsonl(ORACLE)));
+    if (url.endsWith("/default.jsonl.gz"))
+      return Promise.resolve(new Response(gzippedJsonl(DEFAULT)));
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  }) as FetchFn;
+}
+
+function jsonlClientFor(updatedAt: string): BulkClient {
+  return new BulkClient({
+    fetch: jsonlFetch(updatedAt),
+    sleep: () => Promise.resolve(),
+    now: () => 0,
+  });
+}
+
 function clientFor(routes: Routes): BulkClient {
   // Instant spacing for tests.
   return new BulkClient({ fetch: makeFetch(routes), sleep: () => Promise.resolve(), now: () => 0 });
@@ -87,6 +133,25 @@ describe("ingestBulk", () => {
     const cards = await readCardArray<{ name: string }>(
       store.filePath(result.version, "oracle_cards.json"),
     );
+    expect(cards.map((c) => c.name)).toEqual(["Sol Ring", "Lightning Bolt"]);
+  });
+
+  it("stages the gzipped-JSONL export as a decompressed .jsonl file", async () => {
+    const result = await ingestBulk({
+      store,
+      client: jsonlClientFor("2026-08-15T21:01:56.082+00:00"),
+      clock: () => new Date("2026-08-16T08:00:00.000Z"),
+    });
+
+    expect(result.snapshot).toBe("2026-08-15");
+    const manifest = (await store.readManifest(result.version)) as Manifest;
+    expect(manifest.files.oracle_cards.name).toBe("oracle_cards.jsonl");
+    expect(manifest.files.oracle_cards.source_uri).toBe("https://x/oracle.jsonl.gz");
+
+    // Staged decompressed, one card per line, and readable through the seam.
+    const staged = await store.stagedFile(result.version, "oracle_cards");
+    expect(staged.endsWith("oracle_cards.jsonl")).toBe(true);
+    const cards = await readCardArray<{ name: string }>(staged);
     expect(cards.map((c) => c.name)).toEqual(["Sol Ring", "Lightning Bolt"]);
   });
 

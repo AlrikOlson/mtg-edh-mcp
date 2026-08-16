@@ -104,6 +104,11 @@ store (default `data/cards/`, override with `MCP_DATA_DIR`). Every tool response
 is stamped with `data_snapshot` — the ISO date of the card index, read from the
 current version's manifest at startup.
 
+Bulk exports are downloaded from Scryfall's gzipped-JSONL feed
+(`jsonl_download_uri`) and staged decompressed as `oracle_cards.jsonl` /
+`default_cards.jsonl`; the reader still accepts the retired single-JSON-array
+form, so older staged versions keep working.
+
 Refresh cadence (spec §3) is configurable via env vars:
 
 | Variable                | Default      | Meaning                             |
@@ -142,7 +147,9 @@ honestly:
   failing the request).
 - **Commander Spellbook** (combo detection) — public API, same
   graceful-degradation treatment.
-- **Commander brackets / Game Changers** — WotC's published list, cached.
+- **Commander brackets / Game Changers** — WotC's published list, read from
+  Scryfall's `is:gamechanger` search and cached. (It was previously read from
+  `json.edhrec.com/pages/game-changers.json`, which upstream withdrew.)
 
 Durability of _your_ data: decks and snapshots are persisted (`decks.json`
 under the data dir) and survive restarts; the owned-card **collection is

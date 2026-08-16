@@ -31,8 +31,8 @@ export interface IngestResult {
   files: readonly BulkType[];
 }
 
-function fileName(type: BulkType): string {
-  return `${type}.json`;
+function fileName(type: BulkType, jsonl: boolean): string {
+  return jsonl ? `${type}.jsonl` : `${type}.json`;
 }
 
 function versionId(now: Date): string {
@@ -77,13 +77,14 @@ export async function ingestBulk(options: IngestOptions): Promise<IngestResult> 
     const files = {} as Record<BulkType, ManifestFile>;
     for (const type of BULK_TYPES) {
       const entry = entries[type];
-      const body = await client.openDownload(entry.download_uri);
-      const bytes = await store.writeStream(id, fileName(type), body);
+      const { body, download } = await client.openBulkStream(entry);
+      const name = fileName(type, download.jsonl);
+      const bytes = await store.writeStream(id, name, body);
       files[type] = {
-        name: fileName(type),
+        name,
         updated_at: entry.updated_at,
         bytes,
-        source_uri: entry.download_uri,
+        source_uri: download.uri,
       };
     }
 

@@ -155,7 +155,7 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
 
     db.exec("BEGIN");
     for await (const raw of streamCardArray<ScryfallCardRaw>(
-      store.filePath(version, "oracle_cards.json"),
+      await store.stagedFile(version, "oracle_cards"),
     )) {
       const card = mapScryfallCard(raw);
       if (!card.oracle_id) continue;
@@ -183,7 +183,7 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
       cards += 1;
     }
     for await (const raw of streamCardArray<ScryfallCardRaw>(
-      store.filePath(version, "default_cards.json"),
+      await store.stagedFile(version, "default_cards"),
     )) {
       const printing = extractPrinting(raw);
       if (!printing) continue;

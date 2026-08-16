@@ -88,9 +88,9 @@ export async function refreshPrices(options: RefreshPricesOptions): Promise<Refr
   }
 
   // Stream the fresh default_cards to a temp file alongside the index.
-  const tmpName = "default_cards.refresh.json";
   const entry = await client.getEntry("default_cards");
-  const body = await client.openDownload(entry.download_uri);
+  const { body, download } = await client.openBulkStream(entry);
+  const tmpName = download.jsonl ? "default_cards.refresh.jsonl" : "default_cards.refresh.json";
   await store.writeStream(version, tmpName, body);
   const tmpPath = store.filePath(version, tmpName);
 

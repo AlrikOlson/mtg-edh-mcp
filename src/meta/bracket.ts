@@ -4,8 +4,9 @@
  * The official Commander Brackets (beta) run 1 (Exhibition) → 5 (cEDH). The key
  * data input is the **Game Changers** list, which is published and updated by
  * Wizards — so it is FETCHED LIVE (through the {@link CacheStore}) and never
- * hardcoded here. `classifyBracket` is pure: it takes the fetched set as a
- * parameter, so it's fully unit-testable offline.
+ * hardcoded here; see {@link GAME_CHANGERS_URL} for the current source.
+ * `classifyBracket` is pure: it takes the fetched set as a parameter, so it's
+ * fully unit-testable offline.
  *
  * Classification is heuristic and deliberately conservative. Game-Changer count
  * is the primary signal, mapped to the official tiers (verified against the
@@ -176,6 +177,18 @@ const defaultFetchJson: FetchJson = async (url) => {
   return res.json();
 };
 
+/**
+ * Default source: Scryfall's `is:gamechanger` search, which mirrors the official
+ * WotC list and is versioned with the rest of the card data. (The former source,
+ * json.edhrec.com/pages/game-changers.json, was withdrawn — it now 403s — so it
+ * is no longer the default.)
+ */
+export const GAME_CHANGERS_URL =
+  "https://api.scryfall.com/cards/search?q=is%3Agamechanger&unique=cards";
+
+/** Stop following `next_page` after this many pages (the list is ~1 page). */
+const MAX_PAGES = 10;
+
 export interface GameChangersClientOptions {
   fetchJson?: FetchJson;
   ttlMs?: number;
@@ -194,13 +207,30 @@ export class GameChangersClient {
     this.cache = cache;
     this.fetchJson = options.fetchJson ?? defaultFetchJson;
     this.ttlMs = options.ttlMs ?? GAME_CHANGERS_TTL_MS;
-    // Published Game Changers list (JSON). Configurable since the location may move.
-    this.url = options.url ?? "https://json.edhrec.com/pages/game-changers.json";
+    // Configurable since the published location may move again.
+    this.url = options.url ?? GAME_CHANGERS_URL;
+  }
+
+  /** Fetch every page of the source, following Scryfall-style `next_page` links. */
+  private async fetchAll(): Promise<unknown[]> {
+    const pages: unknown[] = [];
+    let url: string | undefined = this.url;
+    for (let i = 0; url && i < MAX_PAGES; i += 1) {
+      const page: unknown = await this.fetchJson(url);
+      pages.push(page);
+      const { has_more, next_page } = (page ?? {}) as { has_more?: unknown; next_page?: unknown };
+      url = has_more === true && typeof next_page === "string" ? next_page : undefined;
+    }
+    return pages;
   }
 
   /** The current Game Changers card-name set (cached; degrades via CacheStore). */
   async list(): Promise<Set<string>> {
-    const raw = await this.cache.fetch("game-changers", this.ttlMs, () => this.fetchJson(this.url));
-    return parseGameChangers(raw);
+    const pages = await this.cache.fetch("game-changers", this.ttlMs, () => this.fetchAll());
+    const names = new Set<string>();
+    for (const page of pages) {
+      for (const name of parseGameChangers(page)) names.add(name);
+    }
+    return names;
   }
 }

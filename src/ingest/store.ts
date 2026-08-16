@@ -2,8 +2,8 @@
  * Versioned on-disk card store (spec §3).
  *
  * Layout under `root/`:
- *   versions/<id>/oracle_cards.json
- *   versions/<id>/default_cards.json
+ *   versions/<id>/oracle_cards.jsonl   (legacy versions: oracle_cards.json)
+ *   versions/<id>/default_cards.jsonl  (legacy versions: default_cards.json)
  *   versions/<id>/manifest.json
  *   current.json            -> { "version": "<id>" }
  *
@@ -13,7 +13,7 @@
  * the previous complete version or the new complete one — never a partial load.
  */
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -56,6 +56,22 @@ export class VersionedStore {
 
   filePath(id: string, name: string): string {
     return path.join(this.versionDir(id), name);
+  }
+
+  /**
+   * Path of a staged bulk file, preferring the current JSONL shape
+   * (`<type>.jsonl`) over the legacy JSON array (`<type>.json`). Falls back to
+   * the legacy path when neither exists, so a missing stage still surfaces as
+   * ENOENT at read time.
+   */
+  async stagedFile(id: string, type: BulkType): Promise<string> {
+    const jsonl = this.filePath(id, `${type}.jsonl`);
+    try {
+      await access(jsonl);
+      return jsonl;
+    } catch {
+      return this.filePath(id, `${type}.json`);
+    }
   }
 
   /** Create an empty version directory ready to receive downloads. */

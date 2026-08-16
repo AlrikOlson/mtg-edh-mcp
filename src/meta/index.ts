@@ -26,6 +26,7 @@ export {
   classifyBracket,
   parseGameChangers,
   GAME_CHANGERS_TTL_MS,
+  GAME_CHANGERS_URL,
   EARLY_COMBO_MV,
   EXTRA_TURN_CHAIN,
   type BracketResult,
