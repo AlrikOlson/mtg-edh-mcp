@@ -74,6 +74,7 @@ export function parseCombos(json: unknown): ComboResults {
 const defaultFetchJson: FetchJson = async (url, init) => {
   const res = await fetch(url, {
     ...init,
+    signal: AbortSignal.timeout(30_000),
     headers: {
       "Content-Type": "application/json",
       "User-Agent": USER_AGENT,

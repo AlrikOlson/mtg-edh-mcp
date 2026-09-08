@@ -21,6 +21,9 @@ export const BULK_DATA_URL = "https://api.scryfall.com/bulk-data";
 // One descriptive User-Agent for the whole codebase (spec §11); see src/types.
 export { USER_AGENT };
 export const MIN_REQUEST_SPACING_MS = 100;
+/** Metadata requests should fail promptly; bulk bodies need time to stream. */
+export const SCRYFALL_JSON_TIMEOUT_MS = 30_000;
+export const BULK_DOWNLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 
 /** The two bulk exports this server ingests. */
 export type BulkType = "oracle_cards" | "default_cards";
@@ -64,6 +67,18 @@ export function resolveBulkDownload(entry: BulkDataEntry): ResolvedBulkDownload 
 
 export type FetchFn = typeof fetch;
 
+/** Preserve structured upstream errors when a deadline expires while reading JSON. */
+export async function readScryfallJson(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (cause) {
+    throw new StructuredError("UPSTREAM_UNAVAILABLE", "Scryfall JSON response failed", {
+      url: response.url || undefined,
+      reason: cause instanceof Error ? cause.message : String(cause),
+    });
+  }
+}
+
 export interface BulkClientOptions {
   /** Injectable fetch (tests pass a stub). Defaults to global fetch. */
   fetch?: FetchFn;
@@ -71,6 +86,10 @@ export interface BulkClientOptions {
   baseUrl?: string;
   /** Minimum spacing between requests in ms (default 100). */
   minSpacingMs?: number;
+  /** Deadline for metadata responses, including their JSON body (default 30 seconds). */
+  requestTimeoutMs?: number;
+  /** Separate deadline for a complete bulk download (default 15 minutes). */
+  downloadTimeoutMs?: number;
   /** Injectable sleep, for deterministic tests. */
   sleep?: (ms: number) => Promise<void>;
   /** Injectable clock (ms epoch), for deterministic spacing tests. */
@@ -82,11 +101,15 @@ export class BulkClient {
   private readonly userAgent: string;
   private readonly baseUrl: string;
   private readonly throttle: Throttle;
+  private readonly requestTimeoutMs: number;
+  private readonly downloadTimeoutMs: number;
 
   constructor(options: BulkClientOptions = {}) {
     this.fetchFn = options.fetch ?? fetch;
     this.userAgent = options.userAgent ?? USER_AGENT;
     this.baseUrl = options.baseUrl ?? BULK_DATA_URL;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? SCRYFALL_JSON_TIMEOUT_MS;
+    this.downloadTimeoutMs = options.downloadTimeoutMs ?? BULK_DOWNLOAD_TIMEOUT_MS;
     this.throttle = new Throttle({
       minSpacingMs: options.minSpacingMs ?? MIN_REQUEST_SPACING_MS,
       sleep: options.sleep,
@@ -94,12 +117,13 @@ export class BulkClient {
     });
   }
 
-  private async request(url: string): Promise<Response> {
+  private async request(url: string, timeoutMs = this.requestTimeoutMs): Promise<Response> {
     await this.throttle.wait();
     let response: Response;
     try {
       response = await this.fetchFn(url, {
         headers: { "User-Agent": this.userAgent, Accept: "application/json" },
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (cause) {
       throw new StructuredError("UPSTREAM_UNAVAILABLE", `Scryfall request failed: ${url}`, {
@@ -123,8 +147,8 @@ export class BulkClient {
   /** Fetch the full /bulk-data list. */
   async listBulkData(): Promise<BulkDataEntry[]> {
     const response = await this.request(this.baseUrl);
-    const body = (await response.json()) as { data?: BulkDataEntry[] };
-    if (!body.data || !Array.isArray(body.data)) {
+    const body = (await readScryfallJson(response)) as { data?: BulkDataEntry[] } | null;
+    if (!body || !Array.isArray(body.data)) {
       throw new StructuredError(
         "UPSTREAM_UNAVAILABLE",
         "Scryfall /bulk-data response missing data[]",
@@ -147,7 +171,7 @@ export class BulkClient {
 
   /** Open a streaming download of a bulk file; returns its web ReadableStream body. */
   async openDownload(downloadUri: string): Promise<ReadableStream<Uint8Array>> {
-    const response = await this.request(downloadUri);
+    const response = await this.request(downloadUri, this.downloadTimeoutMs);
     if (!response.body) {
       throw new StructuredError(
         "UPSTREAM_UNAVAILABLE",

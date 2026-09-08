@@ -9,7 +9,12 @@
 import { StructuredError } from "../types/errors.js";
 import type { ScryfallCardRaw } from "./scryfallTypes.js";
 import { Throttle } from "./throttle.js";
-import { USER_AGENT, type FetchFn } from "./scryfall.js";
+import {
+  USER_AGENT,
+  SCRYFALL_JSON_TIMEOUT_MS,
+  readScryfallJson,
+  type FetchFn,
+} from "./scryfall.js";
 
 export const SCRYFALL_API_BASE = "https://api.scryfall.com";
 /** Search-class endpoints: <2 req/s. */
@@ -23,6 +28,8 @@ export interface LiveClientOptions {
   baseUrl?: string;
   searchSpacingMs?: number;
   cardSpacingMs?: number;
+  /** Deadline for each response, including its JSON body (default 30 seconds). */
+  requestTimeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
 }
@@ -33,11 +40,13 @@ export class LiveScryfallClient {
   private readonly baseUrl: string;
   private readonly cardThrottle: Throttle;
   private readonly searchThrottle: Throttle;
+  private readonly requestTimeoutMs: number;
 
   constructor(options: LiveClientOptions = {}) {
     this.fetchFn = options.fetch ?? fetch;
     this.userAgent = options.userAgent ?? USER_AGENT;
     this.baseUrl = options.baseUrl ?? SCRYFALL_API_BASE;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? SCRYFALL_JSON_TIMEOUT_MS;
     this.cardThrottle = new Throttle({
       minSpacingMs: options.cardSpacingMs ?? CARD_SPACING_MS,
       sleep: options.sleep,
@@ -57,6 +66,7 @@ export class LiveScryfallClient {
     try {
       response = await this.fetchFn(url, {
         headers: { "User-Agent": this.userAgent, Accept: "application/json" },
+        signal: AbortSignal.timeout(this.requestTimeoutMs),
       });
     } catch (cause) {
       throw new StructuredError("UPSTREAM_UNAVAILABLE", `Scryfall request failed: ${url}`, {
@@ -86,7 +96,7 @@ export class LiveScryfallClient {
       `/cards/${encodeURIComponent(scryfallId)}`,
       this.cardThrottle,
     );
-    return (await response.json()) as ScryfallCardRaw;
+    return (await readScryfallJson(response)) as ScryfallCardRaw;
   }
 
   /** Resolve a card by name (`/cards/named`), exact or fuzzy. */
@@ -96,7 +106,7 @@ export class LiveScryfallClient {
       `/cards/named?${key}=${encodeURIComponent(name)}`,
       this.cardThrottle,
     );
-    return (await response.json()) as ScryfallCardRaw;
+    return (await readScryfallJson(response)) as ScryfallCardRaw;
   }
 
   /** Search-class query (`/cards/search`); returns the first page of cards. */
@@ -105,7 +115,7 @@ export class LiveScryfallClient {
       `/cards/search?q=${encodeURIComponent(query)}`,
       this.searchThrottle,
     );
-    const body = (await response.json()) as { data?: ScryfallCardRaw[] };
+    const body = (await readScryfallJson(response)) as { data?: ScryfallCardRaw[] };
     return body.data ?? [];
   }
 }

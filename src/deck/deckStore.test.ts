@@ -44,7 +44,7 @@ describe("DeckStore mutation + notification", () => {
     const updated = store.setName("d1", "Atraxa Superfriends");
     expect(updated.version).toBe(2);
     expect(updated.name).toBe("Atraxa Superfriends");
-    expect(listener).toHaveBeenCalledWith("d1", 2);
+    expect(listener).toHaveBeenCalledWith("d1", 2, "local");
 
     store.setName("d1", "Atraxa v3");
     expect(store.get("d1")?.version).toBe(3);

@@ -9,7 +9,7 @@ export default defineConfig({
     ingest: "src/server/ingestMain.ts",
   },
   format: ["esm"],
-  target: "node18",
+  target: "node22",
   platform: "node",
   // Emit declarations for the library surface only; the bin uses Node host
   // globals that tsup's per-entry dts program doesn't resolve (and needs none).

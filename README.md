@@ -1,211 +1,181 @@
 # mtg-edh-mcp
 
-A [Model Context Protocol](https://modelcontextprotocol.io) server for **Magic:
-The Gathering Commander/EDH deckbuilding**. It gives an AI agent the _primitives_
-to build, validate, and analyze Commander decks — card knowledge (local Scryfall
-index + query grammar), versioned deck state, rules validation, deck analysis,
-and meta enrichment (EDHREC, Commander Spellbook, brackets) — while making zero
-strategic decisions of its own.
+**Give your AI assistant a Commander deckbuilding workbench.**
 
-See [`commander-deckbuilder-mcp-spec.md`](./commander-deckbuilder-mcp-spec.md) for
-the full design and [`ROADMAP.md`](./ROADMAP.md) for delivery status.
+[![CI](https://github.com/AlrikOlson/mtg-edh-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AlrikOlson/mtg-edh-mcp/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-> **Status:** pre-1.0, feature-complete. The engine (344 tests green) ships with
-> a macOS desktop app — deck workbench, analysis rail, collection, and the Oracle
-> in-app agent — plus first-run data onboarding and durable decks. **1.0.0 will be
-> the first signed, notarized public release**; until then see the Gatekeeper note
-> in the install guide. See [`CHANGELOG.md`](./CHANGELOG.md).
->
-> **Platform: macOS only** (keychain + Node SEA packaging are macOS-specific).
+An open-source [Model Context Protocol](https://modelcontextprotocol.io) server
+for Magic: The Gathering Commander / EDH. Search real card data, build and save
+decks, check legality, explore mana and budget, and consult community combo and
+recommendation data—all through your existing MCP client.
 
-**New here? Start with [`docs/INSTALL.md`](./docs/INSTALL.md)** — the desktop app,
-or plugging the engine into Claude Desktop as a plain MCP server.
+The assistant chooses the deck's direction. The server supplies the card
+knowledge, durable state, and checks to make those choices reviewable.
 
-## Requirements
+- **Local card knowledge.** A Scryfall bulk-data index with SQLite full-text
+  search, a Scryfall-style query language, Oracle text, and printing prices.
+- **A deck you can iterate on.** Batch additions by card name, per-card legality
+  feedback, persistent decks, snapshots, diffs, and restores.
+- **Useful answers in one call.** `deck_status` brings together the count,
+  legality, curve, mana coverage, role gaps, and estimated price.
+- **Deeper analysis when needed.** Seeded opening-hand simulations, mana-source
+  analysis, owned-card filtering, and cheaper-printing budget plans.
+- **Optional community context.** EDHREC recommendations, Commander Spellbook
+  combos, and an advisory Commander bracket classification.
 
-- Node.js ≥ 18 (developed on Node 24)
-- npm
+**Start here:** [Installation](./docs/INSTALL.md) ·
+[Agent cookbook](./docs/AGENT-COOKBOOK.md) ·
+[Contributing](./CONTRIBUTING.md) · [Security](./SECURITY.md)
 
-## Running the server
+## Quick start
 
-The server speaks the [Model Context Protocol](https://modelcontextprotocol.io)
-over two transports from one core (`createServer`):
+Use **Node.js 24** and npm. No API key is required for the standalone server.
+The initial Scryfall download and index build can take several minutes and
+requires substantial disk space; allow several GB for versioned card data.
 
-- **stdio** (default) — for local MCP clients (Claude Desktop, IDE extensions).
-  `mtg-edh-mcp` (the `bin`) launches it; point your client's MCP config at the
-  command.
-- **Streamable HTTP** — for hosted clients. Stateless: a fresh server is created
-  per POST, all sharing one card index (read-only) and one deck store.
+```sh
+git clone https://github.com/AlrikOlson/mtg-edh-mcp.git
+cd mtg-edh-mcp
+npm ci
+npm run build
+MCP_DATA_DIR="$HOME/.mtg-edh-mcp/cards" npm run ingest
+```
 
-**Transport security posture:** the desktop GUI (`gui/`) spawns the engine as a
-child process and speaks MCP over **stdio pipes** — a default app launch owns no
-TCP listener at all, so nothing is reachable from browsers or LAN peers. The
-HTTP transport is for hosted deployments and local development only (opt in from
-the GUI with `MTG_EDH_DEV_HTTP=1`); it binds `127.0.0.1` by default and carries
-no authentication, so never expose it beyond localhost as-is.
+Add the server to your MCP client's local **stdio** configuration. This is the
+`mcpServers` format used by Claude Desktop and other compatible clients:
 
-Both expose the same tools and resources. Deck state is scoped per **principal**:
-over HTTP the principal is read from the `x-mcp-principal` request header (so two
-callers get isolated decks); stdio and header-less requests use the single
-`local` session. Deck mutations are versioned — pass `expected_version` to
-`deck_add` / `deck_remove` / `deck_set_commander` for an optimistic-concurrency
-check that returns a conflict instead of clobbering a concurrent edit.
+```json
+{
+  "mcpServers": {
+    "mtg-edh": {
+      "command": "node",
+      "args": ["/absolute/path/to/mtg-edh-mcp/dist/main.js"],
+      "env": {
+        "MCP_DATA_DIR": "/absolute/path/to/your/home/.mtg-edh-mcp/cards"
+      }
+    }
+  }
+}
+```
 
-## Tool catalog
+Replace **both absolute paths** with your real paths. The data directory must
+match the one used for ingest; JSON configuration does not expand `$HOME` or
+`~`. If your client cannot find `node`, use its absolute executable path too.
+Restart the client to load the server.
 
-41 tools, built agent-first: every card-referencing input accepts **names or
-oracle_ids** (singular or array) with per-item `failed[]` + did-you-mean
-suggestions; every deck mutation returns a **`vitals`** block (count/100,
-lands, identity, legality, version) so no follow-up read is needed; and
-**`deck_status`** answers "where does this deck stand" in one offline call.
-Every list output has a documented default limit.
+Then ask:
 
-| Group        | Tools                                                                                                                                                |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Data         | `data_status`, `data_ingest` (+ `ping`)                                                                                                              |
-| Card         | `card_search`, `card_get`, `card_resolve_name`, `card_printings`                                                                                     |
-| Collection   | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                             |
-| Deck (state) | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_add`, `deck_remove`          |
-| Versioning   | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                           |
-| Validation   | `validate_deck`, `validate_card`, `validate_commander`                                                                                               |
-| Analysis     | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `simulate_deck`, `budget_plan` |
-| Meta (live)  | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`                                              |
+> Check that the card database is ready. Build a Commander deck around Atraxa,
+> Praetors' Voice with a counters theme and a $150 target. Explain your choices,
+> check legality and mana, and export the finished list.
 
-Every description follows a fixed workflow-teaching template (one-liner /
-USE / NOT / FLOW / ARGS / RETURNS), enforced by a conformance test
-(`src/server/descriptions.test.ts`) that also verifies FLOW cross-references
-against the live registry. The server also advertises three **MCP prompts**
-(`build_commander_deck`, `tune_deck`, `fit_budget`) that hand an agent the
-complete workflow recipes with its arguments interpolated — see
-[`docs/AGENT-COOKBOOK.md`](./docs/AGENT-COOKBOOK.md) for the condensed
-agent operating manual (the 3-call build loop, error recovery, and what a
-harness may auto-approve).
+For an existing deck:
 
-The server makes **zero strategic decisions** — it answers questions, mutates
-state, computes statistics, and validates. The agent supplies the taste.
+> Import this decklist, set its commander, and show me its biggest mana and
+> role gaps. Take a snapshot before making any changes.
+
+The server is installed from source. See the [installation guide](./docs/INSTALL.md)
+for configuration, updates, troubleshooting, and the optional macOS desktop app.
+
+## What the server exposes
+
+With a card index loaded, the server exposes **41 tools**, **3 workflow
+prompts**, and addressable card, deck, and collection resources. Tool schemas
+and descriptions are available through MCP `tools/list`.
+
+| Group                | Tools                                                                                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Data                 | `ping`, `data_status`, `data_ingest`                                                                                                                 |
+| Cards                | `card_search`, `card_get`, `card_resolve_name`, `card_printings`                                                                                     |
+| Collection           | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                             |
+| Decks                | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_add`, `deck_remove`          |
+| History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                           |
+| Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                               |
+| Analysis             | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `simulate_deck`, `budget_plan` |
+| Community data       | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`                                              |
+
+The prompts `build_commander_deck`, `tune_deck`, and `fit_budget` teach clients
+the corresponding workflows. Resources use `card://{oracle_id}`,
+`deck://{deck_id}`, and `collection://{session}` URIs.
+
+Card inputs such as `deck_add` and `card_get` accept names or Oracle IDs.
+Content-changing deck operations return `vitals` so the assistant can see the
+new count, identity, legality, and version without fetching the deck again.
+Batch additions report rejected cards and unresolved names individually.
+
+### Search examples
+
+Pass a query to `card_search` with a separate `limit` or `order` argument:
+
+| Find                                          | Query                                     |
+| --------------------------------------------- | ----------------------------------------- |
+| Proliferate creatures in Atraxa's identity    | `id<=wubg t:creature o:proliferate mv<=4` |
+| Low-cost green or colorless cards             | `id<=g mv<=2 usd<=3`                      |
+| Dragons or Angels                             | `(t:dragon or t:angel) mv<=5`             |
+| A printing from a particular set              | `set:cmm rarity:rare`                     |
+| Cards marked as Game Changers in the snapshot | `is:gamechanger`                          |
+
+This implements a subset of Scryfall syntax. Unsupported or malformed queries
+return `INVALID_QUERY`; [the cookbook](./docs/AGENT-COOKBOOK.md) covers recovery.
+
+## Data, privacy, and limits
+
+Core search, deck management, validation, and analysis use the local index.
+The server checks for Scryfall updates in the background by default; set
+`MCP_AUTO_REFRESH=0` to disable that scheduler. `data_ingest` and the `meta_*`
+tools may access external services even when automatic refresh is disabled.
+
+- **Scryfall** supplies card data and printing prices through bulk exports.
+  `data_snapshot` identifies the card-data vintage in structured tool results.
+- **EDHREC** supplies commander profiles and recommendations through an
+  unofficial endpoint, which may change or become unavailable.
+- **Commander Spellbook** receives commander and main-deck card names for
+  combo lookup, including during bracket classification.
+- **Game Changers** come from the local Scryfall snapshot, with a live Scryfall
+  fallback for older indexes. Brackets, role coverage, simulations, and prices
+  are advisory; they are not guarantees about a deck's performance or cost.
+
+Enrichment uses cached data when available and reports upstream failures. The
+local tools continue to work without those services. Your MCP client and model
+provider have their own policies for the tool results they receive.
+
+Decks and snapshots persist in `decks.json` under `MCP_DATA_DIR`. Collections
+track owned-card membership in memory and reset when the process exits. Use
+one server process per data directory; this is a local store, not a shared
+database for multiple independent server processes.
+
+**stdio is the default transport.** Streamable HTTP is available for trusted
+local clients and binds to `127.0.0.1` by default. It has no authentication.
+The `x-mcp-principal` header selects a data namespace; it does not establish
+identity. See [Security](./SECURITY.md) before changing the bind address.
 
 ## Development
 
 ```sh
-npm install        # installs deps (compiles the better-sqlite3 native addon)
-npm run build      # bundle the server entrypoint to dist/ (tsup, ESM + .d.ts)
-npm run typecheck  # tsc --noEmit
-npm test           # vitest
-npm run lint       # eslint + prettier --check
-npm run format     # prettier --write
+npm ci
+npm run build
+npm run typecheck
+npm test
+npm run lint
+npm run test:package
 ```
 
-The release gate is **build + typecheck + test + lint all green**.
+The server gate is **build + typecheck + test + lint**, plus an installed-package
+smoke test. The tests use small fixtures, so a full card-data download is not required. See
+[Contributing](./CONTRIBUTING.md) for the project layout and contribution workflow,
+and [Changelog](./CHANGELOG.md) for changes. The server is pre-1.0; interfaces
+may change as the project develops.
 
-## Data freshness & provenance
+## Credits and license
 
-The server answers from a local Scryfall bulk index staged under a versioned
-store (default `data/cards/`, override with `MCP_DATA_DIR`). Every tool response
-is stamped with `data_snapshot` — the ISO date of the card index, read from the
-current version's manifest at startup.
+MIT licensed. See [LICENSE](./LICENSE).
 
-Bulk exports are downloaded from Scryfall's gzipped-JSONL feed
-(`jsonl_download_uri`) and staged decompressed as `oracle_cards.jsonl` /
-`default_cards.jsonl`; the reader still accepts the retired single-JSON-array
-form, so older staged versions keep working.
+Card data via [Scryfall](https://scryfall.com). Community data via
+[EDHREC](https://edhrec.com) and [Commander Spellbook](https://commanderspellbook.com).
+Magic: The Gathering is owned by Wizards of the Coast. This is an unofficial
+fan project, unaffiliated with and not endorsed by these organizations.
 
-Refresh cadence (spec §3) is configurable via env vars:
-
-| Variable                | Default      | Meaning                              |
-| ----------------------- | ------------ | ------------------------------------ |
-| `MCP_DATA_DIR`          | `data/cards` | Root of the versioned card store     |
-| `MCP_BULK_INTERVAL_MS`  | `43200000`   | Full bulk re-ingest cadence (~12h)   |
-| `MCP_PRICE_INTERVAL_MS` | `86400000`   | Price-only refresh cadence (~daily)  |
-| `MCP_AUTO_REFRESH`      | on           | `0` disables the freshness scheduler |
-
-The long-running server runs a **freshness scheduler**: it checks bulk-data age
-at startup and every bulk interval, re-ingests when upstream has actually
-changed (the check is idempotent — an unchanged upstream costs one list
-request), and **hot-swaps** the served index + `data_snapshot` onto the new
-version without a restart. `data_status` reports `bulk_age_hours` and a
-`stale` flag so clients can see data aging even with the scheduler off.
-
-A **price-only refresh** (`refreshPrices`) re-downloads `default_cards` and
-updates the printings' prices in place — no rebuild of the cards table or FTS
-index. Oracle-level card prices refresh on a full bulk rebuild. (The scheduler
-does not run it on a separate timer: the bulk pass runs at least as often and
-refreshes prices as a side effect.)
-
-## Observability & graceful degradation
-
-Every tool response is stamped with `data_snapshot` — the registry wrapper
-(`src/server/registry.ts`) applies it uniformly, so a client can always tell
-which card-data vintage produced an answer. Enrichment calls (EDHREC, Commander
-Spellbook, Game Changers) go through a TTL cache that **degrades gracefully**:
-on an upstream failure it serves the last good value if one is cached, and only
-surfaces `UPSTREAM_UNAVAILABLE` when there is nothing to fall back on. Core
-search / validation / analysis never touch the network, so the server stays
-fully functional local-only when upstreams are down.
-
-## Data sources & compliance
-
-Four external sources feed the engine; their standing differs and is stated
-honestly:
-
-- **Scryfall** — the card database, via the officially blessed bulk-data
-  exports. Fully sanctioned; compliance details below.
-- **EDHREC** (recommendations, themes, commander profiles) — via
-  `json.edhrec.com`, an **unofficial endpoint with no published API terms**.
-  It is widely used by third-party tools, but it could change or disappear
-  without notice. Responses are TTL-cached and every EDHREC-backed feature
-  degrades gracefully (the tool reports enrichment as unavailable rather than
-  failing the request).
-- **Commander Spellbook** (combo detection) — public API, same
-  graceful-degradation treatment.
-- **Commander brackets / Game Changers** — WotC's published list, read from
-  the local index (Scryfall bulk data carries a per-card `game_changer` flag,
-  so the list is offline and versioned with the snapshot). Indexes built
-  before the flag fall back to Scryfall's live `is:gamechanger` search. (It
-  was previously read from `json.edhrec.com/pages/game-changers.json`, which
-  upstream withdrew.)
-
-Durability of _your_ data: decks and snapshots are persisted (`decks.json`
-under the data dir) and survive restarts; the owned-card **collection is
-session-only by design** and resets on restart.
-
-### Scryfall Fan Content
-
-This project honors [Scryfall's Fan Content terms](https://scryfall.com/docs/api):
-
-- Every outbound request sends one descriptive **User-Agent** (defined once in
-  `src/types/userAgent.ts`) identifying the app, version, and a contact URL.
-- Live Scryfall calls are a rate-limited fallback (≥100 ms spacing, <2 req/s for
-  search-class endpoints); the steady state is the local bulk index.
-- Card data is **not paywalled or re-sold** — the server adds genuine value
-  (state, validation, analysis) on top of it rather than proxying raw data.
-
-Portions of the data are © Wizards of the Coast. This is unofficial Fan Content;
-not approved/endorsed by Wizards. Card data via Scryfall.
-
-## Project layout
-
-The source is organized around the spec's engine groupings:
-
-| Path            | Engine                                         |
-| --------------- | ---------------------------------------------- |
-| `src/server/`   | MCP transport + tool registration (entrypoint) |
-| `src/ingest/`   | Scryfall bulk download + atomic swap           |
-| `src/index/`    | Local card index (SQLite + FTS5)               |
-| `src/query/`    | Scryfall query grammar parser + evaluator      |
-| `src/deck/`     | Versioned deck store + lifecycle tools         |
-| `src/validate/` | Rules / validation engine                      |
-| `src/analyze/`  | Curve / composition / mana-base analysis       |
-| `src/meta/`     | EDHREC / Spellbook / bracket enrichment        |
-| `src/types/`    | Canonical data model + error taxonomy          |
-
-## Support
-
-This is a free, open-source hobby project. If it's useful to you and you feel
-like saying thanks:
-
-- [GitHub Sponsors](https://github.com/sponsors/AlrikOlson)
-- [Buy Me a Coffee](https://buymeacoffee.com/alrikolson)
-
-## License
-
-MIT
+If this project is useful to you, you can support its development through
+[GitHub Sponsors](https://github.com/sponsors/AlrikOlson) or
+[Buy Me a Coffee](https://buymeacoffee.com/alrikolson).

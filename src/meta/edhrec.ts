@@ -85,7 +85,10 @@ export function parseThemes(json: unknown): string[] {
 }
 
 const defaultFetchJson: FetchJson = async (url) => {
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  const res = await fetch(url, {
+    headers: { "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(30_000),
+  });
   if (!res.ok) throw new Error(`EDHREC HTTP ${res.status}`);
   return res.json();
 };

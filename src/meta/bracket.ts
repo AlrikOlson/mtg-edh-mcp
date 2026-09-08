@@ -172,7 +172,10 @@ export function parseGameChangers(json: unknown): Set<string> {
 }
 
 const defaultFetchJson: FetchJson = async (url) => {
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  const res = await fetch(url, {
+    headers: { "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(30_000),
+  });
   if (!res.ok) throw new Error(`Game Changers HTTP ${res.status}`);
   return res.json();
 };

@@ -1,14 +1,51 @@
 # Changelog
 
-All notable changes to this project are documented here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
-[Semantic Versioning](https://semver.org/).
+Notable changes to the MCP server and optional desktop application.
+The project is pre-1.0; minor releases may include breaking changes.
 
-The project is pre-1.0: **1.0.0 will be the first signed, notarized public
-release of the desktop app.** Until then the engine + app evolve on `main`
-under 0.x, and breaking changes may land in minor versions.
+## 0.2.0 — 2026-09-08
 
-## [Unreleased]
+First public GitHub release of the MCP server.
+
+### Added
+
+- A source-install guide, client configuration with stable data paths, an agent
+  cookbook, contribution guide, security policy, and third-party asset notices.
+- CLI help/version and explicit stdio selection. Invalid flags, transports,
+  ports, empty data paths, and non-loopback HTTP hosts fail with useful errors.
+- A package smoke test that installs the built archive outside the checkout,
+  loads native SQLite, connects over real stdio, reads resources, and verifies
+  saved decks survive a restart.
+- CI for Node 22.13, 24, and 26 on Linux, plus Node 24 on macOS and Windows.
+  Dependencies and GitHub Actions receive weekly update checks.
+
+### Fixed
+
+- Deck and collection resources now use the same session scope as tools.
+  Deck subscriptions filter notifications by session; stateless HTTP no longer
+  advertises subscriptions it cannot deliver.
+- HTTP preserves enrichment caches between requests while giving every request
+  its own MCP server and transport. Port conflicts reject startup cleanly.
+- Concurrent upstream calls respect request spacing. JSON requests have a
+  30-second deadline; large bulk downloads have a separate 15-minute deadline.
+- Structured tool results include a JSON text fallback for clients that only
+  consume text content.
+- Package metadata points to the correct GitHub repository; packaging builds
+  its own artifacts and supports the Node versions required by dependencies.
+- Dependency security updates, including a scoped esbuild override for tsup.
+  Package publication to npm remains disabled.
+
+### Security
+
+- The unauthenticated HTTP listener accepts loopback binds only, validates Host
+  and Origin before processing requests, and limits JSON bodies to 1 MiB.
+  Malformed JSON returns a parse error instead of an internal server error.
+- Runtime namespace boundaries are covered by interleaved HTTP resource tests.
+  The client-selected principal header is not an authentication mechanism.
+
+## Earlier development
+
+The following capabilities were built before the first public release.
 
 ### Added
 
@@ -70,12 +107,10 @@ under 0.x, and breaking changes may land in minor versions.
 
 ### Release process
 
-Releases are cut from `main`:
+1. Run typecheck, tests, lint, and `npm run test:package`.
+2. Update the package version, lockfile, and changelog together.
+3. Commit the reviewed change, tag that commit, and push to GitHub.
+4. Publish a GitHub Release with verified source/package artifacts and notes.
 
-1. `npm version <major|minor|patch>` (updates `package.json`, creates the tag)
-2. `git push && git push --tags`
-3. Build the artifacts: `./scripts/package-app.sh` (engine SEA binary →
-   `dx bundle` → data snapshot injection → `.app` + `.dmg`; Developer ID
-   signing + notarization land with the first 1.0 release)
-4. Draft a GitHub Release on the tag; attach the artifact and summarize the
-   `[Unreleased]` section here into a new version heading.
+The MCP server is distributed through GitHub and source installs. It is not
+published to npm. Desktop signing and notarization are a separate release path.

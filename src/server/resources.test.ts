@@ -93,4 +93,43 @@ describe("deck subscription updates", () => {
     expect(updates).toContain("deck://deck-1");
     expect(deckStore.get("deck-1")?.version).toBe(2);
   });
+
+  it("only notifies the owning session when deck IDs are reused across sessions", async () => {
+    deckStore.create({ name: "Local" });
+    deckStore.create({ name: "Alice" }, "alice");
+    const updates: string[] = [];
+    client.setNotificationHandler(ResourceUpdatedNotificationSchema, (n) => {
+      updates.push(n.params.uri);
+    });
+    await client.subscribeResource({ uri: "deck://deck-1" });
+    deckStore.setName("deck-1", "Alice changed", "alice");
+    await tick();
+    expect(updates).toEqual([]);
+    deckStore.setName("deck-1", "Local changed");
+    await tick();
+    expect(updates).toEqual(["deck://deck-1"]);
+  });
+
+  it("rejects subscriptions to missing or foreign resources", async () => {
+    deckStore.create({ name: "Alice" }, "alice");
+    await expect(client.subscribeResource({ uri: "deck://deck-1" })).rejects.toThrow(
+      "Unknown deck resource",
+    );
+    await expect(client.subscribeResource({ uri: "collection://alice" })).rejects.toThrow(
+      "Unknown deck resource",
+    );
+  });
+
+  it("stops sending updates after a subscription is removed", async () => {
+    deckStore.create({ name: "Local" });
+    const updates: string[] = [];
+    client.setNotificationHandler(ResourceUpdatedNotificationSchema, (n) => {
+      updates.push(n.params.uri);
+    });
+    await client.subscribeResource({ uri: "deck://deck-1" });
+    await client.unsubscribeResource({ uri: "deck://deck-1" });
+    deckStore.setName("deck-1", "Changed");
+    await tick();
+    expect(updates).toEqual([]);
+  });
 });

@@ -78,6 +78,8 @@ export interface CreateServerOptions {
    * (and tests without a session) use the single default "local" session.
    */
   session?: string;
+  /** Resource subscriptions require a persistent transport; disabled for stateless HTTP. */
+  resourceSubscriptions?: boolean;
   /** Extra tools to register alongside the built-ins (used by tests + later engines). */
   tools?: readonly ToolDefinition[];
   /**
@@ -104,6 +106,8 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     index: options.index,
     deckStore: options.deckStore,
     collection: options.index ? collection : undefined,
+    session,
+    subscriptions: options.resourceSubscriptions,
   });
   // Workflow prompts (ergo-prompts): only meaningful when decks can be built.
   if (options.index && options.deckStore) {

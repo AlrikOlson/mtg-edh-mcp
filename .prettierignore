@@ -8,6 +8,11 @@ data
 # Pre-existing tooling, editor configs, and authored docs — not owned by this
 # project's source; ROADMAP.md is a generated view (think-and-ship export).
 .claude
+.agents
+.codex
+.magistr
+.think-and-ship
+CLAUDE.md
 .continue
 .cursor
 .github

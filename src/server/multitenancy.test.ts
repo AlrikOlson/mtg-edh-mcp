@@ -10,7 +10,7 @@
  *  3. Optimistic concurrency — a deck mutator with a stale expected_version
  *     returns a conflict and does NOT mutate.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -120,6 +120,82 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
 
     await alice.close();
     await bob.close();
+  });
+
+  it("scopes deck resource reads to the requesting principal, including local decks", async () => {
+    const localDeck = deckStore.create({ name: "Private local deck" });
+    const aliceDeck = deckStore.create({ name: "Alice resource" }, "alice");
+    const alice = await connectAs("alice", url);
+    const bob = await connectAs("bob", url);
+    try {
+      const own = await alice.readResource({ uri: `deck://${aliceDeck.deck_id}` });
+      expect(own.contents[0]).toMatchObject({ text: JSON.stringify(aliceDeck) });
+      await expect(bob.readResource({ uri: `deck://${aliceDeck.deck_id}` })).rejects.toThrow(
+        "unknown deck",
+      );
+      await expect(alice.readResource({ uri: `deck://${localDeck.deck_id}` })).rejects.toThrow(
+        "unknown deck",
+      );
+      expect(alice.getServerCapabilities()?.resources?.subscribe).not.toBe(true);
+    } finally {
+      await alice.close();
+      await bob.close();
+    }
+  });
+
+  it("persists default collections between POSTs and prevents foreign collection reads", async () => {
+    const alice = await connectAs("alice", url);
+    const bob = await connectAs("bob", url);
+    try {
+      await alice.callTool({ name: "collection_set", arguments: { cards: "Sol Ring" } });
+      const own = await alice.readResource({ uri: "collection://alice" });
+      const content = own.contents[0];
+      expect(content && "text" in content ? JSON.parse(content.text) : undefined).toMatchObject({
+        session: "alice",
+        owned: ["o-sol"],
+        owned_count: 1,
+      });
+      await expect(bob.readResource({ uri: "collection://alice" })).rejects.toThrow(
+        "Unknown collection",
+      );
+      await expect(alice.readResource({ uri: "collection://local" })).rejects.toThrow(
+        "Unknown collection",
+      );
+      const bobCollection = await bob.callTool({ name: "collection_get", arguments: {} });
+      expect(bobCollection.structuredContent).toMatchObject({ owned_count: 0 });
+    } finally {
+      await alice.close();
+      await bob.close();
+    }
+  });
+
+  it("reuses the default enrichment cache across fresh per-request servers", async () => {
+    const realFetch = globalThis.fetch;
+    let upstreamCalls = 0;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const target = input instanceof Request ? input.url : String(input);
+      if (target.startsWith("https://json.edhrec.com/")) {
+        upstreamCalls += 1;
+        return Promise.resolve(Response.json({ panels: { taglinks: [{ value: "Artifacts" }] } }));
+      }
+      return realFetch(input, init);
+    });
+    const alice = await connectAs("alice", url);
+    const bob = await connectAs("bob", url);
+    try {
+      for (const client of [alice, bob, alice]) {
+        const result = await client.callTool({
+          name: "meta_commander_profile",
+          arguments: { commander: "Test Commander" },
+        });
+        expect(result.structuredContent).toMatchObject({ themes: ["Artifacts"] });
+      }
+      expect(upstreamCalls).toBe(1);
+    } finally {
+      await alice.close();
+      await bob.close();
+      fetchSpy.mockRestore();
+    }
   });
 
   it("never leaks across principals under interleaved stateless POSTs (CVE-2026-25536 guard)", async () => {

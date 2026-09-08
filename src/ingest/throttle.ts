@@ -19,7 +19,8 @@ export class Throttle {
   private readonly minSpacingMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly now: () => number;
-  private lastAt = 0;
+  private lastAt: number | undefined;
+  private pending: Promise<void> = Promise.resolve();
 
   constructor(options: ThrottleOptions) {
     this.minSpacingMs = options.minSpacingMs;
@@ -28,11 +29,16 @@ export class Throttle {
   }
 
   /** Wait until at least `minSpacingMs` has elapsed since the previous request. */
-  async wait(): Promise<void> {
-    const elapsed = this.now() - this.lastAt;
-    if (this.lastAt !== 0 && elapsed < this.minSpacingMs) {
-      await this.sleep(this.minSpacingMs - elapsed);
-    }
-    this.lastAt = this.now();
+  wait(): Promise<void> {
+    const turn = this.pending.then(async () => {
+      const elapsed = this.lastAt === undefined ? Infinity : this.now() - this.lastAt;
+      if (elapsed < this.minSpacingMs) {
+        await this.sleep(this.minSpacingMs - elapsed);
+      }
+      this.lastAt = this.now();
+    });
+    // A rejected injected sleep must not poison all subsequent requests.
+    this.pending = turn.catch(() => undefined);
+    return turn;
   }
 }

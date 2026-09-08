@@ -9,6 +9,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
+  ErrorCode,
+  McpError,
   SubscribeRequestSchema,
   UnsubscribeRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
@@ -21,6 +23,8 @@ export interface ResourceDeps {
   index?: CardIndex;
   deckStore?: DeckStore;
   collection?: CollectionStore;
+  session?: string;
+  subscriptions?: boolean;
 }
 
 function firstVar(value: string | string[] | undefined): string {
@@ -30,7 +34,7 @@ function firstVar(value: string | string[] | undefined): string {
 
 /** Register card:// and deck:// resources (and deck subscription wiring) on a server. */
 export function registerResources(server: McpServer, deps: ResourceDeps): void {
-  const { index, deckStore, collection } = deps;
+  const { index, deckStore, collection, session = "local", subscriptions = true } = deps;
 
   if (index) {
     server.registerResource(
@@ -53,25 +57,13 @@ export function registerResources(server: McpServer, deps: ResourceDeps): void {
   }
 
   if (deckStore) {
-    server.server.registerCapabilities({ resources: { subscribe: true } });
-
-    const subscribed = new Set<string>();
-    server.server.setRequestHandler(SubscribeRequestSchema, (request) => {
-      subscribed.add(request.params.uri);
-      return {};
-    });
-    server.server.setRequestHandler(UnsubscribeRequestSchema, (request) => {
-      subscribed.delete(request.params.uri);
-      return {};
-    });
-
     server.registerResource(
       "deck",
       new ResourceTemplate("deck://{deck_id}", { list: undefined }),
       { title: "Deck", description: "Current decklist by deck_id.", mimeType: "application/json" },
       (uri, variables) => {
         const deckId = firstVar(variables.deck_id);
-        const deck = deckStore.get(deckId);
+        const deck = deckStore.get(deckId, session);
         if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
         return {
           contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(deck) }],
@@ -79,15 +71,37 @@ export function registerResources(server: McpServer, deps: ResourceDeps): void {
       },
     );
 
-    const unsubscribe = deckStore.onChange((deckId) => {
-      const uri = `deck://${deckId}`;
-      if (subscribed.has(uri)) void server.server.sendResourceUpdated({ uri });
-    });
-    const previousOnClose = server.server.onclose?.bind(server.server);
-    server.server.onclose = () => {
-      unsubscribe();
-      previousOnClose?.();
-    };
+    if (subscriptions) {
+      server.server.registerCapabilities({ resources: { subscribe: true } });
+      const subscribed = new Set<string>();
+      server.server.setRequestHandler(SubscribeRequestSchema, (request) => {
+        const prefix = "deck://";
+        const uri = request.params.uri;
+        const deckId = uri.startsWith(prefix) ? uri.slice(prefix.length) : "";
+        if (!deckId || !deckStore.get(deckId, session)) {
+          throw new McpError(ErrorCode.InvalidParams, "Unknown deck resource");
+        }
+        subscribed.add(uri);
+        return {};
+      });
+      server.server.setRequestHandler(UnsubscribeRequestSchema, (request) => {
+        subscribed.delete(request.params.uri);
+        return {};
+      });
+      const unsubscribe = deckStore.onChange((deckId, _version, changedSession) => {
+        const uri = `deck://${deckId}`;
+        if (changedSession === session && subscribed.has(uri)) {
+          // A client may disconnect while a notification is in flight.
+          void server.server.sendResourceUpdated({ uri }).catch(() => undefined);
+        }
+      });
+      const previousOnClose = server.server.onclose?.bind(server.server);
+      server.server.onclose = () => {
+        subscribed.clear();
+        unsubscribe();
+        previousOnClose?.();
+      };
+    }
   }
 
   if (collection) {
@@ -101,7 +115,10 @@ export function registerResources(server: McpServer, deps: ResourceDeps): void {
       },
       (uri, variables) => {
         const sessionId = firstVar(variables.session) || "local";
-        const owned = [...collection.get(sessionId)];
+        if (sessionId !== session) {
+          throw new McpError(ErrorCode.InvalidParams, "Unknown collection resource");
+        }
+        const owned = [...collection.get(session)];
         const body = {
           session: sessionId,
           owned_count: owned.length,

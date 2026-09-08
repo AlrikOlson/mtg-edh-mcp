@@ -44,8 +44,14 @@ export interface ToolDefinition {
 }
 
 /** Annotation presets (ergo-protocol): local read-only, live read-only, local mutator. */
-export const READS_LOCAL: ToolAnnotations = { readOnlyHint: true, openWorldHint: false };
-export const READS_LIVE: ToolAnnotations = { readOnlyHint: true, openWorldHint: true };
+export const READS_LOCAL: ToolAnnotations = {
+  readOnlyHint: true,
+  openWorldHint: false,
+};
+export const READS_LIVE: ToolAnnotations = {
+  readOnlyHint: true,
+  openWorldHint: true,
+};
 export function mutates(hints: {
   destructive: boolean;
   idempotent: boolean;
@@ -64,9 +70,20 @@ type SdkToolCallback = Parameters<McpServer["registerTool"]>[2];
 
 /** Merge `data_snapshot` into a tool result's structuredContent and _meta. */
 export function stampSnapshot(result: CallToolResult, snapshot: string): CallToolResult {
+  const structuredContent = {
+    ...(result.structuredContent ?? {}),
+    data_snapshot: snapshot,
+  };
+  const serialized = JSON.stringify(structuredContent);
+  // MCP recommends a text fallback so clients without structuredContent support
+  // receive the actual cards/decks, rather than only a count or status summary.
+  const content = result.content.some((block) => block.type === "text" && block.text === serialized)
+    ? result.content
+    : [...result.content, { type: "text" as const, text: serialized }];
   return {
     ...result,
-    structuredContent: { ...(result.structuredContent ?? {}), data_snapshot: snapshot },
+    content,
+    structuredContent,
     _meta: { ...(result._meta ?? {}), data_snapshot: snapshot },
   };
 }

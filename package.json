@@ -1,6 +1,6 @@
 {
   "name": "mtg-edh-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Model Context Protocol server for Magic: The Gathering Commander/EDH deckbuilding.",
   "type": "module",
   "license": "MIT",
@@ -17,14 +17,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alrik/mtg-edh-mcp.git"
+    "url": "git+https://github.com/AlrikOlson/mtg-edh-mcp.git"
   },
-  "homepage": "https://github.com/alrik/mtg-edh-mcp#readme",
+  "homepage": "https://github.com/AlrikOlson/mtg-edh-mcp#readme",
   "bugs": {
-    "url": "https://github.com/alrik/mtg-edh-mcp/issues"
+    "url": "https://github.com/AlrikOlson/mtg-edh-mcp/issues"
   },
   "engines": {
-    "node": ">=18"
+    "node": "^22.13.0 || ^24.0.0 || ^26.0.0"
   },
   "bin": {
     "mtg-edh-mcp": "dist/main.js"
@@ -32,7 +32,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "docs/INSTALL.md",
+    "docs/AGENT-COOKBOOK.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsup",
@@ -41,14 +44,17 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . && prettier --check .",
-    "format": "prettier --write ."
+    "lint": "eslint . --max-warnings=0 && prettier --check .",
+    "format": "prettier --write .",
+    "start": "node dist/main.js",
+    "prepack": "npm run build",
+    "test:package": "node scripts/smoke-package.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.11.1",
     "stream-chain": "^3.6.3",
-    "stream-json": "^3.4.0",
+    "stream-json": "^3.6.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -62,5 +68,11 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.0",
     "vitest": "^4.1.9"
+  },
+  "private": true,
+  "overrides": {
+    "tsup": {
+      "esbuild": "^0.28.1"
+    }
   }
 }

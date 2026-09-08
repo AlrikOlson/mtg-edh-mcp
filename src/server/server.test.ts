@@ -20,7 +20,10 @@ const boomTool: ToolDefinition = {
 };
 
 async function connectInMemory(tools: readonly ToolDefinition[] = []): Promise<Client> {
-  const server = createServer({ snapshot: staticSnapshotProvider(SNAPSHOT), tools });
+  const server = createServer({
+    snapshot: staticSnapshotProvider(SNAPSHOT),
+    tools,
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   const client = new Client({ name: "test", version: "0.0.0" });
@@ -31,19 +34,46 @@ async function connectInMemory(tools: readonly ToolDefinition[] = []): Promise<C
 describe("stampSnapshot", () => {
   it("merges data_snapshot into both structuredContent and _meta", () => {
     const stamped = stampSnapshot({ content: [{ type: "text", text: "x" }] }, SNAPSHOT);
-    expect(stamped.structuredContent).toMatchObject({ data_snapshot: SNAPSHOT });
+    expect(stamped.structuredContent).toMatchObject({
+      data_snapshot: SNAPSHOT,
+    });
     expect(stamped._meta).toMatchObject({ data_snapshot: SNAPSHOT });
   });
 });
 
 describe("server core over in-memory transport", () => {
+  it("includes the complete stamped result for text-only MCP clients", async () => {
+    const client = await connectInMemory();
+    try {
+      const result = await client.callTool({
+        name: "ping",
+        arguments: { message: "hello" },
+      });
+      const blocks = result.content as Array<{ type: string; text?: string }>;
+      expect(
+        blocks.some(
+          (block) =>
+            block.type === "text" && block.text === JSON.stringify(result.structuredContent),
+        ),
+      ).toBe(true);
+    } finally {
+      await client.close();
+    }
+  });
+
   it("round-trips the ping tool and stamps data_snapshot", async () => {
     const client = await connectInMemory();
-    const result = await client.callTool({ name: "ping", arguments: { message: "hello" } });
+    const result = await client.callTool({
+      name: "ping",
+      arguments: { message: "hello" },
+    });
 
     const content = result.content as Array<{ type: string; text: string }>;
     expect(content[0]?.text).toBe("hello");
-    expect(result.structuredContent).toMatchObject({ message: "hello", data_snapshot: SNAPSHOT });
+    expect(result.structuredContent).toMatchObject({
+      message: "hello",
+      data_snapshot: SNAPSHOT,
+    });
     await client.close();
   });
 
@@ -73,14 +103,20 @@ describe("server core over in-memory transport", () => {
 
 describe("server core over streamable HTTP", () => {
   it("boots on HTTP and round-trips ping with data_snapshot stamped", async () => {
-    const running = await startHttp({ port: 0, snapshot: staticSnapshotProvider(SNAPSHOT) });
+    const running = await startHttp({
+      port: 0,
+      snapshot: staticSnapshotProvider(SNAPSHOT),
+    });
     const client = new Client({ name: "test-http", version: "0.0.0" });
     const transport = new StreamableHTTPClientTransport(
       new URL(`http://127.0.0.1:${running.port}/mcp`),
     );
     try {
       await client.connect(transport);
-      const result = await client.callTool({ name: "ping", arguments: { message: "via-http" } });
+      const result = await client.callTool({
+        name: "ping",
+        arguments: { message: "via-http" },
+      });
       expect(result.structuredContent).toMatchObject({
         message: "via-http",
         data_snapshot: SNAPSHOT,

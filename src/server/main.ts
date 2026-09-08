@@ -23,10 +23,8 @@ import { IngestRunner, type StalenessProvider } from "./dataTools.js";
 import { autoRefreshDisabled, bulkAgeMs, startScheduler } from "./scheduler.js";
 import { startStdio } from "./stdio.js";
 import { startHttp } from "./http.js";
-
-function useHttp(argv: readonly string[], env: Record<string, string | undefined>): boolean {
-  return env.MCP_TRANSPORT === "http" || argv.includes("--http");
-}
+import { CLI_HELP, parseCli } from "./cli.js";
+import { SERVER_VERSION } from "./createServer.js";
 
 interface Boot {
   snapshot: CachedSnapshotProvider;
@@ -57,6 +55,15 @@ async function boot(): Promise<Boot> {
 }
 
 async function main(): Promise<void> {
+  const config = parseCli(process.argv.slice(2), process.env);
+  if (config.mode === "help") {
+    process.stdout.write(CLI_HELP);
+    return;
+  }
+  if (config.mode === "version") {
+    process.stdout.write(`${SERVER_VERSION}\n`);
+    return;
+  }
   const { snapshot: cachedSnapshot, index, deckStore, store } = await boot();
   const snapshot = cachedSnapshot.provider;
   // One process-wide ingest runner: shared across per-request servers in HTTP
@@ -96,9 +103,8 @@ async function main(): Promise<void> {
   if (!autoRefreshDisabled()) {
     await startScheduler({ runner: ingest, store, config: freshness });
   }
-  if (useHttp(process.argv.slice(2), process.env)) {
-    const port = process.env.MCP_HTTP_PORT ? Number(process.env.MCP_HTTP_PORT) : 3000;
-    const host = process.env.MCP_HTTP_HOST ?? "127.0.0.1";
+  if (config.transport === "http") {
+    const { port, host } = config;
     // Shared across all per-request servers — without this, the stateless HTTP
     // transport gave every POST a fresh empty collection (caught by the GUI's
     // Rust e2e round-trip, which acts as the regression test).
@@ -113,7 +119,9 @@ async function main(): Promise<void> {
       ingest,
       staleness,
     });
-    console.error(`mtg-edh-mcp listening on http://${host}:${running.port} (streamable HTTP)`);
+    console.error(
+      `mtg-edh-mcp listening on http://${host.includes(":") ? `[${host}]` : host}:${running.port}/mcp (streamable HTTP)`,
+    );
     // Sidecar lifecycle (opt-in): the GUI spawns us with piped stdin; when the
     // GUI dies, stdin closes and we exit — orphan-proof without process groups.
     if (process.env.MCP_WATCH_STDIN === "1") {
@@ -132,6 +140,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  console.error(err);
+  console.error(`mtg-edh-mcp: ${err instanceof Error ? err.message : String(err)}`);
   process.exitCode = 1;
 });
