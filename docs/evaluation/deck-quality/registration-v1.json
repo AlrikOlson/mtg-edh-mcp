@@ -1,0 +1,355 @@
+{
+  "version": "deck-quality-registration-v1",
+  "status": "preregistered-not-executed",
+  "corpusVersion": "commander-quality-v1",
+  "corpusDigest": "1b42fa250e48152386b61305e5f3a82558d49cbcf42fb4f8d8069bb00bc3106b",
+  "configurations": [
+    {
+      "id": "codex-cli-stdio",
+      "host": "codex-cli",
+      "transport": "stdio"
+    },
+    {
+      "id": "claude-cli-http",
+      "host": "claude-cli",
+      "transport": "http"
+    }
+  ],
+  "cases": [
+    {
+      "id": "kozilek-colorless",
+      "split": "calibration",
+      "request": "build",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "giada-angels",
+      "split": "calibration",
+      "request": "tune",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "talrand-spells",
+      "split": "holdout",
+      "request": "acquisition",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "marrow-rat-colony",
+      "split": "calibration",
+      "request": "build",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "magda-seven-dwarves",
+      "split": "calibration",
+      "request": "tune",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "goreclaw-stompy",
+      "split": "holdout",
+      "request": "acquisition",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "shorikai-vehicles",
+      "split": "calibration",
+      "request": "build",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "wilhelt-zombies",
+      "split": "calibration",
+      "request": "tune",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "prosper-exile",
+      "split": "holdout",
+      "request": "acquisition",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "sythis-enchantress",
+      "split": "calibration",
+      "request": "build",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "meren-recursion",
+      "split": "calibration",
+      "request": "tune",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "feather-cantrips",
+      "split": "holdout",
+      "request": "acquisition",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "aesi-landfall",
+      "split": "calibration",
+      "request": "build",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "isshin-attacks",
+      "split": "calibration",
+      "request": "tune",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "muldrotha-permanents",
+      "split": "holdout",
+      "request": "acquisition",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "atraxa-counters",
+      "split": "calibration",
+      "request": "build",
+      "supported": true,
+      "expectedHardFailures": ["BUDGET"],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": ["PRICE_UNCERTAINTY"]
+    },
+    {
+      "id": "sisay-legends",
+      "split": "calibration",
+      "request": "tune",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "tymna-kraum-competitive",
+      "split": "holdout",
+      "request": "acquisition",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "brallin-shabraz-wheels",
+      "split": "calibration",
+      "request": "build",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "zellix-haunted-background",
+      "split": "calibration",
+      "request": "tune",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "lord-nine-nazgul",
+      "split": "holdout",
+      "request": "acquisition",
+      "supported": true,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": [],
+      "requiredChecks": []
+    },
+    {
+      "id": "rhys-new-no-profile",
+      "split": "calibration",
+      "request": "build",
+      "supported": false,
+      "expectedHardFailures": [],
+      "expectedUnsupportedChecks": ["REQUESTED_MECHANICS"],
+      "requiredChecks": ["UNSUPPORTED_DISCLOSURE"]
+    }
+  ],
+  "seeds": [1701, 2909, 7307],
+  "repetitions": 1,
+  "hardChecks": [
+    "CARD_COUNT",
+    "QUANTITY",
+    "COMMAND_ZONE",
+    "COMMANDER_ELIGIBILITY",
+    "COMPANION_ZONE",
+    "MAYBEBOARD",
+    "UNKNOWN_CARD",
+    "COLOR_IDENTITY",
+    "LEGALITY",
+    "COPY_LIMIT",
+    "PROTECTED",
+    "THEME",
+    "BUDGET",
+    "DECK_PRICE",
+    "ACQUIRE_PRICE",
+    "COMPANION_PRICE",
+    "CLAIMED_COUNT",
+    "CLAIMED_THEME",
+    "CLAIMED_LEGALITY"
+  ],
+  "referenceSuites": ["mana-payment", "package-optimum"],
+  "finalTasks": [
+    {
+      "id": "whole-deck",
+      "caseIds": [
+        "kozilek-colorless",
+        "giada-angels",
+        "talrand-spells",
+        "marrow-rat-colony",
+        "magda-seven-dwarves",
+        "goreclaw-stompy",
+        "shorikai-vehicles",
+        "wilhelt-zombies",
+        "prosper-exile",
+        "sythis-enchantress",
+        "meren-recursion",
+        "feather-cantrips",
+        "aesi-landfall",
+        "isshin-attacks",
+        "muldrotha-permanents",
+        "atraxa-counters",
+        "sisay-legends",
+        "tymna-kraum-competitive",
+        "brallin-shabraz-wheels",
+        "zellix-haunted-background",
+        "lord-nine-nazgul",
+        "rhys-new-no-profile"
+      ],
+      "check": "WHOLE_DECK_ARTIFACT",
+      "requirement": "Return the complete requested deck artifact and grade all zones, total count, independent legality and copy limits, full-deck and acquisition costs in integer cents, quantity-aware ownership, protected choices and authored minimum themes. Companion and maybeboard stay outside the 100; report their costs separately."
+    },
+    {
+      "id": "empty-partial-construction",
+      "caseIds": [
+        "kozilek-colorless",
+        "giada-angels",
+        "marrow-rat-colony",
+        "magda-seven-dwarves",
+        "shorikai-vehicles",
+        "wilhelt-zombies",
+        "sythis-enchantress",
+        "meren-recursion",
+        "aesi-landfall",
+        "isshin-attacks",
+        "atraxa-counters",
+        "sisay-legends",
+        "brallin-shabraz-wheels",
+        "zellix-haunted-background",
+        "rhys-new-no-profile"
+      ],
+      "check": "CONSTRUCTION_FROM_REQUEST",
+      "requirement": "Start with the authored empty or partial main deck, execute the user request, and produce a complete independently validated artifact. Importing the supplied complete reference answer is not successful construction or tuning."
+    },
+    {
+      "id": "discovery-without-profile",
+      "caseIds": ["rhys-new-no-profile"],
+      "check": "DISCOVERY_WITHOUT_PROFILE",
+      "requirement": "Discover relevant candidates without an EDHREC commander profile or hardcoded commander/archetype template. Use the pinned unavailable-provider condition and record actual candidate evidence; simulated absence does not establish live provider absence."
+    },
+    {
+      "id": "unsupported-mechanics",
+      "caseIds": ["rhys-new-no-profile"],
+      "check": "REQUESTED_MECHANICS",
+      "requirement": "Keep unsupported gameplay and source-activation mechanics explicit, retain all observations and limitations, and exclude unsupported domain outcomes from pass counts. Disclosure may pass while the unsupported mechanic itself cannot."
+    }
+  ],
+  "thresholds": {
+    "requiredCheckMatchRate": 1,
+    "exactReferenceMismatches": 0,
+    "perCaseHardRegressions": 0,
+    "supportedCasePassRate": 1
+  },
+  "policy": {
+    "unsupported": "retain-and-report-separately-never-pass",
+    "holdout": "never-drop-or-tune-on-holdout",
+    "versioning": "append-new-versions-preserve-v1",
+    "configurationFreeze": "pin-before-first-baseline-and-reuse-for-candidate",
+    "execution": "actual-hosts-at-final-gate-not-this-preregistration",
+    "tokens": "measured-required-for-final-acceptance",
+    "regression": "no-per-case-hard-regression-no-aggregate-offset"
+  },
+  "limitations": [
+    "This freezes requirements, not results. No model host has executed this new corpus during preregistration. The separate scripted MCP baseline uses in-memory transport and must not be labeled a model-host, stdio, or HTTP run.",
+    "The final gate requires 22 cases across both host slots and all three fixed seeds: 132 measured runs. The three seeds provide three repetitions per host/case, with one run per seed. Do not replace missing, failed, holdout, or difficult rows with easier cases.",
+    "Before the first comparable baseline/candidate execution, freeze exact observed host versions, model and model snapshot, runtime version, server revisions, corpus digest, provider response/state digest, all generation/context/tool settings, and numeric maxToolCalls, maxRunInputTokens, maxRunOutputTokens and maxWallTimeMs in the configuration manifest. Reuse it for candidate comparison; no current version is invented here.",
+    "Seeds fix scenario/reference random inputs. Record model seed support in the parameter manifest; scenario seeds do not assert model determinism.",
+    "Record actual tool calls, failures, serialized MCP response UTF-8 bytes, wall time and provider-reported input/output token counts for each run. Unavailable tokens retain an explicit reason and cannot satisfy final measured-usage acceptance. Budget limits are pinned to explain truncation; this version introduces no arbitrary latency or token-efficiency pass threshold.",
+    "Report supported task pass rates and unsupported counts separately per case and configuration. All supported tasks must match their preregistered expected hard-check statuses; an aggregate improvement never offsets a per-case hard regression. The authored unsupported support mask is fixed before outcomes.",
+    "mana-payment must agree exactly with exhaustive finite-source payment answers; package-optimum must agree exactly with exhaustive subset choice and integer-cent optimum. Restricted, conditional or activated source behavior outside the finite reference model is unsupported, not an estimated pass.",
+    "validateCandidateReport checks completeness and digest bindings, not authenticity. The final runner must verify referenced transcript files/hashes and derive checks from independent artifact/reference graders; self-reported pass flags alone are insufficient.",
+    "Holdout prompts and support assignments remain fixed and are not used to tune candidates. Any necessary corpus, rubric, task, or configuration change creates an appended version preserving v1 and requires a separately labeled rerun.",
+    "For protected unknown-price Atraxa, BUDGET must fail to certify the cap and PRICE_UNCERTAINTY must pass for an explicitly uncertain total; the task may succeed by honoring that request without falsely marking budget met. Unsupported Rhys mechanics require REQUESTED_MECHANICS=unsupported and UNSUPPORTED_DISCLOSURE=pass. These expected statuses are frozen per case before any outcome, while all other structural hard checks must pass."
+  ],
+  "referenceFixtures": [
+    {
+      "id": "mana-payment",
+      "caseIds": [
+        "one-dual-cannot-pay-wu",
+        "dual-and-island-pay-wu",
+        "dual-and-island-cannot-pay-ww",
+        "wastes-pays-colorless",
+        "wastes-cannot-pay-blue",
+        "unavailable-tapped-land",
+        "sol-ring-pays-two-generic",
+        "sol-ring-cannot-pay-colored"
+      ],
+      "digest": "118280e9a828b089040c7bdb3dd373bca83c055b189302d4fd0588a6397336fc"
+    },
+    {
+      "id": "package-optimum",
+      "caseIds": ["protected-theme-package", "cheapest-complementary-package"],
+      "digest": "59c1c70a90eecda7c1fcebf097beff6f6dceb62a0c73239ca33ddd23bb24e4f8"
+    }
+  ]
+}
