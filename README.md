@@ -76,7 +76,8 @@ For an existing deck:
 > role gaps. Take a snapshot before making any changes.
 
 The server is installed from source. See the [installation guide](./docs/INSTALL.md)
-for configuration, updates, troubleshooting, and the optional macOS desktop app.
+for configuration, updates, and troubleshooting. This repository contains the
+MCP server and its tooling; desktop clients are developed separately.
 
 ## What the server exposes
 
@@ -164,6 +165,7 @@ npm run test:package
 The server gate is **build + typecheck + test + lint**, plus an installed-package
 smoke test. The tests use small fixtures, so a full card-data download is not required. See
 [Contributing](./CONTRIBUTING.md) for the project layout and contribution workflow,
+[Protocol workflow evaluation](./docs/evaluation/README.md) for the pinned baseline,
 and [Changelog](./CHANGELOG.md) for changes. The server is pre-1.0; interfaces
 may change as the project develops.
 

@@ -1,8 +1,7 @@
 # Install and run
 
-The standalone server connects to a local MCP client over stdio. The optional
-macOS desktop app uses the same engine. Start with the server unless you want
-to build the desktop interface.
+The standalone server connects to a local MCP client over stdio. This repository
+contains the MCP server and its development and verification tooling.
 
 ## Requirements
 
@@ -15,8 +14,7 @@ to build the desktop interface.
 
 The server uses a native SQLite dependency (`better-sqlite3`). If a prebuilt
 binary is unavailable for your Node version and platform, installation needs
-Python and a C/C++ build toolchain. The Rust toolchain is needed only for the
-desktop app.
+Python and a C/C++ build toolchain.
 
 ## 1. Build the server
 
@@ -155,13 +153,11 @@ For a manual update, call `data_ingest` through your client. Alternatively,
 stop the server and run the ingestion command again with the same data
 directory. Add `-- --force` to `npm run ingest` to force another download.
 
-| Data                            | Location and lifetime                                                                    |
-| ------------------------------- | ---------------------------------------------------------------------------------------- |
-| Card exports and SQLite index   | Versioned directories under `MCP_DATA_DIR`.                                              |
-| Decks and snapshots             | `MCP_DATA_DIR/decks.json`; persists across restarts and card updates.                    |
-| Owned-card collection           | Process memory; re-import after restarting. Stores membership, not inventory quantities. |
-| Desktop app session             | `~/.mtg-edh-gui.json`.                                                                   |
-| Optional desktop Oracle API key | macOS Keychain, service `mtg-edh-oracle`.                                                |
+| Data                          | Location and lifetime                                                                    |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| Card exports and SQLite index | Versioned directories under `MCP_DATA_DIR`.                                              |
+| Decks and snapshots           | `MCP_DATA_DIR/decks.json`; persists across restarts and card updates.                    |
+| Owned-card collection         | Process memory; re-import after restarting. Stores membership, not inventory quantities. |
 
 Run **one server process per data directory**. Separate stdio client launches
 are separate processes and should use separate directories; use one local
@@ -193,31 +189,3 @@ updating a pre-1.0 installation.
 For unresolved issues, include your OS, Node version, project revision,
 transport, reproduction steps, and redacted stderr in a
 [bug report](https://github.com/AlrikOlson/mtg-edh-mcp/issues/new?template=bug_report.md).
-
-## Optional macOS desktop app
-
-The `gui/` tree contains a Dioxus desktop interface with Browse, Workbench,
-Collection, Gallery, and an in-app Oracle assistant. Its packaging and Keychain
-integration are macOS-specific; this does not limit the standalone Node server
-to macOS.
-
-Building the app additionally needs stable Rust, the Dioxus CLI, and the macOS
-build tools. From the repository root:
-
-```sh
-npm ci
-./scripts/package-app.sh
-```
-
-The script builds the engine and app and prints the output artifact paths.
-For iterative development, run `npm run build`, then:
-
-```sh
-cd gui/app
-dx serve --platform desktop
-```
-
-The development app starts the engine as a child process over stdio. Release
-artifact availability and signing status belong to each individual
-[GitHub Release](https://github.com/AlrikOlson/mtg-edh-mcp/releases); a source
-build does not imply a signed or notarized application.

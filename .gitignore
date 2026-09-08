@@ -23,10 +23,5 @@ data/
 .DS_Store
 *.tsbuildinfo
 
-# Playwright MCP session artifacts (scrutiny runs)
-.playwright-mcp/
-scrutiny-*.png
-
-# Packaging staging (scripts/package-engine.sh)
+# Local build artifacts
 build/
-gui/app/bundle-data/

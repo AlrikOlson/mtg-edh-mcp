@@ -44,6 +44,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:workflows": "vitest run src/server/workflowMetrics.test.ts src/server/workflowScenarios.test.ts src/server/workflowBaseline.test.ts",
     "lint": "eslint . --max-warnings=0 && prettier --check .",
     "format": "prettier --write .",
     "start": "node dist/main.js",

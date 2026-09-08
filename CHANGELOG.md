@@ -1,7 +1,20 @@
 # Changelog
 
-Notable changes to the MCP server and optional desktop application.
+Notable changes to the MCP server. Historical entries also cover the former
+bundled desktop application.
 The project is pre-1.0; minor releases may include breaking changes.
+
+## Unreleased
+
+- Add four offline MCP workflow journeys with a retained v0.2.0 protocol baseline,
+  measured call/error/result-byte counts, and deterministic regression checks.
+  Model-driven host evaluation remains a separate release requirement.
+
+- Separate the desktop application, Rust client, design assets, and app packaging
+  into a local GUI repository with their Git history and licenses preserved.
+  This repository now contains the MCP server and its Node tooling only.
+- Remove the stale generated roadmap view; native Magistr records remain the
+  authoritative plan.
 
 ## 0.2.0 — 2026-09-08
 

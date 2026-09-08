@@ -46,8 +46,7 @@ authorization and resource limits.
   lookup, including from bracket classification. EDHREC tools query a
   community endpoint. Use local tools when deck contents must stay local.
 - The standalone server requires no model-provider API key. Your MCP client
-  decides which tool results reach its model provider. The optional desktop
-  app stores its configured Oracle API key in macOS Keychain.
+  decides which tool results reach its model provider.
 
 Tool annotations describe behavior and are not a security boundary. Clients
 should apply the user's authorization to mutations and network operations.

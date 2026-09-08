@@ -57,16 +57,14 @@ exports, build artifacts, and machine-specific paths out of contributions.
 | `src/analyze/`                | Mana, curve, roles, simulations, and budget calculations.                   |
 | `src/meta/`                   | Cached EDHREC, Commander Spellbook, and bracket enrichment.                 |
 | `src/collection/`             | Session-scoped owned-card membership.                                       |
-| `gui/`                        | Optional Rust / Dioxus desktop application.                                 |
 
 Tool descriptions follow a USE / NOT / FLOW / ARGS / RETURNS structure.
 Conformance tests verify their workflow references against the registered
 tool catalog. Update descriptions, schemas, tests, and the cookbook together
 when changing a tool contract.
 
-The desktop app has its own Rust toolchain and checks; server-only
-contributions do not require building the app. For GUI changes, also run the
-relevant `gui/` workspace checks and verify the changed interface.
+The server and its verification tooling use Node.js and npm. Desktop clients
+live in separate repositories and consume the public MCP contracts.
 
 ## Report a problem
 
