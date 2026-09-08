@@ -6,6 +6,15 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## Unreleased
 
+- Add idempotent `setup` with absolute-path client configuration and read-only
+  `doctor` diagnostics for runtime/native SQLite, storage permissions, index
+  readiness, and freshness, with actionable exit codes.
+- Activate the first successful ingestion in connected stdio and HTTP servers.
+  Readiness, indexed tools, resources, and prompts become available without
+  restarting; failed or interrupted initial downloads can be retried.
+- Exercise setup reruns, non-mutating diagnostics, live first-ingest discovery,
+  and interrupted-ingest recovery through the installed package.
+
 - Persist decks, snapshots, and session-scoped collections with synchronous
   SQLite transactions shared across local server processes. Keep optimistic
   version checks and compound deck imports inside the transaction; report

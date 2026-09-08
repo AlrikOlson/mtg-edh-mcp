@@ -3,9 +3,9 @@
  * downloads. Run through npm run test:package so the npm CLI path is portable.
  */
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -13,6 +13,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const npmCli = process.env.npm_execpath;
@@ -106,12 +107,12 @@ try {
   assert.match(invalid.stderr, /Unknown argument/);
 
   const transports = new WeakMap();
-  async function connect(nodeArgs = []) {
+  async function connect(nodeArgs = [], serverEnv = env) {
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: [...nodeArgs, entry, "--stdio"],
       cwd: consumer,
-      env,
+      env: serverEnv,
       stderr: "pipe",
     });
     let diagnostics = "";
@@ -209,14 +210,27 @@ globalThis.fetch = async (input) => {
     return Response.json({
       data: ["oracle_cards", "default_cards"].map((type) => ({
         type,
-        updated_at: fixture.snapshot + "T09:00:00.000Z",
+        updated_at: fixture.updatedAt ?? fixture.snapshot + "T09:00:00.000Z",
         jsonl_download_uri: "https://offline.invalid/" + type + ".jsonl.gz",
       })),
     });
   }
   if (url === "https://offline.invalid/oracle_cards.jsonl.gz" ||
       url === "https://offline.invalid/default_cards.jsonl.gz") {
-    return new Response(gzipSync(JSON.stringify(fixture.card) + "\n"));
+    const bytes = gzipSync(JSON.stringify(fixture.card) + "\n");
+    if (fixture.interrupt && url.includes("oracle_cards")) {
+      return new Response(new ReadableStream({
+        start(controller) {
+          // Leave an incomplete gzip body on disk so recovery exercises a
+          // real interrupted download, not just a rejected metadata request.
+          controller.enqueue(bytes.subarray(0, bytes.length - 8));
+          if (fixture.interrupt === "error") {
+            setTimeout(() => controller.error(new Error("Fixture download interrupted")), 50);
+          }
+        },
+      }));
+    }
+    return new Response(bytes);
   }
   throw new Error("Unexpected network request in installed-package smoke: " + url);
 };
@@ -245,11 +259,11 @@ globalThis.fetch = async (input) => {
   };
   await writeFile(fixturePath, JSON.stringify(oldFixture));
 
-  function runInstalledIngest() {
+  function runInstalledIngest(serverEnv = env) {
     const result = spawnSync(
       process.execPath,
       [...nodeArgs, join(packageRoot, "dist", "ingest.js")],
-      { cwd: consumer, env, encoding: "utf8", timeout: 10_000 },
+      { cwd: consumer, env: serverEnv, encoding: "utf8", timeout: 10_000 },
     );
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, "", "The ingestion CLI must keep diagnostics on stderr.");
@@ -273,6 +287,290 @@ globalThis.fetch = async (input) => {
   const readPointer = async () => JSON.parse(await readFile(join(dataDir, "current.json"), "utf8"));
   const readFetches = async () =>
     (await readFile(fetchTracePath, "utf8")).trim().split("\n").map(JSON.parse);
+
+  async function treeState(directory) {
+    let info;
+    try {
+      info = await stat(directory);
+    } catch (error) {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    }
+    return {
+      modified: info.mtimeMs,
+      ...(info.isDirectory()
+        ? {
+            children: Object.fromEntries(
+              await Promise.all(
+                (await readdir(directory))
+                  .sort()
+                  .map(async (name) => [name, await treeState(join(directory, name))]),
+              ),
+            ),
+          }
+        : {
+            size: info.size,
+            hash: createHash("sha256")
+              .update(await readFile(directory))
+              .digest("hex"),
+          }),
+    };
+  }
+
+  // Setup and doctor execute through the installed CLI, with poisoned secret
+  // values and the same deterministic network trap as production bootstrap.
+  const secret = "package-smoke-secret-do-not-print";
+  const setupRoot = join(temp, "setup data");
+  const setupEnv = {
+    ...env,
+    MCP_DATA_DIR: setupRoot,
+    MCP_BULK_INTERVAL_MS: String(12 * 60 * 60 * 1000),
+    OPENAI_API_KEY: secret,
+    MCP_API_KEY: secret,
+  };
+  function runOperation(command, expectedCode, operationEnv = setupEnv) {
+    const result = spawnSync(process.execPath, [...nodeArgs, entry, command], {
+      cwd: consumer,
+      env: operationEnv,
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    assert.equal(result.status, expectedCode, `${command}: ${result.stdout}\n${result.stderr}`);
+    assert(!`${result.stdout}${result.stderr}`.includes(secret), `${command} leaked a secret`);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.command, command);
+    assert.equal(report.exitCode, expectedCode);
+    assert.equal(report.paths.dataRoot, operationEnv.MCP_DATA_DIR);
+    assert.equal(
+      report.status,
+      expectedCode === 0 ? "ready" : expectedCode === 2 ? "needs_action" : "error",
+    );
+    return report;
+  }
+  async function doctor(expectedCode, operationEnv = setupEnv) {
+    const before = await treeState(operationEnv.MCP_DATA_DIR);
+    const networkBefore = await treeState(fetchTracePath);
+    const report = runOperation("doctor", expectedCode, operationEnv);
+    assert.deepEqual(
+      await treeState(operationEnv.MCP_DATA_DIR),
+      before,
+      "Doctor changed local data",
+    );
+    assert.deepEqual(
+      await treeState(fetchTracePath),
+      networkBefore,
+      "Doctor made a network request",
+    );
+    return report;
+  }
+  await doctor(2);
+  const setupNetwork = await treeState(fetchTracePath);
+  const firstSetup = runOperation("setup", 0);
+  assert(firstSetup.clientConfig, "Setup must provide client configuration");
+  const configuredServers = Object.values(firstSetup.clientConfig.mcpServers);
+  assert.equal(configuredServers.length, 1);
+  assert.deepEqual(
+    configuredServers[0],
+    {
+      command: process.execPath,
+      args: [await realpath(entry), "--stdio"],
+      env: { MCP_DATA_DIR: setupRoot },
+    },
+    "Setup configuration must use the installed entrypoint and only the required data directory",
+  );
+  const setupState = await treeState(setupRoot);
+  runOperation("setup", 0);
+  // Opening and closing SQLite can change the root mtime via temporary sidecars.
+  assert.deepEqual(
+    (await treeState(setupRoot)).children,
+    setupState.children,
+    "Repeated setup must preserve initialized storage",
+  );
+  assert.deepEqual(
+    await treeState(fetchTracePath),
+    setupNetwork,
+    "Setup must not download card data",
+  );
+  await doctor(2); // Setup prepares storage; the user explicitly starts the download.
+  const freshTime = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  await writeFile(
+    fixturePath,
+    JSON.stringify({
+      ...oldFixture,
+      snapshot: freshTime.slice(0, 10),
+      updatedAt: freshTime,
+    }),
+  );
+  runInstalledIngest(setupEnv);
+  await doctor(0);
+  await doctor(2, { ...setupEnv, MCP_BULK_INTERVAL_MS: "1" });
+  const setupPointer = JSON.parse(await readFile(join(setupRoot, "current.json"), "utf8"));
+  const setupIndex = join(setupRoot, "versions", setupPointer.version, "index.sqlite");
+  const validIndex = await readFile(setupIndex);
+  await writeFile(setupIndex, "deliberately corrupt card index");
+  await doctor(1);
+  await writeFile(setupIndex, validIndex);
+  await writeFile(join(setupRoot, "user-data.sqlite"), "deliberately corrupt user data");
+  await doctor(1);
+
+  async function ingestToPhase(server, phase) {
+    const started = await server.callTool({ name: "data_ingest", arguments: {} });
+    assert(!started.isError, JSON.stringify(started));
+    assert.equal(started.structuredContent.started, true);
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const result = await server.callTool({ name: "data_status", arguments: {} });
+      assert(!result.isError, JSON.stringify(result));
+      const status = result.structuredContent;
+      if (status.ingest.phase === phase) {
+        assert.equal(status.ingest.running, false);
+        assert.equal(status.has_index, phase === "done");
+        return status;
+      }
+      assert.notEqual(status.ingest.phase, "error", JSON.stringify(status.ingest));
+      await delay(20);
+    }
+    assert.fail(`Installed ingest never reached ${phase}`);
+  }
+
+  async function expectFirstActivation(server) {
+    const names = (await server.listTools()).tools.map((tool) => tool.name);
+    assert(names.includes("card_search"), "Connected first-run client must discover card_search");
+    const search = await server.callTool({
+      name: "card_search",
+      arguments: { query: "t:artifact" },
+    });
+    assert(!search.isError, JSON.stringify(search));
+    assert.equal(search.structuredContent.data_snapshot, oldFixture.snapshot);
+    assert.deepEqual(
+      search.structuredContent.results.map((card) => card.oracle_id),
+      [oracleId],
+    );
+    await expectInstalledCard(server, oldFixture);
+    const card = await server.readResource({ uri: `card://${oracleId}` });
+    assert.equal(JSON.parse(card.contents[0].text).name, oldFixture.card.name);
+    assert(
+      (await server.listPrompts()).prompts.some((prompt) => prompt.name === "build_commander_deck"),
+    );
+    const prompt = await server.getPrompt({
+      name: "build_commander_deck",
+      arguments: { commander: oldFixture.card.name },
+    });
+    assert(JSON.stringify(prompt.messages).includes(oldFixture.card.name));
+    const created = await server.callTool({
+      name: "deck_create",
+      arguments: { name: "First activation" },
+    });
+    assert(!created.isError, JSON.stringify(created));
+    const added = await server.callTool({
+      name: "deck_add",
+      arguments: { deck_id: created.structuredContent.deck_id, cards: oldFixture.card.name },
+    });
+    assert(!added.isError, JSON.stringify(added));
+    const deck = await server.callTool({
+      name: "deck_get",
+      arguments: { deck_id: created.structuredContent.deck_id },
+    });
+    assert.equal(deck.structuredContent.deck.cards[0].oracle_id, oracleId);
+  }
+
+  async function firstRun(server, directory, interrupt = false) {
+    assert.equal(
+      (await server.callTool({ name: "data_status", arguments: {} })).structuredContent.has_index,
+      false,
+    );
+    if (interrupt) {
+      await writeFile(fixturePath, JSON.stringify({ ...oldFixture, interrupt: "error" }));
+      await ingestToPhase(server, "error");
+      assert.equal(
+        await treeState(join(directory, "current.json")),
+        null,
+        "Failed ingest published a pointer",
+      );
+    }
+    await writeFile(fixturePath, JSON.stringify(oldFixture));
+    const status = await ingestToPhase(server, "done");
+    assert.equal(status.data_snapshot, oldFixture.snapshot);
+    await expectFirstActivation(server);
+  }
+
+  const firstRoot = join(temp, "first stdio ingest");
+  const firstClient = await connect(nodeArgs, { ...env, MCP_DATA_DIR: firstRoot });
+  try {
+    await firstRun(firstClient, firstRoot, true);
+  } finally {
+    await firstClient.close();
+  }
+
+  const killedRoot = join(temp, "interrupted first ingest");
+  await writeFile(fixturePath, JSON.stringify({ ...oldFixture, interrupt: "hold" }));
+  const killedClient = await connect(nodeArgs, { ...env, MCP_DATA_DIR: killedRoot });
+  try {
+    const started = await killedClient.callTool({ name: "data_ingest", arguments: {} });
+    assert.equal(started.structuredContent.started, true);
+    const deadline = Date.now() + 10_000;
+    let partial = false;
+    while (Date.now() < deadline) {
+      const state = await treeState(join(killedRoot, "versions"));
+      partial = Object.values(state?.children ?? {}).some(
+        (version) => version.children?.["oracle_cards.jsonl"]?.size > 0,
+      );
+      if (partial) break;
+      await delay(20);
+    }
+    assert(partial, "SIGKILL must occur during a staged download");
+    const status = await killedClient.callTool({ name: "data_status", arguments: {} });
+    assert.equal(status.structuredContent.ingest.running, true);
+    assert.equal(status.structuredContent.has_index, false);
+    assert.equal(await treeState(join(killedRoot, "current.json")), null);
+    await killImmediately(killedClient);
+  } finally {
+    await killedClient.close();
+  }
+  const retryClient = await connect(nodeArgs, { ...env, MCP_DATA_DIR: killedRoot });
+  try {
+    // No cleanup of the interrupted stage before retrying the normal tool.
+    await firstRun(retryClient, killedRoot);
+  } finally {
+    await retryClient.close();
+  }
+
+  const httpRoot = join(temp, "first http ingest");
+  const httpProcess = spawn(process.execPath, [...nodeArgs, entry, "--http"], {
+    cwd: consumer,
+    env: { ...env, MCP_DATA_DIR: httpRoot, MCP_HTTP_HOST: "127.0.0.1", MCP_HTTP_PORT: "0" },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let httpOutput = "";
+  httpProcess.stdout.on("data", (chunk) => {
+    httpOutput += chunk.toString();
+  });
+  httpProcess.stderr.on("data", (chunk) => {
+    httpOutput += chunk.toString();
+  });
+  const httpExited = new Promise((resolve) => httpProcess.once("exit", resolve));
+  const httpClient = new Client({ name: "package-http-smoke", version: "1.0.0" });
+  try {
+    const deadline = Date.now() + 10_000;
+    let endpoint;
+    while (Date.now() < deadline) {
+      endpoint = httpOutput.match(/http:\/\/127\.0\.0\.1:\d+\/mcp/)?.[0];
+      if (endpoint) break;
+      assert.equal(httpProcess.exitCode, null, httpOutput);
+      await delay(20);
+    }
+    assert(endpoint, `Installed HTTP server did not listen: ${httpOutput}`);
+    await httpClient.connect(new StreamableHTTPClientTransport(new URL(endpoint)), {
+      timeout: 10_000,
+    });
+    await firstRun(httpClient, httpRoot, true);
+  } finally {
+    await httpClient.close();
+    httpProcess.kill("SIGKILL");
+    await httpExited;
+  }
+
+  await writeFile(fixturePath, JSON.stringify(oldFixture));
   assert.match(runInstalledIngest(), /Done: 1 cards, 1 printings/);
   const firstPointer = await readPointer();
   const firstHashes = await versionHashes(firstPointer.version);
@@ -460,7 +758,7 @@ globalThis.fetch = async (input) => {
   }
   assert.deepEqual(await versionHashes(firstPointer.version), firstHashes);
   console.log(
-    "Package smoke passed: clean install, native SQLite, help/version, stdio, resources, durable decks/collections/snapshots after SIGKILL, explicit corrupted-store recovery, offline refresh CLI, unchanged reuse, hot activation, and refreshed restart.",
+    "Package smoke passed: clean install, native SQLite, help/version, idempotent setup, read-only doctor, first-ingest activation over connected stdio and HTTP, interrupted download retries, resources/prompts/name resolution, durable decks/collections/snapshots after SIGKILL, explicit corrupted-store recovery, offline refresh CLI, unchanged reuse, hot activation, and refreshed restart.",
   );
 } finally {
   await rm(temp, { recursive: true, force: true, maxRetries: 3 });

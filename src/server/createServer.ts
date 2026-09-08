@@ -9,12 +9,12 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, type RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
 import { CollectionStore } from "../collection/index.js";
 import { CacheStore, EdhrecClient, SpellbookClient, GameChangersClient } from "../meta/index.js";
-import { registerTools, type ToolDefinition } from "./registry.js";
+import { registerTool, registerTools, type ToolDefinition } from "./registry.js";
 import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { BUILTIN_TOOLS } from "./tools.js";
 import { makeCardTools } from "./cardTools.js";
@@ -24,6 +24,7 @@ import { makeValidateTools } from "./validateTools.js";
 import { makeAnalyzeTools } from "./analyzeTools.js";
 import { makeMetaTools } from "./metaTools.js";
 import { IngestRunner, makeDataTools, type StalenessProvider } from "./dataTools.js";
+import type { CardDataSource } from "./cardData.js";
 import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
 
@@ -61,6 +62,8 @@ export interface CreateServerOptions {
   snapshot?: SnapshotProvider;
   /** When provided, the card-knowledge tools (§5A) + card:// resource use it. */
   index?: CardIndex;
+  /** Shared live source: installs first-ingest capabilities without restarting. */
+  cardData?: CardDataSource;
   /** When provided, the deck:// resource + subscription updates use it. */
   deckStore?: DeckStore;
   /** Owned-card collection (spec §12); default-constructed so the collection_* tools always exist. */
@@ -95,52 +98,44 @@ export interface CreateServerOptions {
 /** Construct a fully wired (but not yet connected) MCP server. */
 export function createServer(options: CreateServerOptions = {}): McpServer {
   const snapshot = options.snapshot ?? staticSnapshotProvider();
-  // Per-principal deck scope; card data is shared read-only across sessions.
   const session = options.session ?? "local";
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  // Optional owned-card collection (spec §12); off by default — card_search only
-  // consults it on owned_only. Default-constructed so collection_* always exist.
+  const source = options.cardData;
+  const index = source ? source.index : options.index;
   const collection = options.collection ?? new CollectionStore();
-  // Resources (capabilities) must be registered before the transport connects.
-  registerResources(server, {
-    index: options.index,
-    deckStore: options.deckStore,
-    collection: options.index ? collection : undefined,
-    session,
-    subscriptions: options.resourceSubscriptions,
-  });
-  // Workflow prompts (ergo-prompts): only meaningful when decks can be built.
-  if (options.index && options.deckStore) {
-    registerPrompts(server);
-  }
-  const cardTools = options.index ? makeCardTools(options.index, collection, session) : [];
-  const collectionTools = options.index
-    ? makeCollectionTools(collection, options.index, session)
-    : [];
-  const deckTools = options.deckStore
-    ? makeDeckTools(options.deckStore, options.index, snapshot, session)
-    : [];
-  // Validation tools need both a deck store (to read decks) and an index (to look up cards).
-  const validateTools =
-    options.deckStore && options.index
-      ? makeValidateTools(options.deckStore, options.index, session)
-      : [];
-  const analyzeTools =
-    options.deckStore && options.index
-      ? makeAnalyzeTools(options.deckStore, options.index, session, collection)
-      : [];
-  // Enrichment needs the index (name resolution) + deck store (deck context).
   const edhrec = options.edhrec ?? new EdhrecClient(new CacheStore());
   const spellbook = options.spellbook ?? new SpellbookClient(new CacheStore());
   const gameChangers = options.gameChangers ?? new GameChangersClient(new CacheStore());
-  const metaTools =
-    options.deckStore && options.index
-      ? makeMetaTools(options.deckStore, options.index, edhrec, spellbook, gameChangers, session)
-      : [];
-  // Data-lifecycle tools are registered unconditionally — they are the path OUT
-  // of the no-index state, so they cannot be gated on the index existing.
+
+  // SDK capabilities cannot first be registered after a transport connects.
+  // Resource templates read the live source; workflow prompts stay disabled
+  // until their indexed tools have been installed.
+  registerResources(server, {
+    index,
+    getIndex: source ? () => source.index : undefined,
+    deckStore: options.deckStore,
+    collection: index || source ? collection : undefined,
+    session,
+    subscriptions: options.resourceSubscriptions,
+  });
+  const prompts =
+    options.deckStore && (index || source) ? registerPrompts(server, Boolean(index)) : [];
+  const deckTools = options.deckStore
+    ? makeDeckTools(options.deckStore, index, snapshot, session)
+    : [];
+  const indexedTools = (current: CardIndex): ToolDefinition[] => [
+    ...makeCardTools(current, collection, session),
+    ...makeCollectionTools(collection, current, session),
+    ...(options.deckStore
+      ? [
+          ...makeValidateTools(options.deckStore, current, session),
+          ...makeAnalyzeTools(options.deckStore, current, session, collection),
+          ...makeMetaTools(options.deckStore, current, edhrec, spellbook, gameChangers, session),
+        ]
+      : []),
+  ];
   const dataTools = makeDataTools({
-    hasIndex: Boolean(options.index),
+    hasIndex: () => Boolean(source ? source.index : index),
     runner: options.ingest ?? new IngestRunner(),
     staleness: options.staleness,
   });
@@ -149,15 +144,55 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     [
       ...BUILTIN_TOOLS,
       ...dataTools,
-      ...cardTools,
-      ...collectionTools,
       ...deckTools,
-      ...validateTools,
-      ...analyzeTools,
-      ...metaTools,
+      ...(index ? indexedTools(index) : []),
       ...(options.tools ?? []),
     ],
     snapshot,
   );
+
+  if (source && !index) {
+    const unsubscribe = source.onReady((firstIndex) => {
+      const registered: RegisteredTool[] = [];
+      try {
+        const replacements = options.deckStore
+          ? makeDeckTools(options.deckStore, firstIndex, snapshot, session)
+          : [];
+        // Prepare every fallible SDK registration before publishing the snapshot.
+        // Calls are behind the snapshot barrier; disabled tools stay out of lists.
+        for (const def of indexedTools(firstIndex)) {
+          const handle = registerTool(server, def, snapshot);
+          registered.push(handle);
+          handle.disable();
+        }
+        return {
+          commit() {
+            // Registry wrappers read these definition objects at invocation time.
+            // Keep the original registered deck tools, now bound to the live index.
+            // makeDeckTools always returns the same fixed catalog in the same
+            // order, with or without an index, so both entries exist at every i.
+            for (let i = 0; i < deckTools.length; i += 1) {
+              deckTools[i]!.handler = replacements[i]!.handler;
+            }
+            for (const handle of registered) handle.enable();
+            for (const prompt of prompts) prompt.enable();
+          },
+          dispose() {
+            for (const handle of registered) handle.remove();
+          },
+        };
+      } catch (error) {
+        for (const handle of registered) handle.remove();
+        throw error;
+      }
+    });
+    // Stateless HTTP creates one server per request, so closed requests must
+    // never retain a subscription in the shared source while ingest runs.
+    const previousOnClose = server.server.onclose?.bind(server.server);
+    server.server.onclose = () => {
+      unsubscribe();
+      previousOnClose?.();
+    };
+  }
   return server;
 }

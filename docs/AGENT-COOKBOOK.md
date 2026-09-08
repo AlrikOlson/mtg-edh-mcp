@@ -8,9 +8,13 @@ tool descriptions include USE / NOT / FLOW / ARGS / RETURNS guidance.
 ## Start a session
 
 Call `data_status` to confirm `has_index: true`, then `deck_list` to find
-existing builds. If there is no index, follow the
-[first-run flow](./INSTALL.md#starting-without-an-index). Avoid creating a new
-deck every time the conversation resumes.
+existing builds. If there is no index, call `data_ingest`, poll `data_status`
+until ingestion is `done` and `has_index: true`, then request `tools/list`
+again. You can search and build on the same connection; no restart is needed.
+An `error` is retryable after addressing its reported cause. See the
+[first-run flow](./INSTALL.md#starting-without-an-index) and the read-only
+`doctor` command for diagnostics. Avoid creating a new deck every time the
+conversation resumes.
 
 Structured tool results include `data_snapshot`, the date of the underlying
 card-data snapshot. Read `structuredContent`, not only the short text summary.

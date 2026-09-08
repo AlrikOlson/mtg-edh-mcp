@@ -29,10 +29,49 @@ node dist/main.js --help
 This creates the server executable at `dist/main.js` and the one-shot data
 ingestion command at `dist/ingest.js`.
 
-## 2. Download card data
+## 2. Set up a data directory
 
 Choose a writable, persistent directory. Use the **same absolute directory**
-for ingestion and for your MCP client's server configuration.
+for setup, ingestion, diagnostics, and your MCP client's server configuration.
+
+macOS / Linux:
+
+```sh
+export MCP_DATA_DIR="$HOME/.mtg-edh-mcp/cards"
+node dist/main.js setup
+node dist/main.js doctor
+```
+
+PowerShell:
+
+```powershell
+$env:MCP_DATA_DIR = Join-Path $env:USERPROFILE ".mtg-edh-mcp/cards"
+node dist/main.js setup
+node dist/main.js doctor
+```
+
+An installed executable accepts `mtg-edh-mcp setup` and `mtg-edh-mcp doctor`.
+Setup initializes local user storage and prints JSON containing a client
+configuration with absolute Node, executable, and data paths. Copy that entry
+into your client's configuration, preserving its other entries. Setup is safe
+to rerun; it preserves saved decks and collections and does not download card
+data or edit client configuration files.
+
+Doctor prints read-only JSON diagnostics for the supported Node runtime,
+native SQLite, resolved paths, permissions, index readiness, and freshness.
+It does not initialize storage, download data, or repair files. Exit codes are
+`0` for ready and fresh, `2` for setup/ingestion/refresh needed, and `1` for
+a runtime, permission, or damaged-data problem. Follow each reported fix.
+On a new directory, exit `2` is expected until card ingestion succeeds.
+Database validation uses detached in-memory copies. If SQLite has pending
+journal data, doctor asks you to stop the server cleanly and rerun; it never
+checkpoints or repairs the live database. Allow enough memory for the index
+copy when running these diagnostics.
+
+### Download card data
+
+You can connect a client immediately and use the
+[first-run flow](#starting-without-an-index), or download from the terminal:
 
 macOS / Linux:
 
@@ -104,10 +143,18 @@ The server can start without card data, but card search, validation, analysis,
 collection tools, and workflow prompts will be unavailable. `data_status` and
 `data_ingest` remain available for onboarding.
 
-Call `data_ingest`, then poll `data_status` until `ingest.phase` is `done` or
-`error`. After the **first-ever** ingest, restart the server process so it
-opens the new index and registers the full tool catalog. Reconnecting to an
-already running HTTP process is not sufficient.
+Call `data_ingest`, then poll `data_status`. Progress reports download/build
+phases rather than a percentage. When `ingest.phase` is `done` and
+`has_index: true`, call `tools/list` again and use `card_search`. The same
+stdio connection or running HTTP server now serves the index, full tool catalog,
+card and collection resources, and workflow prompts. No restart or reconnect
+is required. stdio clients receive catalog-change notifications; stateless
+HTTP clients discover the new catalog by requesting it again.
+
+If `ingest.phase` is `error`, follow the reported fix and call `data_ingest`
+again. An interrupted first download is also retryable after restarting the
+terminated process: incomplete attempts are retained, and each retry uses a
+new staging directory. No manual lock or partial-file cleanup is needed.
 
 ## Configuration
 
@@ -146,11 +193,10 @@ boundary; see [Security](../SECURITY.md).
 ## Updates and storage
 
 The background scheduler checks Scryfall freshness at startup and periodically.
-Servers that started with an index activate a successfully refreshed index and
-its `data_snapshot` together before ingestion reports `done`. In-flight tool
+Servers activate the first successful index and later refreshes together with
+their `data_snapshot` before ingestion reports `done`. In-flight tool
 calls finish on their original snapshot; new calls briefly wait during activation.
 `data_status` and the scheduler measure the data this process actually serves.
-A server with no index still needs a restart after its first successful ingest.
 
 For a manual update, call `data_ingest` through your client. Alternatively,
 stop the server and run the ingestion command again with the same data
@@ -289,7 +335,7 @@ versions that still use the old publication path; stop those before upgrading.
 | Symptom                                         | Check                                                                                                                                      |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `node` not found in the client                  | Use an absolute Node executable path. On macOS / Linux, `command -v node` prints it. GUI applications may not inherit your shell's PATH.   |
-| Missing card tools or `has_index: false`        | Confirm ingestion finished and both processes use the same absolute `MCP_DATA_DIR`; restart the server after its first ingest.             |
+| Missing card tools or `has_index: false`        | Run `doctor`, confirm `data_status` reports readiness and the same absolute `MCP_DATA_DIR`, then request `tools/list` again.               |
 | SQLite native-module installation or ABI error  | Use Node 24 and run `npm ci` again after changing Node versions. Install a native build toolchain if your platform has no prebuilt binary. |
 | Download failure                                | Check network access, writable storage, and free disk space; retry ingestion and inspect stderr for the upstream error.                    |
 | A deck disappears after restarting              | Verify the data directory and principal namespace; inspect `STORAGE_ERROR` guidance and the user-data restore procedure above.             |

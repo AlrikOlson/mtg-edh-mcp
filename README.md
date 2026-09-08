@@ -39,8 +39,16 @@ git clone https://github.com/AlrikOlson/mtg-edh-mcp.git
 cd mtg-edh-mcp
 npm ci
 npm run build
-MCP_DATA_DIR="$HOME/.mtg-edh-mcp/cards" npm run ingest
+export MCP_DATA_DIR="$HOME/.mtg-edh-mcp/cards"
+node dist/main.js setup
+npm run ingest
+node dist/main.js doctor
 ```
+
+`setup` safely initializes local storage and prints a client configuration with
+absolute paths. `doctor` reports readiness and actionable fixes without changing
+files. You can also connect before downloading and use `data_ingest`; indexed
+tools become available on the same connection when ingestion finishes.
 
 Add the server to your MCP client's local **stdio** configuration. This is the
 `mcpServers` format used by Claude Desktop and other compatible clients:

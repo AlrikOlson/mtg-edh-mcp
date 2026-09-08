@@ -2,6 +2,8 @@
 export type CliOptions =
   | { mode: "help" }
   | { mode: "version" }
+  | { mode: "setup" }
+  | { mode: "doctor" }
   | { mode: "restore-user-data"; backupPath: string }
   | { mode: "serve"; transport: "stdio" | "http"; port: number; host: string };
 
@@ -11,6 +13,13 @@ export function parseCli(
 ): CliOptions {
   if (argv.includes("--help") || argv.includes("-h")) return { mode: "help" };
   if (argv.includes("--version") || argv.includes("-v")) return { mode: "version" };
+  if (argv[0] === "setup" || argv[0] === "doctor") {
+    if (argv.length !== 1) throw new Error(`Usage: mtg-edh-mcp ${argv[0]}`);
+    if (env.MCP_DATA_DIR !== undefined && env.MCP_DATA_DIR.trim() === "") {
+      throw new Error("MCP_DATA_DIR must be a non-empty directory path.");
+    }
+    return { mode: argv[0] };
+  }
   if (argv[0] === "restore-user-data") {
     if (argv.length !== 2 || !argv[1]?.trim() || argv[1].startsWith("-")) {
       throw new Error(
@@ -62,6 +71,8 @@ export const CLI_HELP = `mtg-edh-mcp — Commander deckbuilding for MCP clients
 Usage: mtg-edh-mcp [--stdio | --http]
        mtg-edh-mcp --help
        mtg-edh-mcp --version
+       mtg-edh-mcp setup
+       mtg-edh-mcp doctor
        mtg-edh-mcp restore-user-data <backup-path>
 
 Options:
@@ -86,7 +97,15 @@ Recovery:
 First run:
   npm ci
   npm run build
-  MCP_DATA_DIR=/absolute/path/to/data npm run ingest
+  MCP_DATA_DIR=/absolute/path/to/data node dist/main.js setup
+  Add the emitted clientConfig to your MCP client, then call data_ingest.
+  Alternatively: MCP_DATA_DIR=/absolute/path/to/data npm run ingest
+
+Diagnostics:
+  setup initializes durable storage without downloading card data and prints
+  client configuration JSON. Existing data and client settings are preserved.
+  doctor prints a read-only JSON report; it never downloads, migrates or repairs.
+  Doctor exit codes: 0 ready, 2 action needed (setup/ingest/refresh), 1 broken.
 
 Start this process from your MCP client's configuration. Server diagnostics go
 to stderr; stdout is reserved for MCP messages. HTTP is unauthenticated and

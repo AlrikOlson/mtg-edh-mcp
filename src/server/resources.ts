@@ -21,6 +21,8 @@ import type { CollectionStore } from "../collection/index.js";
 
 export interface ResourceDeps {
   index?: CardIndex;
+  /** Live first-run source; declares resource capabilities before connecting. */
+  getIndex?: () => CardIndex | undefined;
   deckStore?: DeckStore;
   collection?: CollectionStore;
   session?: string;
@@ -36,7 +38,7 @@ function firstVar(value: string | string[] | undefined): string {
 export function registerResources(server: McpServer, deps: ResourceDeps): void {
   const { index, deckStore, collection, session = "local", subscriptions = true } = deps;
 
-  if (index) {
+  if (index || deps.getIndex) {
     server.registerResource(
       "card",
       new ResourceTemplate("card://{oracle_id}", { list: undefined }),
@@ -47,7 +49,7 @@ export function registerResources(server: McpServer, deps: ResourceDeps): void {
       },
       (uri, variables) => {
         const oracleId = firstVar(variables.oracle_id);
-        const card = index.getCard(oracleId);
+        const card = (deps.getIndex?.() ?? index)?.getCard(oracleId);
         if (!card) throw new StructuredError("UNKNOWN_CARD", `unknown oracle_id '${oracleId}'`);
         return {
           contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(card) }],
@@ -119,12 +121,15 @@ export function registerResources(server: McpServer, deps: ResourceDeps): void {
           throw new McpError(ErrorCode.InvalidParams, "Unknown collection resource");
         }
         const owned = [...collection.get(session)];
+        const currentIndex = deps.getIndex?.() ?? index;
         const body = {
           session: sessionId,
           owned_count: owned.length,
           owned,
-          ...(index
-            ? { cards: owned.map((id) => ({ oracle_id: id, name: index.getCard(id)?.name })) }
+          ...(currentIndex
+            ? {
+                cards: owned.map((id) => ({ oracle_id: id, name: currentIndex.getCard(id)?.name })),
+              }
             : {}),
         };
         return {

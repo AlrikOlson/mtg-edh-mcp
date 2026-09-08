@@ -10,7 +10,7 @@
  * as numeric strings.
  */
 import { z } from "zod";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer, RegisteredPrompt } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 /** A data-first prompt definition: config for prompts/list, build() for prompts/get. */
 export interface PromptDefinition {
@@ -118,15 +118,21 @@ export const PROMPT_DEFINITIONS: readonly PromptDefinition[] = [
 ];
 
 /** Register the prompt catalog against the server. */
-export function registerPrompts(server: McpServer): void {
-  for (const def of PROMPT_DEFINITIONS) {
-    server.registerPrompt(def.name, def.config, (args: Record<string, string | undefined>) => ({
-      messages: [
-        {
-          role: "user" as const,
-          content: { type: "text" as const, text: def.build(args ?? {}) },
-        },
-      ],
-    }));
-  }
+export function registerPrompts(server: McpServer, enabled = true): RegisteredPrompt[] {
+  return PROMPT_DEFINITIONS.map((def) => {
+    const registered = server.registerPrompt(
+      def.name,
+      def.config,
+      (args: Record<string, string | undefined>) => ({
+        messages: [
+          {
+            role: "user" as const,
+            content: { type: "text" as const, text: def.build(args ?? {}) },
+          },
+        ],
+      }),
+    );
+    if (!enabled) registered.disable();
+    return registered;
+  });
 }

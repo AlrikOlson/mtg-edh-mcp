@@ -23,12 +23,16 @@ import { CollectionStore } from "../collection/collectionStore.js";
 import { StructuredError } from "../types/errors.js";
 import type { UserDataDriver } from "./driver.js";
 
-const DATABASE_NAME = "user-data.sqlite";
+export const USER_DATA_DATABASE_NAME = "user-data.sqlite";
+const DATABASE_NAME = USER_DATA_DATABASE_NAME;
 const SCHEMA_VERSION = 1;
 const BACKUP_PATTERN = /^user-data-\d{17}-[\da-f-]+\.sqlite$/;
 const collectionSchema = z.array(z.string().min(1));
 const textRow = z.object({ payload: z.string() });
-const collectionRow = z.object({ session_id: z.string().min(1), payload: z.string() });
+const collectionRow = z.object({
+  session_id: z.string().min(1),
+  payload: z.string(),
+});
 
 export interface UserDataStoreOptions {
   /** Failure injection at the final pre-commit boundary, for durability tests. */
@@ -81,7 +85,9 @@ function writeAtomic(path: string, bytes: Uint8Array): void {
 
 /** Shared schema read keeps a real SHARED lock until close; no per-startup DDL. */
 function openCoordination(root: string, exclusive: boolean): Database.Database {
-  const db = new Database(join(root, "user-data-lock.sqlite"), { timeout: 1000 });
+  const db = new Database(join(root, "user-data-lock.sqlite"), {
+    timeout: 1000,
+  });
   try {
     db.pragma("journal_mode = DELETE");
     db.exec(exclusive ? "BEGIN EXCLUSIVE" : "BEGIN; SELECT count(*) FROM sqlite_schema");
@@ -94,7 +100,9 @@ function openCoordination(root: string, exclusive: boolean): Database.Database {
 
 /** RESERVED serializes initializers while remaining compatible with live SHARED leases. */
 function openStartupGate(root: string): Database.Database {
-  const db = new Database(join(root, "user-data-lock.sqlite"), { timeout: 5000 });
+  const db = new Database(join(root, "user-data-lock.sqlite"), {
+    timeout: 5000,
+  });
   try {
     db.exec("BEGIN IMMEDIATE");
     return db;
@@ -114,7 +122,7 @@ function loadDecks(db: Database.Database): DeckStoreDump {
   return parseDeckStoreDump(JSON.parse(row.payload));
 }
 
-function validateDatabase(db: Database.Database): void {
+export function validateUserDataDatabase(db: Database.Database): void {
   if (db.pragma("user_version", { simple: true }) !== SCHEMA_VERSION)
     throw new Error("unsupported or incomplete user-data schema; select a backup to restore");
   if (db.pragma("integrity_check", { simple: true }) !== "ok")
@@ -337,7 +345,7 @@ export class UserDataStore {
           db?.pragma(`user_version = ${SCHEMA_VERSION}`);
         }).immediate();
       }
-      validateDatabase(db);
+      validateUserDataDatabase(db);
       markInitialized(root);
       db.pragma("journal_mode = WAL");
       db.pragma("synchronous = FULL");
@@ -380,8 +388,11 @@ export class UserDataStore {
       const databasePath = join(root, DATABASE_NAME);
       if (resolve(backupPath) === resolve(databasePath))
         throw new Error("restore source must be a separate backup file");
-      backup = new Database(backupPath, { readonly: true, fileMustExist: true });
-      validateDatabase(backup);
+      backup = new Database(backupPath, {
+        readonly: true,
+        fileMustExist: true,
+      });
+      validateUserDataDatabase(backup);
       const bytes = backup.serialize();
       backup.close();
       backup = undefined;
@@ -409,7 +420,10 @@ export class UserDataStore {
       } finally {
         if (existsSync(staged)) unlinkSync(staged);
       }
-      return { restoredFrom: resolve(backupPath), ...(preservedPath ? { preservedPath } : {}) };
+      return {
+        restoredFrom: resolve(backupPath),
+        ...(preservedPath ? { preservedPath } : {}),
+      };
     } catch (error) {
       throw storageError(
         installed

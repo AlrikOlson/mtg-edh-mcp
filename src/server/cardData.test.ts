@@ -6,6 +6,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { BulkClient, VersionedStore } from "../ingest/index.js";
 import { refreshSnapshot } from "../index/refresh.js";
+import { DeckStore } from "../deck/index.js";
+import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { openCardData } from "./cardData.js";
 import { createServer } from "./createServer.js";
 import { startHttp } from "./http.js";
@@ -236,5 +238,174 @@ describe("served card-data activation", () => {
     } finally {
       data.index?.close();
     }
+  });
+});
+
+describe("first card-data activation", () => {
+  it.each(["memory", "http"] as const)(
+    "activates indexed tools, resources, prompts and existing deck handlers on connected %s",
+    async (transport) => {
+      const data = await openCardData(new VersionedStore(join(root, "empty")), client);
+      const deckStore = new DeckStore();
+      const options = {
+        cardData: data,
+        snapshot: data.snapshot.provider,
+        ingest: data.ingest,
+        staleness: data.staleness,
+        deckStore,
+      };
+      const server = createServer(options);
+      const mcp = new Client({ name: "first-ingest", version: "1" });
+      const changed = vi.fn();
+      mcp.setNotificationHandler(ToolListChangedNotificationSchema, changed);
+      let http: Awaited<ReturnType<typeof startHttp>> | undefined;
+      if (transport === "http") {
+        http = await startHttp({ ...options, port: 0 });
+        await mcp.connect(
+          new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${http.port}/mcp`)),
+        );
+      } else {
+        const [ct, st] = InMemoryTransport.createLinkedPair();
+        await server.connect(st);
+        await mcp.connect(ct);
+      }
+      try {
+        expect((await mcp.listTools()).tools.map((tool) => tool.name)).not.toContain("card_get");
+        expect(
+          (await mcp.callTool({ name: "data_status", arguments: {} })).structuredContent,
+        ).toMatchObject({ has_index: false, data_snapshot: "0000-00-00" });
+        expect(mcp.getServerCapabilities()).toMatchObject({
+          tools: { listChanged: true },
+          resources: { listChanged: true },
+          prompts: { listChanged: true },
+        });
+        expect((await mcp.listPrompts()).prompts).toEqual([]);
+        const created = await mcp.callTool({
+          name: "deck_create",
+          arguments: { name: "Before setup" },
+        });
+        const deckId = (created.structuredContent as { deck_id: string }).deck_id;
+        await mcp.callTool({ name: "data_ingest", arguments: {} });
+        await vi.waitFor(() => expect(data.ingest.status().phase).toBe("done"));
+        expect(data.index?.getCard("oracle")?.name).toBe("Old Card");
+        const names = (await mcp.listTools()).tools.map((tool) => tool.name);
+        expect(names).toContain("card_get");
+        expect(names).toContain("validate_deck");
+        expect(new Set(names).size).toBe(names.length);
+        expect(
+          (await mcp.callTool({ name: "data_status", arguments: {} })).structuredContent,
+        ).toMatchObject({ has_index: true, ingest: { phase: "done" }, data_snapshot: day });
+        expect(
+          (await mcp.callTool({ name: "card_get", arguments: { cards: "Old Card" } }))
+            .structuredContent,
+        ).toMatchObject({ cards: [{ name: "Old Card" }], data_snapshot: day });
+        const added = await mcp.callTool({
+          name: "deck_add",
+          arguments: { deck_id: deckId, cards: "Old Card" },
+        });
+        expect(added.structuredContent).toMatchObject({
+          failed: [],
+          verdicts: [{ oracle_id: "oracle", status: "ok" }],
+        });
+        const card = await mcp.readResource({ uri: "card://oracle" });
+        const resource = card.contents[0];
+        if (!resource || !("text" in resource)) throw new Error("Expected text card resource");
+        expect(JSON.parse(resource.text)).toMatchObject({ name: "Old Card" });
+        expect((await mcp.listPrompts()).prompts.length).toBeGreaterThan(0);
+        if (transport === "memory") expect(changed).toHaveBeenCalled();
+      } finally {
+        await mcp.close();
+        await server.close();
+        await http?.close();
+        data.index?.close();
+      }
+    },
+  );
+
+  it("includes a server created while first publication is awaiting I/O", async () => {
+    const emptyStore = new VersionedStore(join(root, "late-connection"));
+    const data = await openCardData(emptyStore, client);
+    let entered = () => {};
+    const publishing = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let finish = () => {};
+    const ready = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const publish = emptyStore.publish.bind(emptyStore);
+    vi.spyOn(emptyStore, "publish").mockImplementation(async (...args) => {
+      entered();
+      await ready;
+      await publish(...args);
+    });
+    data.ingest.start(false);
+    await publishing;
+    const server = createServer({ cardData: data, snapshot: data.snapshot.provider });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    const mcp = new Client({ name: "late-connection", version: "1" });
+    await mcp.connect(ct);
+    try {
+      finish();
+      await vi.waitFor(() => expect(data.ingest.status().phase).toBe("done"));
+      expect((await mcp.listTools()).tools.map((tool) => tool.name)).toContain("card_get");
+      expect(
+        (await mcp.callTool({ name: "card_get", arguments: { cards: "Old Card" } }))
+          .structuredContent,
+      ).toMatchObject({ cards: [{ name: "Old Card" }], data_snapshot: day });
+    } finally {
+      finish();
+      await mcp.close();
+      await server.close();
+      data.index?.close();
+    }
+  });
+
+  it("rolls back partial catalog preparation, keeps the install cold, and retries", async () => {
+    const emptyStore = new VersionedStore(join(root, "registration-failure"));
+    const data = await openCardData(emptyStore, client);
+    const server = createServer({ cardData: data, snapshot: data.snapshot.provider });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    const mcp = new Client({ name: "retry-registration", version: "1" });
+    await mcp.connect(ct);
+    const register = server.registerTool.bind(server);
+    const failure = vi.spyOn(server, "registerTool").mockImplementation((...args) => {
+      if (args[0] === "card_get") throw new Error("registration denied");
+      return register(args[0], args[1], args[2]);
+    });
+    try {
+      data.ingest.start(false);
+      await vi.waitFor(() => expect(data.ingest.status().phase).toBe("error"));
+      expect(data.ingest.status().error).toContain("registration denied");
+      expect(data.index).toBeUndefined();
+      expect(data.snapshot.get()).toBe("0000-00-00");
+      expect(await emptyStore.readPointer()).toBeNull();
+      expect((await mcp.listTools()).tools.map((tool) => tool.name)).not.toContain("card_search");
+      failure.mockRestore();
+      data.ingest.start(false);
+      await vi.waitFor(() => expect(data.ingest.status().phase).toBe("done"));
+      expect((await mcp.listTools()).tools.map((tool) => tool.name)).toContain("card_search");
+    } finally {
+      failure.mockRestore();
+      await mcp.close();
+      await server.close();
+      data.index?.close();
+    }
+  });
+
+  it("unsubscribes a cold server when its transport closes", async () => {
+    const unsubscribe = vi.fn();
+    const onReady = vi.fn(() => unsubscribe);
+    const server = createServer({ cardData: { index: undefined, onReady } });
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    await server.connect(st);
+    const mcp = new Client({ name: "closing", version: "1" });
+    await mcp.connect(ct);
+    await mcp.close();
+    expect(onReady).toHaveBeenCalledOnce();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    await server.close();
   });
 });

@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { parseCli } from "./cli.js";
 
 describe("command-line configuration", () => {
+  it.each(["setup", "doctor"])("selects %s without transport configuration", (mode) => {
+    expect(parseCli([mode], { MCP_TRANSPORT: "invalid" })).toEqual({ mode });
+    expect(() => parseCli([mode, "--http"], {})).toThrow("Usage:");
+    expect(() => parseCli([mode], { MCP_DATA_DIR: " " })).toThrow("MCP_DATA_DIR");
+  });
+
   it("selects explicit user-data recovery without requiring a valid transport", () => {
     expect(
       parseCli(["restore-user-data", "/safe backup/user-data.sqlite"], {

@@ -1,16 +1,25 @@
 /** Own the exact served generation, its provenance, and transactional activation. */
 import { BulkClient, VersionedStore } from "../ingest/index.js";
-import { freshnessConfigFromEnv } from "../index/index.js";
-import { openCurrentSnapshot, refreshSnapshot } from "../index/refresh.js";
+import { CardIndex, freshnessConfigFromEnv } from "../index/index.js";
+import { openCurrentSnapshot, refreshSnapshot, type PreparedActivation } from "../index/refresh.js";
 import { IngestRunner, type StalenessProvider } from "./dataTools.js";
 import { cachedSnapshotProvider } from "./snapshot.js";
+
+/** Live index state shared by all transports; first readiness is transactional. */
+export interface CardDataSource {
+  readonly index: CardIndex | undefined;
+  /** Prepare catalog changes before publication. Commit must only install prepared state. */
+  onReady(listener: (index: CardIndex) => PreparedActivation): () => void;
+}
 
 export async function openCardData(
   store: VersionedStore,
   makeClient: () => BulkClient = () => new BulkClient(),
 ) {
   const current = await openCurrentSnapshot(store);
-  const index = current?.index;
+  let index = current?.index;
+  const readyListeners = new Set<(index: CardIndex) => PreparedActivation>();
+  let pendingReady: { index: CardIndex; catalogs: PreparedActivation[] } | undefined;
   const snapshot = cachedSnapshotProvider(current?.snapshot);
   let servedVersion = current?.version;
   const freshness = freshnessConfigFromEnv();
@@ -20,32 +29,67 @@ export async function openCardData(
       client: makeClient(),
       force,
       onPhase,
-      prepareActivation: index
-        ? async (next) => {
-            const release = await snapshot.pause();
+      prepareActivation: async (next) => {
+        const release = await snapshot.pause();
+        let preparedIndex: PreparedActivation | undefined;
+        const catalogs: PreparedActivation[] = [];
+        const dispose = () => {
+          const errors: unknown[] = [];
+          for (const activation of [...catalogs].reverse().concat(preparedIndex ?? [])) {
             try {
-              const prepared = index.prepareReopen(next.dbPath);
-              return {
-                commit() {
-                  prepared.commit();
-                  snapshot.set(next.snapshot);
-                  servedVersion = next.version;
-                  release();
-                },
-                dispose() {
-                  try {
-                    prepared.dispose();
-                  } finally {
-                    release();
-                  }
-                },
-              };
+              activation.dispose();
             } catch (error) {
-              release();
-              throw error;
+              errors.push(error);
             }
           }
-        : undefined,
+          pendingReady = undefined;
+          release();
+          if (errors.length) throw new AggregateError(errors, "Snapshot activation cleanup failed");
+        };
+        try {
+          if (index) {
+            preparedIndex = index.prepareReopen(next.dbPath);
+          } else {
+            const firstIndex = CardIndex.open(next.dbPath);
+            preparedIndex = {
+              commit() {
+                index = firstIndex;
+              },
+              dispose() {
+                firstIndex.close();
+              },
+            };
+            // Servers may be created while store.publish awaits filesystem I/O.
+            // Include their preparations in this same pending commit.
+            pendingReady = { index: firstIndex, catalogs };
+            for (const listener of readyListeners) catalogs.push(listener(firstIndex));
+          }
+          const activatedIndex = preparedIndex;
+          return {
+            commit() {
+              activatedIndex.commit();
+              snapshot.set(next.snapshot);
+              servedVersion = next.version;
+              for (const activation of catalogs) activation.commit();
+              readyListeners.clear();
+              pendingReady = undefined;
+              release();
+            },
+            dispose,
+          };
+        } catch (error) {
+          try {
+            dispose();
+          } catch (cleanupError) {
+            throw new AggregateError(
+              [error, cleanupError],
+              "Snapshot activation preparation failed",
+              { cause: cleanupError },
+            );
+          }
+          throw error;
+        }
+      },
     });
     return {
       snapshot: result.snapshot,
@@ -66,5 +110,20 @@ export async function openCardData(
       stale: age !== null && age >= freshness.bulkIntervalMs,
     };
   };
-  return { index, snapshot, ingest, staleness, bulkAge };
+  return {
+    get index() {
+      return index;
+    },
+    onReady(listener: (index: CardIndex) => PreparedActivation) {
+      if (pendingReady) pendingReady.catalogs.push(listener(pendingReady.index));
+      readyListeners.add(listener);
+      return () => {
+        readyListeners.delete(listener);
+      };
+    },
+    snapshot,
+    ingest,
+    staleness,
+    bulkAge,
+  };
 }

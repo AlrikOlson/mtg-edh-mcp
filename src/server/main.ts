@@ -6,6 +6,7 @@
  * agents); set `MCP_TRANSPORT=http` (or pass `--http`) for hosted streamable
  * HTTP. `MCP_HTTP_PORT` / `MCP_HTTP_HOST` configure the HTTP bind.
  */
+import { fileURLToPath } from "node:url";
 import { VersionedStore } from "../ingest/index.js";
 import { DEFAULT_DATA_ROOT, freshnessConfigFromEnv } from "../index/index.js";
 import { UserDataStore } from "../storage/userData.js";
@@ -15,11 +16,12 @@ import { startStdio } from "./stdio.js";
 import { startHttp } from "./http.js";
 import { CLI_HELP, parseCli } from "./cli.js";
 import { SERVER_VERSION } from "./createServer.js";
+import { runDoctor, runSetup } from "./setup.js";
 
 /**
  * Read the real data_snapshot, open the current version's card index (if one has
  * been built), and open the transactional user-data store. When no index exists yet,
- * the card tools + card:// resource are simply not registered (ping still works).
+ * indexed tools activate when the first ingestion succeeds (ping still works).
  */
 async function boot() {
   const root = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
@@ -29,7 +31,11 @@ async function boot() {
     const data = await openCardData(store);
     process.once("exit", () => userData.close());
     return {
-      ...data,
+      cardData: data,
+      snapshot: data.snapshot,
+      ingest: data.ingest,
+      staleness: data.staleness,
+      bulkAge: data.bulkAge,
       deckStore: userData.deckStore,
       collection: userData.collection,
       store,
@@ -50,6 +56,17 @@ async function main(): Promise<void> {
     process.stdout.write(`${SERVER_VERSION}\n`);
     return;
   }
+  if (config.mode === "setup" || config.mode === "doctor") {
+    const options = {
+      env: process.env,
+      executable: process.execPath,
+      entrypoint: fileURLToPath(import.meta.url),
+    };
+    const report = config.mode === "setup" ? await runSetup(options) : await runDoctor(options);
+    process.stdout.write(`${JSON.stringify(report)}\n`);
+    process.exitCode = report.exitCode;
+    return;
+  }
   if (config.mode === "restore-user-data") {
     const root = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
     const result = UserDataStore.restore(root, config.backupPath);
@@ -58,7 +75,7 @@ async function main(): Promise<void> {
   }
   const {
     snapshot: cachedSnapshot,
-    index,
+    cardData,
     deckStore,
     collection,
     store,
@@ -80,7 +97,7 @@ async function main(): Promise<void> {
       port,
       host,
       snapshot,
-      index,
+      cardData,
       deckStore,
       collection,
       ingest,
@@ -99,7 +116,7 @@ async function main(): Promise<void> {
   } else {
     await startStdio({
       snapshot,
-      index,
+      cardData,
       deckStore,
       collection,
       ingest,

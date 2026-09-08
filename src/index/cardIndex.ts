@@ -195,7 +195,11 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
         is_game_changer: cols.is_game_changer,
         card: JSON.stringify(card),
       });
-      insertFts.run({ oracle_id: card.oracle_id, name: card.name, oracle_text: card.oracle_text });
+      insertFts.run({
+        oracle_id: card.oracle_id,
+        name: card.name,
+        oracle_text: card.oracle_text,
+      });
       cards += 1;
       await options.onCardInserted?.(cards);
     }
@@ -277,8 +281,8 @@ export class CardIndex {
     };
   }
 
-  /** Open a built index read-only. */
-  static open(dbPath: string): CardIndex {
+  /** Open a built index read-only, or validate a detached in-memory byte snapshot. */
+  static open(dbPath: string | Buffer): CardIndex {
     const db = new Database(dbPath, { readonly: true });
     try {
       return new CardIndex(CardIndex.prepare(db));

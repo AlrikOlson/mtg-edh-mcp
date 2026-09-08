@@ -9,7 +9,7 @@
  *     the §8 code (via {@link toolError}), rather than an opaque protocol error.
  * Unexpected (non-structured) throws propagate to the SDK's generic isError path.
  */
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer, RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodRawShape } from "zod";
 import { isStructuredError, toolError } from "../types/errors.js";
@@ -93,7 +93,7 @@ export function registerTool(
   server: McpServer,
   def: ToolDefinition,
   snapshot: SnapshotProvider,
-): void {
+): RegisteredTool {
   const wrapped: ToolHandler = (args, extra) => {
     const invoke = async (): Promise<CallToolResult> => {
       try {
@@ -110,7 +110,7 @@ export function registerTool(
   };
   // Boundary cast: the SDK infers a per-schema callback type from inputSchema;
   // our wrapper is intentionally schema-agnostic.
-  server.registerTool(def.name, def.config, wrapped as unknown as SdkToolCallback);
+  return server.registerTool(def.name, def.config, wrapped as unknown as SdkToolCallback);
 }
 
 /** Register a batch of tools. */

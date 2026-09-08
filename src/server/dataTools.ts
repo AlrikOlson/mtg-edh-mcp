@@ -10,8 +10,8 @@
  * — the underlying download stream has no byte hooks, so a percentage would be
  * an invention.
  *
- * Existing indexed servers activate before reporting success. First ingestion
- * still needs a restart to register the indexed tools.
+ * The runtime activates the first index and subsequent refreshes before
+ * reporting success; clients can discover the indexed tools without restarting.
  */
 import { z } from "zod";
 import { BulkClient, VersionedStore } from "../ingest/index.js";
@@ -143,8 +143,8 @@ export interface StalenessInfo {
 export type StalenessProvider = () => Promise<StalenessInfo>;
 
 export interface DataToolsOptions {
-  /** Whether the running server booted with a card index. */
-  hasIndex: boolean;
+  /** Current readiness, or a fixed value for standalone consumers. */
+  hasIndex: boolean | (() => boolean);
   runner: IngestRunner;
   /** When provided, data_status reports bulk data age + a stale flag. */
   staleness?: StalenessProvider;
@@ -152,7 +152,7 @@ export interface DataToolsOptions {
 
 /** `data_status` + `data_ingest` — the GUI onboarding/update surface. */
 export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
-  const { hasIndex, runner, staleness } = options;
+  const { runner, staleness } = options;
   const statusTool: ToolDefinition = {
     name: "data_status",
     config: {
@@ -165,11 +165,13 @@ export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
         "ARGS: none.\n" +
         "RETURNS: has_index; bulk_age_hours + stale (age of the served bulk data vs the refresh " +
         "interval); ingest {running, phase download|build|done|error, snapshot, cards, error}. " +
-        "A server that booted WITH an index hot-swaps onto a finished ingest automatically; " +
-        "after a first-ever ingest (has_index false) restart/reconnect to get the card tools.",
+        "After ingest completes, refresh tools/list to discover the card tools; " +
+        "the running server activates the index without a restart.",
       inputSchema: {},
     },
     handler: async () => {
+      const hasIndex =
+        typeof options.hasIndex === "function" ? options.hasIndex() : options.hasIndex;
       const ingest = runner.status();
       const freshness = staleness ? await staleness() : undefined;
       const staleNote = freshness?.stale ? " (STALE — refresh due)" : "";
