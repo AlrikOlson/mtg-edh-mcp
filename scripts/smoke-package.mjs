@@ -58,12 +58,22 @@ try {
 
   // Import and execute the installed native dependency, never the checkout's.
   const resolveInstalled = createRequire(join(packageRoot, "package.json"));
-  const { default: Database } = await import(
-    pathToFileURL(resolveInstalled.resolve("better-sqlite3")).href
+  // Windows cannot unlink a loaded native addon. Let a child own the DLL so
+  // its process exits before the temporary installation is removed.
+  execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      'import assert from "node:assert/strict";' +
+        "const { default: Database } = await import(process.argv[1]);" +
+        'const db = new Database(":memory:");' +
+        'try { assert.deepEqual(db.prepare("select 1 as ready").get(), { ready: 1 }); }' +
+        "finally { db.close(); }",
+      pathToFileURL(resolveInstalled.resolve("better-sqlite3")).href,
+    ],
+    { cwd: consumer, stdio: "inherit", timeout: 10_000 },
   );
-  const db = new Database(":memory:");
-  assert.deepEqual(db.prepare("select 1 as ready").get(), { ready: 1 });
-  db.close();
 
   for (const flag of ["--help", "--version"]) {
     const result = spawnSync(process.execPath, [entry, flag], {
