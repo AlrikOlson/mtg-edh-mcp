@@ -111,14 +111,14 @@ already running HTTP process is not sufficient.
 
 ## Configuration
 
-| Variable               | Default      | Purpose                                                                    |
-| ---------------------- | ------------ | -------------------------------------------------------------------------- |
-| `MCP_DATA_DIR`         | `data/cards` | Card snapshots and `decks.json`; use an absolute path in clients.          |
-| `MCP_TRANSPORT`        | `stdio`      | Set to `http` for trusted local HTTP clients.                              |
-| `MCP_HTTP_HOST`        | `127.0.0.1`  | HTTP bind address.                                                         |
-| `MCP_HTTP_PORT`        | `3000`       | HTTP port.                                                                 |
-| `MCP_AUTO_REFRESH`     | enabled      | `0` or `false` disables background refresh.                                |
-| `MCP_BULK_INTERVAL_MS` | `43200000`   | Background bulk-data freshness check interval, in milliseconds (12 hours). |
+| Variable               | Default      | Purpose                                                                        |
+| ---------------------- | ------------ | ------------------------------------------------------------------------------ |
+| `MCP_DATA_DIR`         | `data/cards` | Card snapshots, user-data SQLite and backups; use an absolute path in clients. |
+| `MCP_TRANSPORT`        | `stdio`      | Set to `http` for trusted local HTTP clients.                                  |
+| `MCP_HTTP_HOST`        | `127.0.0.1`  | HTTP bind address.                                                             |
+| `MCP_HTTP_PORT`        | `3000`       | HTTP port.                                                                     |
+| `MCP_AUTO_REFRESH`     | enabled      | `0` or `false` disables background refresh.                                    |
+| `MCP_BULK_INTERVAL_MS` | `43200000`   | Background bulk-data freshness check interval, in milliseconds (12 hours).     |
 
 `MCP_PRICE_INTERVAL_MS` is accepted by the freshness configuration, but does
 not schedule a separate price refresh. Normal bulk updates refresh pricing
@@ -158,27 +158,89 @@ directory. Add `-- --force` to `npm run ingest` to force another download.
 Unchanged upstream data reuses a validated index without downloading or rebuilding it.
 An incomplete legacy index causes a fresh version to be built instead.
 
-| Data                          | Location and lifetime                                                                    |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
-| Card exports and SQLite index | Versioned directories under `MCP_DATA_DIR`.                                              |
-| Decks and snapshots           | `MCP_DATA_DIR/decks.json`; persists across restarts and card updates.                    |
-| Owned-card collection         | Process memory; re-import after restarting. Stores membership, not inventory quantities. |
+| Data                                | Location and lifetime                                                                   |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| Card exports and SQLite index       | Versioned directories under `MCP_DATA_DIR`.                                             |
+| Decks, snapshots and role overrides | `MCP_DATA_DIR/user-data.sqlite`; committed before successful mutation responses.        |
+| Owned-card collections              | The same user-data database, scoped by principal; membership, not inventory quantities. |
+| User-data backups                   | `MCP_DATA_DIR/backups/`; automatic snapshots taken before mutations.                    |
 
-Run **one server process per data directory**. Separate stdio client launches
-are separate processes and should use separate directories; use one local
-HTTP process if trusted clients need to share live state. Namespace headers
-do not coordinate deck writes. Card refreshes now have a cross-process lock,
-but deck and collection persistence still require the single-server arrangement.
+Multiple local processes running this version can share one data directory.
+Each mutation reads the latest committed state and writes in one SQLite
+transaction. Deck tools check `expected_version` inside that transaction;
+a stale version returns `conflict: true` without changing data. Reads in other
+processes see committed changes. Resource notifications remain local to the
+process that made the change; another client can re-read to see changes.
 
-For a backup, stop the server and copy `decks.json` somewhere safe. Preserve
-the whole data directory if you also want the exact card snapshots. Deck writes
-are briefly batched, so allow the process to shut down normally. If a deck
-file cannot be loaded, it is set aside as `decks.json.corrupt`; inspect the
-server's stderr and restore a known-good backup.
+stdio uses the `local` namespace; HTTP uses `x-mcp-principal` (or `local`
+when omitted). Use the same directory and namespace to recover your data.
+These namespaces are isolation boundaries for trusted local clients, not
+authentication. Embedded library callers must pass the persistent
+`UserDataStore.deckStore` and `.collection`; default in-memory stores remain
+available for tests and ephemeral use.
 
-To update the source installation, stop the server, pull the desired revision,
-run `npm ci` and `npm run build`, then restart it. Back up your decks before
-updating a pre-1.0 installation.
+Stop **all older server versions** before upgrading. The first new startup
+validates and imports `decks.json` exactly once, including snapshots and their
+session keys. It preserves the original file and an exact copy at
+`decks.json.migrated`.
+An invalid legacy file stops startup with recovery guidance; it is never
+quietly discarded. After migration, SQLite is authoritative: editing the old
+JSON file does not update the database. Do not run old and new versions against
+the same directory.
+
+Successful deck, snapshot and collection mutations need no shutdown flush.
+A storage or backup failure returns `STORAGE_ERROR` and rolls back the call;
+check available disk space, permissions and lock contention before retrying.
+If the connection dies before a response arrives, the commit may already have
+completed. Re-read state before retrying non-idempotent operations.
+The stored optional per-deck `role_overrides` payload survives snapshots and
+restarts; role-correction tools and analysis behavior are delivered separately.
+
+### User-data backup and restore
+
+Before a transaction first changes user data, the server writes a complete
+backup of the previous committed state. It keeps the five newest automatic
+backups. A failed backup prevents the mutation. **The latest backup can be one
+successful mutation behind the live database.** A restore deliberately returns
+all principals' decks, snapshots and collections to the selected backup's
+state; it is not a merge or a guarantee of recovering later changes.
+
+Copy backups to another device for protection against disk loss. For a backup
+of the exact current state, stop all servers and copy the whole data directory,
+including any SQLite journal files. Automatic user-data backups do not contain
+card exports or indexes. Retained card generations follow the separate policy
+below.
+
+Corrupted user storage stops startup. To restore a known backup:
+
+1. Stop every server using that data directory, including client-launched stdio
+   processes. Keep a copy of the damaged directory.
+2. Choose the explicit backup you want from `backups/`. Run, replacing both
+   paths with your actual paths:
+
+   ```sh
+   MCP_DATA_DIR="/absolute/path/to/data" node dist/main.js restore-user-data "/absolute/path/to/data/backups/user-data-<timestamp>-<uuid>.sqlite"
+   ```
+
+   In PowerShell, set `$env:MCP_DATA_DIR` first, then run the same `node` command.
+   An installed executable also accepts `mtg-edh-mcp restore-user-data <backup-path>`.
+
+3. The command validates the backup, refuses to replace data while a server
+   holds the storage lock, and preserves the replaced database for inspection.
+   It prints the restored and preserved paths; an error exits nonzero.
+4. Restart and verify `deck_list`, `deck_get`, snapshot history, and
+   `collection_get` in each relevant namespace. Keep the damaged copy until
+   you have checked the restored state.
+
+Keep `user-data.initialized`: it prevents a missing database from being
+mistaken for a first run. Never delete `user-data-lock.sqlite` to bypass a live
+server's lock. Keep both files when copying the data directory. Use a
+local filesystem with working SQLite locks and atomic rename. Tests exercise
+real process kills, concurrent writers, injected failures and corruption
+recovery. They do not establish power-loss or network-filesystem guarantees.
+
+To update the source installation, stop the servers, preserve a backup, pull
+the desired revision, run `npm ci` and `npm run build`, then restart.
 
 ### Card refresh recovery
 
@@ -206,7 +268,7 @@ directory and needs no manual cleanup. Allow enough disk space for the old
 snapshot, replacement exports/index, and retained attempts. To reclaim space,
 stop **all** processes using the directory, back up `current.json` and both
 versions it references, then remove only other version directories and abandoned
-`current.json.*.tmp` files. Never remove `decks.json` as part of card cleanup.
+`current.json.*.tmp` files. Never remove user-data databases, `user-data.initialized`, lock/journal files, legacy JSON or backups as part of card cleanup.
 
 For a manual rollback, stop all processes, back up the full data directory, and
 replace `current.json` with `{"version":"<known-good-version-id>"}` naming a
@@ -230,7 +292,7 @@ versions that still use the old publication path; stop those before upgrading.
 | Missing card tools or `has_index: false`        | Confirm ingestion finished and both processes use the same absolute `MCP_DATA_DIR`; restart the server after its first ingest.             |
 | SQLite native-module installation or ABI error  | Use Node 24 and run `npm ci` again after changing Node versions. Install a native build toolchain if your platform has no prebuilt binary. |
 | Download failure                                | Check network access, writable storage, and free disk space; retry ingestion and inspect stderr for the upstream error.                    |
-| A deck disappears after restarting              | Verify the data-directory path and write permissions. Inspect stderr for persistence errors and look for `decks.json.corrupt`.             |
+| A deck disappears after restarting              | Verify the data directory and principal namespace; inspect `STORAGE_ERROR` guidance and the user-data restore procedure above.             |
 | Community recommendations or combos unavailable | Check the tool's upstream error. Local search, validation, and analysis remain available.                                                  |
 | HTTP port already in use                        | Choose another `MCP_HTTP_PORT` or stop the existing server.                                                                                |
 

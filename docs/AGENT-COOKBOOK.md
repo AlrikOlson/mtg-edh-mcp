@@ -112,6 +112,13 @@ defaults to 200. Other list tools have their own caps—check their schemas.
 | `verdicts[].status: "rejected"`     | Inspect `violations[]`; choose a legal card or an intentional forced experiment.         |
 | `UPSTREAM_UNAVAILABLE`              | Continue with local search and analysis, and explain that the enrichment is unavailable. |
 
+A `STORAGE_ERROR` is an MCP error, not a successful mutation. Check its recovery
+guidance for lock contention, free space, permissions, or corrupted storage.
+After an interrupted connection, re-read the deck before retrying: a commit
+can succeed even when the response never reaches the client. Use
+`expected_version` when supported. Automatic backups and offline restore are
+documented in the [install guide](./INSTALL.md#user-data-backup-and-restore).
+
 MCP `isError` results and successful results containing conflicts or partial
 failures need separate handling. The error array names differ by tool.
 
@@ -124,7 +131,8 @@ the local snapshot and exclude a seller's shipping, taxes, and availability.
 
 `collection_set` replaces owned-card membership; `collection_add` extends it.
 It tracks whether a card is owned, not quantities or particular printings.
-The collection resets on process restart. `owned_only: true` on `card_search`
+The executable persists collections across restarts in the same data directory
+and principal namespace. `owned_only: true` on `card_search`
 only restricts results when the collection is nonempty; an empty collection
 does not mean an empty search result.
 

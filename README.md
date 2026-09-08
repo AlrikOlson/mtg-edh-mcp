@@ -143,10 +143,11 @@ Enrichment uses cached data when available and reports upstream failures. The
 local tools continue to work without those services. Your MCP client and model
 provider have their own policies for the tool results they receive.
 
-Decks and snapshots persist in `decks.json` under `MCP_DATA_DIR`. Collections
-track owned-card membership in memory and reset when the process exits. Use
-one server process per data directory; this is a local store, not a shared
-database for multiple independent server processes.
+Decks, snapshots, and owned-card collections persist transactionally in
+`user-data.sqlite` under `MCP_DATA_DIR`. Multiple local server processes can
+share that directory; successful mutations are committed before the response.
+Existing `decks.json` data migrates once with its source preserved. Automatic
+backups and an explicit restore command provide a [user-data recovery path](./docs/INSTALL.md#user-data-backup-and-restore).
 
 **stdio is the default transport.** Streamable HTTP is available for trusted
 local clients and binds to `127.0.0.1` by default. It has no authentication.

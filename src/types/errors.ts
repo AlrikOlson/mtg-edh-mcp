@@ -23,6 +23,7 @@ export const ERROR_CODES = [
   "DECK_NOT_FOUND",
   "UPSTREAM_UNAVAILABLE",
   "STALE_CARD",
+  "STORAGE_ERROR",
 ] as const;
 
 /** A structured error code from the §8 taxonomy. */

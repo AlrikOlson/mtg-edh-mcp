@@ -105,6 +105,7 @@ try {
   assert.equal(invalid.stdout, "");
   assert.match(invalid.stderr, /Unknown argument/);
 
+  const transports = new WeakMap();
   async function connect(nodeArgs = []) {
     const transport = new StdioClientTransport({
       command: process.execPath,
@@ -127,7 +128,24 @@ try {
       });
     }
     assert.equal(client.getServerVersion()?.version, manifest.version);
+    transports.set(client, transport);
     return client;
+  }
+
+  async function killImmediately(server) {
+    const pid = transports.get(server)?.pid;
+    assert.equal(typeof pid, "number", "The installed stdio server must be a separate process.");
+    let timer;
+    const exited = new Promise((resolve, reject) => {
+      server.onclose = resolve;
+      timer = setTimeout(() => reject(new Error("Killed installed server did not exit")), 10_000);
+    });
+    process.kill(pid, "SIGKILL");
+    try {
+      await exited;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   let deckId;
@@ -307,6 +325,7 @@ globalThis.fetch = async (input) => {
       prices: { usd: "2.00" },
     },
   };
+  let savedSnapshot;
   const indexed = await connect(nodeArgs);
   try {
     await expectInstalledCard(indexed, oldFixture);
@@ -339,6 +358,32 @@ globalThis.fetch = async (input) => {
     assert.notEqual(nextPointer.version, firstPointer.version);
     assert.equal(nextPointer.previous, firstPointer.version);
     assert.deepEqual(await versionHashes(firstPointer.version), firstHashes);
+
+    const collection = await indexed.callTool({
+      name: "collection_set",
+      arguments: { cards: oracleId },
+    });
+    assert(!collection.isError, JSON.stringify(collection));
+    assert.deepEqual(collection.structuredContent.owned, [oracleId]);
+    const added = await indexed.callTool({
+      name: "deck_add",
+      arguments: { deck_id: deckId, cards: oracleId },
+    });
+    assert(!added.isError, JSON.stringify(added));
+    const snapshot = await indexed.callTool({
+      name: "deck_snapshot",
+      arguments: { deck_id: deckId },
+    });
+    assert(!snapshot.isError, JSON.stringify(snapshot));
+    savedSnapshot = snapshot.structuredContent.snapshot_id;
+    // Automatic pre-write backup of this rename contains the known deck,
+    // collection and snapshot. Kill at the acknowledgement, without a flush.
+    const renamed = await indexed.callTool({
+      name: "deck_rename",
+      arguments: { deck_id: deckId, name: "Acknowledged before SIGKILL" },
+    });
+    assert(!renamed.isError, JSON.stringify(renamed));
+    await killImmediately(indexed);
   } finally {
     await indexed.close();
   }
@@ -346,12 +391,76 @@ globalThis.fetch = async (input) => {
   const refreshedRestart = await connect(nodeArgs);
   try {
     await expectInstalledCard(refreshedRestart, newFixture);
+    const deck = await refreshedRestart.callTool({
+      name: "deck_get",
+      arguments: { deck_id: deckId },
+    });
+    assert(!deck.isError, JSON.stringify(deck));
+    assert.equal(deck.structuredContent.deck.name, "Acknowledged before SIGKILL");
+    assert.equal(deck.structuredContent.deck.cards[0].oracle_id, oracleId);
+    const collection = await refreshedRestart.callTool({ name: "collection_get", arguments: {} });
+    assert(!collection.isError, JSON.stringify(collection));
+    assert.deepEqual(collection.structuredContent.owned, [oracleId]);
   } finally {
     await refreshedRestart.close();
   }
+
+  const backups = (await readdir(join(dataDir, "backups")))
+    .filter((name) => name.endsWith(".sqlite"))
+    .sort();
+  assert(backups.length > 0, "Successful mutations must create automatic SQLite backups.");
+  const selectedBackup = join(dataDir, "backups", backups.at(-1));
+  const database = join(dataDir, "user-data.sqlite");
+  const corruptBytes = Buffer.from(
+    "Deliberately corrupted user data for installed restore acceptance\n",
+  );
+  await writeFile(database, corruptBytes);
+  const corruptStart = spawnSync(process.execPath, [entry, "--stdio"], {
+    cwd: consumer,
+    env,
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  assert.equal(corruptStart.status, 1, corruptStart.stderr);
+  assert.equal(corruptStart.stdout, "");
+  assert.deepEqual(
+    await readFile(database),
+    corruptBytes,
+    "Startup must preserve corrupt user data.",
+  );
+  const recovered = spawnSync(process.execPath, [entry, "restore-user-data", selectedBackup], {
+    cwd: consumer,
+    env,
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  assert.equal(recovered.status, 0, recovered.stderr);
+  const recoveryReport = JSON.parse(recovered.stdout);
+  assert.equal(recoveryReport.restoredFrom, selectedBackup);
+  assert.equal(typeof recoveryReport.preservedPath, "string");
+  assert.deepEqual(await readFile(recoveryReport.preservedPath), corruptBytes);
+  const restored = await connect(nodeArgs);
+  try {
+    const deck = await restored.callTool({ name: "deck_get", arguments: { deck_id: deckId } });
+    assert(!deck.isError, JSON.stringify(deck));
+    assert.equal(deck.structuredContent.deck.name, "Smoke deck");
+    assert.equal(deck.structuredContent.deck.cards[0].oracle_id, oracleId);
+    const collection = await restored.callTool({ name: "collection_get", arguments: {} });
+    assert(!collection.isError, JSON.stringify(collection));
+    assert.deepEqual(collection.structuredContent.owned, [oracleId]);
+    const snapshot = await restored.callTool({
+      name: "deck_restore",
+      arguments: { deck_id: deckId, snapshot_id: savedSnapshot },
+    });
+    assert(!snapshot.isError, JSON.stringify(snapshot));
+    assert.equal(snapshot.structuredContent.deck.cards[0].oracle_id, oracleId);
+    await expectInstalledCard(restored, newFixture);
+  } finally {
+    await restored.close();
+  }
   assert.deepEqual(await versionHashes(firstPointer.version), firstHashes);
   console.log(
-    "Package smoke passed: clean install, native SQLite, help/version, stdio, resources, persisted decks, offline refresh CLI, unchanged reuse, hot activation, and refreshed restart.",
+    "Package smoke passed: clean install, native SQLite, help/version, stdio, resources, durable decks/collections/snapshots after SIGKILL, explicit corrupted-store recovery, offline refresh CLI, unchanged reuse, hot activation, and refreshed restart.",
   );
 } finally {
   await rm(temp, { recursive: true, force: true, maxRetries: 3 });

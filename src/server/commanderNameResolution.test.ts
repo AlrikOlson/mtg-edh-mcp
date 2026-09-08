@@ -73,9 +73,14 @@ beforeEach(async () => {
   await writeFile(store.filePath("v1", "default_cards.json"), JSON.stringify([]), "utf8");
   await store.publish("v1");
   index = CardIndex.open((await buildIndex({ store })).dbPath);
-  deckStore = new DeckStore({ newId: () => "deck-1" });
+  let deckNumber = 0;
+  deckStore = new DeckStore({ newId: () => `deck-${++deckNumber}` });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [ct, st] = InMemoryTransport.createLinkedPair();
   await server.connect(st);
   client = new Client({ name: "cnr", version: "0.0.0" });
@@ -96,14 +101,22 @@ describe("deck_set_commander accepts a name (review #1)", () => {
     const res = sc(
       await client.callTool({
         name: "deck_set_commander",
-        arguments: { deck_id: "deck-1", commanders: ["Karumonix, the Rat King"] },
+        arguments: {
+          deck_id: "deck-1",
+          commanders: ["Karumonix, the Rat King"],
+        },
       }),
     );
     expect(res.ok).toBe(true);
     expect(res.commanders).toEqual(["o-karumonix"]); // resolved to oracle_id
     expect(res.computed_color_identity).toEqual(["B"]); // not [] anymore
 
-    const got = sc(await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } }));
+    const got = sc(
+      await client.callTool({
+        name: "deck_get",
+        arguments: { deck_id: "deck-1" },
+      }),
+    );
     expect((got.deck as { computed_color_identity: string[] }).computed_color_identity).toEqual([
       "B",
     ]);
@@ -135,7 +148,10 @@ describe("deck_set_commander accepts a name (review #1)", () => {
       arguments: { deck_id: "deck-1", commanders: ["Goblin Mat"] },
     });
     expect(res.isError).toBe(true);
-    const detail = res.structuredContent as { code: string; details?: { candidates?: unknown[] } };
+    const detail = res.structuredContent as {
+      code: string;
+      details?: { candidates?: unknown[] };
+    };
     expect(detail.code).toBe("AMBIGUOUS_NAME");
     expect((detail.details?.candidates ?? []).length).toBe(2);
   });
@@ -146,7 +162,10 @@ describe("validate_commander + deck_create accept a name", () => {
     const res = sc(
       await client.callTool({
         name: "validate_commander",
-        arguments: { commanders: ["Karumonix, the Rat King"], command_zone_kind: "single" },
+        arguments: {
+          commanders: ["Karumonix, the Rat King"],
+          command_zone_kind: "single",
+        },
       }),
     );
     expect(res.ok).toBe(true);
@@ -161,7 +180,12 @@ describe("validate_commander + deck_create accept a name", () => {
       }),
     );
     const deckId = created.deck_id as string;
-    const got = sc(await client.callTool({ name: "deck_get", arguments: { deck_id: deckId } }));
+    const got = sc(
+      await client.callTool({
+        name: "deck_get",
+        arguments: { deck_id: deckId },
+      }),
+    );
     expect((got.deck as { commanders: string[] }).commanders).toEqual(["o-karumonix"]);
   });
 });

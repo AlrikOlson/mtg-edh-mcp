@@ -1,51 +1,60 @@
-/**
- * In-memory, session-scoped card collection (spec §12 — "collection awareness").
- *
- * A collection is the set of oracle_ids a user owns. It is OPTIONAL: nothing in
- * the core deckbuilding primitives depends on it. card_search can filter to the
- * owned set on request (owned_only), and the collection:// resource exposes it.
- *
- * Keyed by sessionId (mirroring {@link DeckStore}) so two principals over the
- * HTTP transport keep isolated collections; the stdio session defaults to
- * "local". Quantities are intentionally not tracked — ownership is membership.
- */
+/** Session-scoped ownership membership, optionally backed by durable user data. */
+import type { UserDataDriver } from "../storage/driver.js";
+
 export const DEFAULT_SESSION = "local";
 
 export class CollectionStore {
-  private readonly owned = new Map<string, Set<string>>();
+  private owned = new Map<string, Set<string>>();
+  private active = false;
 
-  /** Replace the session's owned set with these oracle_ids; returns the new set. */
+  constructor(private readonly driver?: UserDataDriver) {}
+
+  transaction<T>(callback: () => T): T {
+    if (this.driver) return this.driver.transaction(callback);
+    if (this.active) return callback();
+    const previous = structuredClone(this.owned);
+    this.active = true;
+    try {
+      const result = callback();
+      if (result instanceof Promise)
+        throw new Error("CollectionStore transactions must be synchronous");
+      return result;
+    } catch (error) {
+      this.owned = previous;
+      throw error;
+    } finally {
+      this.active = false;
+    }
+  }
+
   set(oracleIds: Iterable<string>, sessionId: string = DEFAULT_SESSION): Set<string> {
-    const set = new Set(oracleIds);
-    this.owned.set(sessionId, set);
-    return set;
+    return this.transaction(() => {
+      const set = new Set(oracleIds);
+      if (this.driver) this.driver.setCollection(sessionId, [...set]);
+      else this.owned.set(sessionId, new Set(set));
+      return set;
+    });
   }
 
-  /** Add oracle_ids to the session's owned set (creating it if absent); returns the set. */
   add(oracleIds: Iterable<string>, sessionId: string = DEFAULT_SESSION): Set<string> {
-    const set = this.owned.get(sessionId) ?? new Set<string>();
-    for (const id of oracleIds) set.add(id);
-    this.owned.set(sessionId, set);
-    return set;
+    return this.transaction(() => this.set([...this.get(sessionId), ...oracleIds], sessionId));
   }
 
-  /** The session's owned set (a copy, empty when none was set). */
   get(sessionId: string = DEFAULT_SESSION): Set<string> {
-    return new Set(this.owned.get(sessionId) ?? []);
+    return new Set(
+      this.driver ? this.driver.getCollection(sessionId) : (this.owned.get(sessionId) ?? []),
+    );
   }
 
-  /** Is this oracle_id in the session's collection? */
   has(oracleId: string, sessionId: string = DEFAULT_SESSION): boolean {
-    return this.owned.get(sessionId)?.has(oracleId) ?? false;
+    return this.get(sessionId).has(oracleId);
   }
 
-  /** Number of owned cards in the session. */
   size(sessionId: string = DEFAULT_SESSION): number {
-    return this.owned.get(sessionId)?.size ?? 0;
+    return this.get(sessionId).size;
   }
 
-  /** Clear the session's collection. */
   clear(sessionId: string = DEFAULT_SESSION): void {
-    this.owned.delete(sessionId);
+    this.set([], sessionId);
   }
 }

@@ -2,13 +2,44 @@ import { describe, expect, it } from "vitest";
 import { parseCli } from "./cli.js";
 
 describe("command-line configuration", () => {
+  it("selects explicit user-data recovery without requiring a valid transport", () => {
+    expect(
+      parseCli(["restore-user-data", "/safe backup/user-data.sqlite"], {
+        MCP_TRANSPORT: "broken",
+      }),
+    ).toEqual({
+      mode: "restore-user-data",
+      backupPath: "/safe backup/user-data.sqlite",
+    });
+  });
+
+  it.each([
+    ["restore-user-data"],
+    ["restore-user-data", ""],
+    ["restore-user-data", "--http"],
+    ["restore-user-data", "backup.sqlite", "--stdio"],
+  ])("rejects an incomplete or mixed restore invocation: %j", (...argv) => {
+    expect(() => parseCli(argv, {})).toThrow("restore-user-data");
+  });
+
+  it("rejects an empty restore data directory", () => {
+    expect(() => parseCli(["restore-user-data", "backup.sqlite"], { MCP_DATA_DIR: " " })).toThrow(
+      "MCP_DATA_DIR",
+    );
+  });
+
   it("handles help and version before any startup configuration", () => {
-    expect(parseCli(["--help"], { MCP_TRANSPORT: "broken" })).toEqual({ mode: "help" });
+    expect(parseCli(["--help"], { MCP_TRANSPORT: "broken" })).toEqual({
+      mode: "help",
+    });
     expect(parseCli(["-v"], {})).toEqual({ mode: "version" });
   });
 
   it("defaults to stdio and supports an explicit transport override", () => {
-    expect(parseCli([], {})).toMatchObject({ mode: "serve", transport: "stdio" });
+    expect(parseCli([], {})).toMatchObject({
+      mode: "serve",
+      transport: "stdio",
+    });
     expect(parseCli(["--stdio"], { MCP_TRANSPORT: "http" })).toMatchObject({
       transport: "stdio",
     });

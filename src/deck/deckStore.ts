@@ -8,6 +8,8 @@
  * to "local" (the single stdio session).
  */
 import { randomUUID } from "node:crypto";
+import type { UserDataDriver } from "../storage/driver.js";
+import { parseDeckStoreDump } from "./persistence.js";
 import { StructuredError } from "../types/index.js";
 import type { CommandZoneKind, Deck, Format } from "../types/index.js";
 
@@ -33,6 +35,8 @@ export interface CreateDeckInput {
 export type DeckChangeListener = (deckId: string, version: number, sessionId: string) => void;
 
 export interface DeckStoreOptions {
+  /** Durable shared backend; omitted for isolated in-memory use. */
+  driver?: UserDataDriver;
   /** Injectable id generator (tests pass a deterministic one). */
   newId?: () => string;
   /** Injectable snapshot-id generator (tests pass a deterministic one). */
@@ -58,50 +62,105 @@ export interface DeckStoreDump {
 }
 
 export class DeckStore {
-  private readonly decks = new Map<string, Deck>();
-  /** Snapshots keyed by sessionId\0deckId\0snapshotId. */
-  private readonly snapshots = new Map<string, DeckSnapshot>();
+  private decks = new Map<string, Deck>();
+  private snapshots = new Map<string, DeckSnapshot>();
   private readonly listeners = new Set<DeckChangeListener>();
   private readonly dirtyListeners = new Set<() => void>();
   private readonly newId: () => string;
   private readonly newSnapshotId: () => string;
+  private readonly driver?: UserDataDriver;
+  private active = false;
+  private dirty = false;
+  private events: Array<[string, number, string]> = [];
 
   constructor(options: DeckStoreOptions = {}) {
     this.newId = options.newId ?? (() => randomUUID());
     this.newSnapshotId = options.newSnapshotId ?? (() => randomUUID());
+    this.driver = options.driver;
   }
 
-  /**
-   * Subscribe to "the store's contents changed" — fires on create/delete/
-   * snapshot too, unlike {@link onChange} (which keeps its original per-deck
-   * notification contract). This is the persistence write-through hook.
-   */
+  /** Serializes read/check/write under one lock; nested synchronous calls reuse it. */
+  transaction<T>(callback: () => T): T {
+    if (this.active) return callback();
+    const previous = this.copyDump();
+    const execute = (): T => {
+      this.refresh();
+      this.active = true;
+      this.dirty = false;
+      this.events = [];
+      const result = callback();
+      if (result instanceof Promise) throw new Error("DeckStore transactions must be synchronous");
+      if (this.dirty) this.driver?.saveDecks(this.copyDump());
+      return result;
+    };
+    let result: T;
+    try {
+      result = this.driver ? this.driver.transaction(execute) : execute();
+    } catch (error) {
+      this.replace(previous);
+      this.events = [];
+      this.dirty = false;
+      throw error;
+    } finally {
+      this.active = false;
+    }
+    const events = this.events;
+    const dirty = this.dirty;
+    this.events = [];
+    this.dirty = false;
+    // Observers run after durable commit. A broken observer cannot turn an
+    // acknowledged commit into a tool error or prevent other notifications.
+    const notify = (): void => {
+      for (const event of events)
+        for (const listener of this.listeners) this.notify(() => listener(...event));
+      if (dirty) for (const listener of this.dirtyListeners) this.notify(listener);
+    };
+    if (this.driver) this.driver.afterCommit(notify);
+    else notify();
+    return result;
+  }
+
+  private notify(listener: () => void): void {
+    try {
+      listener();
+    } catch (error) {
+      console.error(
+        `deck notification failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private refresh(): void {
+    if (!this.active && this.driver) this.replace(this.driver.loadDecks());
+  }
+
+  private replace(dump: DeckStoreDump): void {
+    this.decks = new Map(structuredClone(dump.decks));
+    this.snapshots = new Map(structuredClone(dump.snapshots));
+  }
+
+  private copyDump(): DeckStoreDump {
+    return structuredClone({ decks: [...this.decks], snapshots: [...this.snapshots] });
+  }
+
+  /** Subscribe to committed create/delete/update/snapshot changes. */
   onDirty(listener: () => void): () => void {
     this.dirtyListeners.add(listener);
     return () => this.dirtyListeners.delete(listener);
   }
 
-  private markDirty(): void {
-    for (const listener of this.dirtyListeners) listener();
-  }
-
-  /** Serialize everything (all sessions' decks + snapshots). */
   dump(): DeckStoreDump {
-    return {
-      decks: [...this.decks.entries()].map(([k, d]) => [k, structuredClone(d) as Deck]),
-      snapshots: [...this.snapshots.entries()].map(([k, s]) => [
-        k,
-        structuredClone(s) as DeckSnapshot,
-      ]),
-    };
+    this.refresh();
+    return this.copyDump();
   }
 
-  /** Replace the store's contents from a dump (used once, at boot). */
+  /** Atomically replace all deck state; migration input is strictly validated. */
   hydrate(dump: DeckStoreDump): void {
-    this.decks.clear();
-    this.snapshots.clear();
-    for (const [key, deck] of dump.decks) this.decks.set(key, deck);
-    for (const [key, snap] of dump.snapshots) this.snapshots.set(key, snap);
+    const validated = parseDeckStoreDump(dump);
+    this.transaction(() => {
+      this.replace(validated);
+      this.dirty = true;
+    });
   }
 
   private key(sessionId: string, deckId: string): string {
@@ -112,124 +171,117 @@ export class DeckStore {
     return `${sessionId}\0${deckId}\0${snapshotId}`;
   }
 
-  /** Subscribe to deck mutations; returns an unsubscribe function. */
   onChange(listener: DeckChangeListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  private emit(deckId: string, version: number, sessionId: string): void {
-    for (const listener of this.listeners) listener(deckId, version, sessionId);
-  }
-
   create(input: CreateDeckInput, sessionId: string = DEFAULT_SESSION): Deck {
-    const deck: Deck = {
-      deck_id: this.newId(),
-      name: input.name,
-      format: input.format ?? "commander",
-      commanders: input.commanders ? [...input.commanders] : [],
-      command_zone_kind: input.command_zone_kind ?? "single",
-      cards: [],
-      // Supplied by the tool layer when commanders are known at create time;
-      // recomputed whenever commanders change (deck_set_commander).
-      computed_color_identity: input.computedColorIdentity ? [...input.computedColorIdentity] : [],
-      version: 1,
-      data_snapshot: input.dataSnapshot ?? "",
-    };
-    this.decks.set(this.key(sessionId, deck.deck_id), deck);
-    this.markDirty();
-    return deck;
+    return this.transaction(() => {
+      const deck: Deck = {
+        deck_id: this.newId(),
+        name: input.name,
+        format: input.format ?? "commander",
+        commanders: input.commanders ? [...input.commanders] : [],
+        command_zone_kind: input.command_zone_kind ?? "single",
+        cards: [],
+        computed_color_identity: input.computedColorIdentity
+          ? [...input.computedColorIdentity]
+          : [],
+        version: 1,
+        data_snapshot: input.dataSnapshot ?? "",
+      };
+      const key = this.key(sessionId, deck.deck_id);
+      if (this.decks.has(key)) throw new Error(`duplicate deck id '${deck.deck_id}'`);
+      this.decks.set(key, structuredClone(deck));
+      this.dirty = true;
+      return deck;
+    });
   }
 
   get(deckId: string, sessionId: string = DEFAULT_SESSION): Deck | undefined {
-    return this.decks.get(this.key(sessionId, deckId));
+    this.refresh();
+    return structuredClone(this.decks.get(this.key(sessionId, deckId)));
   }
 
   list(sessionId: string = DEFAULT_SESSION): Deck[] {
+    this.refresh();
     const prefix = `${sessionId}\0`;
-    const out: Deck[] = [];
-    for (const [key, deck] of this.decks) {
-      if (key.startsWith(prefix)) out.push(deck);
-    }
-    return out;
+    return [...this.decks]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([, deck]) => structuredClone(deck));
   }
 
   delete(deckId: string, sessionId: string = DEFAULT_SESSION): boolean {
-    const deleted = this.decks.delete(this.key(sessionId, deckId));
-    if (deleted) this.markDirty();
-    return deleted;
+    return this.transaction(() => {
+      const deleted = this.decks.delete(this.key(sessionId, deckId));
+      if (deleted) this.dirty = true;
+      return deleted;
+    });
   }
 
-  /**
-   * Apply a mutation: the mutator receives the current deck and returns the next
-   * one; `version` is bumped and an onChange event fires. Throws DECK_NOT_FOUND
-   * if the deck is unknown.
-   */
   update(deckId: string, mutator: (deck: Deck) => Deck, sessionId: string = DEFAULT_SESSION): Deck {
-    const key = this.key(sessionId, deckId);
-    const current = this.decks.get(key);
-    if (!current) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-    const next: Deck = { ...mutator(current), version: current.version + 1 };
-    this.decks.set(key, next);
-    this.emit(next.deck_id, next.version, sessionId);
-    this.markDirty();
-    return next;
+    return this.transaction(() => {
+      const key = this.key(sessionId, deckId);
+      const current = this.decks.get(key);
+      if (!current) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      const next: Deck = {
+        ...mutator(structuredClone(current)),
+        deck_id: deckId,
+        version: current.version + 1,
+      };
+      this.decks.set(key, structuredClone(next));
+      this.events.push([next.deck_id, next.version, sessionId]);
+      this.dirty = true;
+      return next;
+    });
   }
 
-  /** Convenience mutation: rename a deck (bumps version + notifies). */
   setName(deckId: string, name: string, sessionId: string = DEFAULT_SESSION): Deck {
     return this.update(deckId, (deck) => ({ ...deck, name }), sessionId);
   }
 
-  /**
-   * Capture an immutable deep copy of the deck's current state under a fresh
-   * snapshot id. Throws DECK_NOT_FOUND if the deck is unknown.
-   */
   snapshot(deckId: string, sessionId: string = DEFAULT_SESSION): DeckSnapshot {
-    const deck = this.decks.get(this.key(sessionId, deckId));
-    if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-    const snap: DeckSnapshot = {
-      snapshot_id: this.newSnapshotId(),
-      version: deck.version,
-      deck: structuredClone(deck) as Deck,
-    };
-    this.snapshots.set(this.snapshotKey(sessionId, deckId, snap.snapshot_id), snap);
-    this.markDirty();
-    return snap;
+    return this.transaction(() => {
+      const deck = this.get(deckId, sessionId);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      const snapshot: DeckSnapshot = {
+        snapshot_id: this.newSnapshotId(),
+        version: deck.version,
+        deck,
+      };
+      const key = this.snapshotKey(sessionId, deckId, snapshot.snapshot_id);
+      if (this.snapshots.has(key))
+        throw new Error(`duplicate snapshot id '${snapshot.snapshot_id}'`);
+      this.snapshots.set(key, structuredClone(snapshot));
+      this.dirty = true;
+      return snapshot;
+    });
   }
 
-  /** All snapshots captured for a deck, in insertion order. */
   listSnapshots(deckId: string, sessionId: string = DEFAULT_SESSION): DeckSnapshot[] {
+    this.refresh();
     const prefix = this.snapshotKey(sessionId, deckId, "");
-    const out: DeckSnapshot[] = [];
-    for (const [key, snap] of this.snapshots) {
-      if (key.startsWith(prefix)) out.push(snap);
-    }
-    return out;
+    return [...this.snapshots]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([, snapshot]) => structuredClone(snapshot));
   }
 
-  /** A single snapshot by id, or undefined if unknown. */
   getSnapshot(
     deckId: string,
     snapshotId: string,
     sessionId: string = DEFAULT_SESSION,
   ): DeckSnapshot | undefined {
-    return this.snapshots.get(this.snapshotKey(sessionId, deckId, snapshotId));
+    this.refresh();
+    return structuredClone(this.snapshots.get(this.snapshotKey(sessionId, deckId, snapshotId)));
   }
 
-  /**
-   * Roll a deck back to a snapshot: the deck's content is replaced with the
-   * snapshot's (keeping the same deck_id), going through {@link update} so the
-   * version bumps and subscribers are notified. Throws DECK_NOT_FOUND if either
-   * the deck or the snapshot is unknown.
-   */
   restore(deckId: string, snapshotId: string, sessionId: string = DEFAULT_SESSION): Deck {
-    const snap = this.getSnapshot(deckId, snapshotId, sessionId);
-    if (!snap) throw new StructuredError("DECK_NOT_FOUND", `unknown snapshot '${snapshotId}'`);
-    return this.update(
-      deckId,
-      (current) => ({ ...structuredClone(snap.deck), deck_id: current.deck_id }),
-      sessionId,
-    );
+    return this.transaction(() => {
+      const snapshot = this.getSnapshot(deckId, snapshotId, sessionId);
+      if (!snapshot)
+        throw new StructuredError("DECK_NOT_FOUND", `unknown snapshot '${snapshotId}'`);
+      return this.update(deckId, () => structuredClone(snapshot.deck), sessionId);
+    });
   }
 }

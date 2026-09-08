@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -36,7 +36,12 @@ let client: Client;
 interface ImportResult {
   deck_id: string;
   resolved_count: number;
-  unresolved: Array<{ line: string; name: string; reason: string; candidates?: unknown[] }>;
+  unresolved: Array<{
+    line: string;
+    name: string;
+    reason: string;
+    candidates?: unknown[];
+  }>;
 }
 interface ExportResult {
   deck_id: string;
@@ -56,7 +61,11 @@ beforeEach(async () => {
   let n = 0;
   deckStore = new DeckStore({ newId: () => `deck-${++n}` });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -79,6 +88,25 @@ const LIST = [
 ].join("\n");
 
 describe("deck import / export tools", () => {
+  it("rolls back the new deck when a compound import fails before adding its cards", async () => {
+    const notices: string[] = [];
+    deckStore.onDirty(() => notices.push("dirty"));
+    const update = vi.spyOn(deckStore, "update").mockImplementationOnce(() => {
+      throw new Error("injected update failure");
+    });
+    try {
+      const result = await client.callTool({
+        name: "deck_import",
+        arguments: { name: "Must not survive", text: "1 Sol Ring" },
+      });
+      expect(result.isError).toBe(true);
+      expect(deckStore.list()).toEqual([]);
+      expect(notices).toEqual([]);
+    } finally {
+      update.mockRestore();
+    }
+  });
+
   it("registers deck_import and deck_export", async () => {
     const names = (await client.listTools()).tools.map((t) => t.name);
     expect(names).toEqual(expect.arrayContaining(["deck_import", "deck_export"]));
@@ -102,33 +130,54 @@ describe("deck import / export tools", () => {
     expect(ambiguous?.candidates).toHaveLength(2);
 
     // The merged Sol Ring quantity survives (1 + 1 = 2).
-    const got = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    const got = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: "deck-1" },
+    });
     const cards = (
-      got.structuredContent as { deck: { cards: { oracle_id: string; qty: number }[] } }
+      got.structuredContent as {
+        deck: { cards: { oracle_id: string; qty: number }[] };
+      }
     ).deck.cards;
     expect(cards.find((c) => c.oracle_id === "o-sol")?.qty).toBe(2);
   });
 
   it("round-trips import -> export -> import preserving quantities", async () => {
     const first = (
-      (await client.callTool({ name: "deck_import", arguments: { text: LIST } }))
-        .structuredContent as ImportResult
+      (
+        await client.callTool({
+          name: "deck_import",
+          arguments: { text: LIST },
+        })
+      ).structuredContent as ImportResult
     ).deck_id;
 
     const exported = (
-      (await client.callTool({ name: "deck_export", arguments: { deck_id: first } }))
-        .structuredContent as ExportResult
+      (
+        await client.callTool({
+          name: "deck_export",
+          arguments: { deck_id: first },
+        })
+      ).structuredContent as ExportResult
     ).text;
     expect(exported).toContain("2 Sol Ring");
     expect(exported).toContain("1 Lightning Bolt");
 
     // Re-import the exported text into a brand-new deck; cards must match.
-    const second = await client.callTool({ name: "deck_import", arguments: { text: exported } });
+    const second = await client.callTool({
+      name: "deck_import",
+      arguments: { text: exported },
+    });
     const sr = second.structuredContent as ImportResult;
     expect(sr.unresolved).toEqual([]);
-    const got = await client.callTool({ name: "deck_get", arguments: { deck_id: sr.deck_id } });
+    const got = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: sr.deck_id },
+    });
     const cards = (
-      got.structuredContent as { deck: { cards: { oracle_id: string; qty: number }[] } }
+      got.structuredContent as {
+        deck: { cards: { oracle_id: string; qty: number }[] };
+      }
     ).deck.cards;
     expect(cards.find((c) => c.oracle_id === "o-sol")?.qty).toBe(2);
     expect(cards.find((c) => c.oracle_id === "o-bolt")?.qty).toBe(1);
@@ -144,9 +193,14 @@ describe("deck import / export tools", () => {
       name: "deck_import",
       arguments: { deck_id: "deck-1", text: "3 Sol Ring" },
     });
-    const got = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    const got = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: "deck-1" },
+    });
     const cards = (
-      got.structuredContent as { deck: { cards: { oracle_id: string; qty: number }[] } }
+      got.structuredContent as {
+        deck: { cards: { oracle_id: string; qty: number }[] };
+      }
     ).deck.cards;
     expect(cards).toEqual([{ oracle_id: "o-sol", qty: 4, name: "Sol Ring" }]);
   });
@@ -159,7 +213,10 @@ describe("deck import / export tools", () => {
     expect(imp.isError).toBe(true);
     expect(imp.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
 
-    const exp = await client.callTool({ name: "deck_export", arguments: { deck_id: "nope" } });
+    const exp = await client.callTool({
+      name: "deck_export",
+      arguments: { deck_id: "nope" },
+    });
     expect(exp.isError).toBe(true);
     expect(exp.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });

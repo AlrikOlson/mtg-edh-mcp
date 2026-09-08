@@ -6,11 +6,9 @@
  * agents); set `MCP_TRANSPORT=http` (or pass `--http`) for hosted streamable
  * HTTP. `MCP_HTTP_PORT` / `MCP_HTTP_HOST` configure the HTTP bind.
  */
-import { join } from "node:path";
 import { VersionedStore } from "../ingest/index.js";
-import { CollectionStore } from "../collection/index.js";
 import { DEFAULT_DATA_ROOT, freshnessConfigFromEnv } from "../index/index.js";
-import { DeckPersister, DeckStore } from "../deck/index.js";
+import { UserDataStore } from "../storage/userData.js";
 import { openCardData } from "./cardData.js";
 import { autoRefreshDisabled, startScheduler } from "./scheduler.js";
 import { startStdio } from "./stdio.js";
@@ -20,18 +18,26 @@ import { SERVER_VERSION } from "./createServer.js";
 
 /**
  * Read the real data_snapshot, open the current version's card index (if one has
- * been built), and create the in-memory deck store. When no index exists yet,
+ * been built), and open the transactional user-data store. When no index exists yet,
  * the card tools + card:// resource are simply not registered (ping still works).
  */
 async function boot() {
   const root = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
   const store = new VersionedStore(root);
-  const data = await openCardData(store);
-  const deckStore = new DeckStore();
-  // Deck durability (release-deck-persistence): load persisted decks, then
-  // write-through on every mutation. One persister on the ONE shared store.
-  new DeckPersister(join(root, "decks.json")).attach(deckStore);
-  return { ...data, deckStore, store };
+  const userData = new UserDataStore(root);
+  try {
+    const data = await openCardData(store);
+    process.once("exit", () => userData.close());
+    return {
+      ...data,
+      deckStore: userData.deckStore,
+      collection: userData.collection,
+      store,
+    };
+  } catch (error) {
+    userData.close();
+    throw error;
+  }
 }
 
 async function main(): Promise<void> {
@@ -44,10 +50,17 @@ async function main(): Promise<void> {
     process.stdout.write(`${SERVER_VERSION}\n`);
     return;
   }
+  if (config.mode === "restore-user-data") {
+    const root = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
+    const result = UserDataStore.restore(root, config.backupPath);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return;
+  }
   const {
     snapshot: cachedSnapshot,
     index,
     deckStore,
+    collection,
     store,
     ingest,
     staleness,
@@ -63,10 +76,6 @@ async function main(): Promise<void> {
   }
   if (config.transport === "http") {
     const { port, host } = config;
-    // Shared across all per-request servers — without this, the stateless HTTP
-    // transport gave every POST a fresh empty collection (caught by the GUI's
-    // Rust e2e round-trip, which acts as the regression test).
-    const collection = new CollectionStore();
     const running = await startHttp({
       port,
       host,
@@ -88,7 +97,14 @@ async function main(): Promise<void> {
       process.stdin.on("close", () => process.exit(0));
     }
   } else {
-    await startStdio({ snapshot, index, deckStore, ingest, staleness });
+    await startStdio({
+      snapshot,
+      index,
+      deckStore,
+      collection,
+      ingest,
+      staleness,
+    });
     console.error("mtg-edh-mcp serving on stdio");
     // A closed stdin means the client (and the transport) is gone; exit even if
     // background timers would otherwise keep the event loop alive — orphan-proof.

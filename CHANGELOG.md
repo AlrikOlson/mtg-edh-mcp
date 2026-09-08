@@ -6,6 +6,17 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## Unreleased
 
+- Persist decks, snapshots, and session-scoped collections with synchronous
+  SQLite transactions shared across local server processes. Keep optimistic
+  version checks and compound deck imports inside the transaction; report
+  storage failures without acknowledging uncommitted changes.
+- Migrate `decks.json` once with the source preserved, retain automatic user-data
+  backups, and add `restore-user-data <backup-path>` for explicit offline
+  recovery. Corrupted storage stops startup instead of silently creating an
+  empty store.
+- Persist per-deck role-override payloads through snapshots and restarts; the
+  role-correction tools and analysis integration remain a later change.
+
 - Stage and validate complete card-data snapshots before atomic publication;
   retain previous and interrupted versions for recovery. Coordinate CLI/server
   refreshes across processes and reuse unchanged indexes without rebuilding.

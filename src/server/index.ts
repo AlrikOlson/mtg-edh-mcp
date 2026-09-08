@@ -5,6 +5,7 @@
  * and connect a server programmatically. The executable bootstrap lives in
  * `main.ts` (the bin entry); this module has no side effects.
  */
+export { UserDataStore } from "../storage/userData.js";
 export { createServer, SERVER_NAME, SERVER_VERSION } from "./createServer.js";
 export type { CreateServerOptions } from "./createServer.js";
 export { registerTool, registerTools, stampSnapshot } from "./registry.js";

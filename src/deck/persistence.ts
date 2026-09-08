@@ -1,107 +1,68 @@
-/**
- * Deck durability (release-deck-persistence): persist the {@link DeckStore}
- * to one JSON file so decks survive engine restarts.
- *
- * Writes are SYNCHRONOUS and atomic (tmp + rename): deck payloads are
- * kilobytes, and the stdio sidecar exits via `process.exit(0)` when its stdin
- * closes — an async debounced write would be dropped on that path. A trailing
- * debounce coalesces mutation bursts (the Oracle agent applies change-sets as
- * a sequence of tool calls); a sync `process.on("exit")` flush catches
- * whatever is still pending.
- *
- * Loading is best-effort: a missing or corrupt file never blocks boot — the
- * store simply starts empty (and the corrupt file is preserved as `.corrupt`
- * for post-mortem rather than silently overwritten).
- */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import type { DeckStore, DeckStoreDump } from "./deckStore.js";
+/** Strict validation shared by legacy migration, SQLite reads, and recovery. */
+import { z } from "zod";
+import { ROLES } from "../types/card.js";
+import type { DeckStoreDump } from "./deckStore.js";
 
-const DEBOUNCE_MS = 250;
+const identifier = z
+  .string()
+  .min(1)
+  .refine((value) => !value.includes("\0"), "identifier contains NUL");
+const deckSchema = z
+  .object({
+    deck_id: identifier,
+    name: z.string(),
+    format: z.literal("commander"),
+    commanders: z.array(identifier),
+    command_zone_kind: z.enum(["single", "partner", "background", "doctor_companion"]),
+    companion: identifier.optional(),
+    cards: z.array(
+      z
+        .object({
+          oracle_id: identifier,
+          qty: z.number().int().positive(),
+          illegal: z.boolean().optional(),
+        })
+        .strict(),
+    ),
+    computed_color_identity: z.array(z.enum(["W", "U", "B", "R", "G"])),
+    version: z.number().int().positive(),
+    data_snapshot: z.string(),
+    role_overrides: z.record(identifier, z.array(z.enum(ROLES))).optional(),
+  })
+  .strict();
+const snapshotSchema = z
+  .object({ snapshot_id: identifier, version: z.number().int().positive(), deck: deckSchema })
+  .strict();
+const dumpSchema = z
+  .object({
+    decks: z.array(z.tuple([z.string(), deckSchema])),
+    snapshots: z.array(z.tuple([z.string(), snapshotSchema])),
+  })
+  .strict();
 
-/** Shape guard for a parsed decks file (tolerant — content is trusted-local). */
-function isDump(value: unknown): value is DeckStoreDump {
-  if (typeof value !== "object" || value === null) return false;
-  const v = value as Record<string, unknown>;
-  return Array.isArray(v.decks) && Array.isArray(v.snapshots);
-}
-
-export class DeckPersister {
-  private dirty = false;
-  private timer: NodeJS.Timeout | undefined;
-  private detach: (() => void) | undefined;
-  private store: DeckStore | undefined;
-
-  constructor(private readonly filePath: string) {}
-
-  /**
-   * Load the persisted dump into `store` (best-effort), then subscribe to its
-   * dirty events for write-through. Also installs a sync exit-flush.
-   */
-  attach(store: DeckStore): void {
-    this.store = store;
-    const dump = this.load();
-    if (dump) store.hydrate(dump);
-    this.detach = store.onDirty(() => this.schedule());
-    process.on("exit", () => this.flush());
+export function parseDeckStoreDump(value: unknown): DeckStoreDump {
+  const dump = dumpSchema.parse(value);
+  const keys = new Set<string>();
+  for (const [key, deck] of dump.decks) {
+    const parts = key.split("\0");
+    if (parts.length !== 2 || !parts[0] || parts[1] !== deck.deck_id)
+      throw new Error(`invalid deck key '${key}'`);
+    if (keys.has(key)) throw new Error(`duplicate deck key '${key}'`);
+    keys.add(key);
   }
-
-  /** Read + parse the decks file; quarantine a corrupt one instead of crashing. */
-  load(): DeckStoreDump | undefined {
-    if (!existsSync(this.filePath)) return undefined;
-    try {
-      const parsed: unknown = JSON.parse(readFileSync(this.filePath, "utf8"));
-      if (isDump(parsed)) return parsed;
-      throw new Error("unexpected shape");
-    } catch (err) {
-      try {
-        renameSync(this.filePath, `${this.filePath}.corrupt`);
-      } catch {
-        // Quarantine is best-effort too.
-      }
-      console.error(
-        `decks file ${this.filePath} was unreadable and has been set aside (.corrupt): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-      return undefined;
-    }
+  keys.clear();
+  for (const [key, snapshot] of dump.snapshots) {
+    const parts = key.split("\0");
+    if (
+      parts.length !== 3 ||
+      !parts[0] ||
+      parts[1] !== snapshot.deck.deck_id ||
+      parts[2] !== snapshot.snapshot_id ||
+      snapshot.version !== snapshot.deck.version
+    )
+      throw new Error(`invalid snapshot key or version '${key}'`);
+    if (keys.has(key)) throw new Error(`duplicate snapshot key '${key}'`);
+    keys.add(key);
   }
-
-  private schedule(): void {
-    this.dirty = true;
-    if (this.timer) return;
-    this.timer = setTimeout(() => {
-      this.timer = undefined;
-      this.flush();
-    }, DEBOUNCE_MS);
-    // Never keep the event loop alive just for a pending flush; the exit
-    // handler covers the tail write.
-    this.timer.unref();
-  }
-
-  /** Write the current store contents now (atomic tmp + rename). No-op when clean. */
-  flush(): void {
-    if (!this.dirty || !this.store) return;
-    this.dirty = false;
-    try {
-      mkdirSync(dirname(this.filePath), { recursive: true });
-      const tmp = `${this.filePath}.tmp`;
-      writeFileSync(tmp, JSON.stringify(this.store.dump()));
-      renameSync(tmp, this.filePath);
-    } catch (err) {
-      // A failed write must never take down a tool call; retry on next dirty.
-      this.dirty = true;
-      console.error(
-        `deck persistence write failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-  }
-
-  /** Unsubscribe from the store (tests). The exit hook stays; flush() is idempotent. */
-  close(): void {
-    this.detach?.();
-    if (this.timer) clearTimeout(this.timer);
-    this.flush();
-  }
+  return dump;
 }

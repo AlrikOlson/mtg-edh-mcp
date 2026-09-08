@@ -2,6 +2,7 @@
 export type CliOptions =
   | { mode: "help" }
   | { mode: "version" }
+  | { mode: "restore-user-data"; backupPath: string }
   | { mode: "serve"; transport: "stdio" | "http"; port: number; host: string };
 
 export function parseCli(
@@ -10,6 +11,17 @@ export function parseCli(
 ): CliOptions {
   if (argv.includes("--help") || argv.includes("-h")) return { mode: "help" };
   if (argv.includes("--version") || argv.includes("-v")) return { mode: "version" };
+  if (argv[0] === "restore-user-data") {
+    if (argv.length !== 2 || !argv[1]?.trim() || argv[1].startsWith("-")) {
+      throw new Error(
+        "Usage: mtg-edh-mcp restore-user-data <backup-path>. Stop all servers first.",
+      );
+    }
+    if (env.MCP_DATA_DIR !== undefined && env.MCP_DATA_DIR.trim() === "") {
+      throw new Error("MCP_DATA_DIR must be a non-empty directory path.");
+    }
+    return { mode: "restore-user-data", backupPath: argv[1] };
+  }
   for (const arg of argv) {
     if (arg !== "--http" && arg !== "--stdio") {
       throw new Error(`Unknown argument: ${arg}. Run mtg-edh-mcp --help for usage.`);
@@ -50,6 +62,7 @@ export const CLI_HELP = `mtg-edh-mcp — Commander deckbuilding for MCP clients
 Usage: mtg-edh-mcp [--stdio | --http]
        mtg-edh-mcp --help
        mtg-edh-mcp --version
+       mtg-edh-mcp restore-user-data <backup-path>
 
 Options:
   --stdio       Serve MCP on stdin/stdout (default)
@@ -58,12 +71,17 @@ Options:
   -v, --version Show the package version and exit
 
 Environment:
-  MCP_DATA_DIR           Card database and saved decks (default: data/cards)
+  MCP_DATA_DIR           Card database, decks and collections (default: data/cards)
                          Use the same absolute path for ingestion and serving.
   MCP_TRANSPORT          stdio or http; command-line flags take precedence
   MCP_HTTP_HOST          Loopback host (default: 127.0.0.1)
   MCP_HTTP_PORT          HTTP port (default: 3000; 0 chooses a free port)
   MCP_AUTO_REFRESH       Set to 0 to disable automatic bulk refresh
+
+Recovery:
+  Stop all servers using MCP_DATA_DIR, then run restore-user-data with an explicit
+  backup from its backups directory. Replaces user data and preserves the old DB.
+  See the guide for backup age, migration and recovery details.
 
 First run:
   npm ci

@@ -9,8 +9,9 @@ import {
 import { ROLES } from "./card.js";
 
 describe("error taxonomy", () => {
-  it("declares all ten §8 codes", () => {
-    expect(ERROR_CODES).toHaveLength(10);
+  it("declares the §8 codes plus actionable storage failures", () => {
+    expect(ERROR_CODES).toHaveLength(11);
+    expect(ERROR_CODES).toContain("STORAGE_ERROR");
     expect(ERROR_CODES).toContain("UNKNOWN_CARD");
     expect(ERROR_CODES).toContain("STALE_CARD");
     expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
@@ -66,16 +67,22 @@ describe("toolError", () => {
   });
 
   it("includes structured details when present", () => {
-    const result = toolError("INVALID_QUERY", "unexpected token", { position: 7 });
+    const result = toolError("INVALID_QUERY", "unexpected token", {
+      position: 7,
+    });
     const parsed = JSON.parse((result.content[0] as { text: string }).text) as ErrorPayload;
     expect(parsed.details).toEqual({ position: 7 });
-    expect(result.structuredContent).toMatchObject({ details: { position: 7 } });
+    expect(result.structuredContent).toMatchObject({
+      details: { position: 7 },
+    });
   });
 
   it("accepts a StructuredError instance directly", () => {
     const err = new StructuredError("UPSTREAM_UNAVAILABLE", "EDHREC down");
     const result = toolError(err);
     expect(result.isError).toBe(true);
-    expect(result.structuredContent).toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
+    expect(result.structuredContent).toMatchObject({
+      code: "UPSTREAM_UNAVAILABLE",
+    });
   });
 });

@@ -48,7 +48,12 @@ function projectDeck(
     const card = index?.getCard(entry.oracle_id) ?? null;
     const flag = entry.illegal ? { illegal: true } : {};
     if (expand) return { oracle_id: entry.oracle_id, qty: entry.qty, card, ...flag };
-    return { oracle_id: entry.oracle_id, qty: entry.qty, name: card?.name, ...flag };
+    return {
+      oracle_id: entry.oracle_id,
+      qty: entry.qty,
+      name: card?.name,
+      ...flag,
+    };
   });
   return { ...deck, cards };
 }
@@ -138,7 +143,12 @@ function deckCreateTool(
       );
       const vitals = deckVitals(deck, index);
       return {
-        content: [{ type: "text", text: `created deck ${deck.deck_id} — ${formatVitals(vitals)}` }],
+        content: [
+          {
+            type: "text",
+            text: `created deck ${deck.deck_id} — ${formatVitals(vitals)}`,
+          },
+        ],
         structuredContent: { deck_id: deck.deck_id, deck, vitals },
       };
     },
@@ -165,7 +175,9 @@ function deckGetTool(store: DeckStore, session: string, index?: CardIndex): Tool
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       return {
         content: [{ type: "text", text: `${deck.name} (v${deck.version})` }],
-        structuredContent: { deck: projectDeck(deck, index, args.expand === true) },
+        structuredContent: {
+          deck: projectDeck(deck, index, args.expand === true),
+        },
       };
     },
   };
@@ -292,9 +304,15 @@ function deckSnapshotTool(store: DeckStore, session: string): ToolDefinition {
       const snap = store.snapshot(deckId, session);
       return {
         content: [
-          { type: "text", text: `snapshot ${snap.snapshot_id} of ${deckId} (v${snap.version})` },
+          {
+            type: "text",
+            text: `snapshot ${snap.snapshot_id} of ${deckId} (v${snap.version})`,
+          },
         ],
-        structuredContent: { snapshot_id: snap.snapshot_id, version: snap.version },
+        structuredContent: {
+          snapshot_id: snap.snapshot_id,
+          version: snap.version,
+        },
       };
     },
   };
@@ -378,7 +396,12 @@ function deckRestoreTool(store: DeckStore, session: string, index?: CardIndex): 
             text: `restored ${deckId} from ${snapshotId} — ${formatVitals(vitals)}`,
           },
         ],
-        structuredContent: { deck_id: deckId, restored_from: snapshotId, deck, vitals },
+        structuredContent: {
+          deck_id: deckId,
+          restored_from: snapshotId,
+          deck,
+          vitals,
+        },
       };
     },
   };
@@ -578,7 +601,11 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
         const violations = addVerdict({ ...deck, cards: merged }, add.oracle_id, index);
         if (violations.length === 0) {
           working = merged;
-          verdicts.push({ oracle_id: add.oracle_id, name: add.name, status: "ok" });
+          verdicts.push({
+            oracle_id: add.oracle_id,
+            name: add.name,
+            status: "ok",
+          });
         } else if (force) {
           working = merged.map((e) =>
             e.oracle_id === add.oracle_id ? { ...e, illegal: true } : e,
@@ -609,7 +636,13 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
             text: `${verdicts.length} add verdict(s) for ${deckId}${failedNote} — ${formatVitals(vitals)}`,
           },
         ],
-        structuredContent: { deck_id: deckId, version: updated.version, verdicts, failed, vitals },
+        structuredContent: {
+          deck_id: deckId,
+          version: updated.version,
+          verdicts,
+          failed,
+          vitals,
+        },
       };
     },
   };
@@ -658,7 +691,12 @@ function deckRemoveTool(store: DeckStore, session: string, index?: CardIndex): T
             text: `removed from ${deckId}${failedNote} — ${formatVitals(vitals)}`,
           },
         ],
-        structuredContent: { deck_id: deckId, version: updated.version, failed, vitals },
+        structuredContent: {
+          deck_id: deckId,
+          version: updated.version,
+          failed,
+          vitals,
+        },
       };
     },
   };
@@ -732,7 +770,12 @@ function deckSetCommanderTool(
       if (violations.length > 0) {
         // Current-state vitals so the agent still learns where the deck stands.
         return {
-          content: [{ type: "text", text: `rejected: ${violations.length} violation(s)` }],
+          content: [
+            {
+              type: "text",
+              text: `rejected: ${violations.length} violation(s)`,
+            },
+          ],
           structuredContent: {
             ok: false,
             deck_id: deckId,
@@ -823,7 +866,12 @@ function deckSetCompanionTool(
       const card = index?.getCard(oracleId) ?? null;
       if (!card || !isCompanionCard(card)) {
         return {
-          content: [{ type: "text", text: `rejected: ${card?.name ?? raw} is not a companion` }],
+          content: [
+            {
+              type: "text",
+              text: `rejected: ${card?.name ?? raw} is not a companion`,
+            },
+          ],
           structuredContent: {
             ok: false,
             deck_id: deckId,
@@ -881,5 +929,13 @@ export function makeDeckTools(
     deckRemoveTool(store, session, index),
     deckSetCommanderTool(store, session, index),
     deckSetCompanionTool(store, session, index),
-  ];
+  ].map((def) => {
+    if (def.config.annotations?.readOnlyHint !== false) return def;
+    // Keep version checks, validation, compound writes and response construction
+    // inside one synchronous transaction. No other process can interleave a write.
+    return {
+      ...def,
+      handler: (args, extra) => store.transaction(() => def.handler(args, extra)),
+    };
+  });
 }

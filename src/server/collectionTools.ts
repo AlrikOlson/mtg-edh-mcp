@@ -58,7 +58,7 @@ function collectionSetTool(
         "USE: loading what the user owns before ownership-aware search or budgeting. NOT: adding a few cards (collection_add).\n" +
         "FLOW: (owned list) -> collection_set -> card_search (owned_only) / budget_plan (use_collection).\n" +
         "ARGS: cards: name-or-id, single string or array.\n" +
-        "RETURNS: owned_count, total, owned[]/cards[] (echo capped at 200), unresolved[]. Session-scoped; resets on restart.",
+        "RETURNS: owned_count, total, owned[]/cards[] (echo capped at 200), unresolved[]. Session-scoped; persisted by the server.",
       inputSchema: { cards: CARDS_INPUT },
     },
     handler: (args) => {
@@ -66,7 +66,10 @@ function collectionSetTool(
       collection.set(ids, session);
       return {
         content: [{ type: "text", text: `collection set to ${ids.length} card(s)` }],
-        structuredContent: { ...ownedView(collection, index, session), unresolved },
+        structuredContent: {
+          ...ownedView(collection, index, session),
+          unresolved,
+        },
       };
     },
   };
@@ -95,7 +98,10 @@ function collectionAddTool(
       collection.add(ids, session);
       return {
         content: [{ type: "text", text: `added ${ids.length} card(s)` }],
-        structuredContent: { ...ownedView(collection, index, session), unresolved },
+        structuredContent: {
+          ...ownedView(collection, index, session),
+          unresolved,
+        },
       };
     },
   };
@@ -141,7 +147,10 @@ function collectionGetTool(
           total: owned.length,
           next_cursor: nextOffset < owned.length ? String(nextOffset) : null,
           owned: page,
-          cards: page.map((id) => ({ oracle_id: id, name: index.getCard(id)?.name })),
+          cards: page.map((id) => ({
+            oracle_id: id,
+            name: index.getCard(id)?.name,
+          })),
         },
       };
     },
@@ -183,5 +192,11 @@ export function makeCollectionTools(
     collectionAddTool(collection, index, session),
     collectionGetTool(collection, index, session),
     collectionClearTool(collection, session),
-  ];
+  ].map((def) => {
+    if (def.config.annotations?.readOnlyHint !== false) return def;
+    return {
+      ...def,
+      handler: (args, extra) => collection.transaction(() => def.handler(args, extra)),
+    };
+  });
 }

@@ -2,6 +2,7 @@
  * Deck state model (spec §4 / §2).
  */
 import type { ColorIdentity } from "./color.js";
+import type { Role } from "./card.js";
 
 /**
  * Deckbuilding format. `commander` is the v1 target; the field is first-class so
@@ -50,4 +51,6 @@ export interface Deck {
   version: number;
   /** ISO date of the card index this deck was last computed against (§3/§11). */
   data_snapshot: string;
+  /** User-specified role labels, preserved by persistence and deck snapshots. */
+  role_overrides?: Readonly<Record<string, readonly Role[]>>;
 }
