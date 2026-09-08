@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
@@ -106,12 +106,17 @@ try {
   assert.match(invalid.stderr, /Unknown argument/);
 
   const transports = new WeakMap();
-  async function connect(nodeArgs = [], serverEnv = env, modern = false) {
+  async function connect(
+    nodeArgs = [],
+    serverEnv = env,
+    modern = false,
+    config = { command: process.execPath, args: [entry, "--stdio"] },
+  ) {
     const transport = new StdioClientTransport({
-      command: process.execPath,
-      args: [...nodeArgs, entry, "--stdio"],
+      command: config.command,
+      args: [...nodeArgs, ...config.args],
       cwd: consumer,
-      env: serverEnv,
+      env: { ...serverEnv, ...config.env },
       stderr: "pipe",
     });
     let diagnostics = "";
@@ -374,10 +379,18 @@ globalThis.fetch = async (input) => {
   assert(firstSetup.clientConfig, "Setup must provide client configuration");
   const configuredServers = Object.values(firstSetup.clientConfig.mcpServers);
   assert.equal(configuredServers.length, 1);
+  const setupConfig = configuredServers[0];
+  assert(isAbsolute(setupConfig.command), "Setup must emit an absolute executable path");
+  assert(isAbsolute(setupConfig.args[0]), "Setup must emit an absolute entrypoint path");
+  // Windows short and long paths can address the same installed file.
   assert.deepEqual(
-    configuredServers[0],
     {
-      command: process.execPath,
+      ...setupConfig,
+      command: await realpath(setupConfig.command),
+      args: [await realpath(setupConfig.args[0]), ...setupConfig.args.slice(1)],
+    },
+    {
+      command: await realpath(process.execPath),
       args: [await realpath(entry), "--stdio"],
       env: { MCP_DATA_DIR: setupRoot },
     },
@@ -397,6 +410,17 @@ globalThis.fetch = async (input) => {
     "Setup must not download card data",
   );
   await doctor(2); // Setup prepares storage; the user explicitly starts the download.
+  const configuredClient = await connect(nodeArgs, env, false, setupConfig);
+  try {
+    const status = await configuredClient.callTool({
+      name: "data_status",
+      arguments: {},
+    });
+    assert(!status.isError, JSON.stringify(status));
+    assert.equal(status.structuredContent.has_index, false);
+  } finally {
+    await configuredClient.close();
+  }
   const freshTime = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   await writeFile(
     fixturePath,
