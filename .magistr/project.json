@@ -1,0 +1,73 @@
+{
+	"project": {
+		"name": "mtg-edh-mcp",
+		"description": "",
+		"type": ""
+	},
+	"stack": {
+		"language": "typescript",
+		"framework": "none",
+		"package_manager": "npm",
+		"test_framework": "vitest",
+		"linter": "eslint",
+		"formatter": "prettier"
+	},
+	"quality_gate": {
+		"check": "npx tsc --noEmit",
+		"test": "npm test",
+		"lint": "npm run lint"
+	},
+	"format": {
+		"extensions": ["ts", "tsx", "js", "jsx", "json", "css", "md"],
+		"command": "npx prettier --write --ignore-path .gitignore {file}"
+	},
+	"spec": {
+		"file": ".magistr-roadmap.yml",
+		"unchecked_pattern": "^\\s*- \\[ \\]"
+	},
+	"testing": {
+		"companion_pattern": "{name}.test.{ext}",
+		"test_dir": "alongside"
+	},
+	"reference_repos": [],
+	"state_prefix": "mtg-edh-mcp",
+	"lifecycle_hooks": [
+		{
+			"event": {
+				"type": "on_enter",
+				"phase": "verifying"
+			},
+			"tool": "magistr_lint",
+			"description": "Run linter before verification"
+		}
+	],
+	"roadmap_backend": "think-and-ship",
+	"archetypes": [
+		{
+			"id": "mtg-edh-mcp",
+			"name": "mtg-edh-mcp",
+			"language": "typescript",
+			"root": ".",
+			"role": "unknown",
+			"quality_gate": {
+				"check": "npx tsc --noEmit",
+				"test": "npm test",
+				"lint": "npm run lint"
+			},
+			"format": {
+				"extensions": ["ts", "tsx", "js", "jsx", "json", "css", "md"],
+				"command": "npx prettier --write --ignore-path .gitignore {file}",
+				"exclusions": ["node_modules", "dist", "build", ".next", "coverage"]
+			},
+			"testing": {
+				"companion_pattern": "{name}.test.{ext}",
+				"test_dir": "alongside"
+			},
+			"source_patterns": ["src/**/*.ts", "src/**/*.tsx"],
+			"test_patterns": ["**/*.test.ts", "**/*.spec.ts", "__tests__/**/*.ts"],
+			"naming_convention": "camelCase"
+		}
+	],
+	"topology": "single_project",
+	"relationships": []
+}

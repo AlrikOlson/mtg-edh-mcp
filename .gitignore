@@ -25,3 +25,18 @@ data/
 
 # Local build artifacts
 build/
+
+# ── magistr managed ── DO NOT EDIT between markers ──
+.workbench/
+.magistr/scope/
+.magistr/current-plan.md
+.magistr/current-task.md
+.magistr/loop-state.json
+Thumbs.db
+*.swp
+*.swo
+*~
+.next/
+.nuxt/
+.env.local
+# ── end magistr ──

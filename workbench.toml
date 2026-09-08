@@ -1,0 +1,16 @@
+# Seeded by `workbench-mcp init` from lockfile/manifest detection (SDD §9.6).
+# Amend by hand: this table is run's allowlist and only a human may change it.
+[commands]
+"test" = "npm run test" # package.json scripts.test + package-lock.json or default
+"build" = "npm run build" # package.json scripts.build + package-lock.json or default
+"lint" = "npm run lint" # package.json scripts.lint + package-lock.json or default
+"typecheck" = "npm run typecheck" # package.json scripts.typecheck + package-lock.json or default
+"format" = "npm run format" # package.json scripts.format + package-lock.json or default
+"dev" = "npm run dev" # package.json scripts.dev + package-lock.json or default
+"check" = "npx tsc --noEmit" # project.json quality_gate.check
+
+# magistr runs unattended (`magistr next-loop`), so a confirm-gated write
+# takes workbench's token flow — the agent confirms against the diff in the
+# envelope — rather than an elicitation dialog nobody is there to answer.
+[edit]
+confirm_mode = "token"

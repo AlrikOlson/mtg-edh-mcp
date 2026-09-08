@@ -1,0 +1,18 @@
+[mcp_servers.magistr]
+command = "magistr"
+args = ["mcp-launch", "magistr", "."]
+startup_timeout_sec = 60
+tool_timeout_sec = 1800
+required = true
+
+[mcp_servers.workbench-mcp]
+command = "magistr"
+args = ["mcp-launch", "workbench-mcp", "."]
+startup_timeout_sec = 60
+tool_timeout_sec = 300
+required = true
+
+[mcp_servers.think-and-ship]
+command = "think-and-ship"
+args = ["serve"]
+enabled = false
