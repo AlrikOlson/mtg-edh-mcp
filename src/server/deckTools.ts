@@ -13,7 +13,7 @@
  * a conflict result without mutating, rather than blindly last-write-wins.
  */
 import { z } from "zod";
-import { StructuredError } from "../types/index.js";
+import { ROLES, StructuredError } from "../types/index.js";
 import type { Card, Deck, DeckCardEntry, Violation } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import { diffDecks, formatDecklist, parseDecklist, type DeckStore } from "../deck/index.js";
@@ -37,6 +37,7 @@ import { deckVitals, formatVitals } from "./vitals.js";
 import type { SnapshotProvider } from "./snapshot.js";
 import { READS_LOCAL, mutates } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
+import { roleEvidence } from "../analyze/deckRoles.js";
 
 /** Project a deck's card entries for output (lean names, or full cards on expand). */
 function projectDeck(
@@ -47,12 +48,17 @@ function projectDeck(
   const cards = deck.cards.map((entry) => {
     const card = index?.getCard(entry.oracle_id) ?? null;
     const flag = entry.illegal ? { illegal: true } : {};
-    if (expand) return { oracle_id: entry.oracle_id, qty: entry.qty, card, ...flag };
+    const evidence =
+      card && deck.role_overrides && Object.hasOwn(deck.role_overrides, entry.oracle_id)
+        ? roleEvidence(card, deck.role_overrides)
+        : {};
+    if (expand) return { oracle_id: entry.oracle_id, qty: entry.qty, card, ...flag, ...evidence };
     return {
       oracle_id: entry.oracle_id,
       qty: entry.qty,
       name: card?.name,
       ...flag,
+      ...evidence,
     };
   });
   return { ...deck, cards };
@@ -252,6 +258,104 @@ function deckRenameTool(store: DeckStore, session: string, index?: CardIndex): T
           name: updated.name,
           version: updated.version,
           vitals,
+        },
+      };
+    },
+  };
+}
+
+const ROLE_CORRECTION_SCHEMA = z.object({
+  deck_id: z.string().min(1),
+  card: z.string().trim().min(1),
+  roles: z.array(z.enum(ROLES)).nullable(),
+  expected_version: z.number().int().nonnegative().optional(),
+});
+
+function deckSetRolesTool(store: DeckStore, session: string, index?: CardIndex): ToolDefinition {
+  return {
+    name: "deck_set_roles",
+    config: {
+      annotations: mutates({ destructive: false, idempotent: true }),
+      title: "Set deck role labels",
+      description:
+        "Replace a card's advisory roles in this deck.\n" +
+        "USE: correcting role counts and combo/payoff labels. NOT: rules or legality.\n" +
+        "FLOW: analyze_role_coverage -> deck_set_roles -> deck_status.\n" +
+        "ARGS: deck_id; card (name/oracle_id in library/command zone/companion); roles (list replaces, [] clears, null resets defaults); expected_version (conflict guard). Reset accepts stored override IDs for removed/unavailable cards.\n" +
+        "RETURNS: ok, changed, deck_id, oracle_id, version, inferred_roles, effective_roles, role_source (classifier|user_override). Unavailable reset cards have null roles. Success bumps version; snapshots preserve overrides.",
+      inputSchema: ROLE_CORRECTION_SCHEMA.shape,
+    },
+    handler: (args) => {
+      const input = ROLE_CORRECTION_SCHEMA.parse(args);
+      const deck = store.get(input.deck_id, session);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${input.deck_id}'`);
+      if (input.expected_version !== undefined && input.expected_version !== deck.version) {
+        return conflict(deck.deck_id, deck.version, input.expected_version);
+      }
+      const resetStoredId =
+        input.roles === null &&
+        deck.role_overrides !== undefined &&
+        Object.hasOwn(deck.role_overrides, input.card);
+      let oracleId: string;
+      if (resetStoredId) oracleId = input.card;
+      else if (index) oracleId = resolveCardId(index, input.card);
+      else
+        throw new StructuredError(
+          "UNKNOWN_CARD",
+          "card data is unavailable; only stored override oracle_ids can be reset",
+        );
+
+      const hasOverride =
+        deck.role_overrides !== undefined && Object.hasOwn(deck.role_overrides, oracleId);
+      const inDeck =
+        deck.cards.some((entry) => entry.oracle_id === oracleId) ||
+        deck.commanders.includes(oracleId) ||
+        deck.companion === oracleId;
+      if (!inDeck && !(input.roles === null && hasOverride)) {
+        throw new StructuredError("INVALID_QUERY", `card '${input.card}' is not in this deck`);
+      }
+      const roles =
+        input.roles === null ? null : ROLES.filter((role) => input.roles?.includes(role));
+      const previous = deck.role_overrides?.[oracleId];
+      const changed =
+        roles === null
+          ? hasOverride
+          : !hasOverride ||
+            previous?.length !== roles.length ||
+            roles.some((role, i) => previous[i] !== role);
+      const updated = store.update(
+        deck.deck_id,
+        (current) => {
+          const overrides = { ...current.role_overrides };
+          if (roles === null) delete overrides[oracleId];
+          else overrides[oracleId] = roles;
+          return { ...current, role_overrides: overrides };
+        },
+        session,
+      );
+      const card = index?.getCard(oracleId);
+      const evidence = card
+        ? roleEvidence(card, updated.role_overrides)
+        : {
+            inferred_roles: null,
+            effective_roles: null,
+            role_source: "classifier" as const,
+          };
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${roles === null ? "reset" : "set"} roles for ${card?.name ?? oracleId} in ${deck.name} (v${updated.version})`,
+          },
+        ],
+        structuredContent: {
+          ok: true,
+          changed,
+          deck_id: deck.deck_id,
+          oracle_id: oracleId,
+          name: card?.name,
+          version: updated.version,
+          ...evidence,
         },
       };
     },
@@ -917,6 +1021,7 @@ export function makeDeckTools(
     deckGetTool(store, session, index),
     deckListTool(store, session, index),
     deckRenameTool(store, session, index),
+    deckSetRolesTool(store, session, index),
     deckDeleteTool(store, session),
     deckSnapshotTool(store, session),
     deckDiffTool(store, session),

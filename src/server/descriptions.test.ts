@@ -39,7 +39,7 @@ const ORACLE = [
   },
 ];
 
-const EXPECTED_TOOL_COUNT = 41;
+const EXPECTED_TOOL_COUNT = 42;
 const MAX_DESCRIPTION_CHARS = 700;
 
 const TEMPLATE =

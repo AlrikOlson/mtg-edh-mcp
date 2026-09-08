@@ -11,6 +11,7 @@ import { runWorkflowScenarios, WORKFLOW_FIXTURE, WORKFLOW_VERSION } from "./work
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const baselinePath = resolve(root, "docs/evaluation/v0.2.0-baseline.json");
+const advicePath = resolve(root, "docs/evaluation/v0.3.0-advice.json");
 const count = z.number().nonnegative().finite();
 const metricsSchema = z.object({
   tool_calls: count,
@@ -135,7 +136,7 @@ async function captureProvenance() {
   };
 }
 
-it("replays offline workflows within the observed v0.2.0 deterministic limits", async () => {
+it("replays offline workflows within original behavior limits and reviewed advice byte limits", async () => {
   const network = vi.fn(() => {
     throw new Error("Network is forbidden in workflow replay");
   });
@@ -179,6 +180,10 @@ it("replays offline workflows within the observed v0.2.0 deterministic limits", 
     });
   }
   const baseline = baselineSchema.parse(JSON.parse(await readFile(baselinePath, "utf8")));
+  const advice = baselineSchema.parse(JSON.parse(await readFile(advicePath, "utf8")));
+  expect(advice.workflow_version).toBe(baseline.workflow_version);
+  expect(advice.fixture_sha256).toBe(baseline.fixture_sha256);
+  expect(advice.workflows.map((run) => run.id)).toEqual(baseline.workflows.map((run) => run.id));
   expect(WORKFLOW_VERSION).toBe(baseline.workflow_version);
   expect(fixtureHash).toBe(baseline.fixture_sha256);
   expect(runs.map((run) => run.id)).toEqual(baseline.workflows.map((run) => run.id));
@@ -188,19 +193,27 @@ it("replays offline workflows within the observed v0.2.0 deterministic limits", 
     if (!previous) throw new Error(`Missing baseline for ${current.id}`);
     expect(current.prompt).toBe(previous.prompt);
     expect(current.invariants).toEqual(previous.invariants);
-    // The limits are the actual baseline observations, with no invented multiplier.
+    // Behavior limits remain the v0.2.0 observations. Useful advice evidence adds bytes;
+    // only its byte ceiling comes from the reviewed full trace retained alongside the original.
     for (const key of [
       "tool_calls",
       "invalid_calls",
       "partial_failure_calls",
       "tool_errors",
       "rpc_errors",
-      "response_bytes",
     ] as const) {
       expect(current.metrics[key], `${current.id}: ${key}`).toBeLessThanOrEqual(
         previous.metrics[key],
       );
     }
+    const observed = advice.workflows.find((run) => run.id === current.id);
+    if (!observed) throw new Error(`Missing advice observation for ${current.id}`);
+    expect(observed.prompt).toBe(previous.prompt);
+    expect(observed.invariants).toEqual(previous.invariants);
+    expect(summarizeCalls(observed.calls)).toEqual(observed.metrics);
+    expect(current.metrics.response_bytes, `${current.id}: response_bytes`).toBeLessThanOrEqual(
+      observed.metrics.response_bytes,
+    );
     expect(current.metrics.expected_errors).toBe(previous.metrics.expected_errors);
     expect(summarizeCalls(previous.calls)).toEqual(previous.metrics);
     for (const call of current.calls) {

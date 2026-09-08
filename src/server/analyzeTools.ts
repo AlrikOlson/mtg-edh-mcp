@@ -5,7 +5,8 @@
  * the index, then calls the pure analyzers (src/analyze). Advisory only.
  */
 import { z } from "zod";
-import { StructuredError } from "../types/index.js";
+import { ROLES, StructuredError } from "../types/index.js";
+import { deckRoleLookup, deckRoleProvenance } from "../analyze/deckRoles.js";
 import type { Card, Color, Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
@@ -27,27 +28,6 @@ import { deckVitals, formatVitals } from "./vitals.js";
 import { READS_LOCAL } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
-const ROLE_ENUM = [
-  "ramp",
-  "mana_rock",
-  "mana_dork",
-  "land",
-  "fixing",
-  "card_draw",
-  "card_advantage",
-  "tutor",
-  "spot_removal",
-  "board_wipe",
-  "counterspell",
-  "protection",
-  "recursion",
-  "graveyard_hate",
-  "stax",
-  "combo_piece",
-  "payoff",
-  "wincon",
-  "utility",
-] as const;
 const COLOR_ENUM = ["W", "U", "B", "R", "G"] as const;
 
 function analyzeCurveTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
@@ -65,7 +45,7 @@ function analyzeCurveTool(store: DeckStore, index: CardIndex, session: string): 
       inputSchema: {
         deck_id: z.string(),
         exclude_lands: z.boolean().optional(),
-        role: z.enum(ROLE_ENUM).optional(),
+        role: z.enum(ROLES).optional(),
         color: z.enum(COLOR_ENUM).optional(),
       },
     },
@@ -73,7 +53,7 @@ function analyzeCurveTool(store: DeckStore, index: CardIndex, session: string): 
       const deckId = String(args.deck_id ?? "");
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-      const lookup = (id: string): Card | null => index.getCard(id);
+      const lookup = deckRoleLookup(deck, (id) => index.getCard(id));
       const result = analyzeCurve(deck.cards, lookup, {
         exclude_lands: args.exclude_lands === true,
         role: typeof args.role === "string" ? (args.role as Role) : undefined,
@@ -86,7 +66,7 @@ function analyzeCurveTool(store: DeckStore, index: CardIndex, session: string): 
             text: `${result.total} cards across ${Object.keys(result.buckets).length} buckets`,
           },
         ],
-        structuredContent: { deck_id: deckId, ...result },
+        structuredContent: { deck_id: deckId, ...result, ...deckRoleProvenance(deck) },
       };
     },
   };
@@ -114,11 +94,11 @@ function analyzeCompositionTool(
       const deckId = String(args.deck_id ?? "");
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-      const lookup = (id: string): Card | null => index.getCard(id);
+      const lookup = deckRoleLookup(deck, (id) => index.getCard(id));
       const result = analyzeComposition(deck.cards, lookup);
       return {
         content: [{ type: "text", text: `${result.total} cards` }],
-        structuredContent: { deck_id: deckId, ...result },
+        structuredContent: { deck_id: deckId, ...result, ...deckRoleProvenance(deck) },
       };
     },
   };
@@ -221,14 +201,14 @@ function analyzeRoleCoverageTool(
       const deckId = String(args.deck_id ?? "");
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-      const lookup = (id: string): Card | null => index.getCard(id);
+      const lookup = deckRoleLookup(deck, (id) => index.getCard(id));
       const bands =
         args.bands && typeof args.bands === "object" ? (args.bands as RoleBands) : undefined;
       const result = analyzeRoleCoverage(deck.cards, lookup, bands);
       const under = result.gaps.filter((g) => g.status === "under").length;
       return {
         content: [{ type: "text", text: `${under} role(s) under target` }],
-        structuredContent: { deck_id: deckId, ...result },
+        structuredContent: { deck_id: deckId, ...result, ...deckRoleProvenance(deck) },
       };
     },
   };
@@ -273,7 +253,7 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
       const mana = analyzeManaBase(deck.cards, lookup, {
         identity: deck.computed_color_identity,
       });
-      const coverage = analyzeRoleCoverage(deck.cards, lookup);
+      const coverage = analyzeRoleCoverage(deck.cards, deckRoleLookup(deck, lookup));
       const gaps = coverage.gaps.filter((g) => g.status === "under");
 
       const gapNote =
@@ -312,7 +292,7 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
             sources_by_color: mana.sources,
             under_supported: mana.under_supported,
           },
-          roles: { gaps },
+          roles: { gaps, ...deckRoleProvenance(deck) },
           price: {
             total_usd: stats.total_price_usd,
             min_buy_usd: stats.min_buy_usd,
@@ -351,7 +331,7 @@ function simulateDeckTool(store: DeckStore, index: CardIndex, session: string): 
       const deckId = String(args.deck_id ?? "");
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-      const lookup = (id: string): Card | null => index.getCard(id);
+      const lookup = deckRoleLookup(deck, (id) => index.getCard(id));
       const opts: SimOptions = {};
       if (typeof args.trials === "number") opts.trials = args.trials;
       if (typeof args.seed === "number") opts.seed = args.seed;
@@ -368,7 +348,7 @@ function simulateDeckTool(store: DeckStore, index: CardIndex, session: string): 
               `${Math.round(result.dead_on_arrival_rate * 100)}% dead-on-arrival, first spell ~T${result.avg_turn_to_first_spell ?? "n/a"}`,
           },
         ],
-        structuredContent: { deck_id: deckId, ...result },
+        structuredContent: { deck_id: deckId, ...result, ...deckRoleProvenance(deck) },
       };
     },
   };
@@ -402,7 +382,7 @@ function budgetPlanTool(
       const deckId = String(args.deck_id ?? "");
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-      const lookup = (id: string): Card | null => index.getCard(id);
+      const lookup = deckRoleLookup(deck, (id) => index.getCard(id));
       const opts: BudgetOptions = {};
       if (typeof args.target_usd === "number") opts.targetUsd = args.target_usd;
       if (typeof args.limit === "number") opts.limit = args.limit;
@@ -421,7 +401,7 @@ function budgetPlanTool(
             text: `min buy $${plan.min_buy_usd} (default $${plan.default_total_usd}); reprint savings $${plan.reprint_savings_usd}${acquire}${gap}`,
           },
         ],
-        structuredContent: { deck_id: deckId, ...plan },
+        structuredContent: { deck_id: deckId, ...plan, ...deckRoleProvenance(deck) },
       };
     },
   };

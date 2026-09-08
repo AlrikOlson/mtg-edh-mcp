@@ -60,6 +60,42 @@ const ORACLE = [
     legalities: { commander: "legal" },
     prices: { usd: "1.00" },
   },
+  {
+    oracle_id: "o-opt",
+    id: "p-opt",
+    name: "Opt",
+    cmc: 1,
+    colors: ["U"],
+    color_identity: ["U"],
+    type_line: "Instant",
+    oracle_text: "Scry 1. Draw a card.",
+    legalities: { commander: "legal" },
+    prices: { usd: "0.25" },
+  },
+  {
+    oracle_id: "o-mystery",
+    id: "p-mystery",
+    name: "Mystery Spell",
+    cmc: 3,
+    colors: ["U"],
+    color_identity: ["U"],
+    type_line: "Instant",
+    oracle_text: "Draw two cards.",
+    legalities: { commander: "legal" },
+    prices: { usd: null },
+  },
+  ...["0.05", "0.10", "0.20"].map((usd) => ({
+    oracle_id: `o-rock-${usd}`,
+    id: `p-rock-${usd}`,
+    name: `Rock ${usd}`,
+    cmc: 1,
+    colors: [],
+    color_identity: [],
+    type_line: "Artifact",
+    oracle_text: "{T}: Add {C}.",
+    legalities: { commander: "legal" },
+    prices: { usd },
+  })),
 ];
 
 const EDHREC_PAGE = {
@@ -85,8 +121,14 @@ let root: string;
 let index: CardIndex;
 let deckStore: DeckStore;
 let client: Client;
+let edhrecPage: unknown;
+let cacheNow: number;
+let upstreamDown: boolean;
 
 beforeEach(async () => {
+  edhrecPage = EDHREC_PAGE;
+  cacheNow = 1000;
+  upstreamDown = false;
   root = await mkdtemp(path.join(tmpdir(), "mtg-meta-"));
   const store = new VersionedStore(root);
   await store.createVersion("v1");
@@ -96,8 +138,12 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
 
-  const edhrec = new EdhrecClient(new CacheStore({ now: () => 1000 }), {
-    fetchJson: async () => EDHREC_PAGE,
+  const edhrec = new EdhrecClient(new CacheStore({ now: () => cacheNow }), {
+    ttlMs: 100,
+    fetchJson: async () => {
+      if (upstreamDown) throw new Error("offline");
+      return edhrecPage;
+    },
   });
   const server = createServer({
     index,
@@ -296,5 +342,170 @@ describe("meta_budget_swaps (review #10 part 2)", () => {
     });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+  });
+});
+
+describe("explainable deck advice", () => {
+  it.each([false, true])(
+    "uses displayed cents for an exact budget target (cheaper candidate: %s)",
+    async (hasCandidate) => {
+      deckStore.update("deck-1", (d) => ({
+        ...d,
+        cards: [
+          { oracle_id: "o-rock-0.10", qty: 1 },
+          { oracle_id: "o-rock-0.20", qty: 1 },
+        ],
+      }));
+      if (hasCandidate)
+        edhrecPage = {
+          container: {
+            json_dict: {
+              cardlists: [
+                {
+                  header: "Mana",
+                  cardviews: [{ name: "Rock 0.05", inclusion: 1, synergy: 0.1 }],
+                },
+              ],
+            },
+          },
+        };
+      const result = (
+        await client.callTool({
+          name: "meta_budget_swaps",
+          arguments: {
+            deck_id: "deck-1",
+            target_usd: 0.3,
+          },
+        })
+      ).structuredContent;
+      expect(result).toMatchObject({
+        swaps: [],
+        current_min_buy_usd: 0.3,
+        projected_min_buy_usd: 0.3,
+        target_met: true,
+      });
+    },
+  );
+
+  it("excludes a declared companion from addition and replacement candidates", async () => {
+    deckStore.update("deck-1", (d) => ({ ...d, companion: "o-signet" }));
+    expect(
+      (await client.callTool({ name: "meta_recommend", arguments: { deck_id: "deck-1" } }))
+        .structuredContent,
+    ).toMatchObject({ suggestions: [] });
+    expect(
+      (await client.callTool({ name: "meta_budget_swaps", arguments: { deck_id: "deck-1" } }))
+        .structuredContent,
+    ).toMatchObject({ swaps: [] });
+  });
+
+  it("sorts actual synergy scores, distinguishes missing evidence and prices, and exposes stale provenance", async () => {
+    edhrecPage = {
+      container: {
+        json_dict: {
+          cardlists: [
+            {
+              header: "Test",
+              cardviews: [
+                { name: "Arcane Signet", inclusion: 800, synergy: 0.2 },
+                { name: "Mystery Spell" },
+                { name: "Opt", inclusion: 20, synergy: 0.9 },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const request = { name: "meta_recommend", arguments: { deck_id: "deck-1" } };
+    const first = (await client.callTool(request)).structuredContent as {
+      suggestions: Array<{
+        name: string;
+        evidence: { synergy: number | null; inclusion: number | null };
+        budget_impact: { delta_min_buy_usd: number | null };
+        uncertainty: string[];
+      }>;
+      source: { fetched_at: string };
+    };
+    expect(first.suggestions.map((s) => s.name)).toEqual(["Opt", "Arcane Signet", "Mystery Spell"]);
+    expect(first.suggestions[0]?.budget_impact.delta_min_buy_usd).toBe(0.25);
+    expect(first.suggestions[2]?.evidence).toMatchObject({ synergy: null, inclusion: null });
+    expect(first.suggestions[2]?.budget_impact.delta_min_buy_usd).toBeNull();
+    expect(first.suggestions[2]?.uncertainty.length).toBeGreaterThan(0);
+    cacheNow += 200;
+    upstreamDown = true;
+    const stale = await client.callTool(request);
+    expect(stale.structuredContent).toMatchObject({
+      data_snapshot: "2026-06-27",
+      source: {
+        status: "stale",
+        refresh_failed: true,
+        age_ms: 200,
+        fetched_at: first.source.fetched_at,
+      },
+    });
+    expect(stale.content).toContainEqual({
+      type: "text",
+      text: JSON.stringify(stale.structuredContent),
+    });
+  });
+
+  it("explains role losses and mana tradeoffs using deck overrides without changing the index", async () => {
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      role_overrides: { "o-sol": ["ramp", "protection"] },
+    }));
+    const result = (
+      await client.callTool({ name: "meta_budget_swaps", arguments: { deck_id: "deck-1" } })
+    ).structuredContent;
+    expect(result).toMatchObject({
+      swaps: [
+        {
+          out: {
+            qty: 1,
+            evidence: { role_source: "user_override", effective_roles: ["ramp", "protection"] },
+          },
+          in: { qty: 1, evidence: { role_source: "classifier" } },
+          tradeoffs: { roles_lost: ["protection"], mana_value_delta: 1 },
+          budget_impact: { delta_min_buy_usd: -0.5 },
+        },
+      ],
+    });
+    expect(index.getCard("o-sol")?.roles).not.toContain("protection");
+    deckStore.update("deck-1", (d) => ({ ...d, role_overrides: { "o-sol": [] } }));
+    expect(
+      (await client.callTool({ name: "meta_budget_swaps", arguments: { deck_id: "deck-1" } }))
+        .structuredContent,
+    ).toMatchObject({ swaps: [] });
+  });
+
+  it("swaps only one copy and keeps unknown library costs from claiming a budget target", async () => {
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      cards: [
+        { oracle_id: "o-sol", qty: 3 },
+        { oracle_id: "o-mystery", qty: 2 },
+        { oracle_id: "missing", qty: 1 },
+      ],
+    }));
+    const result = (
+      await client.callTool({
+        name: "meta_budget_swaps",
+        arguments: { deck_id: "deck-1", target_usd: 4 },
+      })
+    ).structuredContent;
+    expect(result).toMatchObject({
+      swaps: [{ out: { qty: 1 }, in: { qty: 1 }, savings: 0.5 }],
+      current_min_buy_usd: 4.5,
+      projected_min_buy_usd: 4,
+      target_met: null,
+      budget: {
+        scope: "library_only",
+        ownership_adjusted: false,
+        price_fetched_at: null,
+        unpriced_copies: 2,
+        unresolved_copies: 1,
+        complete: false,
+      },
+    });
   });
 });

@@ -421,6 +421,149 @@ describe("durable user state across real MCP processes", () => {
     30_000,
   );
 
+  it.each([
+    {
+      mode: "set",
+      roles: ["combo_piece", "payoff"],
+      expected: ["combo_piece", "payoff"],
+    },
+    { mode: "empty", roles: [], expected: [] },
+    { mode: "reset", roles: null, expected: undefined },
+  ])(
+    "persists public role $mode immediately across SIGKILL and preserves isolation",
+    async ({ roles, expected }) => {
+      const writer = start();
+      const alice = await connect(writer);
+      const deckId = id(
+        await call(alice, "deck_import", {
+          name: "Role durability",
+          text: "1 Sol Ring",
+        }),
+      );
+      await call(alice, "deck_set_roles", {
+        deck_id: deckId,
+        card: "Sol Ring",
+        roles: ["wincon"],
+      });
+      const snapshot = await call(alice, "deck_snapshot", { deck_id: deckId });
+      const acknowledged = await call(alice, "deck_set_roles", {
+        deck_id: deckId,
+        card: "Sol Ring",
+        roles,
+      });
+      await kill(writer);
+
+      const reader = start();
+      const ready = await reader.waitFor("ready");
+      const restored = await connect(reader, "alice", ready.port);
+      const bob = await connect(reader, "bob", ready.port);
+      const saved = await call(restored, "deck_get", { deck_id: deckId });
+      expect(saved).toMatchObject({ deck: { version: acknowledged.version } });
+      const deck = saved.deck;
+      if (!deck || typeof deck !== "object" || Array.isArray(deck))
+        throw new Error("Missing persisted deck");
+      const overrides = "role_overrides" in deck ? deck.role_overrides : undefined;
+      const composition = await call(restored, "analyze_composition", {
+        deck_id: deckId,
+      });
+      if (expected === undefined) {
+        expect(overrides ?? {}).not.toHaveProperty("o-sol");
+        expect(composition.by_role).toEqual({ ramp: 1, mana_rock: 1 });
+      } else {
+        expect(overrides).toEqual({ "o-sol": expected });
+        expect(composition.by_role).toEqual(Object.fromEntries(expected.map((role) => [role, 1])));
+      }
+      expect(
+        await bob.callTool({
+          name: "deck_set_roles",
+          arguments: { deck_id: deckId, card: "Sol Ring", roles: [] },
+        }),
+      ).toMatchObject({
+        isError: true,
+        structuredContent: { code: "DECK_NOT_FOUND" },
+      });
+      expect(await call(restored, "deck_get", { deck_id: deckId })).toEqual(saved);
+      expect(
+        await call(restored, "deck_restore", {
+          deck_id: deckId,
+          snapshot_id: id(snapshot, "snapshot_id"),
+        }),
+      ).toMatchObject({ deck: { role_overrides: { "o-sol": ["wincon"] } } });
+    },
+    30_000,
+  );
+
+  it("admits one public role correction at a version across two CLI processes", async () => {
+    const first = start();
+    const second = start();
+    const [a, b] = await Promise.all([connect(first), connect(second)]);
+    const deckId = id(await call(a, "deck_import", { name: "Role race", text: "1 Sol Ring" }));
+    const before = await call(a, "deck_get", { deck_id: deckId });
+    const deck = before.deck;
+    if (
+      !deck ||
+      typeof deck !== "object" ||
+      !("version" in deck) ||
+      typeof deck.version !== "number"
+    )
+      throw new Error("Missing version");
+    const expectedVersion = deck.version;
+    const replies = await Promise.all(
+      [a, b].map((client, n) =>
+        call(client, "deck_set_roles", {
+          deck_id: deckId,
+          card: "Sol Ring",
+          roles: n === 0 ? [] : ["payoff"],
+          expected_version: expectedVersion,
+        }),
+      ),
+    );
+    expect(replies.filter((reply) => reply.ok === true)).toHaveLength(1);
+    expect(replies.filter((reply) => reply.conflict === true)).toEqual([
+      expect.objectContaining({
+        current_version: expectedVersion + 1,
+        expected_version: expectedVersion,
+      }),
+    ]);
+    expect(await call(a, "deck_get", { deck_id: deckId })).toEqual(
+      await call(b, "deck_get", { deck_id: deckId }),
+    );
+  }, 30_000);
+
+  it("rolls back a failed public role correction and permits retry after restart", async () => {
+    const writer = start("fixture");
+    const client = await connect(writer);
+    const deckId = id(
+      await call(client, "deck_import", {
+        name: "Role rollback",
+        text: "1 Sol Ring",
+      }),
+    );
+    const before = await call(client, "deck_get", { deck_id: deckId });
+    writer.child.send({ type: "fail-next-commit" });
+    await writer.waitFor("armed");
+    expect(
+      await client.callTool({
+        name: "deck_set_roles",
+        arguments: { deck_id: deckId, card: "Sol Ring", roles: ["payoff"] },
+      }),
+    ).toMatchObject({
+      isError: true,
+      structuredContent: { code: "STORAGE_ERROR" },
+    });
+    expect(await call(client, "deck_get", { deck_id: deckId })).toEqual(before);
+    await kill(writer);
+    const restarted = await connect(start());
+    expect(await call(restarted, "deck_get", { deck_id: deckId })).toEqual(before);
+    expect(
+      await call(restarted, "deck_set_roles", {
+        deck_id: deckId,
+        card: "Sol Ring",
+        roles: ["payoff"],
+      }),
+    ).toMatchObject({ ok: true });
+  }, 30_000);
+
   it("returns STORAGE_ERROR over MCP and preserves the previous durable state on a failed commit", async () => {
     const writer = start("fixture");
     const client = await connect(writer);

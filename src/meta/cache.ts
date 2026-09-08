@@ -28,6 +28,20 @@ export interface CacheStoreOptions {
   now?: () => number;
 }
 
+/** Local observation age, not a claim about when the upstream data was published. */
+export interface CacheFreshness {
+  fetched_at: string;
+  age_ms: number;
+  ttl_ms: number;
+  status: "fresh" | "cached" | "stale";
+  refresh_failed: boolean;
+}
+
+export interface CachedResult<T> {
+  value: T;
+  freshness: CacheFreshness;
+}
+
 export class CacheStore {
   private readonly entries = new Map<string, CacheEntry>();
   private readonly now: () => number;
@@ -42,16 +56,36 @@ export class CacheStore {
    * UPSTREAM_UNAVAILABLE. `ttlMs` is the freshness window for this call.
    */
   async fetch<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
+    return (await this.fetchWithMetadata(key, ttlMs, fetcher)).value;
+  }
+
+  /** Fetch with observation metadata; stale fallback keeps its original timestamp. */
+  async fetchWithMetadata<T>(
+    key: string,
+    ttlMs: number,
+    fetcher: () => Promise<T>,
+  ): Promise<CachedResult<T>> {
+    const result = (value: T, at: number, status: CacheFreshness["status"]): CachedResult<T> => ({
+      value,
+      freshness: {
+        fetched_at: new Date(at).toISOString(),
+        age_ms: Math.max(0, this.now() - at),
+        ttl_ms: ttlMs,
+        status,
+        refresh_failed: status === "stale",
+      },
+    });
     const entry = this.entries.get(key);
     if (entry && this.now() - entry.at < ttlMs) {
-      return entry.value as T;
+      return result(entry.value as T, entry.at, "cached");
     }
     try {
       const value = await fetcher();
-      this.entries.set(key, { value, at: this.now() });
-      return value;
+      const at = this.now();
+      this.entries.set(key, { value, at });
+      return result(value, at, "fresh");
     } catch (cause) {
-      if (entry) return entry.value as T; // serve stale rather than fail
+      if (entry) return result(entry.value as T, entry.at, "stale");
       throw new StructuredError(
         "UPSTREAM_UNAVAILABLE",
         `cache miss and upstream failed for '${key}'`,

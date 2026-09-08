@@ -160,6 +160,146 @@ impl Server {
     }
 }
 
+async fn role_acceptance(server: Server, root: &Path, deck_id: &str, version: u64) -> Result<()> {
+    server
+        .require_tools(&["deck_set_roles", "analyze_composition"])
+        .await?;
+    let inferred = json!(["ramp", "mana_rock"]);
+    let baseline = server
+        .call("analyze_composition", json!({"deck_id": deck_id}))
+        .await?;
+    ensure!(
+        baseline["by_role"] == json!({"ramp": 1, "mana_rock": 1}),
+        "unexpected fixture roles: {baseline}"
+    );
+    let empty = server
+        .call(
+            "deck_set_roles",
+            json!({"deck_id": deck_id, "card": ORACLE_ID, "roles": [], "expected_version": version}),
+        )
+        .await?;
+    ensure!(
+        empty["ok"] == true
+            && empty["version"] == version + 1
+            && empty["inferred_roles"] == inferred
+            && empty["effective_roles"] == json!([])
+            && empty["role_source"] == "user_override",
+        "empty role override must suppress classifier labels: {empty}"
+    );
+    let suppressed = server
+        .call("analyze_composition", json!({"deck_id": deck_id}))
+        .await?;
+    ensure!(
+        suppressed["by_role"] == json!({}),
+        "empty override did not suppress role counts: {suppressed}"
+    );
+    let reset = server
+        .call(
+            "deck_set_roles",
+            json!({"deck_id": deck_id, "card": "Rust Acceptance Artifact", "roles": null, "expected_version": version + 1}),
+        )
+        .await?;
+    ensure!(
+        reset["ok"] == true
+            && reset["version"] == version + 2
+            && reset["effective_roles"] == inferred
+            && reset["role_source"] == "classifier",
+        "null roles must restore classifier labels: {reset}"
+    );
+    let corrected_roles = json!(["combo_piece", "payoff"]);
+    let corrected = server
+        .call(
+            "deck_set_roles",
+            json!({"deck_id": deck_id, "card": "Rust Acceptance Artifact", "roles": ["payoff", "combo_piece", "payoff"], "expected_version": version + 2}),
+        )
+        .await?;
+    ensure!(
+        corrected["ok"] == true
+            && corrected["version"] == version + 3
+            && corrected["inferred_roles"] == inferred
+            && corrected["effective_roles"] == corrected_roles
+            && corrected["role_source"] == "user_override",
+        "replacement roles were not acknowledged canonically: {corrected}"
+    );
+    // No intervening MCP call or graceful close after the mutation acknowledgement.
+    server.kill().await?;
+
+    let restarted = Server::connect(root).await?;
+    let restored = restarted
+        .call("deck_get", json!({"deck_id": deck_id}))
+        .await?;
+    let card = &restored["deck"]["cards"][0];
+    ensure!(
+        restored["deck"]["version"] == version + 3
+            && restored["deck"]["role_overrides"][ORACLE_ID] == corrected_roles
+            && card["inferred_roles"] == inferred
+            && card["effective_roles"] == corrected_roles
+            && card["role_source"] == "user_override",
+        "acknowledged roles changed after immediate kill: {restored}"
+    );
+    let analysis = restarted
+        .call("analyze_composition", json!({"deck_id": deck_id}))
+        .await?;
+    ensure!(
+        analysis["by_role"] == json!({"combo_piece": 1, "payoff": 1})
+            && analysis["by_type"] == baseline["by_type"]
+            && analysis["total"] == baseline["total"],
+        "persisted corrections did not replace advisory role counts: {analysis}"
+    );
+    let conflict = restarted
+        .call(
+            "deck_set_roles",
+            json!({"deck_id": deck_id, "card": ORACLE_ID, "roles": null, "expected_version": version + 2}),
+        )
+        .await?;
+    ensure!(
+        conflict["ok"] == false && conflict["conflict"] == true,
+        "stale role reset was accepted: {conflict}"
+    );
+    ensure!(
+        restarted
+            .call("deck_get", json!({"deck_id": deck_id}))
+            .await?
+            == restored
+            && restarted
+                .call("analyze_composition", json!({"deck_id": deck_id}))
+                .await?
+                == analysis,
+        "conflicting role mutation changed the deck or its analysis"
+    );
+    let reset = restarted
+        .call(
+            "deck_set_roles",
+            json!({"deck_id": deck_id, "card": ORACLE_ID, "roles": null, "expected_version": version + 3}),
+        )
+        .await?;
+    ensure!(
+        reset["ok"] == true
+            && reset["version"] == version + 4
+            && reset["effective_roles"] == inferred
+            && reset["role_source"] == "classifier",
+        "role reset was not acknowledged: {reset}"
+    );
+    restarted.kill().await?;
+    let reset_server = Server::connect(root).await?;
+    let reset_deck = reset_server
+        .call("deck_get", json!({"deck_id": deck_id}))
+        .await?;
+    ensure!(
+        reset_deck["deck"]["version"] == version + 4
+            && reset_deck["deck"]["role_overrides"][ORACLE_ID].is_null(),
+        "acknowledged reset changed after immediate kill: {reset_deck}"
+    );
+    ensure!(
+        reset_server
+            .call("analyze_composition", json!({"deck_id": deck_id}))
+            .await?["by_role"]
+            == baseline["by_role"],
+        "persisted reset did not restore classifier role counts"
+    );
+    reset_server.close().await
+}
+
 async fn acceptance() -> Result<()> {
     let root = tempfile::tempdir().context("empty data directory")?;
     ensure!(
@@ -259,7 +399,7 @@ async fn acceptance() -> Result<()> {
             == deck["deck"],
         "conflicting mutation changed saved deck"
     );
-    restarted.close().await?;
+    role_acceptance(restarted, root.path(), &deck_id, version).await?;
 
     // Stdio always uses the local principal; a separate MCP_DATA_DIR is its
     // isolation boundary. Verify both a known deck ID and collection membership.
@@ -283,7 +423,7 @@ async fn acceptance() -> Result<()> {
     );
     isolated.close().await?;
     println!(
-        "PASS: rmcp initialize/discovery/calls, offline first-run ingest, structured/text parity, acknowledged deck+collection durability after kill/reconnect, version conflict, data-directory isolation"
+        "PASS: rmcp initialize/discovery/calls, offline first-run ingest, structured/text parity, acknowledged deck+collection durability after kill/reconnect, role replacement/empty/reset with durable analysis effects, stale version conflicts, data-directory isolation"
     );
     Ok(())
 }

@@ -28,6 +28,11 @@ The executable verifies:
 - Immediate process termination after acknowledged writes, followed by a new
   process and rmcp connection that recover the same deck and collection.
 - Rejection of a conflicting deck version without changing persisted contents.
+- Public `deck_set_roles` replacements, including the distinction between `[]`
+  (suppress inferred labels) and `null` (restore classifier labels).
+- Immediate termination after acknowledged role replacement and reset, with
+  recovered role values, provenance, and composition counts on fresh connections.
+- Rejection of a stale role correction without changing the deck or analysis.
 - Isolation of both the known deck ID and collection in a second data directory.
 
 `offline-scryfall.mjs` is a test-only Node preload replacing upstream `fetch`

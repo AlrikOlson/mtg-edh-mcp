@@ -53,6 +53,37 @@ describe("parseProfile / parseThemes", () => {
 });
 
 describe("EdhrecClient", () => {
+  it("attaches EDHREC provenance and preserves stale fetch time independently of card snapshots", async () => {
+    let now = 1000;
+    let down = false;
+    const client = new EdhrecClient(new CacheStore({ now: () => now }), {
+      ttlMs: 100,
+      fetchJson: async () => {
+        if (down) throw new Error("offline");
+        return FIXTURE;
+      },
+    });
+    const profile = await client.profileWithSource("Talrand, Sky Summoner");
+    expect(profile.source).toMatchObject({
+      name: "EDHREC",
+      url: "https://json.edhrec.com/pages/commanders/talrand-sky-summoner.json",
+      fetched_at: "1970-01-01T00:00:01.000Z",
+      status: "fresh",
+      age_ms: 0,
+    });
+    now += 200;
+    down = true;
+    const stale = await client.profileWithSource("Talrand, Sky Summoner");
+    expect(stale.cards).toEqual(profile.cards);
+    expect(stale.source).toMatchObject({
+      status: "stale",
+      age_ms: 200,
+      fetched_at: profile.source.fetched_at,
+      refresh_failed: true,
+    });
+    expect(await client.profile("Talrand, Sky Summoner")).toEqual(parseProfile(FIXTURE));
+  });
+
   it("caches a commander page (one fetch within TTL)", async () => {
     let calls = 0;
     const client = new EdhrecClient(new CacheStore({ now: () => 1000 }), {

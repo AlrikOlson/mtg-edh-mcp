@@ -102,7 +102,9 @@ function compatibilityClient(revision: (typeof revisions)[number]): Client {
     { name: "compatibility-test", version: "1.0.0" },
     {
       supportedProtocolVersions: [revision],
-      versionNegotiation: { mode: revision === "2026-07-28" ? { pin: revision } : "legacy" },
+      versionNegotiation: {
+        mode: revision === "2026-07-28" ? { pin: revision } : "legacy",
+      },
     },
   );
 }
@@ -117,12 +119,21 @@ function stdioTransport(): StdioClientTransport {
 
 async function verifyCatalogAndResults(client: Client): Promise<void> {
   const { tools } = await client.listTools();
-  expect(tools).toHaveLength(41);
+  expect(tools).toHaveLength(42);
+  expect(tools.find((tool) => tool.name === "deck_set_roles")?.annotations).toMatchObject({
+    readOnlyHint: false,
+    openWorldHint: false,
+    destructiveHint: false,
+  });
   expect(tools.every((tool) => tool.outputSchema === undefined)).toBe(true);
   expect((await client.listPrompts()).prompts).toHaveLength(3);
   expect(
-    (await client.getPrompt({ name: "tune_deck", arguments: { deck_id: "sample" } })).messages[0]
-      ?.content,
+    (
+      await client.getPrompt({
+        name: "tune_deck",
+        arguments: { deck_id: "sample" },
+      })
+    ).messages[0]?.content,
   ).toMatchObject({ type: "text", text: expect.stringContaining("sample") });
   expect((await client.readResource({ uri: "card://o-sol" })).contents[0]).toMatchObject({
     text: expect.stringContaining("Sol Ring"),
@@ -138,6 +149,33 @@ async function verifyCatalogAndResults(client: Client): Promise<void> {
     expect(result.content).toContainEqual({
       type: "text",
       text: JSON.stringify(result.structuredContent),
+    });
+  }
+
+  const created = await client.callTool({
+    name: "deck_create",
+    arguments: { name: "Compatibility roles" },
+  });
+  const deckId = z.object({ deck_id: z.string() }).parse(created.structuredContent).deck_id;
+  await client.callTool({
+    name: "deck_add",
+    arguments: { deck_id: deckId, cards: "Sol Ring" },
+  });
+  for (const roles of [[], null]) {
+    const corrected = await client.callTool({
+      name: "deck_set_roles",
+      arguments: { deck_id: deckId, card: "Sol Ring", roles },
+    });
+    expect(corrected.isError).not.toBe(true);
+    expect(corrected.structuredContent).toMatchObject({
+      ok: true,
+      role_source: roles === null ? "classifier" : "user_override",
+      effective_roles: roles === null ? ["ramp", "mana_rock"] : [],
+      data_snapshot: SNAPSHOT,
+    });
+    expect(corrected.content).toContainEqual({
+      type: "text",
+      text: JSON.stringify(corrected.structuredContent),
     });
   }
 }
@@ -204,13 +242,22 @@ describe("SDK v2 protocol compatibility", () => {
       client.setNotificationHandler("notifications/resources/updated", (notification) => {
         updates.push(notification.params.uri);
       });
-      const subscription = await client.listen({ resourceSubscriptions: [uri] });
-      expect(subscription.honoredFilter).toEqual({ resourceSubscriptions: [uri] });
+      const subscription = await client.listen({
+        resourceSubscriptions: [uri],
+      });
+      expect(subscription.honoredFilter).toEqual({
+        resourceSubscriptions: [uri],
+      });
       await client.callTool({
         name: "deck_add",
         arguments: { deck_id: deckId, cards: "Sol Ring" },
       });
       await vi.waitFor(() => expect(updates).toEqual([uri]));
+      await client.callTool({
+        name: "deck_set_roles",
+        arguments: { deck_id: deckId, card: "Sol Ring", roles: [] },
+      });
+      await vi.waitFor(() => expect(updates).toEqual([uri, uri]));
       await subscription.close();
       expect(await subscription.closed).toBe("local");
       await client.callTool({
@@ -218,7 +265,7 @@ describe("SDK v2 protocol compatibility", () => {
         arguments: { deck_id: deckId, cards: "Sol Ring" },
       });
       await client.callTool({ name: "ping", arguments: {} });
-      expect(updates).toEqual([uri]);
+      expect(updates).toEqual([uri, uri]);
     } finally {
       await client.close();
     }
@@ -240,7 +287,9 @@ describe("SDK v2 protocol compatibility", () => {
         clients.map((client, i) =>
           client.connect(
             new StreamableHTTPClientTransport(url, {
-              requestInit: { headers: { [PRINCIPAL_HEADER]: `principal-${i}` } },
+              requestInit: {
+                headers: { [PRINCIPAL_HEADER]: `principal-${i}` },
+              },
             }),
           ),
         ),
@@ -260,7 +309,9 @@ describe("SDK v2 protocol compatibility", () => {
         (result) => z.object({ deck_id: z.string() }).parse(result.structuredContent).deck_id,
       );
       for (const [i, result] of lists.entries()) {
-        expect(result.structuredContent).toMatchObject({ decks: [{ name: `Deck ${i}` }] });
+        expect(result.structuredContent).toMatchObject({
+          decks: [{ name: `Deck ${i}` }],
+        });
         expect(JSON.stringify(result.structuredContent)).not.toContain(createdIds[1 - i]);
       }
     } finally {

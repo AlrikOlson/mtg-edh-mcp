@@ -9,6 +9,40 @@ function clock(start = 1000) {
 }
 
 describe("CacheStore", () => {
+  it("reports fetch, cached age and failed-refresh staleness without resetting observation time", async () => {
+    const c = clock();
+    const cache = new CacheStore({ now: c.now });
+    const fresh = await cache.fetchWithMetadata("k", 1000, async () => "value");
+    expect(fresh).toEqual({
+      value: "value",
+      freshness: {
+        fetched_at: "1970-01-01T00:00:01.000Z",
+        age_ms: 0,
+        ttl_ms: 1000,
+        status: "fresh",
+        refresh_failed: false,
+      },
+    });
+    c.advance(400);
+    expect(
+      (await cache.fetchWithMetadata("k", 1000, async () => "unexpected")).freshness,
+    ).toMatchObject({ status: "cached", age_ms: 400, refresh_failed: false });
+    c.advance(600);
+    const stale = await cache.fetchWithMetadata("k", 1000, async () => {
+      throw new Error("offline");
+    });
+    expect(stale).toEqual({
+      value: "value",
+      freshness: {
+        fetched_at: "1970-01-01T00:00:01.000Z",
+        age_ms: 1000,
+        ttl_ms: 1000,
+        status: "stale",
+        refresh_failed: true,
+      },
+    });
+  });
+
   it("serves a hit within TTL without re-calling the fetcher", async () => {
     const c = clock();
     const cache = new CacheStore({ now: c.now });

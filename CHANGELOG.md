@@ -6,6 +6,17 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## Unreleased
 
+- Add `deck_set_roles` (42 tools total): persistent per-deck role replacements,
+  empty labels, and reset to classifier defaults, with optimistic version checks.
+  Composition, coverage, status gaps, and advisory role consumers use corrections;
+  global card data and rules validation remain unchanged.
+- Explain EDHREC additions and budget-swap cuts with role/synergy evidence,
+  tradeoffs, uncertainty, local price impact, and cache freshness/stale fallback.
+  Sort synergy recommendations by score; mark missing metrics and partial budgets.
+  Propose one-copy swaps to avoid multiplying singleton replacement quantities.
+- Verify public role set/clear/reset through actual MCP process kills, concurrent
+  writers, storage failure rollback, snapshots, and modern/older clients.
+
 - Migrate to stable MCP TypeScript SDK 2.0.0, enabling the 2026-07-28 protocol
   over stdio and local HTTP while retaining older-client initialization.
   Preserve the 41 tools, three prompts, annotations, and structured/text results.
@@ -31,8 +42,7 @@ The project is pre-1.0; minor releases may include breaking changes.
   backups, and add `restore-user-data <backup-path>` for explicit offline
   recovery. Corrupted storage stops startup instead of silently creating an
   empty store.
-- Persist per-deck role-override payloads through snapshots and restarts; the
-  role-correction tools and analysis integration remain a later change.
+- Persist per-deck role-override payloads through snapshots and restarts.
 
 - Stage and validate complete card-data snapshots before atomic publication;
   retain previous and interrupted versions for recovery. Coordinate CLI/server

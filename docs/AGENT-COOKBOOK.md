@@ -71,7 +71,7 @@ thresholds, and bracket classifications are advisory.
   its `snapshot_id`, review `deck_diff`, and use `deck_restore` to return to it.
   Restore changes the deck and advances its version.
 - **Carry the version.** Pass `expected_version` where supported: add, remove,
-  rename, commander, and companion changes. A conflict applies no mutation.
+  rename, commander, companion, and role changes. A conflict applies no mutation.
   Re-read the current deck, reassess the edit, then retry with its version.
 - **Avoid blind retries.** Add, remove, import, create, and snapshot operations
   can change state again when repeated. After an uncertain network result,
@@ -84,6 +84,33 @@ thresholds, and bracket classifications are advisory.
 
 `force: true` on `deck_add` permits rule-breaking cards with an illegal flag.
 Use it only for an intentional experiment agreed with the user.
+
+## Correct role labels
+
+Use `deck_set_roles` for a card already in this deck (library, commander, or
+companion). Labels replace the classifier's list for that card in this deck.
+
+```text
+deck_set_roles {"deck_id":"DECK_ID","card":"Sol Ring","roles":["ramp","mana_rock","combo_piece"]}
+analyze_composition {"deck_id":"DECK_ID"}
+analyze_role_coverage {"deck_id":"DECK_ID"}
+
+deck_set_roles {"deck_id":"DECK_ID","card":"Sol Ring","roles":[]}
+deck_set_roles {"deck_id":"DECK_ID","card":"Sol Ring","roles":null}
+```
+
+The first call preserves the mana roles and adds a deck-specific combo label.
+`[]` deliberately assigns no roles; `null` removes the correction and restores
+classifier defaults. Pass the current `expected_version` when coordinating
+edits. Each response distinguishes `inferred_roles`, `effective_roles`, and
+`role_source`. `deck_get.role_overrides` is stored under its returned `deck`.
+
+Corrections persist with the deck, participate in snapshots and restore, and
+feed composition, coverage, status gaps, and role-based advice. They do not
+change global `card_get`/search labels, card types, or rules legality. Library
+analyses still count library entries only, including each entry's quantity.
+A correction for a removed card stays with the deck for later re-addition;
+reset it by Oracle ID if its card data is no longer resolvable.
 
 ## Find cards without filling the context
 
@@ -146,6 +173,37 @@ does not mean an empty search result.
 `meta_combos` sends the deck's card names to Commander Spellbook.
 `meta_classify_bracket` may do so too. EDHREC-backed tools query an unofficial
 service. Use local tools when the user wants to keep deck contents local.
+
+## Read the reasons behind advice
+
+`meta_recommend` explains each addition with inferred or corrected roles,
+EDHREC synergy/inclusion evidence, tradeoffs, and the local one-copy price
+impact. Compare those roles with the gaps returned by `deck_status`.
+`meta_budget_swaps` explains both the outgoing
+cut and its proposed replacement: matching roles, roles lost or gained, mana
+value changes, and savings for the proposed quantity. These calls suggest
+changes; they do not edit the deck. Review the evidence, take a snapshot, then
+apply the returned quantities through `deck_remove` and `deck_add` and validate.
+
+Role overlap is a heuristic, not functional equivalence. A swap may remove
+protection, a combo piece, or another role your deck needs. Community inclusion
+and synergy are population statistics, not a win-rate prediction; missing
+metrics are marked unknown in the evidence. The
+[EDHREC FAQ](https://edhrec.com/faq) describes its inclusion/synergy data and
+update delays; its [methodology note](https://edhrec.com/articles/from-synergy-to-lift-the-math-behind-edhrecs-new-era)
+distinguishes commander-page synergy from card-page lift.
+
+The response source includes the EDHREC URL, cache fetch time and age, and
+whether a failed refresh returned stale data. Fetch age describes this server's
+cache; the upstream dataset's update time can remain unknown. `data_snapshot`
+identifies local card data, while pricing timestamps may be unknown.
+
+Advice budgets use local cheapest-printing USD estimates for the library;
+commanders and companions are excluded, and owned-card membership is not
+deducted. Missing prices or unresolved cards make the total partial, not zero
+cost: check budget completeness before interpreting a target. Full-deck
+affordability still requires adding command-zone costs and considering ownership.
+Shipping, taxes, availability, and resale proceeds are not included.
 
 ## MCP prompts and tool annotations
 

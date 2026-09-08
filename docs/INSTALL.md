@@ -134,7 +134,7 @@ Ask your assistant to:
 3. Create a deck, set its commander, and call `deck_status`.
 4. Restart the server and use `deck_list` to confirm the deck persists.
 
-When the index is loaded, `tools/list` includes 41 tools and `prompts/list`
+When the index is loaded, `tools/list` includes 42 tools and `prompts/list`
 includes `build_commander_deck`, `tune_deck`, and `fit_budget`.
 
 ### Starting without an index
@@ -197,7 +197,8 @@ Both stdio and HTTP accept the **2026-07-28** protocol and legacy initialization
 Regression checks include 2024-11-05 clients and an actual Rust rmcp 3.2.0 client
 negotiating 2025-11-25. Your existing launch configuration is unchanged.
 
-The indexed catalog remains 41 tools and three prompts. Tool results carry
+The indexed catalog contains 42 tools and three prompts, including the added
+`deck_set_roles` correction tool. Tool results carry
 `structuredContent` and an equivalent JSON text block for clients that consume
 only text. Tools continue to omit advertised `outputSchema` to preserve the
 existing catalog contract; this migration does not re-enable previously removed
@@ -234,6 +235,12 @@ An incomplete legacy index causes a fresh version to be built instead.
 | Decks, snapshots and role overrides | `MCP_DATA_DIR/user-data.sqlite`; committed before successful mutation responses.        |
 | Owned-card collections              | The same user-data database, scoped by principal; membership, not inventory quantities. |
 | User-data backups                   | `MCP_DATA_DIR/backups/`; automatic snapshots taken before mutations.                    |
+
+Use `deck_set_roles` to replace a card's advisory labels within one deck.
+An empty array suppresses all inferred labels; `roles: null` removes the
+correction. Role overrides share deck version checks, snapshots, backups, and
+restart durability; they never alter the card index or rules legality. See the
+[role correction recipe](./AGENT-COOKBOOK.md#correct-role-labels).
 
 Multiple local processes running this version can share one data directory.
 Each mutation reads the latest committed state and writes in one SQLite

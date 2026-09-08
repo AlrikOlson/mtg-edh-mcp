@@ -9,7 +9,7 @@
  * container.json_dict, themes under panels.taglinks) and may drift.
  */
 import { USER_AGENT } from "../types/index.js";
-import type { CacheStore } from "./cache.js";
+import type { CacheStore, CacheFreshness } from "./cache.js";
 
 /** EDHREC pages change slowly; cache a commander page for a week by default. */
 export const EDHREC_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -30,6 +30,10 @@ export interface EdhrecCard {
 export interface CommanderProfile {
   cards: EdhrecCard[];
   themes: string[];
+}
+
+export interface SourcedCommanderProfile extends CommanderProfile {
+  source: CacheFreshness & { name: "EDHREC"; url: string };
 }
 
 /** EDHREC commander slug, e.g. "Atraxa, Praetors' Voice" -> "atraxa-praetors-voice". */
@@ -125,6 +129,16 @@ export class EdhrecClient {
   /** Parsed commander profile (card lists + themes). */
   async profile(commander: string): Promise<CommanderProfile> {
     return parseProfile(await this.commanderPage(commander));
+  }
+
+  /** Profile plus local fetch age, separately from the server's card data_snapshot. */
+  async profileWithSource(commander: string): Promise<SourcedCommanderProfile> {
+    const slug = slugify(commander);
+    const url = this.url(slug);
+    const result = await this.cache.fetchWithMetadata(`edhrec:commander:${slug}`, this.ttlMs, () =>
+      this.fetchJson(url),
+    );
+    return { ...parseProfile(result.value), source: { name: "EDHREC", url, ...result.freshness } };
   }
 
   /** Commander themes/archetypes. */

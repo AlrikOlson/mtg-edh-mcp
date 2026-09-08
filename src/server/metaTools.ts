@@ -11,10 +11,12 @@
  */
 import { z } from "zod";
 import { StructuredError } from "../types/index.js";
-import type { CardRef, Deck, Role } from "../types/index.js";
+import type { Card, CardRef, Deck, Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
 import { cheapestUsd } from "../analyze/index.js";
+import { effectiveRoles, roleEvidence } from "../analyze/deckRoles.js";
+import type { EdhrecCard, SourcedCommanderProfile } from "../meta/edhrec.js";
 import type {
   EdhrecClient,
   SpellbookClient,
@@ -68,11 +70,70 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 interface ProfileCandidate {
   oracle_id: string;
   name: string;
-  synergy: number;
-  inclusion: number;
+  synergy: number | null;
+  inclusion: number | null;
   category: string;
   /** Lean ref (type line for land filtering, ci already checked). */
   ref: CardRef;
+}
+
+function adviceEvidence(
+  card: Card,
+  deck: Deck,
+  metrics?: {
+    synergy?: number | null;
+    inclusion?: number | null;
+    category: string;
+  },
+) {
+  return {
+    ...roleEvidence(card, deck.role_overrides),
+    mana_value: card.mv,
+    synergy: metrics?.synergy ?? null,
+    inclusion: metrics?.inclusion ?? null,
+    category: metrics?.category ?? null,
+  };
+}
+
+/** Coverage describes only the library price floor, never a complete acquisition quote. */
+function libraryBudget(deck: Deck, index: CardIndex) {
+  let total = 0;
+  let unpriced = 0;
+  let unresolved = 0;
+  for (const entry of deck.cards) {
+    const card = index.getCard(entry.oracle_id);
+    if (!card) {
+      unresolved += entry.qty;
+      continue;
+    }
+    const price = cheapestUsd(card);
+    if (price === null) unpriced += entry.qty;
+    else total += price * entry.qty;
+  }
+  return {
+    total,
+    coverage: {
+      scope: "library_only",
+      ownership_adjusted: false,
+      price_basis: "local_index_usd_floor",
+      price_fetched_at: null,
+      unpriced_copies: unpriced,
+      unresolved_copies: unresolved,
+      complete: unpriced === 0 && unresolved === 0,
+    },
+  };
+}
+
+function adviceUncertainty(profile: SourcedCommanderProfile): string[] {
+  return [
+    "EDHREC reflects submitted deck popularity, not measured performance in this deck.",
+    "Role labels are advisory; overlapping roles do not establish functional equivalence.",
+    "Prices are local index estimates with unknown update time; ownership, availability and shipping are not accounted for.",
+    "The primary commander's profile does not evaluate partner combinations or full deck legality; validate after changes.",
+    ...(profile.source.refresh_failed
+      ? ["EDHREC refresh failed; advice uses an expired cached profile."]
+      : []),
+  ];
 }
 
 /** Resolve the deck's primary commander card or throw INELIGIBLE_COMMANDER. */
@@ -93,7 +154,7 @@ function requireCommander(deck: Deck, index: CardIndex, deckId: string) {
  * meta_budget_swaps): resolve each profile card name to an oracle_id
  * (exact), keep in-identity cards not already in the deck, optionally drop
  * lands, and report unresolved/ambiguous names instead of dropping them.
- * Preserves EDHREC profile order (its synergy ordering).
+ * Preserves profile category order; the caller applies the requested ranking.
  */
 function profileCandidates(
   deck: Deck,
@@ -105,6 +166,7 @@ function profileCandidates(
 ): { candidates: ProfileCandidate[]; unresolved: Record<string, unknown>[] } {
   const identity = new Set(deck.computed_color_identity.map((c) => c.toUpperCase()));
   const inDeck = new Set<string>([...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]);
+  if (deck.companion) inDeck.add(deck.companion);
   const candidates: ProfileCandidate[] = [];
   const unresolved: Record<string, unknown>[] = [];
   const seen = new Set<string>();
@@ -125,8 +187,8 @@ function profileCandidates(
     candidates.push({
       oracle_id: ref.oracle_id,
       name: ref.name,
-      synergy: card.synergy ?? 0,
-      inclusion: card.inclusion ?? 0,
+      synergy: card.synergy ?? null,
+      inclusion: card.inclusion ?? null,
       category: card.category,
       ref,
     });
@@ -147,7 +209,7 @@ function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
         "USE: raw meta context for a commander (top cards + themes). NOT: deck-grounded suggestions (meta_recommend).\n" +
         "FLOW: deck_set_commander -> meta_commander_profile -> meta_recommend.\n" +
         "ARGS: commander (name); limit (default 50).\n" +
-        "RETURNS: cards[] {name, inclusion, synergy, category}, total_cards (full profile size), themes[]. Live EDHREC, cached; degrades when upstream is down.",
+        "RETURNS: cards[] {name, inclusion, synergy, category}, total_cards, themes[], source with fetch age and stale fallback status.",
       inputSchema: {
         commander: z.string(),
         limit: z.number().int().positive().max(500).optional(),
@@ -156,7 +218,7 @@ function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
     handler: async (args) => {
       const commander = String(args.commander ?? "");
       const limit = typeof args.limit === "number" ? args.limit : PROFILE_CARD_LIMIT;
-      const profile = await edhrec.profile(commander);
+      const profile = await edhrec.profileWithSource(commander);
       return {
         content: [
           { type: "text", text: `${profile.cards.length} cards, ${profile.themes.length} themes` },
@@ -186,11 +248,11 @@ function metaRecommendTool(
       annotations: READS_LIVE,
       title: "Recommend cards (EDHREC)",
       description:
-        "Suggest cards to add from the commander's EDHREC profile, grounded against the deck.\n" +
-        "USE: rank:synergy (default) for 'what fits next'; rank:inclusion (+min_inclusion) for 'what staples am I missing'. NOT: cheaper replacements (meta_budget_swaps); offline gap analysis (deck_status).\n" +
-        "FLOW: deck_set_commander/deck_status -> meta_recommend -> deck_add.\n" +
-        "ARGS: deck_id; rank synergy|inclusion; min_inclusion; exclude_lands; limit (default 25, max 100).\n" +
-        "RETURNS: suggestions[] {oracle_id, name, synergy, inclusion, category} — in identity, not already present, ready for deck_add; unresolved[]. Live EDHREC, cached; degrades when down.",
+        "Suggest additions from the commander's EDHREC profile.\n" +
+        "USE: synergy for fit; inclusion for popular missing cards. NOT: cuts/replacements (meta_budget_swaps); offline gaps (deck_status).\n" +
+        "FLOW: deck_status -> meta_recommend -> deck_add -> validate_deck.\n" +
+        "ARGS: deck_id; rank synergy|inclusion; min_inclusion; exclude_lands; limit (25, max 100).\n" +
+        "RETURNS: suggestions[] with rationale, role/synergy evidence, uncertainty, tradeoffs and budget_impact; unresolved[]; source/freshness. In-identity, absent cards; local price floors, not performance guarantees.",
       inputSchema: {
         deck_id: z.string(),
         rank: z.enum(["synergy", "inclusion"]).optional(),
@@ -208,25 +270,63 @@ function metaRecommendTool(
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const commanderCard = requireCommander(deck, index, deckId);
 
-      const profile = await edhrec.profile(commanderCard.name);
+      const profile = await edhrec.profileWithSource(commanderCard.name);
       const { candidates, unresolved } = profileCandidates(deck, index, profile, {
         excludeLands: args.exclude_lands === true,
       });
 
-      let pool = candidates.filter((c) => c.inclusion >= minInclusion);
-      if (rank === "inclusion") {
-        // Prevalence desc; deterministic oracle_id tiebreak.
-        pool = [...pool].sort(
-          (a, b) => b.inclusion - a.inclusion || a.oracle_id.localeCompare(b.oracle_id),
-        );
-      }
-      const suggestions = pool.slice(0, limit).map((c) => ({
-        oracle_id: c.oracle_id,
-        name: c.name,
-        synergy: c.synergy,
-        inclusion: c.inclusion,
-        category: c.category,
-      }));
+      const pool = candidates
+        .filter((c) => (c.inclusion ?? 0) >= minInclusion)
+        .sort((a, b) => {
+          const av = a[rank];
+          const bv = b[rank];
+          if (av === null && bv !== null) return 1;
+          if (bv === null && av !== null) return -1;
+          return (bv ?? 0) - (av ?? 0) || a.oracle_id.localeCompare(b.oracle_id);
+        });
+      const suggestions = pool.slice(0, limit).flatMap((c) => {
+        const card = index.getCard(c.oracle_id);
+        if (!card) {
+          unresolved.push({ name: c.name, reason: "UNKNOWN_CARD" });
+          return [];
+        }
+        const price = cheapestUsd(card);
+        const evidence = adviceEvidence(card, deck, c);
+        return [
+          {
+            oracle_id: c.oracle_id,
+            name: c.name,
+            // Compatibility fields retain their historical zero fallback; evidence preserves missingness.
+            synergy: c.synergy ?? 0,
+            inclusion: c.inclusion ?? 0,
+            category: c.category,
+            rationale: `EDHREC ${rank} ${c[rank] ?? "unavailable"}; ${c.category}. In the deck's color identity and not already present.`,
+            evidence,
+            uncertainty: [
+              ...adviceUncertainty(profile),
+              ...(c.synergy === null || c.inclusion === null
+                ? ["Some EDHREC metrics are unavailable; null evidence is not a measured zero."]
+                : []),
+              ...(price === null ? ["No local USD price is available for this addition."] : []),
+            ],
+            tradeoffs: {
+              cards_added: 1,
+              mana_value_added: card.mv,
+              roles_added: evidence.effective_roles,
+              requires_cut:
+                deck.commanders.length + deck.cards.reduce((n, e) => n + e.qty, 0) >= 100,
+            },
+            budget_impact: {
+              currency: "USD",
+              qty: 1,
+              delta_min_buy_usd: price === null ? null : round2(price),
+              price_basis: "local_index_usd_floor",
+              ownership_adjusted: false,
+              price_fetched_at: null,
+            },
+          },
+        ];
+      });
 
       return {
         content: [
@@ -241,6 +341,8 @@ function metaRecommendTool(
           rank,
           suggestions,
           unresolved,
+          source: profile.source,
+          budget: libraryBudget(deck, index).coverage,
         },
       };
     },
@@ -252,6 +354,8 @@ interface SwapCandidate {
   name: string;
   roles: Role[];
   cheapest: number;
+  card: Card;
+  metrics: ProfileCandidate;
 }
 
 function metaBudgetSwapsTool(
@@ -266,11 +370,11 @@ function metaBudgetSwapsTool(
       annotations: READS_LIVE,
       title: "Budget swaps (EDHREC)",
       description:
-        "Suggest cheaper functional replacements for the deck's most expensive cards.\n" +
-        "USE: cutting cost via out/in swaps from the commander's EDHREC profile. NOT: additions (meta_recommend); zero-change reprint savings (budget_plan).\n" +
-        "FLOW: budget_plan -> meta_budget_swaps -> deck_remove.\n" +
-        "ARGS: deck_id; target_usd (stop once under budget); limit (default 10, max 50).\n" +
-        "RETURNS: swaps[] {out, in, roles_matched, savings}, current_min_buy_usd, projected_min_buy_usd. Heuristic role match + local price floors — review before swapping.",
+        "Propose one-copy cuts and cheaper replacements using EDHREC and effective deck roles.\n" +
+        "USE: reduce library cost with explained out/in swaps. NOT: additions (meta_recommend); reprint savings (budget_plan).\n" +
+        "FLOW: budget_plan -> meta_budget_swaps -> deck_remove/deck_add -> validate_deck.\n" +
+        "ARGS: deck_id; target_usd; limit (10, max 50).\n" +
+        "RETURNS: swaps[] {out, in, roles_matched, savings, rationale, tradeoffs, uncertainty, budget_impact}; role/synergy evidence; source/freshness; current/projected_min_buy_usd, budget coverage, target_met. Price floors exclude command zone and ownership.",
       inputSchema: {
         deck_id: z.string(),
         target_usd: z.number().nonnegative().optional(),
@@ -285,10 +389,11 @@ function metaBudgetSwapsTool(
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const commanderCard = requireCommander(deck, index, deckId);
 
-      const profile = await edhrec.profile(commanderCard.name);
+      const profile = await edhrec.profileWithSource(commanderCard.name);
+      const filtered = profileCandidates(deck, index, profile);
       // Candidate pool: the shared profile pipeline, narrowed to priced cards.
       const candidates: SwapCandidate[] = [];
-      for (const pc of profileCandidates(deck, index, profile).candidates) {
+      for (const pc of filtered.candidates) {
         const full = index.getCard(pc.oracle_id);
         if (!full) continue;
         const cheap = cheapestUsd(full);
@@ -296,8 +401,10 @@ function metaBudgetSwapsTool(
         candidates.push({
           oracle_id: pc.oracle_id,
           name: pc.name,
-          roles: [...full.roles],
+          roles: [...effectiveRoles(full, deck.role_overrides)],
           cheapest: cheap,
+          card: full,
+          metrics: pc,
         });
       }
 
@@ -309,20 +416,25 @@ function metaBudgetSwapsTool(
         cheapest: number;
         qty: number;
         contribution: number;
+        card: Card;
+        metrics: EdhrecCard | undefined;
       }> = [];
-      let deckMinBuy = 0;
+      const budget = libraryBudget(deck, index);
+      const deckMinBuy = budget.total;
       for (const e of deck.cards) {
         const full = index.getCard(e.oracle_id);
         if (!full) continue;
-        const cheap = cheapestUsd(full) ?? 0;
-        deckMinBuy += cheap * e.qty;
+        const cheap = cheapestUsd(full);
+        if (cheap === null) continue;
         drivers.push({
           oracle_id: full.oracle_id,
           name: full.name,
-          roles: full.roles,
+          roles: effectiveRoles(full, deck.role_overrides),
           cheapest: cheap,
           qty: e.qty,
           contribution: cheap * e.qty,
+          card: full,
+          metrics: profile.cards.find((c) => c.name === full.name),
         });
       }
       drivers.sort(
@@ -334,7 +446,8 @@ function metaBudgetSwapsTool(
       let savings = 0;
       for (const d of drivers) {
         if (swaps.length >= limit) break;
-        if (target !== null && deckMinBuy - savings <= target) break;
+        if (target !== null && budget.coverage.complete && round2(deckMinBuy - savings) <= target)
+          break;
         let best: (SwapCandidate & { shared: Role[] }) | null = null;
         for (const c of candidates) {
           if (usedCand.has(c.oracle_id) || c.cheapest >= d.cheapest) continue;
@@ -350,17 +463,53 @@ function metaBudgetSwapsTool(
         }
         if (!best) continue;
         usedCand.add(best.oracle_id);
-        savings += (d.cheapest - best.cheapest) * d.qty;
+        // One new oracle_id means one copy: never multiply a singleton replacement by outgoing qty.
+        const saved = d.cheapest - best.cheapest;
+        savings += saved;
+        const lost = d.roles.filter((role) => !best.roles.includes(role));
+        const gained = best.roles.filter((role) => !d.roles.includes(role));
         swaps.push({
           out: {
             oracle_id: d.oracle_id,
             name: d.name,
             cheapest_usd: round2(d.cheapest),
-            qty: d.qty,
+            qty: 1,
+            remaining_qty: d.qty - 1,
+            rationale: `Cut one copy to reduce the library price floor by $${round2(saved)}; replacement shares ${best.shared.join(", ")}.`,
+            evidence: adviceEvidence(d.card, deck, d.metrics),
           },
-          in: { oracle_id: best.oracle_id, name: best.name, cheapest_usd: round2(best.cheapest) },
+          in: {
+            oracle_id: best.oracle_id,
+            name: best.name,
+            cheapest_usd: round2(best.cheapest),
+            qty: 1,
+            evidence: adviceEvidence(best.card, deck, best.metrics),
+          },
           roles_matched: best.shared,
-          savings: round2((d.cheapest - best.cheapest) * d.qty),
+          savings: round2(saved),
+          rationale: `Lower local price with ${best.shared.length} shared effective role(s); review lost roles and mana value before replacing.`,
+          tradeoffs: {
+            roles_lost: lost,
+            roles_gained: gained,
+            mana_value_delta: best.card.mv - d.card.mv,
+          },
+          uncertainty: [
+            ...adviceUncertainty(profile),
+            ...(d.metrics?.synergy === undefined || best.metrics.synergy === null
+              ? ["Synergy evidence is unavailable for at least one side of the swap."]
+              : []),
+            ...(!budget.coverage.complete
+              ? ["Unknown library prices or unresolved cards prevent confirming the budget target."]
+              : []),
+          ],
+          budget_impact: {
+            currency: "USD",
+            qty: 1,
+            delta_min_buy_usd: -round2(saved),
+            price_basis: "local_index_usd_floor",
+            ownership_adjusted: false,
+            price_fetched_at: null,
+          },
         });
       }
 
@@ -368,7 +517,7 @@ function metaBudgetSwapsTool(
         content: [
           {
             type: "text",
-            text: `${swaps.length} budget swap(s); min buy $${round2(deckMinBuy)} → $${round2(deckMinBuy - savings)}`,
+            text: `${swaps.length} one-copy budget swap(s); known library price floor $${round2(deckMinBuy)} → $${round2(deckMinBuy - savings)}${budget.coverage.complete ? "" : " (incomplete price coverage)"}`,
           },
         ],
         structuredContent: {
@@ -378,6 +527,13 @@ function metaBudgetSwapsTool(
           current_min_buy_usd: round2(deckMinBuy),
           projected_min_buy_usd: round2(deckMinBuy - savings),
           target_usd: target,
+          target_met:
+            target === null || !budget.coverage.complete
+              ? null
+              : round2(deckMinBuy - savings) <= target,
+          budget: budget.coverage,
+          source: profile.source,
+          unresolved: filtered.unresolved,
         },
       };
     },

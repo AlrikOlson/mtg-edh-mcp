@@ -486,6 +486,33 @@ globalThis.fetch = async (input) => {
       arguments: { deck_id: created.structuredContent.deck_id },
     });
     assert.equal(deck.structuredContent.deck.cards[0].oracle_id, oracleId);
+    assert(names.includes("deck_set_roles"), "Installed catalog includes role corrections");
+    for (const roles of [[], null]) {
+      const correction = await server.callTool({
+        name: "deck_set_roles",
+        arguments: {
+          deck_id: created.structuredContent.deck_id,
+          card: oracleId,
+          roles,
+        },
+      });
+      assert(!correction.isError, JSON.stringify(correction));
+      assert.equal(correction.structuredContent.ok, true);
+      assert.equal(
+        correction.structuredContent.role_source,
+        roles === null ? "classifier" : "user_override",
+      );
+      assert.deepEqual(
+        correction.structuredContent.effective_roles,
+        roles === null ? correction.structuredContent.inferred_roles : [],
+      );
+      assert(
+        correction.content.some(
+          (block) =>
+            block.type === "text" && block.text === JSON.stringify(correction.structuredContent),
+        ),
+      );
+    }
   }
 
   async function firstRun(server, directory, interrupt = false) {

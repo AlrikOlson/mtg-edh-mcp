@@ -68,11 +68,34 @@ data freshness, or recommendation-quality claim follows from these tests.
 Ordinary replay reads the baseline and writes no trace. It verifies fixture
 and prompt identity, domain invariants, text fallback and snapshot agreement,
 and recomputes the stored metrics from the retained calls. Deterministic
-ceilings are the actual recorded baseline values: no increase in tool calls,
-invalid calls, partial failures, tool/RPC errors, or result bytes. Expected
-recovery errors must still occur. No arbitrary percentage or timing threshold
-is applied. Later contract changes that deliberately add useful evidence must
-review any changed byte ceiling and preserve the original baseline.
+ceilings for tool calls, invalid calls, partial failures, and tool/RPC errors
+remain the actual v0.2.0 observations. Expected recovery errors must still
+occur. Result-byte ceilings use the reviewed advice observation below; no
+arbitrary multiplier or timing threshold is applied. Both retained traces have
+the same fixture, prompts, and domain invariants, and their metrics are
+recomputed during replay.
+
+### Advice observation
+
+[v0.3.0-advice.json](v0.3.0-advice.json) was captured on 2026-09-08 with SDK
+2.0.0, protocol 2025-11-25, and Node 24.14.0 on macOS arm64. The package still
+reports 0.2.0 because release versioning belongs to final release acceptance.
+Its dirty-checkout flag and production source digest identify the implementation
+before this iteration's commit. The original v0.2.0 baseline is unchanged.
+
+| Workflow                    | Original result bytes | Advice result bytes | Change |
+| --------------------------- | --------------------: | ------------------: | -----: |
+| Budget and collection build |                 8,701 |               8,701 |      0 |
+| Import and tune             |                 9,184 |               9,184 |      0 |
+| Acquisition cost reduction  |                 9,327 |               9,327 |      0 |
+| Error recovery              |                13,807 |              16,587 | +2,780 |
+
+The added bytes carry recommendation rationale, role/synergy evidence,
+tradeoffs, uncertainty, price scope, and source freshness, including JSON text
+fallback. All tool-call and error counts remain unchanged. Default role
+provenance is omitted when there are no corrections, preserving the other
+workflow payloads. These are scripted response sizes, not token measurements
+or evidence of improved model-driven deck choices.
 
 To retain a new observation for review, choose a new output filename:
 
