@@ -3,11 +3,12 @@
  *
  * Resolves the oracle_cards + default_cards bulk entries, and — unless they are
  * unchanged since the last run (idempotency, keyed on upstream `updated_at`) —
- * downloads both into a fresh version directory, writes a manifest, then
- * atomically publishes the new version. A mid-run failure removes the partial
- * version and leaves the published pointer untouched (atomic build->swap->drop).
+ * downloads both into a fresh version directory and writes a manifest. This
+ * stage never publishes or deletes versions: refreshSnapshot owns index
+ * validation and publication. Failed stages remain available for diagnosis.
  */
 import { StructuredError } from "../types/errors.js";
+import { randomUUID } from "node:crypto";
 import { BULK_TYPES, BulkClient, type BulkDataEntry, type BulkType } from "./scryfall.js";
 import { VersionedStore, type Manifest, type ManifestFile } from "./store.js";
 
@@ -16,8 +17,6 @@ export interface IngestOptions {
   client: BulkClient;
   /** Re-download even if upstream updated_at is unchanged. */
   force?: boolean;
-  /** Number of versions to retain after a successful publish (default 1). */
-  retain?: number;
   /** Injectable clock for the version id + created_at (deterministic tests). */
   clock?: () => Date;
 }
@@ -36,7 +35,7 @@ function fileName(type: BulkType, jsonl: boolean): string {
 }
 
 function versionId(now: Date): string {
-  return now.toISOString().replace(/[:.]/g, "-");
+  return `${now.toISOString().replace(/[:.]/g, "-")}-${randomUUID()}`;
 }
 
 function unchanged(manifest: Manifest, entries: Record<BulkType, BulkDataEntry>): boolean {
@@ -44,7 +43,7 @@ function unchanged(manifest: Manifest, entries: Record<BulkType, BulkDataEntry>)
 }
 
 export async function ingestBulk(options: IngestOptions): Promise<IngestResult> {
-  const { store, client, force = false, retain = 1 } = options;
+  const { store, client, force = false } = options;
   const clock = options.clock ?? (() => new Date());
 
   // Resolve both bulk entries up front (rate-limited inside the client).
@@ -95,10 +94,8 @@ export async function ingestBulk(options: IngestOptions): Promise<IngestResult> 
       files,
     };
     await store.writeManifest(id, manifest);
-    await store.publish(id);
   } catch (err) {
-    // Drop the half-built version; the published pointer is untouched.
-    await store.removeVersion(id).catch(() => undefined);
+    // Keep the failed stage for recovery; the published pointer is untouched.
     throw err instanceof StructuredError
       ? err
       : new StructuredError("UPSTREAM_UNAVAILABLE", "Bulk ingestion failed", {
@@ -106,6 +103,5 @@ export async function ingestBulk(options: IngestOptions): Promise<IngestResult> 
         });
   }
 
-  await store.retain(retain);
   return { version: id, snapshot, skipped: false, files: BULK_TYPES };
 }

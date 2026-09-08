@@ -94,16 +94,19 @@ export function registerTool(
   def: ToolDefinition,
   snapshot: SnapshotProvider,
 ): void {
-  const wrapped: ToolHandler = async (args, extra) => {
-    try {
-      const result = await def.handler(args, extra);
-      return stampSnapshot(result, snapshot());
-    } catch (err) {
-      if (isStructuredError(err)) {
-        return stampSnapshot(toolError(err), snapshot());
+  const wrapped: ToolHandler = (args, extra) => {
+    const invoke = async (): Promise<CallToolResult> => {
+      try {
+        const result = await def.handler(args, extra);
+        return stampSnapshot(result, snapshot());
+      } catch (err) {
+        if (isStructuredError(err)) {
+          return stampSnapshot(toolError(err), snapshot());
+        }
+        throw err;
       }
-      throw err;
-    }
+    };
+    return snapshot.withRead ? snapshot.withRead(invoke) : invoke();
   };
   // Boundary cast: the SDK infers a per-schema callback type from inputSchema;
   // our wrapper is intentionally schema-agnostic.

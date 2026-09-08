@@ -1,7 +1,6 @@
 /**
  * Data-lifecycle tools (release-first-run): expose the existing ingest pipeline
- * (ingestBulk → buildIndex, both atomic — a half-built version is never
- * published) as MCP tools so the GUI can onboard an index-less install and
+ * (stage → build → validate → publish) as MCP tools to initialize an index-less install and
  * refresh a stale snapshot. Registered UNCONDITIONALLY — unlike the card/deck
  * tools these must work when no index exists yet.
  *
@@ -11,13 +10,13 @@
  * — the underlying download stream has no byte hooks, so a percentage would be
  * an invention.
  *
- * After a successful run the RUNNING server still serves the old index (tool
- * registration is static at createServer time): the client is expected to
- * reconnect/restart the server to pick up the new index.
+ * Existing indexed servers activate before reporting success. First ingestion
+ * still needs a restart to register the indexed tools.
  */
 import { z } from "zod";
-import { BulkClient, ingestBulk, VersionedStore } from "../ingest/index.js";
-import { buildIndex, DEFAULT_DATA_ROOT } from "../index/index.js";
+import { BulkClient, VersionedStore } from "../ingest/index.js";
+import { DEFAULT_DATA_ROOT } from "../index/index.js";
+import { refreshSnapshot } from "../index/refresh.js";
 import { READS_LOCAL, mutates } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
@@ -32,7 +31,7 @@ export interface IngestStatus {
   /** Present when phase is "done": the fresh data_snapshot date + card count. */
   snapshot?: string;
   cards?: number;
-  /** True when upstream was unchanged (the index was rebuilt from cached bulk). */
+  /** True when a complete unchanged snapshot was reused without rebuilding. */
   skipped?: boolean;
   /** Present when phase is "error". */
   error?: string;
@@ -47,11 +46,17 @@ export type IngestPipeline = (
 
 const realPipeline: IngestPipeline = async (root, force, onPhase) => {
   const store = new VersionedStore(root);
-  onPhase("download");
-  const ingest = await ingestBulk({ store, client: new BulkClient(), force });
-  onPhase("build");
-  const built = await buildIndex({ store, version: ingest.version });
-  return { snapshot: ingest.snapshot, cards: built.cards, skipped: ingest.skipped };
+  const result = await refreshSnapshot({
+    store,
+    client: new BulkClient(),
+    force,
+    onPhase,
+  });
+  return {
+    snapshot: result.snapshot,
+    cards: result.cards,
+    skipped: result.skipped,
+  };
 };
 
 /**
@@ -71,8 +76,8 @@ export class IngestRunner {
 
   /**
    * Register a callback fired after every successful run (phase "done"),
-   * including skipped ones. The running server uses this to hot-swap the
-   * served index + data_snapshot without a restart.
+   * including skipped ones. Activation belongs inside the pipeline; these
+   * callbacks are notifications and must not perform a fallible activation.
    */
   onSuccess(listener: (status: IngestStatus) => void): void {
     this.successListeners.push(listener);
@@ -85,7 +90,11 @@ export class IngestRunner {
   /** Kick off a run in the background. Returns false when one is already running. */
   start(force: boolean): boolean {
     if (this.current.running) return false;
-    this.current = { running: true, phase: "download", started_at: new Date().toISOString() };
+    this.current = {
+      running: true,
+      phase: "download",
+      started_at: new Date().toISOString(),
+    };
     void this.run(force);
     return true;
   }
@@ -173,14 +182,22 @@ export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
               : `no index; ingest ${ingest.phase}`,
           },
         ],
-        structuredContent: { has_index: hasIndex, ...(freshness ?? {}), ingest },
+        structuredContent: {
+          has_index: hasIndex,
+          ...(freshness ?? {}),
+          ingest,
+        },
       };
     },
   };
   const ingestTool: ToolDefinition = {
     name: "data_ingest",
     config: {
-      annotations: mutates({ destructive: false, idempotent: false, openWorld: true }),
+      annotations: mutates({
+        destructive: false,
+        idempotent: false,
+        openWorld: true,
+      }),
       title: "Card-data ingest",
       description:
         "Download Scryfall bulk data (~700MB) and rebuild the local card index atomically.\n" +
@@ -194,7 +211,12 @@ export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
     handler: (args) => {
       const started = runner.start(args.force === true);
       return {
-        content: [{ type: "text", text: started ? "ingest started" : "ingest already running" }],
+        content: [
+          {
+            type: "text",
+            text: started ? "ingest started" : "ingest already running",
+          },
+        ],
         structuredContent: { started, already_running: !started },
       };
     },

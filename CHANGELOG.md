@@ -6,6 +6,15 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## Unreleased
 
+- Stage and validate complete card-data snapshots before atomic publication;
+  retain previous and interrupted versions for recovery. Coordinate CLI/server
+  refreshes across processes and reuse unchanged indexes without rebuilding.
+- Prepare live query statements before activation, switch the index and
+  `data_snapshot` together, and keep in-flight tool responses on one generation.
+  Startup can recover the pointer's explicit previous snapshot.
+- Add deterministic failure injection, real process-kill/concurrency checks,
+  connected MCP activation checks, and a documented card-data recovery path.
+
 - Add four offline MCP workflow journeys with a retained v0.2.0 protocol baseline,
   measured call/error/result-byte counts, and deterministic regression checks.
   Model-driven host evaluation remains a separate release requirement.

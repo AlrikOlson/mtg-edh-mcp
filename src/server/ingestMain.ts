@@ -9,8 +9,9 @@
  *
  * Pass `--force` to re-download even when upstream is unchanged.
  */
-import { BulkClient, ingestBulk, VersionedStore } from "../ingest/index.js";
-import { buildIndex, DEFAULT_DATA_ROOT } from "../index/index.js";
+import { BulkClient, VersionedStore } from "../ingest/index.js";
+import { DEFAULT_DATA_ROOT } from "../index/index.js";
+import { refreshSnapshot } from "../index/refresh.js";
 
 async function main(): Promise<void> {
   const root = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
@@ -19,17 +20,19 @@ async function main(): Promise<void> {
   const client = new BulkClient();
 
   console.error(`Ingesting Scryfall bulk data into ${root} ...`);
-  const ingest = await ingestBulk({ store, client, force });
-  if (ingest.skipped) {
-    console.error(`Up to date (snapshot ${ingest.snapshot}); building index if needed.`);
-  } else {
-    console.error(`Downloaded snapshot ${ingest.snapshot} (version ${ingest.version}).`);
-  }
-
-  console.error("Building local card index (SQLite + FTS) ...");
-  const built = await buildIndex({ store, version: ingest.version });
+  const result = await refreshSnapshot({
+    store,
+    client,
+    force,
+    onPhase: (phase) => {
+      if (phase === "build")
+        console.error("Building and validating the staged SQLite + FTS index ...");
+    },
+  });
   console.error(
-    `Done: ${built.cards} cards, ${built.printings} printings → ${built.dbPath} (snapshot ${ingest.snapshot}).`,
+    result.skipped
+      ? `Up to date: reused ${result.cards} cards (snapshot ${result.snapshot}); no rebuild.`
+      : `Done: ${result.cards} cards, ${result.printings} printings → ${result.dbPath} (snapshot ${result.snapshot}).`,
   );
 }
 

@@ -146,12 +146,17 @@ boundary; see [Security](../SECURITY.md).
 ## Updates and storage
 
 The background scheduler checks Scryfall freshness at startup and periodically.
-Servers that started with an index hot-swap to a successfully refreshed index.
-`data_status` reports `bulk_age_hours`, `stale`, and the ingestion state.
+Servers that started with an index activate a successfully refreshed index and
+its `data_snapshot` together before ingestion reports `done`. In-flight tool
+calls finish on their original snapshot; new calls briefly wait during activation.
+`data_status` and the scheduler measure the data this process actually serves.
+A server with no index still needs a restart after its first successful ingest.
 
 For a manual update, call `data_ingest` through your client. Alternatively,
 stop the server and run the ingestion command again with the same data
 directory. Add `-- --force` to `npm run ingest` to force another download.
+Unchanged upstream data reuses a validated index without downloading or rebuilding it.
+An incomplete legacy index causes a fresh version to be built instead.
 
 | Data                          | Location and lifetime                                                                    |
 | ----------------------------- | ---------------------------------------------------------------------------------------- |
@@ -162,7 +167,8 @@ directory. Add `-- --force` to `npm run ingest` to force another download.
 Run **one server process per data directory**. Separate stdio client launches
 are separate processes and should use separate directories; use one local
 HTTP process if trusted clients need to share live state. Namespace headers
-do not make independent processes coordinate their disk writes.
+do not coordinate deck writes. Card refreshes now have a cross-process lock,
+but deck and collection persistence still require the single-server arrangement.
 
 For a backup, stop the server and copy `decks.json` somewhere safe. Preserve
 the whole data directory if you also want the exact card snapshots. Deck writes
@@ -173,6 +179,48 @@ server's stderr and restore a known-good backup.
 To update the source installation, stop the server, pull the desired revision,
 run `npm ci` and `npm run build`, then restart it. Back up your decks before
 updating a pre-1.0 installation.
+
+### Card refresh recovery
+
+Each refresh stages both Scryfall exports, a manifest, and `index.sqlite` under
+a new `versions/<timestamp>-<uuid>/` directory. Only after export sizes, SQLite
+integrity, query statements, and nonempty cards/printings validate does an atomic
+rename publish `current.json`. The pointer records `version` and the last
+validated `previous` version. Downloads and manifests are flushed before
+publication. A failed download, build, or activation preparation keeps the
+previous pointer and served index intact.
+
+A separate `.refresh-lock.sqlite` serializes the entire operation, including
+CLI and server refreshes. A competing run reports an error in `data_status`;
+retry after the owner finishes. Process termination releases the lock
+automatically. **Do not delete the lock database to unlock a running refresh.**
+
+On restart, the server validates the version named by the pointer and pairs it
+with that version's manifest. If it is unusable, the server tries only the
+explicit `previous` version. It never promotes an abandoned directory based
+on its timestamp. When neither version is usable, card tools remain unavailable;
+retry ingestion to build a fresh snapshot.
+
+Old and interrupted directories are intentionally retained. A retry uses a new
+directory and needs no manual cleanup. Allow enough disk space for the old
+snapshot, replacement exports/index, and retained attempts. To reclaim space,
+stop **all** processes using the directory, back up `current.json` and both
+versions it references, then remove only other version directories and abandoned
+`current.json.*.tmp` files. Never remove `decks.json` as part of card cleanup.
+
+For a manual rollback, stop all processes, back up the full data directory, and
+replace `current.json` with `{"version":"<known-good-version-id>"}` naming a
+complete retained version. Restart with `MCP_AUTO_REFRESH=0` and verify
+`data_status`, `card_search`, and the response's `data_snapshot` before
+enabling refresh again. Keep the backup until verification succeeds.
+
+Use a local filesystem that supports SQLite locking and atomic same-directory
+rename. Tests kill real refresh processes after download, during a build,
+before publication, and after publication, then verify complete startup reads
+and unchanged previous files. These checks establish process-crash recovery;
+they do not establish power-loss guarantees on every filesystem or network drive.
+There is no automatic garbage collection or coordination with older server
+versions that still use the old publication path; stop those before upgrading.
 
 ## Troubleshooting
 

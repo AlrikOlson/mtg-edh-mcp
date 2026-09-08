@@ -13,7 +13,8 @@
  * the previous complete version or the new complete one — never a partial load.
  */
 import { createWriteStream } from "node:fs";
-import { access, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, mkdir, open, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -35,8 +36,14 @@ export interface Manifest {
   files: Record<BulkType, ManifestFile>;
 }
 
-interface CurrentPointer {
+export interface CurrentPointer {
   version: string;
+  /** Last validated version before this publication, for explicit recovery. */
+  previous?: string;
+}
+
+function safeVersion(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
 }
 
 export class VersionedStore {
@@ -76,19 +83,23 @@ export class VersionedStore {
 
   /** Create an empty version directory ready to receive downloads. */
   async createVersion(id: string): Promise<void> {
-    await mkdir(this.versionDir(id), { recursive: true });
+    await mkdir(this.versionsDir, { recursive: true });
+    await mkdir(this.versionDir(id));
   }
 
   /** Stream a web ReadableStream into a file inside the version dir. */
   async writeStream(id: string, name: string, body: ReadableStream<Uint8Array>): Promise<number> {
     const dest = this.filePath(id, name);
-    const out = createWriteStream(dest);
+    const out = createWriteStream(dest, { flush: true });
     await pipeline(Readable.fromWeb(body), out);
     return out.bytesWritten;
   }
 
   async writeManifest(id: string, manifest: Manifest): Promise<void> {
-    await writeFile(this.filePath(id, "manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
+    await writeFile(this.filePath(id, "manifest.json"), JSON.stringify(manifest, null, 2), {
+      encoding: "utf8",
+      flush: true,
+    });
   }
 
   async readManifest(id: string): Promise<Manifest | null> {
@@ -101,19 +112,50 @@ export class VersionedStore {
 
   /** Resolve the currently published version id, or null if none. */
   async readCurrent(): Promise<string | null> {
+    return (await this.readPointer())?.version ?? null;
+  }
+
+  /** Read one coherent pointer, accepting legacy {version} records. */
+  async readPointer(): Promise<CurrentPointer | null> {
     try {
       const pointer = JSON.parse(await readFile(this.pointerPath, "utf8")) as CurrentPointer;
-      return pointer.version;
+      if (!safeVersion(pointer.version)) return null;
+      return {
+        version: pointer.version,
+        ...(safeVersion(pointer.previous) && pointer.previous !== pointer.version
+          ? { previous: pointer.previous }
+          : {}),
+      };
     } catch {
       return null;
     }
   }
 
   /** Atomically flip `current.json` to point at `id` (temp-write + rename). */
-  async publish(id: string): Promise<void> {
-    const tmp = `${this.pointerPath}.${id}.tmp`;
-    await writeFile(tmp, JSON.stringify({ version: id } satisfies CurrentPointer), "utf8");
-    await rename(tmp, this.pointerPath);
+  async publish(id: string, previous?: string | null): Promise<void> {
+    const prior = previous === undefined ? await this.readCurrent() : previous;
+    const pointer: CurrentPointer = { version: id };
+    if (prior && prior !== id) pointer.previous = prior;
+    const tmp = `${this.pointerPath}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(tmp, JSON.stringify(pointer), { encoding: "utf8", flag: "wx", flush: true });
+      await rename(tmp, this.pointerPath);
+    } catch (err) {
+      await rm(tmp, { force: true }).catch(() => undefined);
+      throw err;
+    }
+    // The rename is the commit point. A directory flush is best-effort because
+    // some supported filesystems reject it; never report committed data as failed.
+    try {
+      const directory = await open(this.root, "r");
+      try {
+        await directory.sync();
+      } finally {
+        await directory.close();
+      }
+    } catch {
+      /* Filesystem does not support directory fsync. */
+    }
   }
 
   /** Delete a version directory (best-effort), e.g. to clean up a failed build. */

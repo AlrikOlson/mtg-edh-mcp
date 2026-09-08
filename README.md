@@ -126,6 +126,8 @@ Core search, deck management, validation, and analysis use the local index.
 The server checks for Scryfall updates in the background by default; set
 `MCP_AUTO_REFRESH=0` to disable that scheduler. `data_ingest` and the `meta_*`
 tools may access external services even when automatic refresh is disabled.
+Card refreshes publish only complete validated snapshots, preserve the previous
+version, and reuse unchanged indexes. See [refresh recovery and disk cleanup](./docs/INSTALL.md#card-refresh-recovery).
 
 - **Scryfall** supplies card data and printing prices through bulk exports.
   `data_snapshot` identifies the card-data vintage in structured tool results.

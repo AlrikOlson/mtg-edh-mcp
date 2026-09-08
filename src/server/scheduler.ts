@@ -27,6 +27,8 @@ export interface SchedulerOptions {
   runner: IngestRunner;
   store: VersionedStore;
   config?: FreshnessConfig;
+  /** Age of this process's served generation; defaults to the store pointer for standalone callers. */
+  bulkAge?: (now: number) => Promise<number | null>;
   /** Injectable clock for tests. */
   now?: () => number;
   /** Injectable timer for tests; defaults to setInterval. */
@@ -71,7 +73,7 @@ export async function startScheduler(options: SchedulerOptions): Promise<Running
 
   const check = async (): Promise<void> => {
     try {
-      const age = await bulkAgeMs(store, now());
+      const age = options.bulkAge ? await options.bulkAge(now()) : await bulkAgeMs(store, now());
       // No manifest = first run never happened; that is the GUI-onboarding
       // path (data_ingest), not the scheduler's — do nothing.
       if (age === null) return;

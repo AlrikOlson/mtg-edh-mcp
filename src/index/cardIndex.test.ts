@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -112,8 +112,58 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   index.close();
   await rm(root, { recursive: true, force: true });
+});
+
+describe("buildIndex immutable candidates", () => {
+  it("rejects an existing index without replacing its inode or changing active readers", async () => {
+    const before = await readFile(dbPath);
+    const inode = (await stat(dbPath)).ino;
+    await expect(buildIndex({ store })).rejects.toMatchObject({ code: "EEXIST" });
+    expect((await stat(dbPath)).ino).toBe(inode);
+    expect(await readFile(dbPath)).toEqual(before);
+    expect(index.getCard("o-sol")?.name).toBe("Sol Ring");
+    expect(index.count()).toBe(3);
+  });
+
+  it.each(["-wal", "-shm", "-journal"])(
+    "preserves an orphan %s sidecar and refuses to build over it",
+    async (suffix) => {
+      const candidate = store.filePath("v-test", "candidate.sqlite");
+      const sidecar = `${candidate}${suffix}`;
+      await writeFile(sidecar, "recoverable prior contents");
+      await expect(buildIndex({ store, dbName: "candidate.sqlite" })).rejects.toThrow(
+        "existing SQLite sidecar",
+      );
+      expect(await readFile(sidecar, "utf8")).toBe("recoverable prior contents");
+      expect(index.count()).toBe(3);
+    },
+  );
+
+  it("awaits insert observers and retains a failed candidate without disturbing the live database", async () => {
+    const candidate = store.filePath("v-test", "candidate.sqlite");
+    const seen: number[] = [];
+    await expect(
+      buildIndex({
+        store,
+        dbName: "candidate.sqlite",
+        onCardInserted: async (cards) => {
+          await Promise.resolve();
+          seen.push(cards);
+          throw new Error("stop during transaction");
+        },
+      }),
+    ).rejects.toThrow("stop during transaction");
+    expect(seen).toEqual([1]);
+    expect((await stat(candidate)).isFile()).toBe(true);
+    await expect(buildIndex({ store, dbName: "candidate.sqlite" })).rejects.toMatchObject({
+      code: "EEXIST",
+    });
+    expect(index.count()).toBe(3);
+    expect(index.searchByName("Sol")[0]?.oracle_id).toBe("o-sol");
+  });
 });
 
 describe("CardIndex.getCard", () => {
@@ -229,6 +279,80 @@ describe("CardIndex.gameChangerNames", () => {
 });
 
 describe("CardIndex.reopen (hot-swap)", () => {
+  async function nextIndex(): Promise<string> {
+    const version = "v-prepared";
+    await store.createVersion(version);
+    await writeFile(store.filePath(version, "oracle_cards.json"), JSON.stringify([ORACLE[0]]));
+    await writeFile(store.filePath(version, "default_cards.json"), JSON.stringify(DEFAULT));
+    return (await buildIndex({ store, version })).dbPath;
+  }
+
+  async function incompleteIndex(): Promise<string> {
+    const candidate = await nextIndex();
+    const broken = new Database(candidate);
+    broken.exec("DROP TABLE cards_fts");
+    broken.close();
+    return candidate;
+  }
+
+  it("keeps every live reader on the old database when late statement preparation fails", async () => {
+    const candidate = await incompleteIndex();
+    expect(() => index.reopen(candidate)).toThrow("no such table: cards_fts");
+    expect(index.getCard("o-atraxa")?.name).toBe("Atraxa, Praetors' Voice");
+    expect(index.getPrintings("o-sol")).toHaveLength(2);
+    expect(index.searchByName("vigilance")[0]?.oracle_id).toBe("o-atraxa");
+    expect(index.count()).toBe(3);
+    expect(index.resolveName("Atraxa")[0]?.oracle_id).toBe("o-atraxa");
+    expect(index.evaluate(parseQuery("t:creature")).total).toBe(2);
+    expect(index.gameChangerNames()).toEqual(new Set(["Sol Ring"]));
+  });
+
+  it("closes a candidate handle when open cannot prepare all statements", async () => {
+    const candidate = await incompleteIndex();
+    const close = vi.spyOn(Database.prototype, "close");
+    expect(() => CardIndex.open(candidate)).toThrow("no such table: cards_fts");
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("prepares without changing readers and commits all readers synchronously", async () => {
+    const prepared = index.prepareReopen(await nextIndex());
+    expect(index.count()).toBe(3);
+    expect(index.getCard("o-atraxa")).not.toBeNull();
+    expect(prepared.commit()).toBeUndefined();
+    expect(index.count()).toBe(1);
+    expect(index.getCard("o-atraxa")).toBeNull();
+    expect(index.resolveName("Atraxa")).toEqual([]);
+    expect(index.searchByName("vigilance")).toEqual([]);
+    prepared.commit();
+    prepared.dispose();
+    expect(index.getCard("o-sol")?.name).toBe("Sol Ring");
+  });
+
+  it("disposes uncommitted preparation without changing or closing live readers", async () => {
+    const prepared = index.prepareReopen(await nextIndex());
+    const close = vi.spyOn(Database.prototype, "close");
+    prepared.dispose();
+    prepared.dispose();
+    prepared.commit();
+    expect(close).toHaveBeenCalledOnce();
+    expect(index.count()).toBe(3);
+    expect(index.getCard("o-atraxa")).not.toBeNull();
+  });
+
+  it("keeps a committed swap usable even if old-handle cleanup fails", async () => {
+    const prepared = index.prepareReopen(await nextIndex());
+    const originalClose = Database.prototype.close;
+    vi.spyOn(Database.prototype, "close").mockImplementationOnce(function (
+      this: Database.Database,
+    ) {
+      originalClose.call(this);
+      throw new Error("simulated close failure");
+    });
+    expect(() => prepared.commit()).not.toThrow();
+    expect(index.count()).toBe(1);
+    expect(index.getCard("o-sol")?.name).toBe("Sol Ring");
+  });
+
   it("re-binds the SAME instance onto a freshly built index", async () => {
     // Build a second version with an extra card, as a bulk refresh would.
     const version = "v-next";

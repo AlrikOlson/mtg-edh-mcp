@@ -124,7 +124,7 @@ describe("ingestBulk", () => {
 
     expect(result.skipped).toBe(false);
     expect(result.snapshot).toBe("2026-06-27");
-    expect(await store.readCurrent()).toBe(result.version);
+    expect(await store.readCurrent()).toBeNull();
 
     const manifest = (await store.readManifest(result.version)) as Manifest;
     expect(manifest.files.oracle_cards.updated_at).toBe("2026-06-27T09:00:00.000Z");
@@ -161,6 +161,8 @@ describe("ingestBulk", () => {
       client: clientFor({ updatedAt: "2026-06-27T09:00:00.000Z" }),
       clock: () => new Date("2026-06-27T10:00:00.000Z"),
     });
+    // Publication belongs to the full refresh orchestration, after indexing.
+    await store.publish(first.version);
     const second = await ingestBulk({
       store,
       client: clientFor({ updatedAt: "2026-06-27T09:00:00.000Z" }),
@@ -178,6 +180,7 @@ describe("ingestBulk", () => {
       client: clientFor({ updatedAt: "2026-06-27T09:00:00.000Z" }),
       clock: () => new Date("2026-06-27T10:00:00.000Z"),
     });
+    await store.publish(first.version);
 
     // New upstream data (so it won't skip), but default_cards download fails mid-run.
     await expect(
@@ -190,6 +193,27 @@ describe("ingestBulk", () => {
 
     // The published version is still the first, complete one — never a partial.
     expect(await store.readCurrent()).toBe(first.version);
-    expect(await readdir(store.versionsDir)).toEqual([first.version]);
+    const versions = await readdir(store.versionsDir);
+    expect(versions).toContain(first.version);
+    expect(versions).toHaveLength(2); // Failed stage remains for diagnosis.
+  });
+
+  it("creates distinct stages with an identical clock and never replaces a published directory", async () => {
+    const clock = () => new Date("2026-06-27T10:00:00.000Z");
+    const first = await ingestBulk({
+      store,
+      client: clientFor({ updatedAt: "2026-06-27T09:00:00.000Z" }),
+      clock,
+    });
+    await store.publish(first.version);
+    const next = await ingestBulk({
+      store,
+      client: clientFor({ updatedAt: "2026-06-27T09:00:00.000Z" }),
+      clock,
+      force: true,
+    });
+    expect(next.version).not.toBe(first.version);
+    expect(await store.readCurrent()).toBe(first.version);
+    expect(await readdir(store.versionsDir)).toHaveLength(2);
   });
 });

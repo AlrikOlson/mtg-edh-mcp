@@ -64,6 +64,45 @@ describe("bulkAgeMs", () => {
 });
 
 describe("startScheduler", () => {
+  it("refreshes stale served data even when another process published fresh data", async () => {
+    await stageVersion(store, 1_000);
+    const { runner, starts } = countingRunner();
+    const observedTimes: number[] = [];
+    const sched = await startScheduler({
+      runner,
+      store,
+      now: () => NOW,
+      bulkAge: async (now) => {
+        observedTimes.push(now);
+        return DEFAULT_FRESHNESS.bulkIntervalMs + 1;
+      },
+      setIntervalFn: () => ({ unref: () => undefined }) as unknown as NodeJS.Timeout,
+    });
+    try {
+      expect(starts()).toBe(1);
+      expect(observedTimes).toEqual([NOW]);
+    } finally {
+      sched.stop();
+    }
+  });
+
+  it("keeps first-run onboarding when served age is unknown despite an old disk pointer", async () => {
+    await stageVersion(store, DEFAULT_FRESHNESS.bulkIntervalMs + 1);
+    const { runner, starts } = countingRunner();
+    const sched = await startScheduler({
+      runner,
+      store,
+      now: () => NOW,
+      bulkAge: async () => null,
+      setIntervalFn: () => ({ unref: () => undefined }) as unknown as NodeJS.Timeout,
+    });
+    try {
+      expect(starts()).toBe(0);
+    } finally {
+      sched.stop();
+    }
+  });
+
   it("kicks an ingest immediately when the bulk data is older than the interval", async () => {
     await stageVersion(store, DEFAULT_FRESHNESS.bulkIntervalMs + 1);
     const { runner, starts } = countingRunner();

@@ -6,7 +6,7 @@
  * inside one transaction. `CardIndex` opens the built DB read-only and serves
  * full-Card lookups and name search.
  */
-import { rm } from "node:fs/promises";
+import { lstat, open } from "node:fs/promises";
 import Database from "better-sqlite3";
 import type { Card, CardRef, Color, Prices, Printing, RefColorIdentity } from "../types/index.js";
 import type { QueryNode } from "../query/index.js";
@@ -32,6 +32,8 @@ export interface BuildIndexOptions {
   version?: string;
   /** Index file name within the version dir (default index.sqlite). */
   dbName?: string;
+  /** Optional observer, awaited inside the build transaction after each oracle insert. */
+  onCardInserted?: (cards: number) => void | Promise<void>;
 }
 
 export interface BuildIndexResult {
@@ -117,7 +119,7 @@ function rowToPrinting(row: PrintingRow): Printing {
   return printing;
 }
 
-/** Build (or rebuild) the SQLite index for a staged version. */
+/** Build a new SQLite index; existing candidates and their sidecars are never replaced. */
 export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndexResult> {
   const { store, dbName = DEFAULT_INDEX_NAME } = options;
   const version = options.version ?? (await store.readCurrent());
@@ -126,8 +128,20 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
   }
 
   const dbPath = store.filePath(version, dbName);
-  // Fresh build: clear any prior DB + WAL sidecars so the rebuild is clean.
-  await Promise.all([dbPath, `${dbPath}-wal`, `${dbPath}-shm`].map((p) => rm(p, { force: true })));
+  // Reserve the destination exclusively before SQLite opens it. A failed build
+  // remains available for inspection; retrying requires a new candidate path.
+  const reservation = await open(dbPath, "wx");
+  await reservation.close();
+  for (const suffix of ["-wal", "-shm", "-journal"]) {
+    const sidecar = `${dbPath}${suffix}`;
+    try {
+      await lstat(sidecar);
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") continue;
+      throw error;
+    }
+    throw new Error(`buildIndex: refusing existing SQLite sidecar ${sidecar}`);
+  }
 
   const db = new Database(dbPath);
   let cards = 0;
@@ -183,6 +197,7 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
       });
       insertFts.run({ oracle_id: card.oracle_id, name: card.name, oracle_text: card.oracle_text });
       cards += 1;
+      await options.onCardInserted?.(cards);
     }
     for await (const raw of streamCardArray<ScryfallCardRaw>(
       await store.stagedFile(version, "default_cards"),
@@ -193,6 +208,9 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
       printings += 1;
     }
     db.exec("COMMIT");
+    if (db.pragma("quick_check", { simple: true }) !== "ok") {
+      throw new Error("buildIndex: SQLite quick_check failed");
+    }
   } catch (err) {
     try {
       db.exec("ROLLBACK");
@@ -207,24 +225,21 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
   return { dbPath, version, cards, printings };
 }
 
-export class CardIndex {
-  // Definite-assignment (!): all fields are assigned in bind(), which both the
-  // constructor and reopen() call.
-  private db!: Db;
-  private getCardStmt!: Database.Statement<[string]>;
-  private getPrintingsStmt!: Database.Statement<[string]>;
-  private searchStmt!: Database.Statement<[string, number]>;
-  private countStmt!: Database.Statement<[]>;
-  private resolveExactStmt!: Database.Statement<[string]>;
-  private resolveFuzzyStmt!: Database.Statement<[string, number]>;
+interface CardIndexState {
+  db: Db;
+  getCardStmt: Database.Statement<[string]>;
+  getPrintingsStmt: Database.Statement<[string]>;
+  searchStmt: Database.Statement<[string, number]>;
+  countStmt: Database.Statement<[]>;
+  resolveExactStmt: Database.Statement<[string]>;
+  resolveFuzzyStmt: Database.Statement<[string, number]>;
+}
 
-  private constructor(db: Db) {
-    this.bind(db);
-  }
+export class CardIndex {
+  private constructor(private state: CardIndexState) {}
 
   /** Register functions + prepare all statements against `db`. */
-  private bind(db: Db): void {
-    this.db = db;
+  private static prepare(db: Db): CardIndexState {
     // Register REGEXP so `column REGEXP ?` works in evaluated queries.
     db.function("regexp", (pattern: unknown, value: unknown): number => {
       if (typeof pattern !== "string" || typeof value !== "string") return 0;
@@ -234,60 +249,102 @@ export class CardIndex {
         return 0;
       }
     });
-    this.getCardStmt = db.prepare(`SELECT card FROM cards WHERE oracle_id = ?`);
-    this.getPrintingsStmt = db.prepare(
+    const getCardStmt = db.prepare<[string]>(`SELECT card FROM cards WHERE oracle_id = ?`);
+    const getPrintingsStmt = db.prepare<[string]>(
       `SELECT oracle_id, scryfall_id, set_code, set_name, collector_number, rarity, prices, released_at
        FROM printings WHERE oracle_id = ? ORDER BY released_at DESC, scryfall_id`,
     );
-    this.searchStmt = db.prepare(
+    const searchStmt = db.prepare<[string, number]>(
       `SELECT c.oracle_id, c.name, c.mv, c.type_line, c.color_identity
        FROM cards_fts f JOIN cards c ON c.oracle_id = f.oracle_id
        WHERE cards_fts MATCH ? LIMIT ?`,
     );
-    this.countStmt = db.prepare(`SELECT count(*) AS n FROM cards`);
-    this.resolveExactStmt = db.prepare(
+    const countStmt = db.prepare<[]>(`SELECT count(*) AS n FROM cards`);
+    const resolveExactStmt = db.prepare<[string]>(
       `SELECT ${REF_COLUMNS} FROM cards WHERE name = ? COLLATE NOCASE ORDER BY oracle_id`,
     );
-    this.resolveFuzzyStmt = db.prepare(
+    const resolveFuzzyStmt = db.prepare<[string, number]>(
       `SELECT ${REF_COLUMNS} FROM cards WHERE name LIKE ? ORDER BY length(name), oracle_id LIMIT ?`,
     );
+    return {
+      db,
+      getCardStmt,
+      getPrintingsStmt,
+      searchStmt,
+      countStmt,
+      resolveExactStmt,
+      resolveFuzzyStmt,
+    };
   }
 
   /** Open a built index read-only. */
   static open(dbPath: string): CardIndex {
-    return new CardIndex(new Database(dbPath, { readonly: true }));
+    const db = new Database(dbPath, { readonly: true });
+    try {
+      return new CardIndex(CardIndex.prepare(db));
+    } catch (error) {
+      db.close();
+      throw error;
+    }
   }
 
   /**
    * Hot-swap this instance onto a freshly built index (after an atomic bulk
    * swap): every tool closure holds this CardIndex, so re-binding internally
    * makes the new data visible without re-registering tools. The old DB handle
-   * is closed; on any failure the old handle is kept and the error rethrown.
+   * is closed after a fully prepared candidate is installed.
    */
   reopen(dbPath: string): void {
+    this.prepareReopen(dbPath).commit();
+  }
+
+  /**
+   * Prepare all candidate statements without touching live readers. Commit is
+   * synchronous and cannot roll back the swap if retired-handle cleanup fails.
+   * Disposing before commit cancels the swap; both operations are idempotent.
+   */
+  prepareReopen(dbPath: string): { commit(): void; dispose(): void } {
     const next = new Database(dbPath, { readonly: true });
+    let prepared: CardIndexState;
     try {
-      const old = this.db;
-      this.bind(next);
-      old.close();
+      prepared = CardIndex.prepare(next);
     } catch (err) {
       next.close();
       throw err;
     }
+    let pending = true;
+    return {
+      commit: () => {
+        if (!pending) return;
+        pending = false;
+        const old = this.state.db;
+        this.state = prepared;
+        try {
+          old.close();
+        } catch {
+          // The new state is already live. Cleanup cannot undo publication.
+        }
+      },
+      dispose: () => {
+        if (!pending) return;
+        pending = false;
+        next.close();
+      },
+    };
   }
 
   /** Full §4 Card by oracle_id (with joined printings), or null. */
   getCard(oracleId: string): Card | null {
-    const row = this.getCardStmt.get(oracleId) as { card: string } | undefined;
+    const row = this.state.getCardStmt.get(oracleId) as { card: string } | undefined;
     if (!row) return null;
     const card = JSON.parse(row.card) as Card;
-    const printingRows = this.getPrintingsStmt.all(oracleId) as PrintingRow[];
+    const printingRows = this.state.getPrintingsStmt.all(oracleId) as PrintingRow[];
     return { ...card, printings: printingRows.map(rowToPrinting) };
   }
 
   /** Name/oracle-text FTS search, projected to lean CardRefs (§5A default). */
   searchByName(query: string, limit = 20): CardRef[] {
-    const rows = this.searchStmt.all(query, limit) as Array<{
+    const rows = this.state.searchStmt.all(query, limit) as Array<{
       oracle_id: string;
       name: string;
       mv: number;
@@ -304,18 +361,18 @@ export class CardIndex {
   }
 
   count(): number {
-    return (this.countStmt.get() as { n: number }).n;
+    return (this.state.countStmt.get() as { n: number }).n;
   }
 
   /**
    * The Game Changers card names carried by this index's snapshot, or null when
    * the index predates the `is_game_changer` column (or stores no flags) — the
-   * caller then falls back to the live list. Prepared lazily (not in bind) so
+   * caller then falls back to the live list. Prepared lazily (not during open) so
    * old indexes keep opening.
    */
   gameChangerNames(): Set<string> | null {
     try {
-      const rows = this.db
+      const rows = this.state.db
         .prepare(`SELECT name FROM cards WHERE is_game_changer = 1`)
         .all() as Array<{ name: string }>;
       return rows.length > 0 ? new Set(rows.map((r) => r.name)) : null;
@@ -333,10 +390,10 @@ export class CardIndex {
    * 0→UNKNOWN_CARD, >1→AMBIGUOUS_NAME.
    */
   resolveName(name: string, options: { exact?: boolean } = {}): CardRef[] {
-    const exactRows = this.resolveExactStmt.all(name) as CardRefRow[];
+    const exactRows = this.state.resolveExactStmt.all(name) as CardRefRow[];
     if (options.exact || exactRows.length > 0) return preferRealCards(exactRows.map(rowToRef));
     return preferRealCards(
-      (this.resolveFuzzyStmt.all(`%${name}%`, 25) as CardRefRow[]).map(rowToRef),
+      (this.state.resolveFuzzyStmt.all(`%${name}%`, 25) as CardRefRow[]).map(rowToRef),
     );
   }
 
@@ -360,7 +417,7 @@ export class CardIndex {
     const refs: CardRef[] = [];
     for (const token of candidates) {
       if (refs.length >= limit) break;
-      const rows = this.resolveFuzzyStmt.all(`%${token}%`, limit) as CardRefRow[];
+      const rows = this.state.resolveFuzzyStmt.all(`%${token}%`, limit) as CardRefRow[];
       for (const ref of preferRealCards(rows.map(rowToRef))) {
         if (refs.length >= limit) break;
         if (seen.has(ref.oracle_id)) continue;
@@ -373,7 +430,7 @@ export class CardIndex {
 
   /** All printings for an oracle_id (newest first), or [] if the card is unknown. */
   getPrintings(oracleId: string): Printing[] {
-    return (this.getPrintingsStmt.all(oracleId) as PrintingRow[]).map(rowToPrinting);
+    return (this.state.getPrintingsStmt.all(oracleId) as PrintingRow[]).map(rowToPrinting);
   }
 
   /**
@@ -400,12 +457,14 @@ export class CardIndex {
     }
 
     const total = (
-      this.db.prepare(`SELECT count(*) AS n FROM cards WHERE ${whereSql}`).get(...whereParams) as {
+      this.state.db
+        .prepare(`SELECT count(*) AS n FROM cards WHERE ${whereSql}`)
+        .get(...whereParams) as {
         n: number;
       }
     ).n;
 
-    const rows = this.db
+    const rows = this.state.db
       .prepare(
         `SELECT oracle_id, name, mv, type_line, color_identity
          FROM cards WHERE ${whereSql} ${order} LIMIT ? OFFSET ?`,
@@ -432,6 +491,6 @@ export class CardIndex {
   }
 
   close(): void {
-    this.db.close();
+    this.state.db.close();
   }
 }
