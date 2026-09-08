@@ -56,10 +56,10 @@
   "dependencies": {
     "@modelcontextprotocol/node": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
-    "better-sqlite3": "^12.11.1",
-    "stream-chain": "^3.6.3",
+    "better-sqlite3": "^13.0.3",
+    "stream-chain": "^4.2.5",
     "stream-json": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.0.0",
