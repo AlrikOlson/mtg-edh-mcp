@@ -114,14 +114,17 @@ async function captureProvenance() {
   ).version;
   const sdkVersion = versionSchema.parse(
     JSON.parse(
-      await readFile(resolve(root, "node_modules/@modelcontextprotocol/sdk/package.json"), "utf8"),
+      await readFile(
+        resolve(root, "node_modules/@modelcontextprotocol/server/package.json"),
+        "utf8",
+      ),
     ),
   ).version;
   return {
     ...checkoutProvenance(),
     production_source_sha256: await productionSourceHash(),
     package_version: packageVersion,
-    sdk_package: "@modelcontextprotocol/sdk",
+    sdk_package: "@modelcontextprotocol/server",
     sdk_version: sdkVersion,
     node: process.version,
     platform: process.platform,

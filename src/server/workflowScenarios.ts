@@ -8,8 +8,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -238,7 +238,10 @@ async function runJourney(
       await send(message, options);
     };
     await server.connect(serverTransport);
-    const connected = new Client({ name: "workflow-baseline", version: "1.0.0" });
+    const connected = new Client({
+      name: "workflow-baseline",
+      version: "1.0.0",
+    });
     client = connected;
     await client.connect(clientTransport);
     assert(protocolVersion, "Initialize must expose the negotiated protocol revision");
@@ -278,7 +281,12 @@ async function getDeck(journey: Journey, deckId: string): Promise<Record<string,
 
 async function createDeck(journey: Journey, name: string): Promise<string> {
   return string(
-    (await journey.call("deck_create", { name, commanders: "Krenko, Mob Boss" })).deck_id,
+    (
+      await journey.call("deck_create", {
+        name,
+        commanders: "Krenko, Mob Boss",
+      })
+    ).deck_id,
   );
 }
 
@@ -339,7 +347,10 @@ async function replaceExpensiveRock(journey: Journey, deckId: string): Promise<v
   });
   const replacement = objects(candidates.results).find((card) => card.name === "Arcane Signet");
   assert(replacement);
-  const removed = await journey.call("deck_remove", { deck_id: deckId, cards: "Sol Ring" });
+  const removed = await journey.call("deck_remove", {
+    deck_id: deckId,
+    cards: "Sol Ring",
+  });
   assert.deepEqual(removed.failed, []);
   await addCards(journey, deckId, string(replacement.oracle_id));
 }
@@ -352,8 +363,13 @@ export async function runWorkflowScenarios(): Promise<WorkflowRun[]> {
       "budget-build",
       "Build a legal 100-card Krenko deck for at most $100, using my owned Sol Ring and Goblin Matron.",
       async (journey) => {
-        await journey.call("collection_set", { cards: ["Sol Ring", "Goblin Matron"] });
-        const owned = await journey.call("card_search", { query: "id<=r", owned_only: true });
+        await journey.call("collection_set", {
+          cards: ["Sol Ring", "Goblin Matron"],
+        });
+        const owned = await journey.call("card_search", {
+          query: "id<=r",
+          owned_only: true,
+        });
         assert.deepEqual(
           objects(owned.results)
             .map((card) => card.oracle_id)
@@ -402,13 +418,20 @@ export async function runWorkflowScenarios(): Promise<WorkflowRun[]> {
       async (journey) => {
         const deckId = await createDeck(journey, "Imported Goblins");
         await importFullDeck(journey, deckId);
-        const snapshot = await journey.call("deck_snapshot", { deck_id: deckId });
+        const snapshot = await journey.call("deck_snapshot", {
+          deck_id: deckId,
+        });
         const snapshotId = string(snapshot.snapshot_id);
         await journey.call("deck_status", { deck_id: deckId });
         await replaceExpensiveRock(journey, deckId);
         await legalHundred(journey, deckId);
         const diff = object(
-          (await journey.call("deck_diff", { deck_id: deckId, snapshot_id: snapshotId })).diff,
+          (
+            await journey.call("deck_diff", {
+              deck_id: deckId,
+              snapshot_id: snapshotId,
+            })
+          ).diff,
         );
         assert.deepEqual(object(diff.cards), {
           added: [{ oracle_id: "wf-arcane", qty: 1 }],
@@ -509,7 +532,9 @@ export async function runWorkflowScenarios(): Promise<WorkflowRun[]> {
         assert(fallback);
         await addCards(journey, deckId, string(fallback.oracle_id));
         const recovered = await legalHundred(journey, deckId);
-        const retried = await journey.call("meta_recommend", { deck_id: deckId });
+        const retried = await journey.call("meta_recommend", {
+          deck_id: deckId,
+        });
         assert(objects(retried.suggestions).some((card) => card.oracle_id === "wf-matron"));
         assert.deepEqual(await getDeck(journey, deckId), recovered);
         journey.run.invariants.push(

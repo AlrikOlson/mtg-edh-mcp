@@ -169,7 +169,10 @@ function analyzeManaBaseTool(store: DeckStore, index: CardIndex, session: string
         "FLOW: deck_status -> analyze_mana_base -> card_search (t:land).\n" +
         "ARGS: deck_id; threshold (per-color source floor, default 10).\n" +
         "RETURNS: total_lands, untapped_lands/tapped_lands, sources (per color, lands + rocks + dorks), fixing_sources, under_supported.",
-      inputSchema: { deck_id: z.string(), threshold: z.number().int().positive().optional() },
+      inputSchema: {
+        deck_id: z.string(),
+        threshold: z.number().int().positive().optional(),
+      },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
@@ -249,8 +252,7 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
         `${STATUS_ERROR_CAP}, exact error_count/warning_count); curve (buckets, avg_mv); mana (sources_by_color, ` +
         "under_supported); roles (below-band gaps); price (total_usd, min_buy_usd).",
       inputSchema: { deck_id: z.string() },
-      // No outputSchema — strict clients reject the SDK's draft-07 rendering
-      // of it ("invalid outputSchema"); see the note on card_search.
+      // Preserve the existing no-outputSchema contract; see card_search.
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
@@ -306,9 +308,15 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
             avg_mv: stats.avg_mv,
             avg_mv_nonland: stats.avg_mv_nonland,
           },
-          mana: { sources_by_color: mana.sources, under_supported: mana.under_supported },
+          mana: {
+            sources_by_color: mana.sources,
+            under_supported: mana.under_supported,
+          },
           roles: { gaps },
-          price: { total_usd: stats.total_price_usd, min_buy_usd: stats.min_buy_usd },
+          price: {
+            total_usd: stats.total_price_usd,
+            min_buy_usd: stats.min_buy_usd,
+          },
         },
       };
     },

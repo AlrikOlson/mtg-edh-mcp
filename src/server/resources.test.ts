@@ -2,9 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -42,7 +41,11 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -57,7 +60,9 @@ afterEach(async () => {
 describe("addressable resources", () => {
   it("resolves card://{oracle_id} to the canonical card", async () => {
     const res = await client.readResource({ uri: "card://o-sol" });
-    const card = JSON.parse((res.contents[0] as { text: string }).text) as { name: string };
+    const card = JSON.parse((res.contents[0] as { text: string }).text) as {
+      name: string;
+    };
     expect(card.name).toBe("Sol Ring");
   });
 
@@ -82,7 +87,7 @@ describe("deck subscription updates", () => {
   it("notifies deck:// subscribers when a deck mutates", async () => {
     deckStore.create({ name: "Atraxa" });
     const updates: string[] = [];
-    client.setNotificationHandler(ResourceUpdatedNotificationSchema, (n) => {
+    client.setNotificationHandler("notifications/resources/updated", (n) => {
       updates.push(n.params.uri);
     });
     await client.subscribeResource({ uri: "deck://deck-1" });
@@ -98,7 +103,7 @@ describe("deck subscription updates", () => {
     deckStore.create({ name: "Local" });
     deckStore.create({ name: "Alice" }, "alice");
     const updates: string[] = [];
-    client.setNotificationHandler(ResourceUpdatedNotificationSchema, (n) => {
+    client.setNotificationHandler("notifications/resources/updated", (n) => {
       updates.push(n.params.uri);
     });
     await client.subscribeResource({ uri: "deck://deck-1" });
@@ -123,7 +128,7 @@ describe("deck subscription updates", () => {
   it("stops sending updates after a subscription is removed", async () => {
     deckStore.create({ name: "Local" });
     const updates: string[] = [];
-    client.setNotificationHandler(ResourceUpdatedNotificationSchema, (n) => {
+    client.setNotificationHandler("notifications/resources/updated", (n) => {
       updates.push(n.params.uri);
     });
     await client.subscribeResource({ uri: "deck://deck-1" });

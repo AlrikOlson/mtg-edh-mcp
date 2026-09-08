@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -182,7 +182,12 @@ describe("meta_classify_bracket tool", () => {
     const gc = new GameChangersClient(new CacheStore({ now: () => 1000 }), {
       fetchJson: async () => [], // no Game Changers — the combo is the only pusher
     });
-    const server = createServer({ index, deckStore, gameChangers: gc, spellbook });
+    const server = createServer({
+      index,
+      deckStore,
+      gameChangers: gc,
+      spellbook,
+    });
     const [ct, st] = InMemoryTransport.createLinkedPair();
     await server.connect(st);
     const c2 = new Client({ name: "t-combo", version: "0.0.0" });
@@ -191,7 +196,10 @@ describe("meta_classify_bracket tool", () => {
       name: "meta_classify_bracket",
       arguments: { deck_id: "deck-1" },
     });
-    const r = res.structuredContent as { bracket: number; pushers: { combos: string[] } };
+    const r = res.structuredContent as {
+      bracket: number;
+      pushers: { combos: string[] };
+    };
     expect(r.pushers.combos).toContain("Thassa's Oracle + Demonic Consultation");
     expect(r.bracket).toBe(4); // early combo (2 + 1 = 3 MV) → Optimized
     await c2.close();
@@ -213,7 +221,9 @@ describe("meta_classify_bracket tool", () => {
       arguments: { deck_id: "deck-1" },
     });
     expect(res.isError).toBe(true);
-    expect(res.structuredContent).toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
+    expect(res.structuredContent).toMatchObject({
+      code: "UPSTREAM_UNAVAILABLE",
+    });
     await c2.close();
   });
 });

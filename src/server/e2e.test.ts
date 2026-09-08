@@ -19,8 +19,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -248,7 +248,10 @@ async function addOne(deckId: string, oracleId: string): Promise<void> {
 /** Pad the deck with Wastes to exactly 100 (commanders + cards), using only tools. */
 async function padToHundred(deckId: string, commanderCount: number): Promise<void> {
   const wastes = sc(
-    await client.callTool({ name: "card_resolve_name", arguments: { name: "Wastes" } }),
+    await client.callTool({
+      name: "card_resolve_name",
+      arguments: { name: "Wastes" },
+    }),
   );
   const before = sc(await client.callTool({ name: "deck_get", arguments: { deck_id: deckId } }));
   const deck = before.deck as { cards: { qty: number }[] };
@@ -257,13 +260,19 @@ async function padToHundred(deckId: string, commanderCount: number): Promise<voi
   expect(need).toBeGreaterThan(0);
   await client.callTool({
     name: "deck_add",
-    arguments: { deck_id: deckId, cards: [{ oracle_id: wastes.oracle_id as string, qty: need }] },
+    arguments: {
+      deck_id: deckId,
+      cards: [{ oracle_id: wastes.oracle_id as string, qty: need }],
+    },
   });
 }
 
 /** Assert validate_deck reports a legal 100-card deck. */
 async function expectLegal(deckId: string): Promise<void> {
-  const res = await client.callTool({ name: "validate_deck", arguments: { deck_id: deckId } });
+  const res = await client.callTool({
+    name: "validate_deck",
+    arguments: { deck_id: deckId },
+  });
   const v = sc(res);
   expect(v.ok, `validate_deck errors: ${JSON.stringify(v.errors)}`).toBe(true);
   expect((v.errors as unknown[]).length).toBe(0);
@@ -286,7 +295,10 @@ describe("§10 worked examples — built by composing tools only", () => {
 
     // 2. create + set the command zone (recomputes identity to WUBG).
     const deckId = sc(
-      await client.callTool({ name: "deck_create", arguments: { name: "Thrasios/Tymna" } }),
+      await client.callTool({
+        name: "deck_create",
+        arguments: { name: "Thrasios/Tymna" },
+      }),
     ).deck_id as string;
     const set = sc(
       await client.callTool({
@@ -302,7 +314,10 @@ describe("§10 worked examples — built by composing tools only", () => {
 
     // 3. combos reachable from the commanders (fake Spellbook).
     const combos = sc(
-      await client.callTool({ name: "meta_combos", arguments: { deck_id: deckId } }),
+      await client.callTool({
+        name: "meta_combos",
+        arguments: { deck_id: deckId },
+      }),
     );
     expect(combos.included_count).toBe(1);
 
@@ -314,14 +329,20 @@ describe("§10 worked examples — built by composing tools only", () => {
 
     // 6. role coverage is computable (advisory).
     const cov = sc(
-      await client.callTool({ name: "analyze_role_coverage", arguments: { deck_id: deckId } }),
+      await client.callTool({
+        name: "analyze_role_coverage",
+        arguments: { deck_id: deckId },
+      }),
     );
     expect(Array.isArray(cov.gaps)).toBe(true);
 
     // 7. pad to a legal 100, then classify the bracket (fake Game Changers).
     await padToHundred(deckId, 2);
     const bracket = sc(
-      await client.callTool({ name: "meta_classify_bracket", arguments: { deck_id: deckId } }),
+      await client.callTool({
+        name: "meta_classify_bracket",
+        arguments: { deck_id: deckId },
+      }),
     );
     expect(typeof bracket.bracket).toBe("number");
     expect((bracket.pushers as { game_changers: string[] }).game_changers).toContain(
@@ -334,11 +355,18 @@ describe("§10 worked examples — built by composing tools only", () => {
 
   it("(b) budget tribal — $75 Goblins, price-watched, exported", async () => {
     const deckId = sc(
-      await client.callTool({ name: "deck_create", arguments: { name: "$75 Goblins" } }),
+      await client.callTool({
+        name: "deck_create",
+        arguments: { name: "$75 Goblins" },
+      }),
     ).deck_id as string;
     await client.callTool({
       name: "deck_set_commander",
-      arguments: { deck_id: deckId, commanders: ["o-krenko"], command_zone_kind: "single" },
+      arguments: {
+        deck_id: deckId,
+        commanders: ["o-krenko"],
+        command_zone_kind: "single",
+      },
     });
 
     // affordable goblins, surfaced cheapest-first.
@@ -349,11 +377,17 @@ describe("§10 worked examples — built by composing tools only", () => {
 
     // analyze_stats watches the running price; mana base reports red sources.
     const stats = sc(
-      await client.callTool({ name: "analyze_stats", arguments: { deck_id: deckId } }),
+      await client.callTool({
+        name: "analyze_stats",
+        arguments: { deck_id: deckId },
+      }),
     );
     expect(stats.total_price_usd as number).toBeGreaterThan(0);
     const mana = sc(
-      await client.callTool({ name: "analyze_mana_base", arguments: { deck_id: deckId } }),
+      await client.callTool({
+        name: "analyze_mana_base",
+        arguments: { deck_id: deckId },
+      }),
     );
     expect(typeof mana.total_lands).toBe("number");
 
@@ -361,7 +395,12 @@ describe("§10 worked examples — built by composing tools only", () => {
     await expectLegal(deckId);
 
     // exportable to plaintext decklist.
-    const exp = sc(await client.callTool({ name: "deck_export", arguments: { deck_id: deckId } }));
+    const exp = sc(
+      await client.callTool({
+        name: "deck_export",
+        arguments: { deck_id: deckId },
+      }),
+    );
     expect((exp.text as string).length).toBeGreaterThan(0);
     // Export is the 99-card library (the command zone is not part of the decklist).
     expect(exp.text).toContain("Goblin Matron");
@@ -379,7 +418,10 @@ describe("§10 worked examples — built by composing tools only", () => {
     expect(resolved.oracle_id).toBe(candidate.oracle_id);
 
     const deckId = sc(
-      await client.callTool({ name: "deck_create", arguments: { name: "Group Hug" } }),
+      await client.callTool({
+        name: "deck_create",
+        arguments: { name: "Group Hug" },
+      }),
     ).deck_id as string;
     await client.callTool({
       name: "deck_set_commander",
@@ -406,7 +448,10 @@ describe("§10 worked examples — built by composing tools only", () => {
 
     // 4. composition is computable; pad + validate.
     const comp = sc(
-      await client.callTool({ name: "analyze_composition", arguments: { deck_id: deckId } }),
+      await client.callTool({
+        name: "analyze_composition",
+        arguments: { deck_id: deckId },
+      }),
     );
     expect(comp.total as number).toBeGreaterThan(0);
     await padToHundred(deckId, 1);

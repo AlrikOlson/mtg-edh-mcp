@@ -87,6 +87,10 @@ The server is installed from source. See the [installation guide](./docs/INSTALL
 for configuration, updates, and troubleshooting. This repository contains the
 MCP server and its tooling; desktop clients are developed separately.
 
+Stdio and local HTTP support MCP **2026-07-28** and older initialization-based
+clients. Existing client configuration and the tool catalog remain compatible;
+see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
+
 ## What the server exposes
 
 With a card index loaded, the server exposes **41 tools**, **3 workflow
@@ -171,10 +175,13 @@ npm run typecheck
 npm test
 npm run lint
 npm run test:package
+npm run lint:rust
+npm run test:rust
 ```
 
 The server gate is **build + typecheck + test + lint**, plus an installed-package
-smoke test. The tests use small fixtures, so a full card-data download is not required. See
+smoke test and a [real Rust rmcp client](./scripts/rust-client/README.md)
+(Rust/Cargo 1.88+). The tests use small fixtures, so a full card-data download is not required. See
 [Contributing](./CONTRIBUTING.md) for the project layout and contribution workflow,
 [Protocol workflow evaluation](./docs/evaluation/README.md) for the pinned baseline,
 and [Changelog](./CHANGELOG.md) for changes. The server is pre-1.0; interfaces

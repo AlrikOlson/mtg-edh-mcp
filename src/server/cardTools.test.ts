@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { createServer } from "./createServer.js";
@@ -105,7 +105,10 @@ beforeEach(async () => {
   const built = await buildIndex({ store });
   index = CardIndex.open(built.dbPath);
 
-  const server = createServer({ index, snapshot: staticSnapshotProvider(SNAPSHOT) });
+  const server = createServer({
+    index,
+    snapshot: staticSnapshotProvider(SNAPSHOT),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -138,7 +141,10 @@ describe("card tools registration", () => {
 
 describe("card_search", () => {
   it("returns CardRefs with totals and a stamped data_snapshot", async () => {
-    const res = await client.callTool({ name: "card_search", arguments: { query: "t:creature" } });
+    const res = await client.callTool({
+      name: "card_search",
+      arguments: { query: "t:creature" },
+    });
     const sc = res.structuredContent as {
       total: number;
       returned: number;
@@ -151,7 +157,10 @@ describe("card_search", () => {
   });
 
   it("surfaces a malformed query as INVALID_QUERY with teaching examples", async () => {
-    const res = await client.callTool({ name: "card_search", arguments: { query: "(t:dragon" } });
+    const res = await client.callTool({
+      name: "card_search",
+      arguments: { query: "(t:dragon" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "INVALID_QUERY" });
     const details = (res.structuredContent as { details?: { examples?: string[] } }).details;
@@ -167,7 +176,11 @@ describe("card_get", () => {
       arguments: { oracle_ids: ["o-sol", "o-nope"] },
     });
     const sc = res.structuredContent as {
-      cards: Array<{ name: string; default_usd: number | null; cheapest_usd: number | null }>;
+      cards: Array<{
+        name: string;
+        default_usd: number | null;
+        cheapest_usd: number | null;
+      }>;
       missing: string[];
     };
     expect(sc.cards.map((c) => c.name)).toEqual(["Sol Ring"]);
@@ -185,7 +198,9 @@ describe("card_get", () => {
       name: "card_get",
       arguments: { oracle_ids: ["o-sol"], include_printings: true },
     });
-    const sc = res.structuredContent as { cards: Array<{ printings: unknown[] }> };
+    const sc = res.structuredContent as {
+      cards: Array<{ printings: unknown[] }>;
+    };
     expect(Array.isArray(sc.cards[0]?.printings)).toBe(true);
   });
 
@@ -215,7 +230,10 @@ describe("card_get", () => {
       name: "card_get",
       arguments: { oracle_ids: ["Sol Ring", "o-sol", "No Such Card"] },
     });
-    const sc = res.structuredContent as { cards: Array<{ name: string }>; missing: string[] };
+    const sc = res.structuredContent as {
+      cards: Array<{ name: string }>;
+      missing: string[];
+    };
     // "Sol Ring" (name) and "o-sol" (id) both resolve to the same card.
     expect(sc.cards.map((c) => c.name)).toEqual(["Sol Ring", "Sol Ring"]);
     expect(sc.missing).toEqual(["No Such Card"]);
@@ -237,7 +255,10 @@ describe("card_resolve_name", () => {
       arguments: { name: "Llanowar" },
     });
     expect(res.isError).toBe(true);
-    const sc = res.structuredContent as { code: string; details: { candidates: unknown[] } };
+    const sc = res.structuredContent as {
+      code: string;
+      details: { candidates: unknown[] };
+    };
     expect(sc.code).toBe("AMBIGUOUS_NAME");
     expect(sc.details.candidates).toHaveLength(2);
   });
@@ -291,7 +312,10 @@ describe("card_printings", () => {
       name: "card_printings",
       arguments: { card: "Sol Ring" },
     });
-    const sc = res.structuredContent as { oracle_id: string; printings: Array<{ set: string }> };
+    const sc = res.structuredContent as {
+      oracle_id: string;
+      printings: Array<{ set: string }>;
+    };
     expect(sc.oracle_id).toBe("o-sol");
     expect(sc.printings.map((p) => p.set)).toEqual(["cmm", "c21"]);
   });

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -58,9 +58,16 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
 
   let snapN = 0;
-  deckStore = new DeckStore({ newId: () => "deck-1", newSnapshotId: () => `snap-${++snapN}` });
+  deckStore = new DeckStore({
+    newId: () => "deck-1",
+    newSnapshotId: () => `snap-${++snapN}`,
+  });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -130,15 +137,29 @@ describe("deck versioning tools", () => {
 
   it("diff detects a quantity change between two snapshots", async () => {
     await client.callTool({ name: "deck_create", arguments: { name: "Q" } });
-    deckStore.update("deck-1", (deck) => ({ ...deck, cards: [{ oracle_id: "o-sol", qty: 1 }] }));
+    deckStore.update("deck-1", (deck) => ({
+      ...deck,
+      cards: [{ oracle_id: "o-sol", qty: 1 }],
+    }));
     const a = (
-      (await client.callTool({ name: "deck_snapshot", arguments: { deck_id: "deck-1" } }))
-        .structuredContent as { snapshot_id: string }
+      (
+        await client.callTool({
+          name: "deck_snapshot",
+          arguments: { deck_id: "deck-1" },
+        })
+      ).structuredContent as { snapshot_id: string }
     ).snapshot_id;
-    deckStore.update("deck-1", (deck) => ({ ...deck, cards: [{ oracle_id: "o-sol", qty: 4 }] }));
+    deckStore.update("deck-1", (deck) => ({
+      ...deck,
+      cards: [{ oracle_id: "o-sol", qty: 4 }],
+    }));
     const b = (
-      (await client.callTool({ name: "deck_snapshot", arguments: { deck_id: "deck-1" } }))
-        .structuredContent as { snapshot_id: string }
+      (
+        await client.callTool({
+          name: "deck_snapshot",
+          arguments: { deck_id: "deck-1" },
+        })
+      ).structuredContent as { snapshot_id: string }
     ).snapshot_id;
 
     const diffed = await client.callTool({
@@ -153,14 +174,23 @@ describe("deck versioning tools", () => {
 
   it("snapshot is immutable — later deck mutation does not bleed into it", async () => {
     await client.callTool({ name: "deck_create", arguments: { name: "Imm" } });
-    deckStore.update("deck-1", (deck) => ({ ...deck, cards: [{ oracle_id: "o-sol", qty: 1 }] }));
+    deckStore.update("deck-1", (deck) => ({
+      ...deck,
+      cards: [{ oracle_id: "o-sol", qty: 1 }],
+    }));
     const snap = deckStore.snapshot("deck-1");
-    deckStore.update("deck-1", (deck) => ({ ...deck, cards: [{ oracle_id: "o-sol", qty: 9 }] }));
+    deckStore.update("deck-1", (deck) => ({
+      ...deck,
+      cards: [{ oracle_id: "o-sol", qty: 9 }],
+    }));
     expect(snap.deck.cards).toEqual([{ oracle_id: "o-sol", qty: 1 }]);
   });
 
   it("deck_snapshot on unknown deck and deck_restore on unknown snapshot return DECK_NOT_FOUND", async () => {
-    const noDeck = await client.callTool({ name: "deck_snapshot", arguments: { deck_id: "nope" } });
+    const noDeck = await client.callTool({
+      name: "deck_snapshot",
+      arguments: { deck_id: "nope" },
+    });
     expect(noDeck.isError).toBe(true);
     expect(noDeck.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
 

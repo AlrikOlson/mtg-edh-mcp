@@ -6,14 +6,12 @@
  * resources.subscribe capability, track subscribed URIs via Subscribe/Unsubscribe
  * request handlers, and bridge DeckStore.onChange to server.sendResourceUpdated.
  */
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
-  ErrorCode,
-  McpError,
-  SubscribeRequestSchema,
-  UnsubscribeRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+  type McpServer,
+  ResourceTemplate,
+  ProtocolErrorCode,
+  ProtocolError,
+} from "@modelcontextprotocol/server";
 import { StructuredError } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
@@ -76,23 +74,26 @@ export function registerResources(server: McpServer, deps: ResourceDeps): void {
     if (subscriptions) {
       server.server.registerCapabilities({ resources: { subscribe: true } });
       const subscribed = new Set<string>();
-      server.server.setRequestHandler(SubscribeRequestSchema, (request) => {
+      server.server.setRequestHandler("resources/subscribe", (request) => {
         const prefix = "deck://";
         const uri = request.params.uri;
         const deckId = uri.startsWith(prefix) ? uri.slice(prefix.length) : "";
         if (!deckId || !deckStore.get(deckId, session)) {
-          throw new McpError(ErrorCode.InvalidParams, "Unknown deck resource");
+          throw new ProtocolError(ProtocolErrorCode.InvalidParams, "Unknown deck resource");
         }
         subscribed.add(uri);
         return {};
       });
-      server.server.setRequestHandler(UnsubscribeRequestSchema, (request) => {
+      server.server.setRequestHandler("resources/unsubscribe", (request) => {
         subscribed.delete(request.params.uri);
         return {};
       });
       const unsubscribe = deckStore.onChange((deckId, _version, changedSession) => {
         const uri = `deck://${deckId}`;
-        if (changedSession === session && subscribed.has(uri)) {
+        // Modern stdio owns subscriptions/listen at the serving entry and
+        // filters these notifications there; legacy uses the explicit URI set.
+        const modern = server.server.getNegotiatedProtocolVersion() === "2026-07-28";
+        if (changedSession === session && (modern || subscribed.has(uri))) {
           // A client may disconnect while a notification is in flight.
           void server.server.sendResourceUpdated({ uri }).catch(() => undefined);
         }
@@ -118,7 +119,7 @@ export function registerResources(server: McpServer, deps: ResourceDeps): void {
       (uri, variables) => {
         const sessionId = firstVar(variables.session) || "local";
         if (sessionId !== session) {
-          throw new McpError(ErrorCode.InvalidParams, "Unknown collection resource");
+          throw new ProtocolError(ProtocolErrorCode.InvalidParams, "Unknown collection resource");
         }
         const owned = [...collection.get(session)];
         const currentIndex = deps.getIndex?.() ?? index;

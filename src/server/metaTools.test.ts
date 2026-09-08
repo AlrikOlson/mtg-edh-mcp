@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -110,7 +110,10 @@ beforeEach(async () => {
   client = new Client({ name: "test", version: "0.0.0" });
   await client.connect(clientTransport);
   // Mono-U Talrand deck already running Sol Ring.
-  await client.callTool({ name: "deck_create", arguments: { name: "Talrand" } });
+  await client.callTool({
+    name: "deck_create",
+    arguments: { name: "Talrand" },
+  });
   deckStore.update("deck-1", (d) => ({
     ...d,
     commanders: ["o-talrand"],
@@ -142,7 +145,11 @@ describe("EDHREC meta tools", () => {
       name: "meta_commander_profile",
       arguments: { commander: "Talrand, Sky Summoner" },
     });
-    const r = res.structuredContent as { cards: unknown[]; themes: string[]; total_cards: number };
+    const r = res.structuredContent as {
+      cards: unknown[];
+      themes: string[];
+      total_cards: number;
+    };
     expect(r.cards).toHaveLength(4);
     expect(r.total_cards).toBe(4);
     expect(r.themes).toEqual(["Spellslinger", "Counters"]);
@@ -151,7 +158,10 @@ describe("EDHREC meta tools", () => {
       name: "meta_commander_profile",
       arguments: { commander: "Talrand, Sky Summoner", limit: 2 },
     });
-    const lr = limited.structuredContent as { cards: unknown[]; total_cards: number };
+    const lr = limited.structuredContent as {
+      cards: unknown[];
+      total_cards: number;
+    };
     expect(lr.cards).toHaveLength(2);
     expect(lr.total_cards).toBe(4);
   });
@@ -199,7 +209,9 @@ describe("EDHREC meta tools", () => {
       arguments: { commander: "Talrand, Sky Summoner" },
     });
     expect(res.isError).toBe(true);
-    expect(res.structuredContent).toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
+    expect(res.structuredContent).toMatchObject({
+      code: "UPSTREAM_UNAVAILABLE",
+    });
     await c2.close();
   });
 });
@@ -213,7 +225,11 @@ describe("meta_recommend rank:'inclusion' (the missing-staples mode)", () => {
     const r = res.structuredContent as {
       commander: string;
       rank: string;
-      suggestions: Array<{ oracle_id: string; name: string; inclusion: number }>;
+      suggestions: Array<{
+        oracle_id: string;
+        name: string;
+        inclusion: number;
+      }>;
       unresolved: Array<{ name: string; reason: string }>;
     };
     expect(r.commander).toBe("Talrand, Sky Summoner");
@@ -243,7 +259,10 @@ describe("meta_budget_swaps (review #10 part 2)", () => {
 
   it("suggests a cheaper same-role, in-identity replacement for an expensive card", async () => {
     // Make the deck's Sol Ring 'expensive' relative to the Arcane Signet candidate.
-    deckStore.update("deck-1", (d) => ({ ...d, cards: [{ oracle_id: "o-sol", qty: 1 }] }));
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      cards: [{ oracle_id: "o-sol", qty: 1 }],
+    }));
     const res = await client.callTool({
       name: "meta_budget_swaps",
       arguments: { deck_id: "deck-1" },
@@ -271,7 +290,10 @@ describe("meta_budget_swaps (review #10 part 2)", () => {
   });
 
   it("returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({ name: "meta_budget_swaps", arguments: { deck_id: "x" } });
+    const res = await client.callTool({
+      name: "meta_budget_swaps",
+      arguments: { deck_id: "x" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });

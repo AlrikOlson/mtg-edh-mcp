@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -62,7 +62,12 @@ interface DeckShape {
   deck_id: string;
   name: string;
   version: number;
-  cards: Array<{ oracle_id: string; qty: number; name?: string; card?: { name: string } | null }>;
+  cards: Array<{
+    oracle_id: string;
+    qty: number;
+    name?: string;
+    card?: { name: string } | null;
+  }>;
 }
 
 beforeEach(async () => {
@@ -75,7 +80,11 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -100,11 +109,21 @@ describe("deck lifecycle tools", () => {
       name: "deck_create",
       arguments: { name: "Atraxa", commanders: ["o-atraxa"] },
     });
-    const csc = created.structuredContent as { deck_id: string; deck: DeckShape };
+    const csc = created.structuredContent as {
+      deck_id: string;
+      deck: DeckShape;
+    };
     expect(csc.deck_id).toBe("deck-1");
-    expect(csc.deck).toMatchObject({ name: "Atraxa", version: 1, data_snapshot: "2026-06-27" });
+    expect(csc.deck).toMatchObject({
+      name: "Atraxa",
+      version: 1,
+      data_snapshot: "2026-06-27",
+    });
 
-    const got = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    const got = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: "deck-1" },
+    });
     expect((got.structuredContent as { deck: DeckShape }).deck.name).toBe("Atraxa");
 
     const listed = await client.callTool({ name: "deck_list", arguments: {} });
@@ -130,7 +149,10 @@ describe("deck lifecycle tools", () => {
     });
     expect(deleted.structuredContent).toMatchObject({ deleted: true });
 
-    const gone = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    const gone = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: "deck-1" },
+    });
     expect(gone.isError).toBe(true);
     expect(gone.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
@@ -142,7 +164,11 @@ describe("deck lifecycle tools", () => {
     });
     const sc = res.structuredContent as {
       deck_id: string;
-      deck: { computed_color_identity: string[]; commanders: string[]; version: number };
+      deck: {
+        computed_color_identity: string[];
+        commanders: string[];
+        version: number;
+      };
     };
     // The historic bug: identity stayed [] until deck_set_commander, so the
     // next import rejected every colored card as a COLOR_IDENTITY violation.
@@ -153,7 +179,10 @@ describe("deck lifecycle tools", () => {
     // And a colored add now passes without any commander call in between.
     const add = await client.callTool({
       name: "deck_add",
-      arguments: { deck_id: sc.deck_id, cards: [{ oracle_id: "o-llan", qty: 1 }] },
+      arguments: {
+        deck_id: sc.deck_id,
+        cards: [{ oracle_id: "o-llan", qty: 1 }],
+      },
     });
     const verdicts = (add.structuredContent as { verdicts: Array<{ status: string }> }).verdicts;
     expect(verdicts[0]?.status).toBe("ok");
@@ -162,11 +191,21 @@ describe("deck lifecycle tools", () => {
   it("deck_get projects cards lean by default and full on expand", async () => {
     await client.callTool({ name: "deck_create", arguments: { name: "Mono" } });
     // Inject a card entry directly (deck_add lands in p3-addremove).
-    deckStore.update("deck-1", (deck) => ({ ...deck, cards: [{ oracle_id: "o-sol", qty: 1 }] }));
+    deckStore.update("deck-1", (deck) => ({
+      ...deck,
+      cards: [{ oracle_id: "o-sol", qty: 1 }],
+    }));
 
-    const lean = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    const lean = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: "deck-1" },
+    });
     const leanCards = (lean.structuredContent as { deck: DeckShape }).deck.cards;
-    expect(leanCards[0]).toEqual({ oracle_id: "o-sol", qty: 1, name: "Sol Ring" });
+    expect(leanCards[0]).toEqual({
+      oracle_id: "o-sol",
+      qty: 1,
+      name: "Sol Ring",
+    });
     expect(leanCards[0]).not.toHaveProperty("card");
 
     const expanded = await client.callTool({
@@ -178,13 +217,19 @@ describe("deck lifecycle tools", () => {
   });
 
   it("deck_delete on an unknown deck returns DECK_NOT_FOUND", async () => {
-    const res = await client.callTool({ name: "deck_delete", arguments: { deck_id: "nope" } });
+    const res = await client.callTool({
+      name: "deck_delete",
+      arguments: { deck_id: "nope" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
 
   it("deck_rename renames (version bump), conflicts on stale expected_version", async () => {
-    await client.callTool({ name: "deck_create", arguments: { name: "Old Name" } });
+    await client.callTool({
+      name: "deck_create",
+      arguments: { name: "Old Name" },
+    });
     const renamed = await client.callTool({
       name: "deck_rename",
       arguments: { deck_id: "deck-1", name: "New Name" },
@@ -195,14 +240,20 @@ describe("deck lifecycle tools", () => {
       name: "New Name",
       version: 2,
     });
-    const got = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    const got = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: "deck-1" },
+    });
     expect((got.structuredContent as { deck: DeckShape }).deck.name).toBe("New Name");
 
     const stale = await client.callTool({
       name: "deck_rename",
       arguments: { deck_id: "deck-1", name: "Nope", expected_version: 1 },
     });
-    expect(stale.structuredContent).toMatchObject({ ok: false, conflict: true });
+    expect(stale.structuredContent).toMatchObject({
+      ok: false,
+      conflict: true,
+    });
 
     const unknown = await client.callTool({
       name: "deck_rename",

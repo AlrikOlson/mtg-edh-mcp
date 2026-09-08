@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -99,7 +99,11 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -117,14 +121,21 @@ async function add(oracleId: string): Promise<void> {
   // color-identity precheck — we are testing the companion condition, not identity.
   await client.callTool({
     name: "deck_add",
-    arguments: { deck_id: "deck-1", cards: [{ oracle_id: oracleId, qty: 1 }], force: true },
+    arguments: {
+      deck_id: "deck-1",
+      cards: [{ oracle_id: oracleId, qty: 1 }],
+      force: true,
+    },
   });
 }
 
 async function setCompanion(companion?: string): Promise<CompanionResult> {
   const res = await client.callTool({
     name: "deck_set_companion",
-    arguments: { deck_id: "deck-1", ...(companion === undefined ? {} : { companion }) },
+    arguments: {
+      deck_id: "deck-1",
+      ...(companion === undefined ? {} : { companion }),
+    },
   });
   return res.structuredContent as CompanionResult;
 }
@@ -152,7 +163,10 @@ describe("deck_set_companion", () => {
     expect(r.violations?.map((v) => v.rule)).toContain("COMPANION");
 
     // validate_deck surfaces it as a COMPANION error.
-    const v = await client.callTool({ name: "validate_deck", arguments: { deck_id: "deck-1" } });
+    const v = await client.callTool({
+      name: "validate_deck",
+      arguments: { deck_id: "deck-1" },
+    });
     const rules = (v.structuredContent as { violations: Array<{ rule: string }> }).violations.map(
       (x) => x.rule,
     );
@@ -174,7 +188,10 @@ describe("deck_set_companion", () => {
 
   it("validate_deck has no COMPANION violation when none is declared", async () => {
     await add("o-odd");
-    const v = await client.callTool({ name: "validate_deck", arguments: { deck_id: "deck-1" } });
+    const v = await client.callTool({
+      name: "validate_deck",
+      arguments: { deck_id: "deck-1" },
+    });
     const rules = (v.structuredContent as { violations: Array<{ rule: string }> }).violations.map(
       (x) => x.rule,
     );

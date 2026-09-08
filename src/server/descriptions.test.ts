@@ -16,8 +16,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -90,11 +90,9 @@ const OPEN_WORLD_TOOLS = [
   "meta_classify_bracket",
 ].sort();
 
-// Policy REVERSED (skill feedback): outputSchema is banned catalog-wide. The SDK
-// serializes it with a draft-07 $schema marker and strict clients (Claude
-// Desktop) reject the declaring tool outright with "invalid outputSchema" —
-// exactly the three tools that used to declare one. Revisit when the SDK
-// emits the 2020-12 dialect.
+// Keep the established catalog contract: no advertised outputSchema. Earlier
+// declarations were removed after strict-client rejection of SDK v1 draft-07.
+// The SDK migration preserves this policy; re-enabling needs real host validation.
 
 interface WireTool {
   name: string;
@@ -123,7 +121,11 @@ beforeAll(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   const deckStore = new DeckStore();
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [ct, st] = InMemoryTransport.createLinkedPair();
   await server.connect(st);
   client = new Client({ name: "desc-lint", version: "0.0.0" });
@@ -209,7 +211,7 @@ describe("tool annotations (ergo-protocol)", () => {
     expect(openWorld).toEqual(OPEN_WORLD_TOOLS);
   });
 
-  it("no tool declares an outputSchema (strict clients reject the SDK's draft-07 rendering)", () => {
+  it("preserves the catalog without advertised output schemas", () => {
     const offenders = tools.filter((t) => t.outputSchema !== undefined).map((t) => t.name);
     expect(offenders).toEqual([]);
   });

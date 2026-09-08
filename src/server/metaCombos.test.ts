@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -87,7 +87,10 @@ beforeEach(async () => {
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
   await client.connect(clientTransport);
-  await client.callTool({ name: "deck_create", arguments: { name: "Talrand" } });
+  await client.callTool({
+    name: "deck_create",
+    arguments: { name: "Talrand" },
+  });
   deckStore.update("deck-1", (d) => ({
     ...d,
     commanders: ["o-talrand"],
@@ -108,7 +111,10 @@ describe("meta_combos tool", () => {
   });
 
   it("returns included combos with pieces/result/steps/source/confidence", async () => {
-    const res = await client.callTool({ name: "meta_combos", arguments: { deck_id: "deck-1" } });
+    const res = await client.callTool({
+      name: "meta_combos",
+      arguments: { deck_id: "deck-1" },
+    });
     const r = res.structuredContent as {
       combos: Array<{
         id: string;
@@ -139,13 +145,18 @@ describe("meta_combos tool", () => {
       name: "meta_combos",
       arguments: { deck_id: "deck-1", include_almost: true },
     });
-    const r = res.structuredContent as { combos: Array<{ confidence: string }> };
+    const r = res.structuredContent as {
+      combos: Array<{ confidence: string }>;
+    };
     expect(r.combos).toHaveLength(2);
     expect(r.combos.map((c) => c.confidence)).toEqual(["included", "almost"]);
   });
 
   it("returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({ name: "meta_combos", arguments: { deck_id: "nope" } });
+    const res = await client.callTool({
+      name: "meta_combos",
+      arguments: { deck_id: "nope" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
@@ -161,9 +172,14 @@ describe("meta_combos tool", () => {
     await server.connect(st);
     const c2 = new Client({ name: "t2", version: "0.0.0" });
     await c2.connect(ct);
-    const res = await c2.callTool({ name: "meta_combos", arguments: { deck_id: "deck-1" } });
+    const res = await c2.callTool({
+      name: "meta_combos",
+      arguments: { deck_id: "deck-1" },
+    });
     expect(res.isError).toBe(true);
-    expect(res.structuredContent).toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
+    expect(res.structuredContent).toMatchObject({
+      code: "UPSTREAM_UNAVAILABLE",
+    });
     await c2.close();
   });
 });

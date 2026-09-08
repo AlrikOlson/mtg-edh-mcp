@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -79,7 +79,11 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -124,11 +128,17 @@ describe("mutation vitals", () => {
     expect(addVitals.legal).toBe(validated.ok);
     expect(addVitals.violation_count).toBe((validated.errors as unknown[]).length);
 
-    const removed = await call("deck_remove", { deck_id: "deck-1", cards: "Island" });
+    const removed = await call("deck_remove", {
+      deck_id: "deck-1",
+      cards: "Island",
+    });
     expect((removed.vitals as Vitals).card_count).toBe(9);
     expect((removed.vitals as Vitals).land_count).toBe(7);
 
-    const renamed = await call("deck_rename", { deck_id: "deck-1", name: "Renamed" });
+    const renamed = await call("deck_rename", {
+      deck_id: "deck-1",
+      name: "Renamed",
+    });
     expect((renamed.vitals as Vitals).card_count).toBe(9);
   });
 
@@ -154,7 +164,10 @@ describe("mutation vitals", () => {
 describe("deck_status", () => {
   it("returns the one-call dashboard, agreeing with the individual tools", async () => {
     await call("deck_create", { name: "Status deck" });
-    await call("deck_set_commander", { deck_id: "deck-1", commanders: "o-atraxa" });
+    await call("deck_set_commander", {
+      deck_id: "deck-1",
+      commanders: "o-atraxa",
+    });
     await call("deck_add", {
       deck_id: "deck-1",
       cards: ["Sol Ring", { card: "Island", qty: 8 }],
@@ -177,7 +190,10 @@ describe("deck_status", () => {
     expect(legality.error_count).toBe((validated.errors as unknown[]).length);
     expect(legality.errors.length).toBeLessThanOrEqual(20);
 
-    const curve = status.curve as { buckets: Record<string, number>; avg_mv: number };
+    const curve = status.curve as {
+      buckets: Record<string, number>;
+      avg_mv: number;
+    };
     const analyzedCurve = await call("analyze_curve", { deck_id: "deck-1" });
     expect(curve.buckets).toEqual(analyzedCurve.buckets);
     const stats = await call("analyze_stats", { deck_id: "deck-1" });
@@ -200,7 +216,10 @@ describe("deck_status", () => {
   });
 
   it("returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({ name: "deck_status", arguments: { deck_id: "nope" } });
+    const res = await client.callTool({
+      name: "deck_status",
+      arguments: { deck_id: "nope" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
@@ -221,7 +240,10 @@ describe("agent-shaped end-to-end flow (zero resolve round-trips)", () => {
       deck_id: "deck-1",
       cards: ["Sol Ring", "Sol Rng", { card: "Island", qty: 5 }],
     });
-    const verdicts = added.verdicts as Array<{ oracle_id: string; status: string }>;
+    const verdicts = added.verdicts as Array<{
+      oracle_id: string;
+      status: string;
+    }>;
     expect(verdicts.map((v) => v.oracle_id).sort()).toEqual(["o-island", "o-sol"]);
     const failed = added.failed as Array<{
       input: string;

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 describe("scaffold", () => {
-  it("imports @modelcontextprotocol/sdk", async () => {
-    const sdk = await import("@modelcontextprotocol/sdk/server/index.js");
+  it("imports @modelcontextprotocol/server", async () => {
+    const sdk = await import("@modelcontextprotocol/server");
     expect(sdk.Server).toBeTypeOf("function");
   });
 

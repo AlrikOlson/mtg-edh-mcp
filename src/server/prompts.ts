@@ -10,7 +10,7 @@
  * as numeric strings.
  */
 import { z } from "zod";
-import type { McpServer, RegisteredPrompt } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer, RegisteredPrompt } from "@modelcontextprotocol/server";
 
 /** A data-first prompt definition: config for prompts/list, build() for prompts/get. */
 export interface PromptDefinition {
@@ -122,7 +122,7 @@ export function registerPrompts(server: McpServer, enabled = true): RegisteredPr
   return PROMPT_DEFINITIONS.map((def) => {
     const registered = server.registerPrompt(
       def.name,
-      def.config,
+      { ...def.config, argsSchema: z.object(def.config.argsSchema) },
       (args: Record<string, string | undefined>) => ({
         messages: [
           {

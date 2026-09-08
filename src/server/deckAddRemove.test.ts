@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -88,7 +88,10 @@ interface DeckCards {
 }
 
 async function deckCards(deckId: string): Promise<DeckCards["deck"]["cards"]> {
-  const got = await client.callTool({ name: "deck_get", arguments: { deck_id: deckId } });
+  const got = await client.callTool({
+    name: "deck_get",
+    arguments: { deck_id: deckId },
+  });
   return (got.structuredContent as DeckCards).deck.cards;
 }
 
@@ -102,7 +105,11 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -149,7 +156,10 @@ describe("deck_add / deck_remove tools", () => {
     const r = await add(["Sol Rng", { card: "Plains", qty: 3 }, { oracle_id: "o-sol", qty: 1 }]);
     expect(r.verdicts.map((v) => v.oracle_id).sort()).toEqual(["o-plains", "o-sol"]);
     expect(r.failed).toHaveLength(1);
-    expect(r.failed[0]).toMatchObject({ input: "Sol Rng", reason: "UNKNOWN_CARD" });
+    expect(r.failed[0]).toMatchObject({
+      input: "Sol Rng",
+      reason: "UNKNOWN_CARD",
+    });
     expect(r.failed[0]?.suggestions?.map((s) => s.name)).toContain("Sol Ring");
     const cards = await deckCards("deck-1");
     expect(cards).toEqual(
@@ -210,7 +220,10 @@ describe("deck_add / deck_remove tools", () => {
     await add([{ oracle_id: "o-plains", qty: 5 }]);
     await client.callTool({
       name: "deck_remove",
-      arguments: { deck_id: "deck-1", cards: [{ oracle_id: "o-plains", qty: 2 }] },
+      arguments: {
+        deck_id: "deck-1",
+        cards: [{ oracle_id: "o-plains", qty: 2 }],
+      },
     });
     expect((await deckCards("deck-1"))[0]?.qty).toBe(3);
 
@@ -228,7 +241,10 @@ describe("deck_add / deck_remove tools", () => {
 
     await client.callTool({
       name: "deck_remove",
-      arguments: { deck_id: "deck-1", cards: [{ oracle_id: "o-plains", qty: 10 }] },
+      arguments: {
+        deck_id: "deck-1",
+        cards: [{ oracle_id: "o-plains", qty: 10 }],
+      },
     });
     expect(await deckCards("deck-1")).toEqual([]);
   });

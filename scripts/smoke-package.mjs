@@ -11,9 +11,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const npmCli = process.env.npm_execpath;
@@ -107,7 +106,7 @@ try {
   assert.match(invalid.stderr, /Unknown argument/);
 
   const transports = new WeakMap();
-  async function connect(nodeArgs = [], serverEnv = env) {
+  async function connect(nodeArgs = [], serverEnv = env, modern = false) {
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: [...nodeArgs, entry, "--stdio"],
@@ -119,9 +118,15 @@ try {
     transport.stderr?.on("data", (chunk) => {
       diagnostics += chunk.toString();
     });
-    const client = new Client({ name: "package-smoke", version: "1.0.0" });
+    const client = new Client(
+      { name: "package-smoke", version: "1.0.0" },
+      {
+        versionNegotiation: { mode: modern ? { pin: "2026-07-28" } : "legacy" },
+      },
+    );
     try {
       await client.connect(transport, { timeout: 10_000 });
+      assert.equal(client.getProtocolEra(), modern ? "modern" : "legacy");
     } catch (error) {
       await transport.close();
       throw new Error(`Packaged server failed to initialize: ${diagnostics}`, {
@@ -414,12 +419,18 @@ globalThis.fetch = async (input) => {
   await doctor(1);
 
   async function ingestToPhase(server, phase) {
-    const started = await server.callTool({ name: "data_ingest", arguments: {} });
+    const started = await server.callTool({
+      name: "data_ingest",
+      arguments: {},
+    });
     assert(!started.isError, JSON.stringify(started));
     assert.equal(started.structuredContent.started, true);
     const deadline = Date.now() + 10_000;
     while (Date.now() < deadline) {
-      const result = await server.callTool({ name: "data_status", arguments: {} });
+      const result = await server.callTool({
+        name: "data_status",
+        arguments: {},
+      });
       assert(!result.isError, JSON.stringify(result));
       const status = result.structuredContent;
       if (status.ingest.phase === phase) {
@@ -464,7 +475,10 @@ globalThis.fetch = async (input) => {
     assert(!created.isError, JSON.stringify(created));
     const added = await server.callTool({
       name: "deck_add",
-      arguments: { deck_id: created.structuredContent.deck_id, cards: oldFixture.card.name },
+      arguments: {
+        deck_id: created.structuredContent.deck_id,
+        cards: oldFixture.card.name,
+      },
     });
     assert(!added.isError, JSON.stringify(added));
     const deck = await server.callTool({
@@ -495,7 +509,14 @@ globalThis.fetch = async (input) => {
   }
 
   const firstRoot = join(temp, "first stdio ingest");
-  const firstClient = await connect(nodeArgs, { ...env, MCP_DATA_DIR: firstRoot });
+  const firstClient = await connect(
+    nodeArgs,
+    {
+      ...env,
+      MCP_DATA_DIR: firstRoot,
+    },
+    true,
+  );
   try {
     await firstRun(firstClient, firstRoot, true);
   } finally {
@@ -504,9 +525,15 @@ globalThis.fetch = async (input) => {
 
   const killedRoot = join(temp, "interrupted first ingest");
   await writeFile(fixturePath, JSON.stringify({ ...oldFixture, interrupt: "hold" }));
-  const killedClient = await connect(nodeArgs, { ...env, MCP_DATA_DIR: killedRoot });
+  const killedClient = await connect(nodeArgs, {
+    ...env,
+    MCP_DATA_DIR: killedRoot,
+  });
   try {
-    const started = await killedClient.callTool({ name: "data_ingest", arguments: {} });
+    const started = await killedClient.callTool({
+      name: "data_ingest",
+      arguments: {},
+    });
     assert.equal(started.structuredContent.started, true);
     const deadline = Date.now() + 10_000;
     let partial = false;
@@ -519,7 +546,10 @@ globalThis.fetch = async (input) => {
       await delay(20);
     }
     assert(partial, "SIGKILL must occur during a staged download");
-    const status = await killedClient.callTool({ name: "data_status", arguments: {} });
+    const status = await killedClient.callTool({
+      name: "data_status",
+      arguments: {},
+    });
     assert.equal(status.structuredContent.ingest.running, true);
     assert.equal(status.structuredContent.has_index, false);
     assert.equal(await treeState(join(killedRoot, "current.json")), null);
@@ -527,7 +557,10 @@ globalThis.fetch = async (input) => {
   } finally {
     await killedClient.close();
   }
-  const retryClient = await connect(nodeArgs, { ...env, MCP_DATA_DIR: killedRoot });
+  const retryClient = await connect(nodeArgs, {
+    ...env,
+    MCP_DATA_DIR: killedRoot,
+  });
   try {
     // No cleanup of the interrupted stage before retrying the normal tool.
     await firstRun(retryClient, killedRoot);
@@ -538,7 +571,12 @@ globalThis.fetch = async (input) => {
   const httpRoot = join(temp, "first http ingest");
   const httpProcess = spawn(process.execPath, [...nodeArgs, entry, "--http"], {
     cwd: consumer,
-    env: { ...env, MCP_DATA_DIR: httpRoot, MCP_HTTP_HOST: "127.0.0.1", MCP_HTTP_PORT: "0" },
+    env: {
+      ...env,
+      MCP_DATA_DIR: httpRoot,
+      MCP_HTTP_HOST: "127.0.0.1",
+      MCP_HTTP_PORT: "0",
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let httpOutput = "";
@@ -549,7 +587,13 @@ globalThis.fetch = async (input) => {
     httpOutput += chunk.toString();
   });
   const httpExited = new Promise((resolve) => httpProcess.once("exit", resolve));
-  const httpClient = new Client({ name: "package-http-smoke", version: "1.0.0" });
+  const httpClient = new Client(
+    {
+      name: "package-http-smoke",
+      version: "1.0.0",
+    },
+    { versionNegotiation: { mode: { pin: "2026-07-28" } } },
+  );
   try {
     const deadline = Date.now() + 10_000;
     let endpoint;
@@ -563,6 +607,7 @@ globalThis.fetch = async (input) => {
     await httpClient.connect(new StreamableHTTPClientTransport(new URL(endpoint)), {
       timeout: 10_000,
     });
+    assert.equal(httpClient.getProtocolEra(), "modern");
     await firstRun(httpClient, httpRoot, true);
   } finally {
     await httpClient.close();
@@ -628,13 +673,19 @@ globalThis.fetch = async (input) => {
   try {
     await expectInstalledCard(indexed, oldFixture);
     await writeFile(fixturePath, JSON.stringify(newFixture));
-    const started = await indexed.callTool({ name: "data_ingest", arguments: {} });
+    const started = await indexed.callTool({
+      name: "data_ingest",
+      arguments: {},
+    });
     assert(!started.isError, JSON.stringify(started));
     assert.equal(started.structuredContent.started, true);
     let completed = false;
     const deadline = Date.now() + 10_000;
     while (Date.now() < deadline) {
-      const result = await indexed.callTool({ name: "data_status", arguments: {} });
+      const result = await indexed.callTool({
+        name: "data_status",
+        arguments: {},
+      });
       assert(!result.isError, JSON.stringify(result));
       const status = result.structuredContent;
       assert.equal(status.has_index, true);
@@ -696,7 +747,10 @@ globalThis.fetch = async (input) => {
     assert(!deck.isError, JSON.stringify(deck));
     assert.equal(deck.structuredContent.deck.name, "Acknowledged before SIGKILL");
     assert.equal(deck.structuredContent.deck.cards[0].oracle_id, oracleId);
-    const collection = await refreshedRestart.callTool({ name: "collection_get", arguments: {} });
+    const collection = await refreshedRestart.callTool({
+      name: "collection_get",
+      arguments: {},
+    });
     assert(!collection.isError, JSON.stringify(collection));
     assert.deepEqual(collection.structuredContent.owned, [oracleId]);
   } finally {
@@ -739,11 +793,17 @@ globalThis.fetch = async (input) => {
   assert.deepEqual(await readFile(recoveryReport.preservedPath), corruptBytes);
   const restored = await connect(nodeArgs);
   try {
-    const deck = await restored.callTool({ name: "deck_get", arguments: { deck_id: deckId } });
+    const deck = await restored.callTool({
+      name: "deck_get",
+      arguments: { deck_id: deckId },
+    });
     assert(!deck.isError, JSON.stringify(deck));
     assert.equal(deck.structuredContent.deck.name, "Smoke deck");
     assert.equal(deck.structuredContent.deck.cards[0].oracle_id, oracleId);
-    const collection = await restored.callTool({ name: "collection_get", arguments: {} });
+    const collection = await restored.callTool({
+      name: "collection_get",
+      arguments: {},
+    });
     assert(!collection.isError, JSON.stringify(collection));
     assert.deepEqual(collection.structuredContent.owned, [oracleId]);
     const snapshot = await restored.callTool({

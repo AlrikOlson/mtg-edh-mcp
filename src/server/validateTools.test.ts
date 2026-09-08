@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -97,7 +97,11 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -128,7 +132,10 @@ describe("validation tools", () => {
         { oracle_id: "o-bolt", qty: 1 },
       ],
     }));
-    const res = await client.callTool({ name: "validate_deck", arguments: { deck_id: "deck-1" } });
+    const res = await client.callTool({
+      name: "validate_deck",
+      arguments: { deck_id: "deck-1" },
+    });
     const r = res.structuredContent as Result;
     const rules = r.violations.map((v) => v.rule);
     expect(rules).toContain("BANLIST");
@@ -141,8 +148,14 @@ describe("validation tools", () => {
   });
 
   it("validate_deck surfaces any-number exemptions for qty>1 exempt cards (review #14)", async () => {
-    deckStore.update("deck-1", (d) => ({ ...d, cards: [{ oracle_id: "o-island", qty: 12 }] }));
-    const res = await client.callTool({ name: "validate_deck", arguments: { deck_id: "deck-1" } });
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      cards: [{ oracle_id: "o-island", qty: 12 }],
+    }));
+    const res = await client.callTool({
+      name: "validate_deck",
+      arguments: { deck_id: "deck-1" },
+    });
     const r = res.structuredContent as Result & {
       exemptions: Array<{ oracle_id: string; reason: string; qty: number }>;
     };
@@ -154,7 +167,10 @@ describe("validation tools", () => {
   });
 
   it("validate_card is a read-only precheck that does not mutate the deck", async () => {
-    const before = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    const before = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: "deck-1" },
+    });
     const beforeCards = (before.structuredContent as { deck: { cards: unknown[] } }).deck.cards;
 
     const res = await client.callTool({
@@ -165,7 +181,10 @@ describe("validation tools", () => {
     expect(r.ok).toBe(false);
     expect(r.violations.map((v) => v.rule)).toContain("COLOR_IDENTITY");
 
-    const after = await client.callTool({ name: "deck_get", arguments: { deck_id: "deck-1" } });
+    const after = await client.callTool({
+      name: "deck_get",
+      arguments: { deck_id: "deck-1" },
+    });
     const afterCards = (after.structuredContent as { deck: { cards: unknown[] } }).deck.cards;
     expect(afterCards).toEqual(beforeCards); // unchanged
   });
@@ -181,7 +200,10 @@ describe("validation tools", () => {
   it("validate_commander accepts commanders inline and reports a bad pairing", async () => {
     const bad = await client.callTool({
       name: "validate_commander",
-      arguments: { commanders: ["o-tymna", "o-sol"], command_zone_kind: "partner" },
+      arguments: {
+        commanders: ["o-tymna", "o-sol"],
+        command_zone_kind: "partner",
+      },
     });
     const r = bad.structuredContent as Result;
     expect(r.ok).toBe(false);
@@ -199,7 +221,10 @@ describe("validation tools", () => {
   });
 
   it("validate_deck returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({ name: "validate_deck", arguments: { deck_id: "nope" } });
+    const res = await client.callTool({
+      name: "validate_deck",
+      arguments: { deck_id: "nope" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });

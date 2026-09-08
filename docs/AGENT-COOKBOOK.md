@@ -17,7 +17,10 @@ An `error` is retryable after addressing its reported cause. See the
 conversation resumes.
 
 Structured tool results include `data_snapshot`, the date of the underlying
-card-data snapshot. Read `structuredContent`, not only the short text summary.
+card-data snapshot. Read `structuredContent` when available; clients that consume
+only text receive the same JSON in a text block. Both modern and older protocol
+clients use the same tools. HTTP clients should re-list and re-read after changes;
+HTTP does not offer subscription notifications.
 
 ## Build and iterate
 

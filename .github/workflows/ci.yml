@@ -40,5 +40,15 @@ jobs:
       - run: npm run lint
       - name: Pack, install, and exercise the real stdio server
         run: npm run test:package
+      - name: Install Rust acceptance toolchain
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - name: Check Rust client and exercise SDK interoperability
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '24'
+        env:
+          RUSTUP_TOOLCHAIN: stable
+        run: |
+          npm run lint:rust
+          npm run test:rust
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=moderate

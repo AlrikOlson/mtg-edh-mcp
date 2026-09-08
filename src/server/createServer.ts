@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { McpServer, type RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, type RegisteredTool } from "@modelcontextprotocol/server";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
 import { CollectionStore } from "../collection/index.js";

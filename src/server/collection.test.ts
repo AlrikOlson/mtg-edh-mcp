@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { createServer } from "./createServer.js";
@@ -50,7 +50,10 @@ let index: CardIndex;
 let client: Client;
 
 async function freshClient(): Promise<Client> {
-  const server = createServer({ index, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [ct, st] = InMemoryTransport.createLinkedPair();
   await server.connect(st);
   const c = new Client({ name: "test", version: "0.0.0" });
@@ -124,7 +127,10 @@ describe("collection tools", () => {
       arguments: { cards: ["o-counter", "o-rift"] },
     });
     const page1 = (await client.callTool({ name: "collection_get", arguments: { limit: 1 } }))
-      .structuredContent as CollectionView & { total: number; next_cursor: string | null };
+      .structuredContent as CollectionView & {
+      total: number;
+      next_cursor: string | null;
+    };
     expect(page1.owned).toHaveLength(1);
     expect(page1.total).toBe(2);
     expect(page1.next_cursor).toBe("1");
@@ -134,14 +140,20 @@ describe("collection tools", () => {
         name: "collection_get",
         arguments: { limit: 1, cursor: page1.next_cursor },
       })
-    ).structuredContent as CollectionView & { total: number; next_cursor: string | null };
+    ).structuredContent as CollectionView & {
+      total: number;
+      next_cursor: string | null;
+    };
     expect(page2.owned).toHaveLength(1);
     expect(page2.next_cursor).toBeNull();
     expect(page2.owned[0]).not.toBe(page1.owned[0]);
   });
 
   it("clear empties the collection", async () => {
-    await client.callTool({ name: "collection_set", arguments: { cards: ["o-counter"] } });
+    await client.callTool({
+      name: "collection_set",
+      arguments: { cards: ["o-counter"] },
+    });
     const cleared = (await client.callTool({ name: "collection_clear", arguments: {} }))
       .structuredContent as CollectionView;
     expect(cleared.owned_count).toBe(0);
@@ -152,7 +164,10 @@ describe("card_search owned_only", () => {
   async function search(owned_only: boolean): Promise<SearchView> {
     const res = await client.callTool({
       name: "card_search",
-      arguments: { query: "t:instant", ...(owned_only ? { owned_only: true } : {}) },
+      arguments: {
+        query: "t:instant",
+        ...(owned_only ? { owned_only: true } : {}),
+      },
     });
     return res.structuredContent as SearchView;
   }
@@ -163,7 +178,10 @@ describe("card_search owned_only", () => {
   });
 
   it("restricts to owned cards once a collection is set, keeping totals exact", async () => {
-    await client.callTool({ name: "collection_set", arguments: { cards: ["Counterspell"] } });
+    await client.callTool({
+      name: "collection_set",
+      arguments: { cards: ["Counterspell"] },
+    });
     const owned = await search(true);
     expect(owned.total).toBe(1);
     expect(owned.results.map((r) => r.oracle_id)).toEqual(["o-counter"]);

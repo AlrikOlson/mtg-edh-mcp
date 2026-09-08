@@ -48,11 +48,10 @@ function cardSearchTool(
         cursor: z.string().optional(),
         owned_only: z.boolean().optional(),
       },
-      // Deliberately NO outputSchema: the SDK serializes it with a draft-07
-      // $schema marker, and strict clients (Claude Desktop) reject the tool
-      // outright with "invalid outputSchema" — while accepting the same
-      // dialect on inputSchema. structuredContent works fine unadvertised.
-      // Regression-tested in e2e.test.ts; revisit when the SDK emits 2020-12.
+      // Preserve the existing catalog without outputSchema. These declarations
+      // were removed after strict-client rejection of SDK v1 draft-07 output.
+      // SDK v2 migration retains that contract; structuredContent and its JSON
+      // text fallback remain available. Re-enabling schemas needs host validation.
     },
     handler: (args) => {
       let node;
@@ -124,7 +123,10 @@ function cardGetTool(index: CardIndex): ToolDefinition {
       const includePrintings = args.include_printings === true;
       const compact = args.compact === true;
       const cards: Array<
-        Partial<Card> & { default_usd: number | null; cheapest_usd: number | null }
+        Partial<Card> & {
+          default_usd: number | null;
+          cheapest_usd: number | null;
+        }
       > = [];
       const missing: string[] = [];
       for (const id of ids) {
@@ -133,7 +135,10 @@ function cardGetTool(index: CardIndex): ToolDefinition {
           missing.push(id);
           continue;
         }
-        const pricing = { default_usd: defaultUsd(card), cheapest_usd: cheapestUsd(card) };
+        const pricing = {
+          default_usd: defaultUsd(card),
+          cheapest_usd: cheapestUsd(card),
+        };
         // compact: the fields a deckbuilding agent reads, minus the bulk — the
         // ~30-format legalities map and the full prices/keywords are most of a
         // Card's bytes and rarely consulted in batch reads. Trimming them lets
@@ -152,7 +157,9 @@ function cardGetTool(index: CardIndex): ToolDefinition {
               power: card.power,
               toughness: card.toughness,
               loyalty: card.loyalty,
-              legalities: { commander: card.legalities.commander ?? "not_legal" },
+              legalities: {
+                commander: card.legalities.commander ?? "not_legal",
+              },
               is_commander_eligible: card.is_commander_eligible,
               game_changer: card.game_changer,
               roles: card.roles,
@@ -162,7 +169,12 @@ function cardGetTool(index: CardIndex): ToolDefinition {
         cards.push({ ...lean, ...pricing });
       }
       return {
-        content: [{ type: "text", text: `${cards.length} found, ${missing.length} missing` }],
+        content: [
+          {
+            type: "text",
+            text: `${cards.length} found, ${missing.length} missing`,
+          },
+        ],
         structuredContent: { cards, missing },
       };
     },
@@ -218,7 +230,10 @@ function cardPrintingsTool(index: CardIndex): ToolDefinition {
         "FLOW: card_get -> card_printings -> (choose printing).\n" +
         "ARGS: card (name or oracle_id; oracle_id is a legacy alias).\n" +
         "RETURNS: oracle_id, printings[].",
-      inputSchema: { card: z.string().optional(), oracle_id: z.string().optional() },
+      inputSchema: {
+        card: z.string().optional(),
+        oracle_id: z.string().optional(),
+      },
     },
     handler: (args) => {
       const raw = String(args.card ?? args.oracle_id ?? "");

@@ -9,9 +9,13 @@
  *     the §8 code (via {@link toolError}), rather than an opaque protocol error.
  * Unexpected (non-structured) throws propagate to the SDK's generic isError path.
  */
-import type { McpServer, RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
-import type { ZodRawShape } from "zod";
+import type {
+  McpServer,
+  RegisteredTool,
+  CallToolResult,
+  ToolAnnotations,
+} from "@modelcontextprotocol/server";
+import { z, type ZodRawShape } from "zod";
 import { isStructuredError, toolError } from "../types/errors.js";
 import type { SnapshotProvider } from "./snapshot.js";
 
@@ -33,7 +37,7 @@ export interface ToolDefinition {
     /**
      * zod raw shape; the SDK advertises it over tools/list and safeParse-validates
      * structuredContent on success results (isError results are skipped — verified
-     * in SDK 1.29 validateToolOutput). Keep fields optional so response variants
+     * by the SDK). Keep fields optional so response variants
      * (conflicts, degraded paths) and the registry's data_snapshot stamp never fail.
      */
     outputSchema?: ZodRawShape;
@@ -64,9 +68,6 @@ export function mutates(hints: {
     openWorldHint: hints.openWorld ?? false,
   };
 }
-
-/** The SDK's registerTool callback type, at the registration boundary. */
-type SdkToolCallback = Parameters<McpServer["registerTool"]>[2];
 
 /** Merge `data_snapshot` into a tool result's structuredContent and _meta. */
 export function stampSnapshot(result: CallToolResult, snapshot: string): CallToolResult {
@@ -108,9 +109,17 @@ export function registerTool(
     };
     return snapshot.withRead ? snapshot.withRead(invoke) : invoke();
   };
-  // Boundary cast: the SDK infers a per-schema callback type from inputSchema;
-  // our wrapper is intentionally schema-agnostic.
-  return server.registerTool(def.name, def.config, wrapped as unknown as SdkToolCallback);
+  // Keep tool definitions data-first; adapt their raw shapes once at the SDK's
+  // Standard Schema boundary. An empty schema still gives handlers an args object.
+  return server.registerTool(
+    def.name,
+    {
+      ...def.config,
+      inputSchema: z.object(def.config.inputSchema ?? {}),
+      outputSchema: def.config.outputSchema ? z.object(def.config.outputSchema) : undefined,
+    },
+    wrapped,
+  );
 }
 
 /** Register a batch of tools. */

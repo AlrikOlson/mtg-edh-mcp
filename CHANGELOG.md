@@ -6,6 +6,14 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## Unreleased
 
+- Migrate to stable MCP TypeScript SDK 2.0.0, enabling the 2026-07-28 protocol
+  over stdio and local HTTP while retaining older-client initialization.
+  Preserve the 41 tools, three prompts, annotations, and structured/text results.
+- Keep HTTP stateless and isolated per principal; advertise no change streams
+  and reject unsupported subscriptions. Persistent stdio supports notifications.
+- Exercise modern and older transports, first ingestion, and isolation; add a
+  locked Rust rmcp client that checks persistence after process termination.
+
 - Add idempotent `setup` with absolute-path client configuration and read-only
   `doctor` diagnostics for runtime/native SQLite, storage permissions, index
   readiness, and freshness, with actionable exit codes.

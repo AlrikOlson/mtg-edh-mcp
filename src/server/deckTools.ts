@@ -580,9 +580,7 @@ function deckAddTool(store: DeckStore, session: string, index?: CardIndex): Tool
         force: z.boolean().optional(),
         expected_version: z.number().int().nonnegative().optional(),
       },
-      // All-optional: the conflict variant carries none of the success keys.
-      // No outputSchema — strict clients reject the SDK's draft-07 rendering
-      // of it ("invalid outputSchema"); see the note on card_search.
+      // Preserve the existing no-outputSchema contract; see card_search.
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");

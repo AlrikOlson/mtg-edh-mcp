@@ -8,8 +8,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -89,7 +89,9 @@ describe("workflow prompts (ergo-prompts)", () => {
   });
 
   it("build_commander_deck interpolates the commander and includes the budget pass only when asked", async () => {
-    const plain = await promptText("build_commander_deck", { commander: "Sol Ring" });
+    const plain = await promptText("build_commander_deck", {
+      commander: "Sol Ring",
+    });
     expect(plain).toContain('deck_set_commander {commanders: "Sol Ring"}');
     expect(plain).not.toContain("Budget pass");
 
@@ -104,7 +106,10 @@ describe("workflow prompts (ergo-prompts)", () => {
     expect(await promptText("tune_deck", { deck_id: "deck-42" })).toContain(
       'deck_status {deck_id: "deck-42"}',
     );
-    const fit = await promptText("fit_budget", { deck_id: "deck-42", target_usd: "100" });
+    const fit = await promptText("fit_budget", {
+      deck_id: "deck-42",
+      target_usd: "100",
+    });
     expect(fit).toContain("under $100");
     expect(fit).toContain("target_usd: 100");
   });

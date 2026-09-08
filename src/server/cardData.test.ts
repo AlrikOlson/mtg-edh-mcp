@@ -2,16 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { BulkClient, VersionedStore } from "../ingest/index.js";
 import { refreshSnapshot } from "../index/refresh.js";
 import { DeckStore } from "../deck/index.js";
-import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { openCardData } from "./cardData.js";
 import { createServer } from "./createServer.js";
 import { startHttp } from "./http.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 
 let root: string;
 let day: string;
@@ -139,7 +138,7 @@ describe("served card-data activation", () => {
     }
   });
 
-  it.each(["memory", "http"] as const)(
+  it.each(["memory", "http", "modern-http"] as const)(
     "keeps the connected %s MCP index and snapshot together and reports done after activation",
     async (transport) => {
       const data = await openCardData(store, client);
@@ -148,9 +147,16 @@ describe("served card-data activation", () => {
         snapshot: data.snapshot.provider,
         ingest: data.ingest,
       });
-      const mcp = new Client({ name: "refresh-test", version: "1" });
+      const mcp = new Client(
+        { name: "refresh-test", version: "1" },
+        {
+          versionNegotiation: {
+            mode: transport === "modern-http" ? { pin: "2026-07-28" } : "legacy",
+          },
+        },
+      );
       let http: Awaited<ReturnType<typeof startHttp>> | undefined;
-      if (transport === "http") {
+      if (transport !== "memory") {
         http = await startHttp({
           port: 0,
           index: data.index,
@@ -242,7 +248,7 @@ describe("served card-data activation", () => {
 });
 
 describe("first card-data activation", () => {
-  it.each(["memory", "http"] as const)(
+  it.each(["memory", "http", "modern-http"] as const)(
     "activates indexed tools, resources, prompts and existing deck handlers on connected %s",
     async (transport) => {
       const data = await openCardData(new VersionedStore(join(root, "empty")), client);
@@ -255,11 +261,18 @@ describe("first card-data activation", () => {
         deckStore,
       };
       const server = createServer(options);
-      const mcp = new Client({ name: "first-ingest", version: "1" });
+      const mcp = new Client(
+        { name: "first-ingest", version: "1" },
+        {
+          versionNegotiation: {
+            mode: transport === "modern-http" ? { pin: "2026-07-28" } : "legacy",
+          },
+        },
+      );
       const changed = vi.fn();
-      mcp.setNotificationHandler(ToolListChangedNotificationSchema, changed);
+      mcp.setNotificationHandler("notifications/tools/list_changed", changed);
       let http: Awaited<ReturnType<typeof startHttp>> | undefined;
-      if (transport === "http") {
+      if (transport !== "memory") {
         http = await startHttp({ ...options, port: 0 });
         await mcp.connect(
           new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${http.port}/mcp`)),
@@ -275,9 +288,9 @@ describe("first card-data activation", () => {
           (await mcp.callTool({ name: "data_status", arguments: {} })).structuredContent,
         ).toMatchObject({ has_index: false, data_snapshot: "0000-00-00" });
         expect(mcp.getServerCapabilities()).toMatchObject({
-          tools: { listChanged: true },
-          resources: { listChanged: true },
-          prompts: { listChanged: true },
+          tools: { listChanged: transport === "memory" },
+          resources: { listChanged: transport === "memory" },
+          prompts: { listChanged: transport === "memory" },
         });
         expect((await mcp.listPrompts()).prompts).toEqual([]);
         const created = await mcp.callTool({
@@ -294,10 +307,18 @@ describe("first card-data activation", () => {
         expect(new Set(names).size).toBe(names.length);
         expect(
           (await mcp.callTool({ name: "data_status", arguments: {} })).structuredContent,
-        ).toMatchObject({ has_index: true, ingest: { phase: "done" }, data_snapshot: day });
+        ).toMatchObject({
+          has_index: true,
+          ingest: { phase: "done" },
+          data_snapshot: day,
+        });
         expect(
-          (await mcp.callTool({ name: "card_get", arguments: { cards: "Old Card" } }))
-            .structuredContent,
+          (
+            await mcp.callTool({
+              name: "card_get",
+              arguments: { cards: "Old Card" },
+            })
+          ).structuredContent,
         ).toMatchObject({ cards: [{ name: "Old Card" }], data_snapshot: day });
         const added = await mcp.callTool({
           name: "deck_add",
@@ -341,7 +362,10 @@ describe("first card-data activation", () => {
     });
     data.ingest.start(false);
     await publishing;
-    const server = createServer({ cardData: data, snapshot: data.snapshot.provider });
+    const server = createServer({
+      cardData: data,
+      snapshot: data.snapshot.provider,
+    });
     const [ct, st] = InMemoryTransport.createLinkedPair();
     await server.connect(st);
     const mcp = new Client({ name: "late-connection", version: "1" });
@@ -351,8 +375,12 @@ describe("first card-data activation", () => {
       await vi.waitFor(() => expect(data.ingest.status().phase).toBe("done"));
       expect((await mcp.listTools()).tools.map((tool) => tool.name)).toContain("card_get");
       expect(
-        (await mcp.callTool({ name: "card_get", arguments: { cards: "Old Card" } }))
-          .structuredContent,
+        (
+          await mcp.callTool({
+            name: "card_get",
+            arguments: { cards: "Old Card" },
+          })
+        ).structuredContent,
       ).toMatchObject({ cards: [{ name: "Old Card" }], data_snapshot: day });
     } finally {
       finish();
@@ -365,7 +393,10 @@ describe("first card-data activation", () => {
   it("rolls back partial catalog preparation, keeps the install cold, and retries", async () => {
     const emptyStore = new VersionedStore(join(root, "registration-failure"));
     const data = await openCardData(emptyStore, client);
-    const server = createServer({ cardData: data, snapshot: data.snapshot.provider });
+    const server = createServer({
+      cardData: data,
+      snapshot: data.snapshot.provider,
+    });
     const [ct, st] = InMemoryTransport.createLinkedPair();
     await server.connect(st);
     const mcp = new Client({ name: "retry-registration", version: "1" });

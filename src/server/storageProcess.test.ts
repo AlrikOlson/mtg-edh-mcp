@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { Client } from "@modelcontextprotocol/client";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/store.js";
 import { BulkClient } from "../ingest/scryfall.js";
 import { refreshSnapshot } from "../index/refresh.js";
@@ -162,12 +162,13 @@ function start(kind: "main" | "fixture" = "main"): Driver {
       receive({ type: "ready", port: Number(ready[1]) });
     }
   });
-  const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
-    (resolve, reject) => {
-      child.once("error", reject);
-      child.once("exit", (code, signal) => resolve({ code, signal }));
-    },
-  );
+  const exited = new Promise<{
+    code: number | null;
+    signal: NodeJS.Signals | null;
+  }>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("exit", (code, signal) => resolve({ code, signal }));
+  });
   const driver: Driver = {
     child,
     exited,
@@ -279,8 +280,14 @@ describe("durable user state across real MCP processes", () => {
     expect(await call(bob, "deck_list")).toMatchObject({ total: 0 });
     expect(await call(bob, "collection_get")).toMatchObject({ total: 0 });
     expect(
-      await bob.callTool({ name: "deck_get", arguments: { deck_id: wantedIds[0] } }),
-    ).toMatchObject({ isError: true, structuredContent: { code: "DECK_NOT_FOUND" } });
+      await bob.callTool({
+        name: "deck_get",
+        arguments: { deck_id: wantedIds[0] },
+      }),
+    ).toMatchObject({
+      isError: true,
+      structuredContent: { code: "DECK_NOT_FOUND" },
+    });
     await expect(bob.readResource({ uri: "collection://alice" })).rejects.toThrow(
       "Unknown collection",
     );
@@ -324,24 +331,39 @@ describe("durable user state across real MCP processes", () => {
       const writer = start("fixture");
       const alice = await connect(writer);
       const deckId = id(
-        await call(alice, "deck_import", { name: "Durable payload", text: "1 Sol Ring\n7 Island" }),
+        await call(alice, "deck_import", {
+          name: "Durable payload",
+          text: "1 Sol Ring\n7 Island",
+        }),
       );
       await call(alice, "collection_set", { cards: ["Sol Ring"] });
-      writer.child.send({ type: "set-roles", deck_id: deckId, session: "alice" });
+      writer.child.send({
+        type: "set-roles",
+        deck_id: deckId,
+        session: "alice",
+      });
       let saved = (await writer.waitFor("roles-saved")).deck;
       let snapshot = await call(alice, "deck_snapshot", { deck_id: deckId });
       let expectedName = "Durable payload";
       const expectedOwned = ["o-sol"];
       if (lastMutation === "deck") {
         expectedName = "Last acknowledged deck";
-        await call(alice, "deck_rename", { deck_id: deckId, name: expectedName });
+        await call(alice, "deck_rename", {
+          deck_id: deckId,
+          name: expectedName,
+        });
       } else if (lastMutation === "snapshot") {
         snapshot = await call(alice, "deck_snapshot", { deck_id: deckId });
       } else if (lastMutation === "collection") {
         expectedOwned.push("o-island");
         await call(alice, "collection_add", { cards: "Island" });
       } else {
-        writer.child.send({ type: "set-roles", deck_id: deckId, session: "alice", revised: true });
+        writer.child.send({
+          type: "set-roles",
+          deck_id: deckId,
+          session: "alice",
+          revised: true,
+        });
         saved = (await writer.waitFor("roles-saved")).deck;
       }
       // No graceful close, store flush, timeout or read between the tool's success
@@ -352,7 +374,9 @@ describe("durable user state across real MCP processes", () => {
       const ready = await reader.waitFor("ready");
       const restoredAlice = await connect(reader, "alice", ready.port);
       const bob = await connect(reader, "bob", ready.port);
-      const persisted = await restoredAlice.readResource({ uri: `deck://${deckId}` });
+      const persisted = await restoredAlice.readResource({
+        uri: `deck://${deckId}`,
+      });
       const content = persisted.contents[0];
       const persistedDeck: unknown =
         content && "text" in content ? JSON.parse(content.text) : undefined;
@@ -365,7 +389,10 @@ describe("durable user state across real MCP processes", () => {
         total: expectedOwned.length,
         owned: expect.arrayContaining(expectedOwned),
       });
-      await call(restoredAlice, "deck_remove", { deck_id: deckId, cards: "Sol Ring" });
+      await call(restoredAlice, "deck_remove", {
+        deck_id: deckId,
+        cards: "Sol Ring",
+      });
       const restored = await call(restoredAlice, "deck_restore", {
         deck_id: deckId,
         snapshot_id: id(snapshot, "snapshot_id"),
@@ -380,9 +407,15 @@ describe("durable user state across real MCP processes", () => {
       expect(
         await bob.callTool({
           name: "deck_restore",
-          arguments: { deck_id: deckId, snapshot_id: id(snapshot, "snapshot_id") },
+          arguments: {
+            deck_id: deckId,
+            snapshot_id: id(snapshot, "snapshot_id"),
+          },
         }),
-      ).toMatchObject({ isError: true, structuredContent: { code: "DECK_NOT_FOUND" } });
+      ).toMatchObject({
+        isError: true,
+        structuredContent: { code: "DECK_NOT_FOUND" },
+      });
       expect(await call(bob, "collection_get")).toMatchObject({ total: 0 });
     },
     30_000,
@@ -400,7 +433,10 @@ describe("durable user state across real MCP processes", () => {
       writer.child.send({ type: "fail-next-commit" });
       await writer.waitFor("armed");
       const failed = await client.callTool({ name, arguments: args });
-      expect(failed).toMatchObject({ isError: true, structuredContent: { code: "STORAGE_ERROR" } });
+      expect(failed).toMatchObject({
+        isError: true,
+        structuredContent: { code: "STORAGE_ERROR" },
+      });
       expect(JSON.stringify(failed.content)).toContain("STORAGE_ERROR");
     }
     await kill(writer);
@@ -408,9 +444,16 @@ describe("durable user state across real MCP processes", () => {
     expect(await call(reader, "deck_get", { deck_id: deckId })).toMatchObject({
       deck: { name: "Before failure", version: 1 },
     });
-    expect(await call(reader, "collection_get")).toMatchObject({ owned: ["o-sol"], total: 1 });
+    expect(await call(reader, "collection_get")).toMatchObject({
+      owned: ["o-sol"],
+      total: 1,
+    });
     expect(
-      await call(reader, "deck_rename", { deck_id: deckId, name: "Retry", expected_version: 1 }),
+      await call(reader, "deck_rename", {
+        deck_id: deckId,
+        name: "Retry",
+        expected_version: 1,
+      }),
     ).toMatchObject({ ok: true, version: 2 });
   }, 30_000);
 });

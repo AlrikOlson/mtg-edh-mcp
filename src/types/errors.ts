@@ -8,7 +8,7 @@
  * `structuredContent` (for programmatic clients that may keep it hidden from the
  * model).
  */
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "@modelcontextprotocol/server";
 import type { CardRef } from "./card.js";
 
 /** The structured error codes (§8), in spec order. */

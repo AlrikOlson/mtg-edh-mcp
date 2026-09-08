@@ -1,6 +1,7 @@
 dist
 node_modules
 coverage
+scripts/rust-client/target
 *.sqlite
 *.sqlite3
 data

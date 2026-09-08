@@ -14,9 +14,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -59,22 +59,39 @@ afterEach(async () => {
 });
 
 /** A Client over the running HTTP server carrying a fixed principal header. */
-async function connectAs(principal: string, url: URL): Promise<Client> {
+async function connectPrincipal(
+  principal: string,
+  url: URL,
+  era: "legacy" | "modern",
+): Promise<Client> {
   const transport = new StreamableHTTPClientTransport(url, {
     requestInit: { headers: { [PRINCIPAL_HEADER]: principal } },
   });
-  const client = new Client({ name: principal, version: "0.0.0" });
+  const client = new Client(
+    { name: principal, version: "0.0.0" },
+    {
+      versionNegotiation: {
+        mode: era === "modern" ? { pin: "2026-07-28" } : "legacy",
+      },
+    },
+  );
   await client.connect(transport);
+  expect(client.getProtocolEra()).toBe(era);
   return client;
 }
 
-describe("HTTP multi-tenancy (§2/§11)", () => {
+describe.each(["legacy", "modern"] as const)("HTTP multi-tenancy (§2/§11) %s", (era) => {
+  const connectAs = (principal: string, url: URL) => connectPrincipal(principal, url, era);
   let running: RunningHttpServer;
   let url: URL;
 
   beforeEach(async () => {
     // One shared DeckStore + CardIndex across every per-request server instance.
-    running = await startHttp({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+    running = await startHttp({
+      index,
+      deckStore,
+      snapshot: staticSnapshotProvider("2026-06-27"),
+    });
     url = new URL(`http://127.0.0.1:${running.port}/`);
   });
   afterEach(async () => {
@@ -96,13 +113,21 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
     expect((bobList.structuredContent as { decks: unknown[] }).decks).toHaveLength(0);
 
     // Alice sees exactly her deck.
-    const aliceList = await alice.callTool({ name: "deck_list", arguments: {} });
+    const aliceList = await alice.callTool({
+      name: "deck_list",
+      arguments: {},
+    });
     expect((aliceList.structuredContent as { decks: { deck_id: string }[] }).decks).toHaveLength(1);
 
     // Bob cannot fetch Alice's deck by id.
-    const bobGet = await bob.callTool({ name: "deck_get", arguments: { deck_id: aliceDeckId } });
+    const bobGet = await bob.callTool({
+      name: "deck_get",
+      arguments: { deck_id: aliceDeckId },
+    });
     expect(bobGet.isError).toBe(true);
-    expect(bobGet.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
+    expect(bobGet.structuredContent).toMatchObject({
+      code: "DECK_NOT_FOUND",
+    });
 
     await alice.close();
     await bob.close();
@@ -113,8 +138,14 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
     const bob = await connectAs("bob", url);
 
     const want = { name: "Sol Ring" };
-    const a = await alice.callTool({ name: "card_resolve_name", arguments: want });
-    const b = await bob.callTool({ name: "card_resolve_name", arguments: want });
+    const a = await alice.callTool({
+      name: "card_resolve_name",
+      arguments: want,
+    });
+    const b = await bob.callTool({
+      name: "card_resolve_name",
+      arguments: want,
+    });
     expect((a.structuredContent as { oracle_id: string }).oracle_id).toBe("o-sol");
     expect((b.structuredContent as { oracle_id: string }).oracle_id).toBe("o-sol");
 
@@ -128,8 +159,12 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
     const alice = await connectAs("alice", url);
     const bob = await connectAs("bob", url);
     try {
-      const own = await alice.readResource({ uri: `deck://${aliceDeck.deck_id}` });
-      expect(own.contents[0]).toMatchObject({ text: JSON.stringify(aliceDeck) });
+      const own = await alice.readResource({
+        uri: `deck://${aliceDeck.deck_id}`,
+      });
+      expect(own.contents[0]).toMatchObject({
+        text: JSON.stringify(aliceDeck),
+      });
       await expect(bob.readResource({ uri: `deck://${aliceDeck.deck_id}` })).rejects.toThrow(
         "unknown deck",
       );
@@ -147,7 +182,10 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
     const alice = await connectAs("alice", url);
     const bob = await connectAs("bob", url);
     try {
-      await alice.callTool({ name: "collection_set", arguments: { cards: "Sol Ring" } });
+      await alice.callTool({
+        name: "collection_set",
+        arguments: { cards: "Sol Ring" },
+      });
       const own = await alice.readResource({ uri: "collection://alice" });
       const content = own.contents[0];
       expect(content && "text" in content ? JSON.parse(content.text) : undefined).toMatchObject({
@@ -161,8 +199,13 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
       await expect(alice.readResource({ uri: "collection://local" })).rejects.toThrow(
         "Unknown collection",
       );
-      const bobCollection = await bob.callTool({ name: "collection_get", arguments: {} });
-      expect(bobCollection.structuredContent).toMatchObject({ owned_count: 0 });
+      const bobCollection = await bob.callTool({
+        name: "collection_get",
+        arguments: {},
+      });
+      expect(bobCollection.structuredContent).toMatchObject({
+        owned_count: 0,
+      });
     } finally {
       await alice.close();
       await bob.close();
@@ -188,7 +231,9 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
           name: "meta_commander_profile",
           arguments: { commander: "Test Commander" },
         });
-        expect(result.structuredContent).toMatchObject({ themes: ["Artifacts"] });
+        expect(result.structuredContent).toMatchObject({
+          themes: ["Artifacts"],
+        });
       }
       expect(upstreamCalls).toBe(1);
     } finally {
@@ -208,17 +253,35 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
     const alice = await connectAs("alice", url);
     const bob = await connectAs("bob", url);
 
-    const aCreated = await alice.callTool({ name: "deck_create", arguments: { name: "A deck" } });
+    const aCreated = await alice.callTool({
+      name: "deck_create",
+      arguments: { name: "A deck" },
+    });
     const aId = (aCreated.structuredContent as { deck_id: string }).deck_id;
-    const bCreated = await bob.callTool({ name: "deck_create", arguments: { name: "B deck" } });
+    const bCreated = await bob.callTool({
+      name: "deck_create",
+      arguments: { name: "B deck" },
+    });
     const bId = (bCreated.structuredContent as { deck_id: string }).deck_id;
     expect(aId).not.toBe(bId);
 
     // Interleave mutations and reads A/B/A/B over the same shared stores.
-    await alice.callTool({ name: "deck_add", arguments: { deck_id: aId, cards: "Sol Ring" } });
-    await bob.callTool({ name: "deck_add", arguments: { deck_id: bId, cards: "Sol Ring" } });
-    const aStatus = await alice.callTool({ name: "deck_status", arguments: { deck_id: aId } });
-    const bStatus = await bob.callTool({ name: "deck_status", arguments: { deck_id: bId } });
+    await alice.callTool({
+      name: "deck_add",
+      arguments: { deck_id: aId, cards: "Sol Ring" },
+    });
+    await bob.callTool({
+      name: "deck_add",
+      arguments: { deck_id: bId, cards: "Sol Ring" },
+    });
+    const aStatus = await alice.callTool({
+      name: "deck_status",
+      arguments: { deck_id: aId },
+    });
+    const bStatus = await bob.callTool({
+      name: "deck_status",
+      arguments: { deck_id: bId },
+    });
 
     // Each principal's response references only their own deck…
     expect((aStatus.structuredContent as { deck_id: string; name: string }).name).toBe("A deck");
@@ -236,7 +299,10 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
     expect(
       (bList.structuredContent as { decks: { deck_id: string }[] }).decks.map((d) => d.deck_id),
     ).toEqual([bId]);
-    const crossGet = await bob.callTool({ name: "deck_get", arguments: { deck_id: aId } });
+    const crossGet = await bob.callTool({
+      name: "deck_get",
+      arguments: { deck_id: aId },
+    });
     expect(crossGet.isError).toBe(true);
 
     await alice.close();
@@ -247,7 +313,10 @@ describe("HTTP multi-tenancy (§2/§11)", () => {
     const transport = new StreamableHTTPClientTransport(url);
     const anon = new Client({ name: "anon", version: "0.0.0" });
     await anon.connect(transport);
-    await anon.callTool({ name: "deck_create", arguments: { name: "anon deck" } });
+    await anon.callTool({
+      name: "deck_create",
+      arguments: { name: "anon deck" },
+    });
     // The default-session deck is the one DeckStore.list("local") returns.
     expect(deckStore.list("local")).toHaveLength(1);
     await anon.close();
@@ -266,14 +335,21 @@ describe("optimistic concurrency (§11)", () => {
     const client = new Client({ name: "t", version: "0.0.0" });
     await client.connect(ct);
 
-    const created = await client.callTool({ name: "deck_create", arguments: { name: "D" } });
+    const created = await client.callTool({
+      name: "deck_create",
+      arguments: { name: "D" },
+    });
     const deckId = (created.structuredContent as { deck_id: string }).deck_id;
     // Fresh deck is version 1.
 
     // Stale expected_version -> conflict, no mutation.
     const stale = await client.callTool({
       name: "deck_add",
-      arguments: { deck_id: deckId, cards: [{ oracle_id: "o-sol", qty: 1 }], expected_version: 99 },
+      arguments: {
+        deck_id: deckId,
+        cards: [{ oracle_id: "o-sol", qty: 1 }],
+        expected_version: 99,
+      },
     });
     expect(stale.structuredContent).toMatchObject({
       ok: false,
@@ -285,7 +361,11 @@ describe("optimistic concurrency (§11)", () => {
     // Correct expected_version -> applied.
     const ok = await client.callTool({
       name: "deck_add",
-      arguments: { deck_id: deckId, cards: [{ oracle_id: "o-sol", qty: 1 }], expected_version: 1 },
+      arguments: {
+        deck_id: deckId,
+        cards: [{ oracle_id: "o-sol", qty: 1 }],
+        expected_version: 1,
+      },
     });
     expect((ok.structuredContent as { version: number }).version).toBe(2);
     expect(deckStore.get(deckId)?.cards).toHaveLength(1);

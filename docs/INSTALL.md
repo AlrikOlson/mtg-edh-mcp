@@ -190,6 +190,30 @@ can be supplied by any caller. It is not an authorization mechanism. Public
 hosting requires a separately designed authentication and authorization
 boundary; see [Security](../SECURITY.md).
 
+### Protocol compatibility
+
+The server uses the stable [TypeScript SDK v2.0.0](https://ts.sdk.modelcontextprotocol.io/v2/).
+Both stdio and HTTP accept the **2026-07-28** protocol and legacy initialization.
+Regression checks include 2024-11-05 clients and an actual Rust rmcp 3.2.0 client
+negotiating 2025-11-25. Your existing launch configuration is unchanged.
+
+The indexed catalog remains 41 tools and three prompts. Tool results carry
+`structuredContent` and an equivalent JSON text block for clients that consume
+only text. Tools continue to omit advertised `outputSchema` to preserve the
+existing catalog contract; this migration does not re-enable previously removed
+output declarations.
+
+Persistent stdio can deliver catalog and deck-resource notifications. Local
+HTTP does not advertise change notifications or subscriptions; re-list tools
+and re-read resources to see changes. An HTTP `subscriptions/listen` request
+is rejected rather than opening a stream that cannot receive updates.
+
+SDK client authors must [opt into modern negotiation](https://ts.sdk.modelcontextprotocol.io/v2/protocol-versions.html),
+using automatic negotiation or a 2026-07-28 pin. Merely upgrading the SDK retains
+its legacy default. The server selects the protocol from the client's opening
+exchange. Protocol tests are automated; separate model-driven host evaluation
+remains a release acceptance step.
+
 ## Updates and storage
 
 The background scheduler checks Scryfall freshness at startup and periodically.

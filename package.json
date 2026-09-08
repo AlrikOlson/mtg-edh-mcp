@@ -49,16 +49,20 @@
     "format": "prettier --write .",
     "start": "node dist/main.js",
     "prepack": "npm run build",
-    "test:package": "node scripts/smoke-package.mjs"
+    "test:package": "node scripts/smoke-package.mjs",
+    "test:rust": "npm run build && cargo run --locked --manifest-path scripts/rust-client/Cargo.toml",
+    "lint:rust": "cargo fmt --manifest-path scripts/rust-client/Cargo.toml --check && cargo clippy --locked --manifest-path scripts/rust-client/Cargo.toml -- -D warnings"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "better-sqlite3": "^12.11.1",
     "stream-chain": "^3.6.3",
     "stream-json": "^3.6.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
     "@eslint/js": "^10.0.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.0.1",

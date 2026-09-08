@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client } from "@modelcontextprotocol/client";
+import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
@@ -67,7 +67,11 @@ beforeEach(async () => {
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
 
-  const server = createServer({ index, deckStore, snapshot: staticSnapshotProvider("2026-06-27") });
+  const server = createServer({
+    index,
+    deckStore,
+    snapshot: staticSnapshotProvider("2026-06-27"),
+  });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   client = new Client({ name: "test", version: "0.0.0" });
@@ -98,7 +102,10 @@ describe("analysis tools", () => {
   });
 
   it("analyze_curve returns exact quantity-weighted buckets + filters", async () => {
-    const all = await client.callTool({ name: "analyze_curve", arguments: { deck_id: "deck-1" } });
+    const all = await client.callTool({
+      name: "analyze_curve",
+      arguments: { deck_id: "deck-1" },
+    });
     expect((all.structuredContent as { buckets: Record<string, number> }).buckets).toEqual({
       "0": 4,
       "1": 1,
@@ -130,7 +137,10 @@ describe("analysis tools", () => {
   });
 
   it("analyze_stats returns exact averages, pips, and price", async () => {
-    const res = await client.callTool({ name: "analyze_stats", arguments: { deck_id: "deck-1" } });
+    const res = await client.callTool({
+      name: "analyze_stats",
+      arguments: { deck_id: "deck-1" },
+    });
     const r = res.structuredContent as {
       total_cards: number;
       avg_mv: number;
@@ -144,7 +154,10 @@ describe("analysis tools", () => {
   });
 
   it("returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({ name: "analyze_stats", arguments: { deck_id: "nope" } });
+    const res = await client.callTool({
+      name: "analyze_stats",
+      arguments: { deck_id: "nope" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
@@ -183,7 +196,10 @@ describe("simulate_deck (goldfish)", () => {
   });
 
   it("returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({ name: "simulate_deck", arguments: { deck_id: "nope" } });
+    const res = await client.callTool({
+      name: "simulate_deck",
+      arguments: { deck_id: "nope" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
@@ -211,7 +227,10 @@ describe("budget_plan", () => {
   });
 
   it("returns DECK_NOT_FOUND for an unknown deck", async () => {
-    const res = await client.callTool({ name: "budget_plan", arguments: { deck_id: "nope" } });
+    const res = await client.callTool({
+      name: "budget_plan",
+      arguments: { deck_id: "nope" },
+    });
     expect(res.isError).toBe(true);
     expect(res.structuredContent).toMatchObject({ code: "DECK_NOT_FOUND" });
   });
@@ -223,14 +242,21 @@ describe("budget_plan", () => {
       min_buy_usd: number;
     }
     const plan = async (args: Record<string, unknown>): Promise<Plan> =>
-      (await client.callTool({ name: "budget_plan", arguments: { deck_id: "deck-1", ...args } }))
-        .structuredContent as Plan;
+      (
+        await client.callTool({
+          name: "budget_plan",
+          arguments: { deck_id: "deck-1", ...args },
+        })
+      ).structuredContent as Plan;
 
     // No collection yet: use_collection is a no-op (acquire null, identical to today).
     expect((await plan({ use_collection: true })).acquire_usd).toBeNull();
 
     // Own Sol Ring + the Forests → only Counterspell remains to acquire.
-    await client.callTool({ name: "collection_set", arguments: { cards: ["o-sol", "o-forest"] } });
+    await client.callTool({
+      name: "collection_set",
+      arguments: { cards: ["o-sol", "o-forest"] },
+    });
     const owned = await plan({ use_collection: true });
     expect(owned.acquire_usd).toBe(1.0); // just Counterspell
     expect(owned.owned_value_usd).toBe(owned.min_buy_usd - 1.0);

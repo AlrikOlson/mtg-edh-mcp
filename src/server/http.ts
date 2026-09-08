@@ -1,8 +1,8 @@
 /**
  * Streamable HTTP transport (spec §2) — for local MCP clients.
  *
- * Stateless mode (`sessionIdGenerator: undefined`): a fresh server + transport
- * is created per POST, so there is no cross-request session state. Multi-tenancy
+ * The SDK v2 handler serves modern requests and legacy stateless requests with a
+ * fresh server + transport per POST, so there is no cross-request session state. Multi-tenancy
  * (§2/§11) is achieved by resolving a namespace from the `x-mcp-principal`
  * request header and passing it as the `session` to {@link createServer}: the
  * shared {@link DeckStore} (held in `options.deckStore` across all per-request
@@ -14,14 +14,15 @@
  *
  * Security note (CVE-2026-25536, audited 2026-07-04): sharing one McpServer or
  * transport instance across clients in stateless deployments could leak
- * cross-client response data in SDK <=1.25.3 (fixed 1.26.0; we pin ^1.29.0).
+ * cross-client response data in SDK <=1.25.3 (fixed 1.26.0).
  * The fresh-server-plus-fresh-transport-per-POST construction below makes the
  * precondition structurally absent — keep it that way. Regression guard:
  * multitenancy.test.ts "never leaks across principals under interleaved
  * stateless POSTs".
  */
 import http from "node:http";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createMcpHandler } from "@modelcontextprotocol/server";
+import { toNodeHandler } from "@modelcontextprotocol/node";
 import { CollectionStore } from "../collection/index.js";
 import { CacheStore, EdhrecClient, SpellbookClient, GameChangersClient } from "../meta/index.js";
 import { createServer, type CreateServerOptions } from "./createServer.js";
@@ -46,12 +47,13 @@ function jsonRpcError(
   status: number,
   code: number,
   message: string,
+  id: string | number | null = null,
 ): void {
   res.writeHead(status, {
     "Content-Type": "application/json",
     ...(status === 405 ? { Allow: "POST" } : {}),
   });
-  res.end(JSON.stringify({ jsonrpc: "2.0", error: { code, message }, id: null }));
+  res.end(JSON.stringify({ jsonrpc: "2.0", error: { code, message }, id }));
 }
 
 /** HTTP header carrying the deck-scope principal (a single token, never trusted as auth). */
@@ -135,7 +137,7 @@ function applyCors(req: http.IncomingMessage, res: http.ServerResponse): void {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "content-type, accept, x-mcp-principal, mcp-protocol-version",
+    "content-type, accept, x-mcp-principal, mcp-protocol-version, mcp-method, mcp-name",
   );
 }
 
@@ -159,23 +161,42 @@ async function handle(
   }
 
   const body = await readJsonBody(req);
+  if (
+    typeof body === "object" &&
+    body !== null &&
+    "method" in body &&
+    body.method === "subscriptions/listen"
+  ) {
+    const id =
+      "id" in body && (typeof body.id === "string" || typeof body.id === "number") ? body.id : null;
+    jsonRpcError(res, 400, -32601, "Subscriptions require a persistent stdio connection", id);
+    return;
+  }
   // Share stores/clients, but never the server or transport across requests.
-  const server = createServer({
-    ...options,
-    session: resolvePrincipal(req),
-    resourceSubscriptions: false,
+  const handler = createMcpHandler(() => {
+    const server = createServer({
+      ...options,
+      session: resolvePrincipal(req),
+      resourceSubscriptions: false,
+    });
+    // This listener has no persistent subscriptions or cross-request event bus.
+    // Advertise the available catalogs without promising change notifications.
+    const capabilities = server.server.getCapabilities();
+    server.server.registerCapabilities({
+      ...(capabilities.tools ? { tools: { ...capabilities.tools, listChanged: false } } : {}),
+      ...(capabilities.prompts ? { prompts: { ...capabilities.prompts, listChanged: false } } : {}),
+      ...(capabilities.resources
+        ? { resources: { ...capabilities.resources, listChanged: false, subscribe: false } }
+        : {}),
+    });
+    return server;
   });
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  res.on("close", () => {
-    void server.close().catch(() => undefined);
-  });
-
   try {
-    await server.connect(transport);
-    await transport.handleRequest(req, res, body);
-  } catch (err) {
-    await server.close().catch(() => undefined);
-    throw err;
+    // The adapter receives the already bounded/parsed body and owns response
+    // streaming, cancellation, and the SDK's per-era wire encoding.
+    await toNodeHandler(handler)(req, res, body);
+  } finally {
+    await handler.close();
   }
 }
 
