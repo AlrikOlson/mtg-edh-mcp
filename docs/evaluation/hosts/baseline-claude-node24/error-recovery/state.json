@@ -1,0 +1,35 @@
+{
+  "scenario": "error-recovery",
+  "workflow_version": "1",
+  "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+  "deck_store": {
+    "decks": [
+      [
+        "error-recovery\u0000error-recovery-deck-1",
+        {
+          "deck_id": "error-recovery-deck-1",
+          "name": "Krenko Goblins (redacted@example.org eval)",
+          "format": "commander",
+          "commanders": ["wf-krenko"],
+          "command_zone_kind": "single",
+          "cards": [
+            {
+              "oracle_id": "wf-mountain",
+              "qty": 98
+            },
+            {
+              "oracle_id": "wf-prospector",
+              "qty": 1
+            }
+          ],
+          "computed_color_identity": ["R"],
+          "version": 4,
+          "data_snapshot": "2026-09-08"
+        }
+      ]
+    ],
+    "snapshots": []
+  },
+  "collection": [],
+  "edhrec_requests": 2
+}

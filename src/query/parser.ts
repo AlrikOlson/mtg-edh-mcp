@@ -57,6 +57,7 @@ const COLOR_FIELDS: Record<string, ColorField> = {
   color: "color",
   colors: "color",
   id: "identity",
+  ci: "identity",
   identity: "identity",
 };
 

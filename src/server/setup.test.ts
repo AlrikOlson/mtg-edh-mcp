@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { chmod, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import { BulkClient, VersionedStore } from "../ingest/index.js";
@@ -99,8 +99,8 @@ describe("setup", () => {
     expect(report.clientConfig).toEqual({
       mcpServers: {
         "mtg-edh": {
-          command: "/path with spaces/node",
-          args: ["/path with spaces/dist/main.js", "--stdio"],
+          command: resolve("/path with spaces/node"),
+          args: [resolve("/path with spaces/dist/main.js"), "--stdio"],
           env: { MCP_DATA_DIR: nestedRoot },
         },
       },

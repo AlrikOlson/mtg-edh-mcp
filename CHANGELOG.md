@@ -4,7 +4,17 @@ Notable changes to the MCP server. Historical entries also cover the former
 bundled desktop application.
 The project is pre-1.0; minor releases may include breaking changes.
 
-## Unreleased
+## 0.3.0 (unreleased)
+
+- Accept the advertised `ci` color-identity query alias. Real host traces exposed
+  repeated failures on `ci<=r`; regression tests now execute the server's own
+  recovery examples against the index.
+
+- Retain comparative model-driven workflows through Claude Code and Codex CLI,
+  with actual MCP traces, independent final-state checks, and observed usage.
+  Preserve unsuccessful setup attempts and distinguish these runs from scripted CI.
+- Fix Windows ESM native-module imports in process/SDK tests and normalize setup
+  path assertions so the supported-platform matrix exercises the same contracts.
 
 - Add `deck_set_roles` (42 tools total): persistent per-deck role replacements,
   empty labels, and reset to classifier defaults, with optimistic version checks.
@@ -55,7 +65,7 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 - Add four offline MCP workflow journeys with a retained v0.2.0 protocol baseline,
   measured call/error/result-byte counts, and deterministic regression checks.
-  Model-driven host evaluation remains a separate release requirement.
+  Comparative real-host evidence is retained separately in `docs/evaluation/`.
 
 - Separate the desktop application, Rust client, design assets, and app packaging
   into a local GUI repository with their Git history and licenses preserved.

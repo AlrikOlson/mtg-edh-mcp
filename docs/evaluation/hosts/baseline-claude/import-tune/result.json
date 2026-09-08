@@ -1,0 +1,119 @@
+{
+  "scenario": "import-tune",
+  "original_prompt": "Import my Krenko list, replace the expensive mana rock, and show the exact change and export.",
+  "prompt_sha256": "5d4bafc6ce8a0b5d5cd61777d470de8661f3ba16126b2d7c3c427b147dd9579e",
+  "host": "claude",
+  "host_version": "2.1.263 (Claude Code)",
+  "requested_model": "claude-fable-5",
+  "observed_model": "claude-fable-5",
+  "model_identity_source": "host_init_event",
+  "exit": {
+    "code": 0,
+    "signal": null
+  },
+  "timed_out": false,
+  "spawn_error": null,
+  "host_completed": true,
+  "protocol_version": null,
+  "server_info": null,
+  "workflow_version": "1",
+  "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+  "metrics": {
+    "tool_calls": 0,
+    "invalid_calls": 0,
+    "partial_failure_calls": 0,
+    "tool_errors": 0,
+    "rpc_errors": 0,
+    "expected_errors": 0,
+    "response_bytes": 0,
+    "elapsed_ms": 3051.0632919999994,
+    "tool_elapsed_ms": 0,
+    "unanswered_tool_calls": 0,
+    "token_counts": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 895,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 80,
+      "output_tokens_details": {
+        "thinking_tokens": 62
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 895,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 80,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 895,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 895
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard"
+    },
+    "token_source": "host_reported"
+  },
+  "grade": {
+    "passed": false,
+    "checks": [
+      {
+        "id": "fixture_identity",
+        "passed": true,
+        "detail": "Scenario and immutable fixture provenance match"
+      },
+      {
+        "id": "one_deck",
+        "passed": false,
+        "detail": "Observed 0 final decks"
+      },
+      {
+        "id": "legal_100_cards_including_commander",
+        "passed": false,
+        "detail": "Independent fixture count 0; commander "
+      },
+      {
+        "id": "validation_observed",
+        "passed": false,
+        "detail": "Host requested successful rules validation of the final deck state"
+      },
+      {
+        "id": "original_import_observed",
+        "passed": false,
+        "detail": "Original imported state contains Sol Ring, Goblin Matron, and 97 Mountain"
+      },
+      {
+        "id": "exact_swap",
+        "passed": false,
+        "detail": "Final library replaces only Sol Ring with Arcane Signet"
+      },
+      {
+        "id": "original_snapshot_retained",
+        "passed": false,
+        "detail": "Original imported library is retained in a snapshot"
+      },
+      {
+        "id": "diff_observed",
+        "passed": false,
+        "detail": "Host requested the exact snapshot diff"
+      },
+      {
+        "id": "export_observed",
+        "passed": false,
+        "detail": "Export reports the actual replacement library"
+      }
+    ]
+  },
+  "prohibited_host_events": 0,
+  "agent_task_success": false
+}

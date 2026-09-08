@@ -1,0 +1,96 @@
+{
+  "scenario": "import-tune",
+  "original_prompt": "Import my Krenko list, replace the expensive mana rock, and show the exact change and export.",
+  "prompt_sha256": "5d4bafc6ce8a0b5d5cd61777d470de8661f3ba16126b2d7c3c427b147dd9579e",
+  "host": "codex",
+  "host_version": "codex-cli 0.153.4",
+  "requested_model": "gpt-6-astra",
+  "observed_model": null,
+  "model_identity_source": "explicit_CLI_selection_no_resolved_revision_event",
+  "exit": {
+    "code": 0,
+    "signal": null
+  },
+  "timed_out": false,
+  "spawn_error": null,
+  "host_completed": true,
+  "protocol_version": "2025-06-18",
+  "server_info": {
+    "name": "mtg-edh-mcp",
+    "version": "0.2.0"
+  },
+  "workflow_version": "1",
+  "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+  "metrics": {
+    "tool_calls": 11,
+    "invalid_calls": 1,
+    "partial_failure_calls": 0,
+    "tool_errors": 1,
+    "rpc_errors": 0,
+    "expected_errors": 0,
+    "response_bytes": 8404,
+    "elapsed_ms": 42635.229583,
+    "tool_elapsed_ms": 13.55750199999784,
+    "unanswered_tool_calls": 0,
+    "token_counts": {
+      "input_tokens": 167907,
+      "cached_input_tokens": 150912,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 673,
+      "reasoning_output_tokens": 0
+    },
+    "token_source": "host_reported"
+  },
+  "grade": {
+    "passed": true,
+    "checks": [
+      {
+        "id": "fixture_identity",
+        "passed": true,
+        "detail": "Scenario and immutable fixture provenance match"
+      },
+      {
+        "id": "one_deck",
+        "passed": true,
+        "detail": "Observed 1 final decks"
+      },
+      {
+        "id": "legal_100_cards_including_commander",
+        "passed": true,
+        "detail": "Independent fixture count 100; commander wf-krenko"
+      },
+      {
+        "id": "validation_observed",
+        "passed": true,
+        "detail": "Host requested successful rules validation of the final deck state"
+      },
+      {
+        "id": "original_import_observed",
+        "passed": true,
+        "detail": "Original imported state contains Sol Ring, Goblin Matron, and 97 Mountain"
+      },
+      {
+        "id": "exact_swap",
+        "passed": true,
+        "detail": "Final library replaces only Sol Ring with Arcane Signet"
+      },
+      {
+        "id": "original_snapshot_retained",
+        "passed": true,
+        "detail": "Original imported library is retained in a snapshot"
+      },
+      {
+        "id": "diff_observed",
+        "passed": true,
+        "detail": "Host requested the exact snapshot diff"
+      },
+      {
+        "id": "export_observed",
+        "passed": true,
+        "detail": "Export reports the actual replacement library"
+      }
+    ]
+  },
+  "prohibited_host_events": 0,
+  "agent_task_success": true
+}

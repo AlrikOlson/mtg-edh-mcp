@@ -1,0 +1,1715 @@
+{
+  "format_version": 1,
+  "mode": "model_driven_host",
+  "captured_at": "2026-09-08T20:40:30.450Z",
+  "provenance": {
+    "source_root_kind": "working_checkout",
+    "checkout_commit": "47aeb636f06cf4376ce5c2bf65123564e49e65fb",
+    "checkout_dirty": true,
+    "package_version": "0.2.0",
+    "sdk_package": "@modelcontextprotocol/server",
+    "sdk_version": "2.0.0",
+    "lockfile_sha256": "1e9c276bc22839069a639841cb82422ed4f4e784fbb5283df53f83b66ed787af",
+    "bundled_input_sha256": "c8f889fcc2d84229ae1cb3d67913b10fabdbeea667a9557d0b656e9d4b40ab77",
+    "bundled_inputs": [
+      {
+        "file": "node_modules/@modelcontextprotocol/client/dist/ajvProvider-97rDpkRx.mjs",
+        "sha256": "5c4d6ce22cd6f3323ebc16d2e97956eb6238d1135102f6aefb25bacf40bf14be"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/client/dist/chunk-Br0eD_fh.mjs",
+        "sha256": "d4a000980e7c6a8a2ee04c12d80cf538b11e5040e8487dad7661b09d85894e74"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/client/dist/dialects-BOhdv1Fc.mjs",
+        "sha256": "34447f2f5bffaab20cf5148c190137fc3129e7b23614a75a47c1db3b0994969e"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/client/dist/index.mjs",
+        "sha256": "af3ec9fcf3a70fb4681e9b3c11aa18a7ce9aca36fed9f138a6e704043695d414"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/client/dist/shimsNode.mjs",
+        "sha256": "0ecec14e715e583a63940a922c0586cd7f02f9c1fdeb3eb2fada6adae0764b5c"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/client/dist/src-D_zzAWoS.mjs",
+        "sha256": "fb539b120913afb2a469cfdd8f233b4c6aac98d7532f3172e783258aaadef084"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/core/dist/auth-CUe6YdwF.mjs",
+        "sha256": "17df1168d46e8215ad9b204b0ba5061a7ff44a787bf7a8dd8ba5b20ac4499e68"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/core/dist/auth-CfDMXiII.cjs",
+        "sha256": "96c04c491ce6d6e654e84e94a0cf860cf6d1b0a5a0aa2ce25dbd070f2e4d6a5c"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/core/dist/internal.cjs",
+        "sha256": "821524fc4e0c2a41bef38f5827130b7918560e485ecfbcee608f4135a80e5cba"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/core/dist/internal.mjs",
+        "sha256": "0cc572e7ac91e9f1a36133b83a6207fdea87cb41f9531c7f406d5eca3c355dfb"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/ajvProvider-CEoC__sr.mjs",
+        "sha256": "218157a99879a59cdea0b720a484dfe9989fa768f3d05318c2803b61705373fa"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/ajvProvider-ZaoO9afR.cjs",
+        "sha256": "289d945a40218fdd3da0a020f2d0a636e5378d36287a4d7d59b32515817cb03b"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/chunk-Bnu9O96Y.cjs",
+        "sha256": "36cac11e0ad41ced410de65f13cd7f2a91332a1eb05e93e218cc2071d169ed87"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/chunk-Br0eD_fh.mjs",
+        "sha256": "d4a000980e7c6a8a2ee04c12d80cf538b11e5040e8487dad7661b09d85894e74"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/dialects-D8eXzoGv.cjs",
+        "sha256": "9bb247d39ed372257859080cf04bc45ac0386119cd78c98ec32ccdf3fc5227fe"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/dialects-DoSzNhcb.mjs",
+        "sha256": "9340570968ae24904805bbb0ee637f9aa1a17f7d2b87c26ba8290809b4cc7080"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/index.mjs",
+        "sha256": "4494af7ea28b45d1655df5a67dcbd6079a50cbe382f811d82441ad2004bf4d60"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/mcp-D7GmuPnv.cjs",
+        "sha256": "b0afb7de7a8d17edc6f49e3b690afd8baf58c2fa975d1d41b29dababb8ee9f02"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/mcp-DXXb3Vv3.mjs",
+        "sha256": "b25a912ea68ae396bb3f7367fa9fdd64231899266f1dc6e243dd3d2064c0d5af"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/shimsNode.cjs",
+        "sha256": "cdc43bbac0b2349278c244d86ea66fc2e42dd9789cce70e73b32f121da2eede3"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/shimsNode.mjs",
+        "sha256": "efa8ef680135a81cd4b3dadaa765ad5cf506523e410c8a9702ab6d9095869d8f"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/src-CX2iR2pK.mjs",
+        "sha256": "32ecc5f9aaaab5f35499fdfb11e0f1cb3f39a763d762f21e76c5cd55cc11c9c0"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/src-STyD_Vvf.cjs",
+        "sha256": "e942bd5edc709d40d8bfc955306a179cdee3d4d35ad236deaac19bb14ecd5ba1"
+      },
+      {
+        "file": "node_modules/@modelcontextprotocol/server/dist/stdio.cjs",
+        "sha256": "87793e7807897eb57c266b39280151b616204d6e66a81d4ddb250d987d189bd8"
+      },
+      {
+        "file": "node_modules/eventsource-parser/dist/index.js",
+        "sha256": "74eb03948c048c68b048b3ff3e11e8ddf9470516379567544a93a83c448569d3"
+      },
+      {
+        "file": "node_modules/eventsource-parser/dist/stream.js",
+        "sha256": "05559acf7e512e413080ce1df97b51bbf875e67ec3068ca7df08a6da617b3013"
+      },
+      {
+        "file": "node_modules/eventsource/dist/index.js",
+        "sha256": "5d2927b232978166061a6add1211d5edbfd6068df345f36c44dba682eaf30dda"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/index.js",
+        "sha256": "f198638529597ab18dc3d2799f362106121f90cf0b0c43e75c3dffa5cc6b8590"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwe/compact/decrypt.js",
+        "sha256": "c08202f5114caee270bcaa0ed3e119acb241f88d51c6d65a34a1fd6a3353cd2a"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwe/compact/encrypt.js",
+        "sha256": "8db8eb9fa34a0187c0ff26e04c37024af421f2f265255d60a01c0edf416f2f85"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwe/flattened/decrypt.js",
+        "sha256": "4964d31fafb143a8f15cf4820214b268706dbbd569bdedaa9b24a11520f6c6b2"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwe/flattened/encrypt.js",
+        "sha256": "e1fe288a34aae4938dbdd13b86e33e54fef9ff3f3c55a2354ab9d7b5665d1e92"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwe/general/decrypt.js",
+        "sha256": "3a721fc3958f36c3bed7764a032238b35f9172bf95d40a7e28a4cea4d7ccd511"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwe/general/encrypt.js",
+        "sha256": "2b0bdf8227f2c88fbacf7965cc78809f14b844e76a179a16099b60cf1562012b"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwk/embedded.js",
+        "sha256": "449f2b08f47d006a4b937201692b7a830c9e9ac785e82073c1f6f9792642f91d"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwk/thumbprint.js",
+        "sha256": "a1a3918fc1e2d3a8e70d613bf7b486eeac39c1ef9fcb4b36e028460276565e41"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwks/local.js",
+        "sha256": "ac751386e13c8b5c0ef87848ae98e2a97dd6eaa3973346edff3b29350d3945b0"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwks/remote.js",
+        "sha256": "b0860b27b5cb461bc743291a228da93c387a664d989fc69829a9626bfa0de264"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jws/compact/sign.js",
+        "sha256": "09450f2b3763b531d28bec9796d2f3ff0064c7b07dde15f7d1e1e7693e2ec12a"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jws/compact/verify.js",
+        "sha256": "6d1109739b895858c7006d02ef91f8b13ce5ae8c91996d1f1c0b57c1ab33c398"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jws/flattened/sign.js",
+        "sha256": "01cb90bcf39d8aa9bcf6d3efd36f5b80c112e547ef5448d7512b7aafa72bb6dd"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jws/flattened/verify.js",
+        "sha256": "ff23003a7b0a4d8a7add2cd8b13b72393b863f6f251ddd814f08d69b35be3b2e"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jws/general/sign.js",
+        "sha256": "226bf031e03174e6a505c534b4bdd228d8d677cf2c494ffc7c618dfd535f5b55"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jws/general/verify.js",
+        "sha256": "4623bf6e59023c7a2bfe5cf9d40b5d1e9f8165f2f18b4374e061911582041a4a"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwt/decrypt.js",
+        "sha256": "233bb797f9239582ada83fac5723c818dfa0f24e9a864680759df5f2bb5b260c"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwt/encrypt.js",
+        "sha256": "c08c45c7ba87d6bd6d51051cafe80a8ce33150a4cf5116ae03e76e3c65edb2a2"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwt/sign.js",
+        "sha256": "aab04f3c698940af2bae4180bfda71914d36700b70f25afd0fefe3028a45f2dd"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwt/unsecured.js",
+        "sha256": "a9b3d6898039163c1e47573e27290b58fee7a3b8f9a3aac2fe04c1d7a77fb63d"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/jwt/verify.js",
+        "sha256": "e015a18744717762a1f138d0f0a88a40d3b660bc46f76ddf8309b32987175bef"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/key/export.js",
+        "sha256": "634aee75fbdabbffb73d439ae63305ad043a268354ecf53426b827ba3f81cfb7"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/key/generate_key_pair.js",
+        "sha256": "97e4e5b66af75700da10fc5807471636b633d7c72c65a7fe50980c4a3a2c6c74"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/key/generate_secret.js",
+        "sha256": "b6984ddbed52cff9179a1b681076ad6d1529ff50fabc58bb32b9b71752cf9523"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/key/import.js",
+        "sha256": "ab2f57a9db99e8d48451a8d0a8adf75379381f65b0e3e28ba6c02aa5bb3ee5fa"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/asn1.js",
+        "sha256": "4945afdb21c49efc7fa703a2e1cde94b8a1d28f13416aafd26128453472903c5"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/buffer_utils.js",
+        "sha256": "cac7d34f3eab78ad56967097b793f55cd50ae1d7b42012d8e1a1f2736f50d720"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/content_encryption.js",
+        "sha256": "43b0e897c80a12b42516a6d48cbb2a31ef3a9522eccc5716a01d182cade9eb63"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/deflate.js",
+        "sha256": "9f7b28c5705633835228c8e11642b860260d62ddda0d76dc02a487664b1d2eb5"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/jwe_algorithms.js",
+        "sha256": "d41562ff2ccc3599f7189384653fbcd1ff68babd475fe99e31eccb61706abd47"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/jwe_decrypt.js",
+        "sha256": "5d5ba0ac80a18138940d27b439f4420c16001f4da57c9d1168c7b41e4cfe009b"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/jwe_encrypt.js",
+        "sha256": "783d800778e27227fb39987be2da1705c96993df614bc30fc08252b9cef137ed"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/jws_algorithms.js",
+        "sha256": "72e8be8e3d179effde822ecc8f75c7726d7323be718a961837f6882b012992e9"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/jws_sign.js",
+        "sha256": "f91650ec8e2248bdbcaa0b11a0f4018a4cfd9b42f30219b0ba7e839e86172e70"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/jws_verify.js",
+        "sha256": "7c236143de90ead568128265a6d9dcfc5cb6a264e5fb0bdc1e39989e2cfc19c2"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/jwt_claims_set.js",
+        "sha256": "624433ec72028d7feb512151541cfc96726aa8ceaa6f095867989c5eb8c50e5d"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/key.js",
+        "sha256": "e150a72056a69a980a19c23334f5c16e4b9aedfbde9af2702070c5bf93fc075d"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/key_algorithm.js",
+        "sha256": "4ef0b80292076659b054313f70eeef81cd7df01e2ec9988c24552206bc42cc07"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/key_descriptor.js",
+        "sha256": "80ae05a1fc41271a29dbd5ab717255a1255ee0ac43b6820853d2f338d9e74b46"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/key_management.js",
+        "sha256": "c65e89877bda7df0f5bf08686334a1ab8fe291b4bcdc5599edf901cd7b5cecaf"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/lib/validate.js",
+        "sha256": "2a85b6eadc2c03af99f9fbb1cf01198e9ef2e3af5589eadccb2eb17627aeccfb"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/util/base64url.js",
+        "sha256": "9c9c168e24c5be2db20956262065b94556de959e5dcc62430e31a0f57f821691"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/util/decode_jwt.js",
+        "sha256": "46031ba27050ae0a4da49682a0c799966e21df49b625651e499ddc29cbbf20a2"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/util/decode_protected_header.js",
+        "sha256": "8d53bde529f722c22f65be574e854a2a04fadd38f919456517707a172a394bda"
+      },
+      {
+        "file": "node_modules/jose/dist/webapi/util/errors.js",
+        "sha256": "9bb7503fd84d5387677f1b917969cdf7c20482c3d86e92e64972bc83938b95f8"
+      },
+      {
+        "file": "node_modules/pkce-challenge/dist/index.node.js",
+        "sha256": "c5ebd5bc6d03b23a86e638ff7f91529dfa4f7e6802d0f86574d1f8d43ec3cf08"
+      },
+      {
+        "file": "node_modules/stream-chain/src/asStream.js",
+        "sha256": "7d7670bf02fe0cf43b0fc77bd94dde886d04fd626c46a3d2a70a00e0d6d87a3f"
+      },
+      {
+        "file": "node_modules/stream-chain/src/defs.js",
+        "sha256": "74835402c00ed28eb2cceeb1cd4f66643c719c3adc605565337d3d5c6c78b3db"
+      },
+      {
+        "file": "node_modules/stream-chain/src/gen.js",
+        "sha256": "66f98c50e5d5c67fd93128567777451065d943d225634df0db82730cf6f555cf"
+      },
+      {
+        "file": "node_modules/stream-chain/src/index.js",
+        "sha256": "b7dfb56f772d81e26c36d451ba77062c8c8b955263092c135a835b4c826dd1b7"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/asStream.js",
+        "sha256": "17d8341d8b66688f94f57bc5abceefd4a377795f3d9b0d48df0c24815aefebec"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/asWebStream.js",
+        "sha256": "373d6a484c7c6c71ebafb6f43084d73a33020e8a2fda2d523ac5f9c676ab20e7"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/core/index.js",
+        "sha256": "068e058e563538eb1e67a4a0b794da552c0185684d0940139126c136d3ba0d4c"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/dataSource.js",
+        "sha256": "05abdd004ff77a56553fd2a90d3b0aa35f6ab57d36b8eab73437486370a2bb99"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/defs.js",
+        "sha256": "947b6225da82b9aa4033ee61183ebfc0cdb6c627a84c7eed0471d783fb1d63e1"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/exec.js",
+        "sha256": "e370ee36662532208eacd242ebb796a0b8dbe3fb572878a0b538eb1b1c0ab566"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/fun.js",
+        "sha256": "5bdeeca5fe2b03fee2bf0b6c101e30fe9ea8d220d2fce188c344c3e4841093e1"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/gen.js",
+        "sha256": "5e483a8dd8645d39cd41041dad20fd43d7f2fbb3472c82338f69af7cfa32938a"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/index.js",
+        "sha256": "5d3964caaddad839f79ae2a0a46fdfa77184950d752e29ff399c86d67a1f92a0"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/node/index.js",
+        "sha256": "99968187bd6a6700267f7aee90aa02e400425c6a8a73995db802f744f278e5e4"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/utils/fixUtf8Stream.js",
+        "sha256": "6956dffca4192004b57903aa158564a35d31ebecc608e1950bd2c76a8ee5fd19"
+      },
+      {
+        "file": "node_modules/stream-json/node_modules/stream-chain/src/web/index.js",
+        "sha256": "c89905e7cf1c524997263806a281212400e141444052cbeec25410d651c30d61"
+      },
+      {
+        "file": "node_modules/stream-json/src/core/assembler.js",
+        "sha256": "ee1498392bceb8d548d70476e3d22288c9d6fa26c27cf4b9c7c7113713ea72c4"
+      },
+      {
+        "file": "node_modules/stream-json/src/core/parser.js",
+        "sha256": "f3bf28d1cdc4a21390194b9a9867cf6ce8b42d3ea0df7e16e9ceedff9f3d15a8"
+      },
+      {
+        "file": "node_modules/stream-json/src/core/streamers/stream-array.js",
+        "sha256": "eef596f10096b36decf4b67d74b1ec19d6dbec53b33bf19d519148b4f59ccecd"
+      },
+      {
+        "file": "node_modules/stream-json/src/core/streamers/stream-base.js",
+        "sha256": "e9191fd5a9fc0b6dd84c3d47592efb573b4421f0fed4f70fb3b9dc67cc411d5a"
+      },
+      {
+        "file": "node_modules/stream-json/src/core/utils/with-parser.js",
+        "sha256": "cd02dfedcceb04828aa3baf8cde72fd38a5de80618a8bb65b08bba47cc1b1212"
+      },
+      {
+        "file": "node_modules/stream-json/src/index.js",
+        "sha256": "c0c55585691587158a43444b3818f3f5ed9019d211efcfb7edd266311a619193"
+      },
+      {
+        "file": "node_modules/stream-json/src/parser.js",
+        "sha256": "d46049edf96d21d1c956f84d55bd6803678d4ae1874d565f2115be3f3643a0ab"
+      },
+      {
+        "file": "node_modules/stream-json/src/streamers/stream-array.js",
+        "sha256": "be76ce7ad1f2902a2fdbb691f5aac49cbb2c39ff4dd3858a37407256c47ee2f1"
+      },
+      {
+        "file": "node_modules/stream-json/src/utils/with-parser.js",
+        "sha256": "f31f910ae717887d40041da90e97fd3ff085604673d9f0adc5aa0ef69cee7805"
+      },
+      {
+        "file": "node_modules/zod/index.js",
+        "sha256": "c733a1897d6b4b30dad6998597f6896b265b094a65534359ada34b08ecf8932c"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/checks.cjs",
+        "sha256": "df8f7d3f808b226719e1a23a0303ff75c450c9037a82cc137ef6592decda3d31"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/checks.js",
+        "sha256": "78a162d29e06001b4d919e1ed08f6e7d0d665bba0ef983201373745410d7b354"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/coerce.cjs",
+        "sha256": "d25b07eead67ff339c3e2a6d5b7364647e11f57fff3e82055d49575304dce057"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/coerce.js",
+        "sha256": "fb2efe3b6eacc475c77cbb571b5fb8650d92a10f316dc869e49b722973d83c3c"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/compat.cjs",
+        "sha256": "dcd3c3b05fbc82ed0241ec7e015071a528a1e2e8025e96259be932e7340608e7"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/compat.js",
+        "sha256": "0e948b101771cc0e7b753e54b3f5b486929d3db9bd4c09d98fe4ce86271bcf7b"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/errors.cjs",
+        "sha256": "f704ed9292288d685a33123242399179eba77f1190299bc83042b434c1ae8cd6"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/errors.js",
+        "sha256": "b155316267f79068ddc2dddc7046e13785804b768ca36e6deff1691d154f7c20"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/external.cjs",
+        "sha256": "88f600b7ec41204e625886c93864568e6dbda628c94db92bc928f8b2e163eec1"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/external.js",
+        "sha256": "179a03ace3d1d77895cc5b3c54a3fcbf2b7f8bad44d6f030092491c10e5d9097"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/from-json-schema.cjs",
+        "sha256": "f413701d8a2730e2bca2bf071dcd57dd0fdc6640ce798cf80077f32e1b45940c"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/from-json-schema.js",
+        "sha256": "d8866bf5232e55d12cda032bde6a56a05a0a8b276945c2e4eed66432ef5cc9b2"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/index.cjs",
+        "sha256": "d58a1fea61e0f0bccdb2f4fd3b7b098adcfddb44f036302c4d2c4e173540a292"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/index.js",
+        "sha256": "d49030b9a324bab9bcf9f663a70298391b0f5a25328409174d86617512bf3037"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/iso.cjs",
+        "sha256": "f5d840d941b87a868da63fba9e4eb5917cadd87100af4940113f0ddd75dd9043"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/iso.js",
+        "sha256": "3cc5e6b4da086b8ffc7ee3188c69e4d3c945b368092e78d2299b5321182752c5"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/parse.cjs",
+        "sha256": "0fb97825ed1c15a1f6a238df9506e23f2e720edeae4774aa46a60ce7b2a75319"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/parse.js",
+        "sha256": "14cbcc416ab9169abc2cde97af77da54ca769684eac1e03a3753c16ea4a7cd95"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/schemas.cjs",
+        "sha256": "fbb612b8ec2f7408653908aec137a855e6763f92fbab19d4bd61c5be13341db5"
+      },
+      {
+        "file": "node_modules/zod/v4/classic/schemas.js",
+        "sha256": "eb4af7946a092aff8678b9251728ea58dab40154920cd65ec4a2ca1d4df68393"
+      },
+      {
+        "file": "node_modules/zod/v4/core/api.cjs",
+        "sha256": "df63ac3f2809bbb806c7bf371baadb21923e9be527e4e02ca27e88c238e1c1fa"
+      },
+      {
+        "file": "node_modules/zod/v4/core/api.js",
+        "sha256": "00cb5edcfde8098e5a169e66c1dce50c101484d21436e3d78e137e1fa87c4836"
+      },
+      {
+        "file": "node_modules/zod/v4/core/checks.cjs",
+        "sha256": "d9b6a4b1d366015f4f2b7ca931f1a65cf787d7892f50d693350834b9a345f2e1"
+      },
+      {
+        "file": "node_modules/zod/v4/core/checks.js",
+        "sha256": "5a33a20dcad372b4d18ead8d1e58b1950454f136a2216e62f247e0e5601ac838"
+      },
+      {
+        "file": "node_modules/zod/v4/core/core.cjs",
+        "sha256": "57512e096c35ffd303c4012f656ef9e5129c2e3e4518694c3096aea260fadab3"
+      },
+      {
+        "file": "node_modules/zod/v4/core/core.js",
+        "sha256": "a5e713beaac4647151e03716a83f51ab714e5337cf66850f3b28eaf072a0bbfe"
+      },
+      {
+        "file": "node_modules/zod/v4/core/doc.cjs",
+        "sha256": "ae6c5bfe9570d30c119cd6bc9dff33f6956858b4fa6887b2b1f9680f11d1b65d"
+      },
+      {
+        "file": "node_modules/zod/v4/core/doc.js",
+        "sha256": "e084bbcc536746a8942fd33b08afe4db345554b3a0383114f1dca95261c958d9"
+      },
+      {
+        "file": "node_modules/zod/v4/core/errors.cjs",
+        "sha256": "26ef84ea67d46859c35d8b19c1f75f45b7e39c5d025e2fe6c85e4b72e6a6537c"
+      },
+      {
+        "file": "node_modules/zod/v4/core/errors.js",
+        "sha256": "bdd0ed8fd4a6e9d04fe6423b0f9df3a0b403939bc7dcedd8930a4b8df1fb118c"
+      },
+      {
+        "file": "node_modules/zod/v4/core/index.cjs",
+        "sha256": "cb40bcdacc990895d8ceaf0aeca2d92c73db7dc67094821560eea09186840093"
+      },
+      {
+        "file": "node_modules/zod/v4/core/index.js",
+        "sha256": "f9698820ee8371215e8d015cfa060230c62e65428397dce83f78e6538976301c"
+      },
+      {
+        "file": "node_modules/zod/v4/core/json-schema-generator.cjs",
+        "sha256": "7b685f409c6ca5f76bd2184470c9fb80decfb1ce7592f3b72d4af3cfd7e52c6f"
+      },
+      {
+        "file": "node_modules/zod/v4/core/json-schema-generator.js",
+        "sha256": "9cc884cdb535a9c87b85b66e61a593ff6b686222f038834f81c5e92552cd6e23"
+      },
+      {
+        "file": "node_modules/zod/v4/core/json-schema-processors.cjs",
+        "sha256": "9b3cc9d0421b45ff5874b508517d2129d7a2c0aa3669e8ae41441a63bf1902ec"
+      },
+      {
+        "file": "node_modules/zod/v4/core/json-schema-processors.js",
+        "sha256": "ff15f567c9401dd7d3151ce11736283ff747c9a9e205cc08ee96f90eadc1c0c6"
+      },
+      {
+        "file": "node_modules/zod/v4/core/json-schema.cjs",
+        "sha256": "d43aa81f5bc89faa359e0f97c814ba25155591ff078fbb9bfd40f8c7c9683230"
+      },
+      {
+        "file": "node_modules/zod/v4/core/json-schema.js",
+        "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+      },
+      {
+        "file": "node_modules/zod/v4/core/parse.cjs",
+        "sha256": "78c3851f57bfeb5e0f4464d3dfe62781ba8292e89692e52b4fc00195d4b02251"
+      },
+      {
+        "file": "node_modules/zod/v4/core/parse.js",
+        "sha256": "2578b8d1341c3882a6c089f9ec57ce1c1a16b8b2b477721d4d89ba3d3ee50c9c"
+      },
+      {
+        "file": "node_modules/zod/v4/core/regexes.cjs",
+        "sha256": "1f63503c220ad78f04252e7c883335dcd994a3043d0cbc154f7537a56c3f02b6"
+      },
+      {
+        "file": "node_modules/zod/v4/core/regexes.js",
+        "sha256": "3cb122080c1154321331322ebc0cbe04878fe104c8c7b335891d9f85fc4b3f63"
+      },
+      {
+        "file": "node_modules/zod/v4/core/registries.cjs",
+        "sha256": "674a7d7f25a3db1589776b868bbb07116974198ad159ca28e66fb20616946bbd"
+      },
+      {
+        "file": "node_modules/zod/v4/core/registries.js",
+        "sha256": "620ea1a715ccc4e6e605a271343bf47942dccae90885dc71f137b1f08a972e50"
+      },
+      {
+        "file": "node_modules/zod/v4/core/schemas.cjs",
+        "sha256": "cd1cd83d15bb681ff414fd95de6145de88a91e0ef38df3d3f5deb594007a221c"
+      },
+      {
+        "file": "node_modules/zod/v4/core/schemas.js",
+        "sha256": "09da9b0cb9b9d2d795c349bc47c7521d5aaffe241885f0c9728f2aa7de3834c9"
+      },
+      {
+        "file": "node_modules/zod/v4/core/to-json-schema.cjs",
+        "sha256": "4f2ae470ccba6f44362e247875560ea8da73148b688191d4490b04931fe1d821"
+      },
+      {
+        "file": "node_modules/zod/v4/core/to-json-schema.js",
+        "sha256": "fb3c9ab59947582f7671a53c8e20a3ced5eaa92d1c220ce8b27717a59033ad0d"
+      },
+      {
+        "file": "node_modules/zod/v4/core/util.cjs",
+        "sha256": "32aebb72ac7ec6b33bd4f340cc0584886194a06f3db581da6052faf0667006a2"
+      },
+      {
+        "file": "node_modules/zod/v4/core/util.js",
+        "sha256": "968e3433e810cf7ba5efb609a1cb6d9a6cfb51215fd1f699938228f7ac25deb3"
+      },
+      {
+        "file": "node_modules/zod/v4/core/versions.cjs",
+        "sha256": "c13383c6a55e74e26b0158b2d9ff7bd80b5887a6e00471b0abcee0cfc4e5ee39"
+      },
+      {
+        "file": "node_modules/zod/v4/core/versions.js",
+        "sha256": "bf082fde98fa7725412d713c7f56da3a5603bdef199d68d5769263f30ce9c756"
+      },
+      {
+        "file": "node_modules/zod/v4/index.cjs",
+        "sha256": "35934fbd99d4ca1d46932dfcddb6071c203b5c980862cf58e254998c49e1e5b8"
+      },
+      {
+        "file": "node_modules/zod/v4/index.js",
+        "sha256": "a4b634bb8c97cc700dbf165f3bb0095ec669042da72eaf28a7c5e2ddd98169ce"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ar.cjs",
+        "sha256": "9e6476e5237fdfa8ea07d30a8a725e484ebcb7fdc732eb55607815ee701f5177"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ar.js",
+        "sha256": "220ca3ca8cf67e4ccc05d789eeed2692d970269fe0cd82f05db8fd899b661b9e"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/az.cjs",
+        "sha256": "be8c72acf84df55f5fd0a673f9488543d95a201fa65e828f9142e0dc0fa87a28"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/az.js",
+        "sha256": "4725ffef0b2f2df947194f9698c792b69f52a8c3a5a1e1bdfabbf62259a1dd46"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/be.cjs",
+        "sha256": "3071dee4104152c31a8130dd366870c32616c00f39b4bed4e565b5069d42acc9"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/be.js",
+        "sha256": "da4bda7fbc940dd9f50efdd914caa9397243be779a505b82bd4be5395d3b795e"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/bg.cjs",
+        "sha256": "6c8c8cfc221283ed7ee6039e1d9ba9b09c023e25764d4a3c769bb6a7799e3f2c"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/bg.js",
+        "sha256": "48511ad2f86043f0eea6e7673d5e2b848a3295a26c9c4650e96b3884d640196d"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ca.cjs",
+        "sha256": "cc4f06062420bd95f9e57fa0e1a3531bad691f2259a6566402c2565e73e8017f"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ca.js",
+        "sha256": "796f9ba7dcd53648171aa0132c50271ef358936765cec0a44a642c41d05b3e8c"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/cs.cjs",
+        "sha256": "a018d1328a7be5e75a50bce168593f717efbfb183bea3fc57d90ef85719aff33"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/cs.js",
+        "sha256": "670a75fe1db1104db090c95aabb01e4eb6decd451fe77fd830c2e4dafc79b49a"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/da.cjs",
+        "sha256": "aa67e238640b08a61bf4b293530577d63e5e492fd1f3e2becc3e4f58c86c1cf7"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/da.js",
+        "sha256": "cdaad7a1fa370abda1943fe9c2caba961e7896b9808d51275daf33f964af49cc"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/de.cjs",
+        "sha256": "2271ecd86ac9698136b633422c1049a7510b1470121adce607da3fc74e26d673"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/de.js",
+        "sha256": "521a4ed29fcaf3f781163875dc282cfb5262047773aa2b70a852996b1d8a51b9"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/el.cjs",
+        "sha256": "24c074abf7e5c347dd42e6758622f4622042bcb398f43c239c436e0243d6d729"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/el.js",
+        "sha256": "9857a9e4909282b2efd86317fc3e67ed86e24287f32329cfa5ab833c05fc0d81"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/en.cjs",
+        "sha256": "6f3656f0a38c4fe2ac005ffb629faed25addb895f817d53bc3437dd3f423924f"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/en.js",
+        "sha256": "232a0828d64df8e410b23ac9825a667bd9d485fd70acdc4b4d0870539faef0a4"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/eo.cjs",
+        "sha256": "8cb3c550c5947d2ce3274608e2487d3ab166ec307a5ea67ef4990b9da74d296f"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/eo.js",
+        "sha256": "ebe08048aa3ee9871ce9fe1271e254cb672b1968ec40ac253066d08d176e8a65"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/es.cjs",
+        "sha256": "d59637d0c9c319713fc21fac73ca9700154c2672da2b6c4bf23b6fd45abb0174"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/es.js",
+        "sha256": "4edd9302e9724c408b024220e99092fbd2f90100ac3c6407a94543b79843610c"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/fa.cjs",
+        "sha256": "96a5dc859f85b89d3c49c859c8051887efee046c2e5393b60a2294e10a18596a"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/fa.js",
+        "sha256": "2dc1bee1e984e8a15191fb3c69aaecaa26c922e12a0d4486ac005a0372b78565"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/fi.cjs",
+        "sha256": "3736651f1edbf2af972e5a81ba240055414e1dc00dc79241462a7eeea7032b17"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/fi.js",
+        "sha256": "3911184979f01d2ae580ce611710ee40597eff97a410d0fa823ab6ea27cee88c"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/fr-CA.cjs",
+        "sha256": "5fa4eecb16770c0a56fe176a0cfa41f8d3c3c421bc3f9c6182df3300c1fc0f12"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/fr-CA.js",
+        "sha256": "f8716c2baaccdfd1d958743bbc5250c9bdef5152d0801470e9b9a380d618f4ab"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/fr.cjs",
+        "sha256": "1a827c6ab260e71fd2a9216eed84f0b7206f2d4fc3bfe6e029dec1a7a406f9a6"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/fr.js",
+        "sha256": "3ea466ca5737984bb5acc9008822060272f596317004618cfe1e05109f707577"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/he.cjs",
+        "sha256": "caa87c00543b915b13bfe7f0af67cc46f833c40f525d7302c3fc628bcb243b3d"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/he.js",
+        "sha256": "290512e43d2907700211da09dc3959fd98d120bfb89f8836e6e3f83a472e26fe"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/hr.cjs",
+        "sha256": "d15e7eec34db92ceaaf34876bbac7577d00f08589f0129f9d02fbff8c96f5cc1"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/hr.js",
+        "sha256": "1ea65433c32b89bead43113ac69b3acc520bb73ae231dd2e05fedf8e8c5656d6"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/hu.cjs",
+        "sha256": "fb3125c8c751902a2998fcfb7b2c1c3aa6722c1409cf4f997ee11db52ef5b8b0"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/hu.js",
+        "sha256": "913ee94a253db79b31463ae23a337060b6fe28be73dfc7657d8a83a4942bd8a8"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/hy.cjs",
+        "sha256": "9a22becbfb671b7a67141c753fdc81bde74f1ba853a8634462ee523a2e4c4d2d"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/hy.js",
+        "sha256": "0d3bbb96c0f8bc74468a2dfc7d066e838bb56fab64fd5ec03ce9c4d89eccbe99"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/id.cjs",
+        "sha256": "aa9cbd4d299b36a0a2f10b4fb612d287d63f82da5fe8b226ef642e624fbe579b"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/id.js",
+        "sha256": "cd2c19b5c30dade3ed91ffcff3deb0b068713be24f02248e7e46b87b2b9553ee"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/index.cjs",
+        "sha256": "3bae3c71f01d8bdac661d277b1ab712ae4b6b92033d2c58ef29eaa8bd4d8535a"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/index.js",
+        "sha256": "d73f41a76614855d43eea493030a1aa05dca30c9a17015a0da5b8b70da61b6b1"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/is.cjs",
+        "sha256": "62d9adfda6e5cb1d4f49af6bb9646eaa42e21fffe605786cc9cc7b7bbc9e3158"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/is.js",
+        "sha256": "ead5b14eac892229f915fe38ec94ab3b1e676f8aa2df2a8450848ba9ca9a1612"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/it.cjs",
+        "sha256": "33e6f0aba45c46bd81e66805e645a130cbc769809016f6757ef6094aac8e7ee7"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/it.js",
+        "sha256": "439969d199427d77ebf1e477bf2295b226712804b25437d442f9dfc78aca95e0"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ja.cjs",
+        "sha256": "fc485198da07908fdf412e23150d1a1e2977467aaa524cb506fe66b830bdd720"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ja.js",
+        "sha256": "43ee10378cac22b0b8aee912a66c3f36a834d5b4c76e9748f88a784044f248fd"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ka.cjs",
+        "sha256": "10538e9be2923eb155b8a876053dbb0eaaa555d5e93927d9e50e90421d366a21"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ka.js",
+        "sha256": "0ab5322368f9ac6e6b58f93dac484a4f4f06cdf4c0677f4df88164e9d8b4bf81"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/kh.cjs",
+        "sha256": "5a5f3a63e4e97a25b44692b0910f73cf15e54fc5b03c61f9d87e2a9eb6e2a098"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/kh.js",
+        "sha256": "78c3d1991041bb8c8fc0f7c5d745aae422d4c2e4e8f30bae44f3fef4765900a8"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/km.cjs",
+        "sha256": "e448be8e315d2c722875690058ac56eaa85144b085021e865f66d3a3166dec56"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/km.js",
+        "sha256": "dbdabda94dd93d4a1827e6c809505c79fa6aa7abefec91dc50fa0871382c99cc"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ko.cjs",
+        "sha256": "db9ce154ae9778fa7785417230f4bb6aaa6ebc201eadf4bba1390e1a8cf64ae0"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ko.js",
+        "sha256": "d2efe22ac069d9b32b0109fa07713ac0695ac1c1357afc4e4277056466f2e196"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/lt.cjs",
+        "sha256": "1bafea36bf6890030fa71df69c2666243c13fb66399cd5c94f346a7e18d03176"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/lt.js",
+        "sha256": "dad886e52c56a1329d22e072f8b08dc8730f69c3dc5e5acf8267cac18df1ab28"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/mk.cjs",
+        "sha256": "5db40799c29ac29a7c89e4b14d3b08938266b580ec1a845978f7b97861095fce"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/mk.js",
+        "sha256": "9eb4af0392fc5b9c438cdc6ceea446acc541b59e221dba918f7b80800d9da3d1"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ms.cjs",
+        "sha256": "9b21835c0e797a98b44b9d7869c899c69adf0532fa6979b300a4f0ddfac90dc1"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ms.js",
+        "sha256": "c550a9185d997e8fcd17311951aa1e29793a50b8e825e18310efd5a46c641795"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/nl.cjs",
+        "sha256": "3018bb81ec0b95bf05ca997f68e393ebd0403b7434c1b7ec435ff7b21c64ee70"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/nl.js",
+        "sha256": "acba414579c5bbd7f83dc6661fa1a12d65f1822f9b0f5035549ac60f46d93763"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/no.cjs",
+        "sha256": "f4ffc6925e0ff009fc253e52c7bf1195b41e0141359d86822930f89ee416135e"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/no.js",
+        "sha256": "1854483c7cf158b8f97f0faf6fd799eb1f762009018b5fde893ca33f2fb0b313"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ota.cjs",
+        "sha256": "2cf89b0f9e8ec15010282e0cd33ab44b69f38f6e2bd7a67e4c909fd7f303f23c"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ota.js",
+        "sha256": "34ae496104bc17fea7d30c3d45c94cfe3d1d569b5d39a6ca51de6c177690c556"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/pl.cjs",
+        "sha256": "013076bb5458e33e21bb3486537fa819b4d55a960a17c125afab9878fe734969"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/pl.js",
+        "sha256": "18eab58f395e30b906e8e3fddc5f212eb19f2c4362410889a5c5e0141ebe2144"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ps.cjs",
+        "sha256": "d2bd29c361f664127599e66cfacb2ce63005a557d58293100d408ac045f032d7"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ps.js",
+        "sha256": "f977b5141fa8fb6a8459372e0b2895d74b381c9f2ff4899141f7ee3e639a4513"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/pt.cjs",
+        "sha256": "27c2005bd63e25301f277b1a326bd64d1c4af5d7714760ac07f8460f835a11bc"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/pt.js",
+        "sha256": "df172afc585544dee7c063c484f5a07b5ed103e2c1072a782c763ad8ceb08e17"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ro.cjs",
+        "sha256": "357dbb8e5be59fcf39b1ad57021ea9a4115187dde340a2d6b5f0bc5f604a7e30"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ro.js",
+        "sha256": "ecae409f4299ab91e2aff1095db14e23f3cf2c05b3654e242047655352c7f46b"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ru.cjs",
+        "sha256": "d3bb2d4f2a62569f7b48aee4c06283b55bc9cc9fa7a0fd4c3adf740d9bc149e6"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ru.js",
+        "sha256": "c397a473e94d7d189a9c09c7890fe379c4f6f46d9556d52a040a90ffa56f7b93"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/sl.cjs",
+        "sha256": "a596863bd1e2fbbf15d8a8a65d0d7491896c57c0a286ba3b3a24a8f35ad3dc57"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/sl.js",
+        "sha256": "ee2ff3a19b62cd2f89b54b165088773b937de15df7253df220bef07d9adf2d80"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/sv.cjs",
+        "sha256": "8d3e57e9e9c316b13685195391d32914c3bfaf33bb1279983c0ebc65ec44c6a8"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/sv.js",
+        "sha256": "97d6718fb643e05d6fe30fa4f9f09b8d9a3eda4a3a350b57dfb2944943d19502"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ta.cjs",
+        "sha256": "8f66c3ade923ffc374efefa326cfbc4fbb8d3ab40a811088e3382e495974322a"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ta.js",
+        "sha256": "04bbde9766251f9047e786fdd77632f2ecd53aec2eb060eb2fc85bf576ad729d"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/th.cjs",
+        "sha256": "f142afb29f948d8ae28f0ac7ec6a14b5afe662ea6974b9eb76c4d4a61143b7ba"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/th.js",
+        "sha256": "aea70c9ac2b399fe4749e19ba3aa99c3efb4dfb50eadfb62b0b2a6e005748f3d"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/tr.cjs",
+        "sha256": "a7bc91118509dbd965268972c67703fe0a0e628c768a16a8104bc118e134fda9"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/tr.js",
+        "sha256": "4449f41d22c6f15ede5066f79d840a52ec45a6b694c859e16f9121062b6fad2f"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ua.cjs",
+        "sha256": "0565126e33d30fd26046fd5399fe6293e8827fa846c3a7ff414e4e63acbfbf0a"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ua.js",
+        "sha256": "9391169ffbc72f777a83230b6ffcc3f4cf46ab5945ec540de9ef4609dca1f4cc"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/uk.cjs",
+        "sha256": "2f3b10a8255f54a28fa31c1783c86e1fc1744370c5b5cddee02ba476e0ecc406"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/uk.js",
+        "sha256": "77136a2a60eef62f7cc803a0f9971aebbc641403af77c1b41fd5ce59abfa5de3"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ur.cjs",
+        "sha256": "822f8dfde3eaa1d5962cc4b606e69bff750ffbe3bf5f4927a61d79c22ddd1644"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/ur.js",
+        "sha256": "858f4f38d651073e7a3fbec7ed356692578b3ad1fae1b453cb3d85312a4f39d2"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/uz.cjs",
+        "sha256": "f0ea1420cb678cc1048915ccae38334a3c06d4f8e02a3b6ae8a38fffbe6c41b2"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/uz.js",
+        "sha256": "d540bed482d15c47cb45439cff34e053379c53019c7c7c5fbe43f222d0c81f04"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/vi.cjs",
+        "sha256": "f3ccad01b00f0501e6e0b332a8d9f36a49b717b7d9439fc8d1cf23188f2ed245"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/vi.js",
+        "sha256": "2c61bd3f4a733f3cbb1ad85e75a053cb15a8ebeb83ab56dc21f2948b1138e12f"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/yo.cjs",
+        "sha256": "f4ea0b4741b203f344fbcd3e6ef6d2960096139ad93fdb9e98d01bef6978ddb8"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/yo.js",
+        "sha256": "98b9cbf31bf00c8b2c00de62725a9dd7cb718ac72d6e8fd4e0a1a7c49723e0f4"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/zh-CN.cjs",
+        "sha256": "3a2a1f8914fec65cc60f66611758db1e0d205797a54b2ea67767808861211f2d"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/zh-CN.js",
+        "sha256": "99a4b16af598834a0b11607fcdebd1c6de026386ff1d6a5a306b364c154c5899"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/zh-TW.cjs",
+        "sha256": "e534adb851ef96b0678bfa755a4d4440453245fcc8137f801500cbe05e47d491"
+      },
+      {
+        "file": "node_modules/zod/v4/locales/zh-TW.js",
+        "sha256": "37dcae620e1553e9174a4b9434bbcc4e465150a627e80c9c17fd01de8baaf59a"
+      },
+      {
+        "file": "src/analyze/budget.ts",
+        "sha256": "bf15260e3a4420bc16e223bd7958c32de6e2d8a61a5c53683143d18efe727f3a"
+      },
+      {
+        "file": "src/analyze/deckRoles.ts",
+        "sha256": "b86eadcdc4485cffa5dcde54e4662b01caffa56fbb3e9dd733e0ca9f2c40c2b0"
+      },
+      {
+        "file": "src/analyze/index.ts",
+        "sha256": "dcd5f018d055b5f901b4f2164acc6fcdce42af527702cf240304c2cc851503df"
+      },
+      {
+        "file": "src/analyze/mana.ts",
+        "sha256": "8edf5aebc8ae4bad827bd9480383ae0ff932e5e9234b7f3d33e94900400497a2"
+      },
+      {
+        "file": "src/analyze/roles.ts",
+        "sha256": "9fad9ea3c1523c2dc2a41f40eaec6c4389e933440fcca87dd7d3a4d645015560"
+      },
+      {
+        "file": "src/analyze/sim.ts",
+        "sha256": "cad7af2302a392627357abe0786b6ab41260bded17f3cecc3d5826c3c68ec673"
+      },
+      {
+        "file": "src/analyze/stats.ts",
+        "sha256": "1443cef30bf22b287322272c771472df7488ab4e7087ba3a828f7fb832c08aef"
+      },
+      {
+        "file": "src/collection/collectionStore.ts",
+        "sha256": "78d91a5c054182bbe06d9c3e4130d1c9b7fe620812a284ecd2782cf8e6c10597"
+      },
+      {
+        "file": "src/collection/index.ts",
+        "sha256": "72e13bd805f68be8755381d331caaf2ddb4d60f04088ec046758755afd26a2fa"
+      },
+      {
+        "file": "src/deck/deckStore.ts",
+        "sha256": "d08d6f5678d6ff0330f45f35da19dd9aa2215510210ccdb23bbfee69b13ee478"
+      },
+      {
+        "file": "src/deck/decklist.ts",
+        "sha256": "e2319b880942664fc2b4cc65221efc593f1a7dbd6d0d9aa93e05b507312d2995"
+      },
+      {
+        "file": "src/deck/diff.ts",
+        "sha256": "d5c5f62efc5d944a3c057cc5e53b0eec9a972376fed61bb4468786f5cdbfc9de"
+      },
+      {
+        "file": "src/deck/index.ts",
+        "sha256": "3a077d467f830c090be025b1a9c01f831434fb4d31798fc0675a9c42a3c38708"
+      },
+      {
+        "file": "src/deck/persistence.ts",
+        "sha256": "a5e61e2712d0cb3ad039575a9b83c174da6a8118a248a4a49a1532a6271ba28c"
+      },
+      {
+        "file": "src/index/cardIndex.ts",
+        "sha256": "77ba5964fbf5573f77fa4d4f8bc9f46eab9c4f115acf4f757d1ff638c4381041"
+      },
+      {
+        "file": "src/index/fallback.ts",
+        "sha256": "f96afafac8cd7ae48dd273b519822247f1f867e3b44442d9e61b95f0ef192de9"
+      },
+      {
+        "file": "src/index/freshness.ts",
+        "sha256": "943bde9fc8823a80c9a89f50f1d81561c5e0fc5e853f3c763d99755983a717d4"
+      },
+      {
+        "file": "src/index/index.ts",
+        "sha256": "f82795732388a0eb734a9684637daa7698dc67fdecf6c624752c4b2a34a0b435"
+      },
+      {
+        "file": "src/index/map.ts",
+        "sha256": "c343dde6ba087d958b7a640032bef0cc927bbf49c01987a6fbb8489feae73e91"
+      },
+      {
+        "file": "src/index/queryEval.ts",
+        "sha256": "3b48e17df9310d503d69b953bd2692858eca0eb5ae19db1230f9e2ae92165791"
+      },
+      {
+        "file": "src/index/refresh.ts",
+        "sha256": "8a6a12b5c079d88cdbfa10633f1b9326b6603f9f983dc8b7bc14ccee34b9fffc"
+      },
+      {
+        "file": "src/index/schema.ts",
+        "sha256": "47811e76e42d49631daa79f9ba0e56579f60388131a96e7a2ea6c41bb29e868d"
+      },
+      {
+        "file": "src/ingest/index.ts",
+        "sha256": "1a40bdec3b519503095b869f7b922ebb1b35e0588a13a87a13e460afd49622ef"
+      },
+      {
+        "file": "src/ingest/ingest.ts",
+        "sha256": "e221282ace0b2878520080aee93a7b70285b035f25040ba233dd40486bb40d99"
+      },
+      {
+        "file": "src/ingest/live.ts",
+        "sha256": "d2f0f601fd224b1a69fc0945ba438e4252dd5202915c50efde95f94902ca3bef"
+      },
+      {
+        "file": "src/ingest/scryfall.ts",
+        "sha256": "af33f3c5d11da11cd6d1e76f2677587cd2392700930b28068ceb5934afb0b5fb"
+      },
+      {
+        "file": "src/ingest/store.ts",
+        "sha256": "37be10ae3793fd6896c864e6d66d4e289df3de159cff7317807f8431df1edba0"
+      },
+      {
+        "file": "src/ingest/stream.ts",
+        "sha256": "487c376260a0da0d9e69b39f36cdc946a0445a55b5d436dd4833431af14dd849"
+      },
+      {
+        "file": "src/ingest/throttle.ts",
+        "sha256": "4ce674fe4f1119f138545ac856918dfad93c83149cf56ff4678c4c6592cefbeb"
+      },
+      {
+        "file": "src/meta/bracket.ts",
+        "sha256": "2f845e2d80008c2005ae86a5193a65b55462afd477e8509fe3a3cbe29b0e3e95"
+      },
+      {
+        "file": "src/meta/cache.ts",
+        "sha256": "2a2d89bb76808daeedd14368a65bac8b7efb05eb89594ec8b8c2d486628c9809"
+      },
+      {
+        "file": "src/meta/edhrec.ts",
+        "sha256": "7c964c9ffe1d17e59002d5a9725e4354942a4f7dfd01da08d4efbeeebbc495ad"
+      },
+      {
+        "file": "src/meta/index.ts",
+        "sha256": "c8c5a0093105c55d57e9643d3060d4d2c2c5499918333adda7251d39db1c6c88"
+      },
+      {
+        "file": "src/meta/spellbook.ts",
+        "sha256": "3d56efdd82ec8776343f71859334bbb89357bbba0ee6a07d26c30755768c7763"
+      },
+      {
+        "file": "src/query/index.ts",
+        "sha256": "df0c7c6be112506a1e344e79a0df326c5fa259f55be4afef600f457587257a7c"
+      },
+      {
+        "file": "src/query/lexer.ts",
+        "sha256": "a16f55a722437864cd904630190f7c53af42d90fe9ba578c44b0f2e81b9f4a74"
+      },
+      {
+        "file": "src/query/parser.ts",
+        "sha256": "f49ae6574814d390c21d42f9b5fc87241a85b6054897aa94b3c470650e21dcfc"
+      },
+      {
+        "file": "src/server/analyzeTools.ts",
+        "sha256": "fb2718cb8b3c203cf329cc0e5f56eead7447fa1656ee3c0ef383ecf755b0db26"
+      },
+      {
+        "file": "src/server/cardTools.ts",
+        "sha256": "17352b1ae50c0ec660de5e40e16dbed724db9881f7147ba931722b4216e47f80"
+      },
+      {
+        "file": "src/server/collectionTools.ts",
+        "sha256": "ba03371290cb75658820fb1d170c9cf84d510b67a039e7c63eb59732b003560a"
+      },
+      {
+        "file": "src/server/createServer.ts",
+        "sha256": "2045c142c25cd0eceb24e8a417419c931c62b7a5c4de63578dddd78c0027371b"
+      },
+      {
+        "file": "src/server/dataTools.ts",
+        "sha256": "7a1d7737c67dc09b3514b5cf27689bf8c5f1d1e93b420e0ce16656d55a7de531"
+      },
+      {
+        "file": "src/server/deckTools.ts",
+        "sha256": "d0ee880db5a29275510e822d1d9e19934362b2528ff7c129f84d878bbb6fd7e5"
+      },
+      {
+        "file": "src/server/hostEvaluation.fixture.ts",
+        "sha256": "d7755b8acb8a6f4740e210c4255f3d9cfd94bb3f7a120ef4239c67b0a2af4937"
+      },
+      {
+        "file": "src/server/metaTools.ts",
+        "sha256": "d98e0817b23ffd82296816b4180a75ff7207a3643f77b73723c6b3e2468ec314"
+      },
+      {
+        "file": "src/server/prompts.ts",
+        "sha256": "fe7aa53749c294faf4cc8b95424ba46f472b30ab712049e9447591c207c96bd0"
+      },
+      {
+        "file": "src/server/registry.ts",
+        "sha256": "0425e817857eb6a481c31f43eeaad40628fdb23a179f3cda925968dbc1f51717"
+      },
+      {
+        "file": "src/server/resolve.ts",
+        "sha256": "7e70243c78591305aac183a13d46620328b928a252b566850de2ec23987895dc"
+      },
+      {
+        "file": "src/server/resources.ts",
+        "sha256": "599112bbfd66054f59742d059a79d464bef6be990aa69690ed963464b0731c41"
+      },
+      {
+        "file": "src/server/snapshot.ts",
+        "sha256": "387d126d236b3a931482f570715dc8dfc5f7b1bbb6e3f6e77b18619c03c1ed0b"
+      },
+      {
+        "file": "src/server/tools.ts",
+        "sha256": "eff0ae0a3d78fcd87543a38e70da65ec278b417ec617c86873328f19a3383590"
+      },
+      {
+        "file": "src/server/validateTools.ts",
+        "sha256": "04764b961df8d51ebcfc03d3e0d724d1a37389b0c82e4dabae29d1a95ef2c681"
+      },
+      {
+        "file": "src/server/vitals.ts",
+        "sha256": "346a48fefb59ffe0cb9329a06f9892a2e6286a202ea151c8fd6b03e1ef0039d7"
+      },
+      {
+        "file": "src/server/workflowMetrics.ts",
+        "sha256": "997061af254ac9eebba4d40c5a80fa80786ce279c81a259a755727276a3317ab"
+      },
+      {
+        "file": "src/server/workflowScenarios.ts",
+        "sha256": "0b840050b7010bb3220b20365b7722b6c623b008189ff9355947ef53fc3492cf"
+      },
+      {
+        "file": "src/types/card.ts",
+        "sha256": "b9b270716118f8cd286bfc7cb9e2687cc78b18dec64d52a8c507a51472d158cd"
+      },
+      {
+        "file": "src/types/color.ts",
+        "sha256": "76e9112b81ddc8cd33055f62c6522e110e2a7d32ca0b2d97a5db411a5a6be536"
+      },
+      {
+        "file": "src/types/deck.ts",
+        "sha256": "dff528c66c611272f9c2769c0c56b2c499da30560784dbff3115678d8f30761d"
+      },
+      {
+        "file": "src/types/errors.ts",
+        "sha256": "d25b037df84230f0dff3891986c2d0281f238e46687890f9f7525c6fa4a5f239"
+      },
+      {
+        "file": "src/types/index.ts",
+        "sha256": "efc0b8db92a25ce3f74d633f7dfe689bfb1ba45c941fe3acc7768982b4238e6a"
+      },
+      {
+        "file": "src/types/userAgent.ts",
+        "sha256": "926574d9b55c8c74d68564fc09dde0423018a160d7deade10d72f221bfddeea9"
+      },
+      {
+        "file": "src/types/violation.ts",
+        "sha256": "f6a876e17154b18e355dada176618dd3189dc2ef5fa81eedc493a8dcecadea52"
+      },
+      {
+        "file": "src/validate/commanderRules.ts",
+        "sha256": "deaa5bc7e5ee9ec0a4f42a17e48aa0ce64f6c0e19f0e87e74b3e76dda6092fc1"
+      },
+      {
+        "file": "src/validate/companionRules.ts",
+        "sha256": "aec83a0069ef7a839fd6c68095b7e38898b0c6c1b24ed22122421cff0ed4cfa4"
+      },
+      {
+        "file": "src/validate/coreRules.ts",
+        "sha256": "1d00abf9f677281b3b7e946b67e600927ef9a4f5e038b63837d1202769c4939b"
+      },
+      {
+        "file": "src/validate/index.ts",
+        "sha256": "a0b68b6d510760d8b1ffdd80e4563a98efd7e5e5b042bbc88a350def6b98fee3"
+      }
+    ],
+    "adapter_sha256": "d7755b8acb8a6f4740e210c4255f3d9cfd94bb3f7a120ef4239c67b0a2af4937",
+    "runner_sha256": "d5d5c29ebbf35d376229ffa79fbd1fa8f24de83104d076f5052e84d9c05ef9dc",
+    "server_bundle_sha256": "e5eb35911e2066c18b490ff66aa3b7fc3a25888dea0b29c0b7ae8d987d5287b2",
+    "grader_bundle_sha256": "df0e439b7ba98852be4e0e2dccc4ebff84bc5279aedfe3956f8f8bf08cfb2e22",
+    "node": "v24.14.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "results": [
+    {
+      "scenario": "budget-build",
+      "original_prompt": "Build a legal 100-card Krenko deck for at most $100, using my owned Sol Ring and Goblin Matron.",
+      "prompt_sha256": "e1da5cb55718f02c713272803b34e3499ecc32a624fddcc4728b73e4f2c0a06d",
+      "host": "codex",
+      "host_version": "codex-cli 0.153.4",
+      "requested_model": "gpt-6-astra",
+      "observed_model": null,
+      "model_identity_source": "explicit_CLI_selection_no_resolved_revision_event",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "timed_out": false,
+      "spawn_error": null,
+      "host_completed": true,
+      "protocol_version": "2025-06-18",
+      "server_info": {
+        "name": "mtg-edh-mcp",
+        "version": "0.2.0"
+      },
+      "workflow_version": "1",
+      "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+      "metrics": {
+        "tool_calls": 8,
+        "invalid_calls": 0,
+        "partial_failure_calls": 0,
+        "tool_errors": 0,
+        "rpc_errors": 0,
+        "expected_errors": 0,
+        "response_bytes": 10980,
+        "elapsed_ms": 34480.947167,
+        "tool_elapsed_ms": 21.89254300000539,
+        "unanswered_tool_calls": 0,
+        "token_counts": {
+          "input_tokens": 126796,
+          "cached_input_tokens": 109568,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 583,
+          "reasoning_output_tokens": 0
+        },
+        "token_source": "host_reported"
+      },
+      "grade": {
+        "passed": true,
+        "checks": [
+          {
+            "id": "fixture_identity",
+            "passed": true,
+            "detail": "Scenario and immutable fixture provenance match"
+          },
+          {
+            "id": "one_deck",
+            "passed": true,
+            "detail": "Observed 1 final decks"
+          },
+          {
+            "id": "legal_100_cards_including_commander",
+            "passed": true,
+            "detail": "Independent fixture count 100; commander wf-krenko"
+          },
+          {
+            "id": "validation_observed",
+            "passed": true,
+            "detail": "Host requested successful rules validation of the final deck state"
+          },
+          {
+            "id": "full_price_at_most_100_usd",
+            "passed": true,
+            "detail": "Commander-inclusive fixture price $92.85"
+          },
+          {
+            "id": "owned_cards_used",
+            "passed": true,
+            "detail": "Owned Sol Ring and Goblin Matron remain in collection and deck"
+          },
+          {
+            "id": "requested_prospector_used",
+            "passed": true,
+            "detail": "The explicitly requested Skirk Prospector is in the final deck"
+          },
+          {
+            "id": "collection_budget_observed",
+            "passed": true,
+            "detail": "Host observed collection-aware acquisition reduction"
+          },
+          {
+            "id": "export_observed",
+            "passed": true,
+            "detail": "Host requested the finished library export"
+          }
+        ]
+      },
+      "prohibited_host_events": 0,
+      "agent_task_success": true
+    },
+    {
+      "scenario": "import-tune",
+      "original_prompt": "Import my Krenko list, replace the expensive mana rock, and show the exact change and export.",
+      "prompt_sha256": "5d4bafc6ce8a0b5d5cd61777d470de8661f3ba16126b2d7c3c427b147dd9579e",
+      "host": "codex",
+      "host_version": "codex-cli 0.153.4",
+      "requested_model": "gpt-6-astra",
+      "observed_model": null,
+      "model_identity_source": "explicit_CLI_selection_no_resolved_revision_event",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "timed_out": false,
+      "spawn_error": null,
+      "host_completed": true,
+      "protocol_version": "2025-06-18",
+      "server_info": {
+        "name": "mtg-edh-mcp",
+        "version": "0.2.0"
+      },
+      "workflow_version": "1",
+      "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+      "metrics": {
+        "tool_calls": 11,
+        "invalid_calls": 1,
+        "partial_failure_calls": 0,
+        "tool_errors": 1,
+        "rpc_errors": 0,
+        "expected_errors": 0,
+        "response_bytes": 8404,
+        "elapsed_ms": 42635.229583,
+        "tool_elapsed_ms": 13.55750199999784,
+        "unanswered_tool_calls": 0,
+        "token_counts": {
+          "input_tokens": 167907,
+          "cached_input_tokens": 150912,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 673,
+          "reasoning_output_tokens": 0
+        },
+        "token_source": "host_reported"
+      },
+      "grade": {
+        "passed": true,
+        "checks": [
+          {
+            "id": "fixture_identity",
+            "passed": true,
+            "detail": "Scenario and immutable fixture provenance match"
+          },
+          {
+            "id": "one_deck",
+            "passed": true,
+            "detail": "Observed 1 final decks"
+          },
+          {
+            "id": "legal_100_cards_including_commander",
+            "passed": true,
+            "detail": "Independent fixture count 100; commander wf-krenko"
+          },
+          {
+            "id": "validation_observed",
+            "passed": true,
+            "detail": "Host requested successful rules validation of the final deck state"
+          },
+          {
+            "id": "original_import_observed",
+            "passed": true,
+            "detail": "Original imported state contains Sol Ring, Goblin Matron, and 97 Mountain"
+          },
+          {
+            "id": "exact_swap",
+            "passed": true,
+            "detail": "Final library replaces only Sol Ring with Arcane Signet"
+          },
+          {
+            "id": "original_snapshot_retained",
+            "passed": true,
+            "detail": "Original imported library is retained in a snapshot"
+          },
+          {
+            "id": "diff_observed",
+            "passed": true,
+            "detail": "Host requested the exact snapshot diff"
+          },
+          {
+            "id": "export_observed",
+            "passed": true,
+            "detail": "Export reports the actual replacement library"
+          }
+        ]
+      },
+      "prohibited_host_events": 0,
+      "agent_task_success": true
+    },
+    {
+      "scenario": "acquisition-reduction",
+      "original_prompt": "Reduce the cost to acquire this Krenko deck while retaining my owned Goblin Matron and a legal 100 cards.",
+      "prompt_sha256": "5c6db623860c552dff9be0c8ad4269558234bfac4ffbe799a78273c027335ed2",
+      "host": "codex",
+      "host_version": "codex-cli 0.153.4",
+      "requested_model": "gpt-6-astra",
+      "observed_model": null,
+      "model_identity_source": "explicit_CLI_selection_no_resolved_revision_event",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "timed_out": false,
+      "spawn_error": null,
+      "host_completed": true,
+      "protocol_version": "2025-06-18",
+      "server_info": {
+        "name": "mtg-edh-mcp",
+        "version": "0.2.0"
+      },
+      "workflow_version": "1",
+      "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+      "metrics": {
+        "tool_calls": 15,
+        "invalid_calls": 1,
+        "partial_failure_calls": 0,
+        "tool_errors": 1,
+        "rpc_errors": 0,
+        "expected_errors": 0,
+        "response_bytes": 14294,
+        "elapsed_ms": 50448.464374999996,
+        "tool_elapsed_ms": 50.16241700000319,
+        "unanswered_tool_calls": 0,
+        "token_counts": {
+          "input_tokens": 217023,
+          "cached_input_tokens": 197760,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 912,
+          "reasoning_output_tokens": 12
+        },
+        "token_source": "host_reported"
+      },
+      "grade": {
+        "passed": true,
+        "checks": [
+          {
+            "id": "fixture_identity",
+            "passed": true,
+            "detail": "Scenario and immutable fixture provenance match"
+          },
+          {
+            "id": "one_deck",
+            "passed": true,
+            "detail": "Observed 1 final decks"
+          },
+          {
+            "id": "legal_100_cards_including_commander",
+            "passed": true,
+            "detail": "Independent fixture count 100; commander wf-krenko"
+          },
+          {
+            "id": "validation_observed",
+            "passed": true,
+            "detail": "Host requested successful rules validation of the final deck state"
+          },
+          {
+            "id": "original_import_observed",
+            "passed": true,
+            "detail": "Original imported state contains Sol Ring, Goblin Matron, and 97 Mountain"
+          },
+          {
+            "id": "exact_swap",
+            "passed": true,
+            "detail": "Final library replaces only Sol Ring with Arcane Signet"
+          },
+          {
+            "id": "owned_card_retained",
+            "passed": true,
+            "detail": "Owned Goblin Matron is preserved"
+          },
+          {
+            "id": "acquisition_reduced_by_79_usd",
+            "passed": true,
+            "detail": "Observed owned-aware acquisition cost $89.70 → $10.70"
+          }
+        ]
+      },
+      "prohibited_host_events": 0,
+      "agent_task_success": true
+    },
+    {
+      "scenario": "error-recovery",
+      "original_prompt": "Use Krenko as commander; recover from an ambiguous name and unavailable EDHREC using local cards, then retry recommendations.",
+      "prompt_sha256": "4c3ec61030bc3f969122acdde4d0b93e55497210ae2646211458c8bd808f1ba3",
+      "host": "codex",
+      "host_version": "codex-cli 0.153.4",
+      "requested_model": "gpt-6-astra",
+      "observed_model": null,
+      "model_identity_source": "explicit_CLI_selection_no_resolved_revision_event",
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "timed_out": false,
+      "spawn_error": null,
+      "host_completed": true,
+      "protocol_version": "2025-06-18",
+      "server_info": {
+        "name": "mtg-edh-mcp",
+        "version": "0.2.0"
+      },
+      "workflow_version": "1",
+      "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+      "metrics": {
+        "tool_calls": 9,
+        "invalid_calls": 1,
+        "partial_failure_calls": 0,
+        "tool_errors": 2,
+        "rpc_errors": 0,
+        "expected_errors": 2,
+        "response_bytes": 10121,
+        "elapsed_ms": 42822.500958000004,
+        "tool_elapsed_ms": 27.50962500001151,
+        "unanswered_tool_calls": 0,
+        "token_counts": {
+          "input_tokens": 232910,
+          "cached_input_tokens": 215040,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 569,
+          "reasoning_output_tokens": 0
+        },
+        "token_source": "host_reported"
+      },
+      "grade": {
+        "passed": true,
+        "checks": [
+          {
+            "id": "fixture_identity",
+            "passed": true,
+            "detail": "Scenario and immutable fixture provenance match"
+          },
+          {
+            "id": "one_deck",
+            "passed": true,
+            "detail": "Observed 1 final decks"
+          },
+          {
+            "id": "legal_100_cards_including_commander",
+            "passed": true,
+            "detail": "Independent fixture count 100; commander wf-krenko"
+          },
+          {
+            "id": "validation_observed",
+            "passed": true,
+            "detail": "Host requested successful rules validation of the final deck state"
+          },
+          {
+            "id": "exact_recovery_library",
+            "passed": true,
+            "detail": "Final library contains exactly 98 Mountain and the requested Skirk Prospector"
+          },
+          {
+            "id": "ambiguous_name_recovered",
+            "passed": true,
+            "detail": "Host explicitly corrected the ambiguous commander"
+          },
+          {
+            "id": "failed_calls_preserve_state",
+            "passed": true,
+            "detail": "Observed failed calls leave deck/snapshot/collection state unchanged"
+          },
+          {
+            "id": "outage_local_fallback_then_retry",
+            "passed": true,
+            "detail": "Cold upstream failure is followed by local search/add and a successful upstream retry"
+          },
+          {
+            "id": "successful_recommendations_preserve_state",
+            "passed": true,
+            "detail": "Successful recommendations leave deck/snapshot/collection state unchanged"
+          }
+        ]
+      },
+      "prohibited_host_events": 0,
+      "agent_task_success": true
+    }
+  ],
+  "limitations": [
+    "One observation per host/scenario/revision; no statistical performance or strategic quality claim.",
+    "Same synthetic data and explicit fixture task context across revisions; no live upstream or real collection data.",
+    "Model tokens are host-reported cumulative usage with host-specific cache semantics; bytes are not tokens.",
+    "Temporary build and host working directory retained for diagnosis: /var/folders/ml/51b226t50rxf09jwljnq7tn00000gn/T/mtg-host-eval-7faCr0"
+  ]
+}

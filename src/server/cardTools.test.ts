@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -140,6 +141,25 @@ describe("card tools registration", () => {
 });
 
 describe("card_search", () => {
+  it("accepts ci identity subsets with the same indexed results as id", async () => {
+    const canonical = await client.callTool({
+      name: "card_search",
+      arguments: { query: "id<=g" },
+    });
+    const alias = await client.callTool({
+      name: "card_search",
+      arguments: { query: "ci<=g" },
+    });
+    expect(alias.isError).not.toBe(true);
+    expect(alias.structuredContent).toEqual(canonical.structuredContent);
+    const body = alias.structuredContent as { results: Array<{ oracle_id: string }> };
+    expect(body.results.map((card) => card.oracle_id).sort()).toEqual([
+      "o-llan",
+      "o-llanv",
+      "o-sol",
+    ]);
+  });
+
   it("returns CardRefs with totals and a stamped data_snapshot", async () => {
     const res = await client.callTool({
       name: "card_search",
@@ -166,6 +186,11 @@ describe("card_search", () => {
     const details = (res.structuredContent as { details?: { examples?: string[] } }).details;
     expect(details?.examples?.length).toBeGreaterThanOrEqual(3);
     expect(details?.examples?.[0]).toContain("t:instant");
+    assert(details?.examples);
+    for (const query of details.examples) {
+      const example = await client.callTool({ name: "card_search", arguments: { query } });
+      expect(example.isError, `Published recovery example: ${query}`).not.toBe(true);
+    }
   });
 });
 

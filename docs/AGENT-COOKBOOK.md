@@ -123,7 +123,7 @@ card_get {"cards":["Sol Ring","Arcane Signet"],"compact":true}
 ```
 
 The query language supports text (`o:`, `t:`, `kw:`), comparisons (`mv<=3`,
-`usd<5`), color identity (`id<=wubg`), printing predicates (`set:`, `rarity:`,
+`usd<5`), color identity (`id<=wubg`, also `ci<=wubg`), printing predicates (`set:`, `rarity:`,
 `year`), boolean grouping, negation, `is:commander`, and `is:gamechanger`.
 It is a subset of Scryfall syntax. Pass sorting as `order`, for example
 `{"query":"t:land id<=wubg","order":"price","limit":25}`.

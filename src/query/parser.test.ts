@@ -44,6 +44,18 @@ describe("parseQuery — operator families", () => {
     expect(parseQuery("c:r")).toEqual({ kind: "color", field: "color", op: "=", colors: "r" });
   });
 
+  it.each([
+    ["ci<=GRG", "<=", "rg"],
+    ["CI:wu", "=", "wu"],
+    ["ci>=r", ">=", "r"],
+    ["ci!=c", "!=", "c"],
+    ["ci<g", "<", "g"],
+    ["ci>u", ">", "u"],
+    ["ci=rg", "=", "rg"],
+  ])("parses the advertised color-identity alias %s", (query, op, colors) => {
+    expect(parseQuery(query)).toEqual({ kind: "color", field: "identity", op, colors });
+  });
+
   it("is: and kw:", () => {
     expect(parseQuery("is:commander")).toEqual({ kind: "is", value: "commander" });
     expect(parseQuery("kw:flying")).toEqual({ kind: "text", field: "keyword", value: "flying" });

@@ -212,8 +212,9 @@ is rejected rather than opening a stream that cannot receive updates.
 SDK client authors must [opt into modern negotiation](https://ts.sdk.modelcontextprotocol.io/v2/protocol-versions.html),
 using automatic negotiation or a 2026-07-28 pin. Merely upgrading the SDK retains
 its legacy default. The server selects the protocol from the client's opening
-exchange. Protocol tests are automated; separate model-driven host evaluation
-remains a release acceptance step.
+exchange. Protocol tests are automated. Separate [model-driven evaluations](./evaluation/README.md#real-host-comparison)
+record actual Claude Code and Codex CLI workflows, including failures and pinned
+synthetic-data limits. They do not establish strategic deck quality.
 
 ## Updates and storage
 

@@ -30,6 +30,7 @@ knowledge, durable state, and checks to make those choices reviewable.
 
 **Start here:** [Installation](./docs/INSTALL.md) ·
 [Agent cookbook](./docs/AGENT-COOKBOOK.md) ·
+[Workflow evidence](./docs/evaluation/README.md) ·
 [Contributing](./CONTRIBUTING.md) · [Security](./SECURITY.md)
 
 ## Quick start

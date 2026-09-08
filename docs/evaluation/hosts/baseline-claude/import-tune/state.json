@@ -1,0 +1,11 @@
+{
+  "scenario": "import-tune",
+  "workflow_version": "1",
+  "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+  "deck_store": {
+    "decks": [],
+    "snapshots": []
+  },
+  "collection": [],
+  "edhrec_requests": 0
+}

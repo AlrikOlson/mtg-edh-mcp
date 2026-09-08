@@ -1,0 +1,9 @@
+This is an isolated Commander MCP evaluation, not a coding task. Use only the mtg MCP server. Do not read files, execute code/shell, browse, modify a repository, use skills, or delegate. All data and prices are synthetic pinned fixtures, not current market data. There are only seven fixture cards; padding with basic lands is intentional and authorized. Complete the requested deck task autonomously using the tools, then give the deck ID, evidence and any failures. Do not claim strategic deck quality.
+
+Import my Krenko list, replace the expensive mana rock, and show the exact change and export.
+
+Fixture task inputs: Commander: Krenko, Mob Boss. The input library is:
+1 Sol Ring
+1 Goblin Matron
+97 Mountain
+Import it into a new deck, keep an original snapshot, replace Sol Ring with a cheaper mana-producing artifact, preserve all other cards, validate, show the snapshot diff and export.

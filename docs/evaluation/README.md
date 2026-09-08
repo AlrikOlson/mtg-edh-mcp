@@ -116,19 +116,148 @@ comparison; a newly captured file is not automatic approval to relax a gate.
 The original baseline was bootstrapped once with this output mechanism before
 production changes, and remains a historical observation.
 
-## Real host evaluation remains open
+## Real host comparison
 
-The parent v0.3 reliability release still requires model-driven runs through
-at least two real MCP hosts. Neither host run was performed in this baseline
-chunk. A future receipt must include the host name and exact version, model
-identifier, server revision, negotiated protocol, fixture/data/price versions,
-exact prompt, complete tool trace, final invariant results, elapsed time, and
-token counts only when actually observed (label any estimates).
+Actual model-driven runs were captured on 2026-09-08 through **Claude Code
+2.1.263**, selecting `claude-fable-5`, and **Codex CLI 0.153.4**, selecting
+`gpt-6-astra`. Claude reports its model in the init event. Codex's requested
+model is recorded separately from `observed_model: null` because its JSONL
+stream does not report a resolved model revision. MCP request metadata also
+records the selected model. Claude negotiated 2025-11-25; Codex negotiated
+2025-06-18. Neither observation is a claim that those hosts used 2026-07-28;
+dedicated SDK tests exercise that revision.
 
-Record unavailable hosts and unsuccessful tasks explicitly. Run the same
-tasks before and after reliability/advice changes, retain both traces, and
-separate autonomous task success from these scripted protocol checks. The
-[MCP architecture](https://modelcontextprotocol.io/docs/2026-07-28/learn/architecture)
-distinguishes the host's model orchestration from the protocol, and the
-[tool specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
-distinguishes tool execution errors from protocol failures.
+Each host completed all four tasks on the baseline and initial current source.
+The model chose its own calls over real stdio. The original workflow prompts
+are retained verbatim and supplemented with identical explicit fixture inputs:
+the initial imported list, collection, requested evidence, and deliberate
+recovery triggers. These supplemental instructions are in each `prompt.txt`.
+They make the synthetic task self-contained; they are not an unseen sequence
+of scripted tool calls.
+
+Baseline runs use checkout `18dff7a`, whose production implementation is the
+unchanged v0.2.0 source from `d1c0efc`, with SDK 1.29.0. The evaluation-only
+adapter is compiled against that source and its installed lockfile. Initial
+current runs use `47aeb63` plus the recorded dirty checkout and SDK 2.0.0.
+They were captured before the package version changed from 0.2.0 to the 0.3.0
+candidate. Every receipt retains exact bundled input, adapter, runner, bundle
+and lockfile hashes; the current checkout's Git commit alone is insufficient
+to identify a capture.
+
+| Host   | Workflow              | Baseline calls / invalid | Initial current calls / invalid | Baseline → current result bytes |
+| ------ | --------------------- | -----------------------: | ------------------------------: | ------------------------------: |
+| Claude | Budget build          |                   12 / 1 |                           9 / 0 |                  16,401 → 8,174 |
+| Claude | Import and tune       |                   12 / 1 |                          13 / 1 |                   8,746 → 9,026 |
+| Claude | Acquisition reduction |                   11 / 0 |                          12 / 1 |                 10,420 → 11,132 |
+| Claude | Error recovery        |                   12 / 2 |                          12 / 3 |                  9,683 → 13,489 |
+| Codex  | Budget build          |                    9 / 0 |                           8 / 0 |                 12,177 → 10,980 |
+| Codex  | Import and tune       |                   11 / 1 |                          11 / 1 |                   8,404 → 8,404 |
+| Codex  | Acquisition reduction |                   15 / 1 |                          15 / 1 |                 13,560 → 14,294 |
+| Codex  | Error recovery        |                    9 / 1 |                           9 / 1 |                  7,341 → 10,121 |
+
+Task completion means independent checks passed against actual deck/collection
+stores and the observed calls. It does not mean every call succeeded. The
+recovery ambiguity and cold upstream outage are deliberate. Initial Claude
+recovery also had one partial input-batch failure, which is counted as invalid.
+No official comparison run had an unanswered tool call or JSON-RPC error.
+The initial traces exposed a repeatable product mismatch: both hosts use
+`ci<=r`, as the server's own examples suggest, but the parser rejects it.
+The parser now accepts `ci` as the same color-identity field as `id` and
+`identity`; nine regression cases failed before the fix and passed afterward.
+The final 0.3.0 candidate observation uses the same prompts, models and grading.
+All eight tasks passed again. The five unexpected query errors in the initial
+current runs fell to zero; the final runs had no partial failures, unanswered
+calls or RPC errors. Only the two deliberate recovery errors per host remain,
+including one invalid ambiguous-name call.
+
+| Host   | Workflow              | Final calls / invalid | Final result bytes |
+| ------ | --------------------- | --------------------: | -----------------: |
+| Claude | Budget build          |                10 / 0 |              8,417 |
+| Claude | Import and tune       |                10 / 0 |              7,453 |
+| Claude | Acquisition reduction |                13 / 0 |             11,087 |
+| Claude | Error recovery        |                11 / 1 |             10,923 |
+| Codex  | Budget build          |                 8 / 0 |             10,980 |
+| Codex  | Import and tune       |                10 / 0 |              7,623 |
+| Codex  | Acquisition reduction |                14 / 0 |             12,779 |
+| Codex  | Error recovery        |                 9 / 1 |             10,121 |
+
+Offline receipt tests independently replay all 24 completed tasks across the
+three observations, recompute grades and metrics, and check prompt/fixture
+identity and provenance. Accepted receipts must remain successful; the separate
+failed environment attempts remain failures. After capture, review tightened
+the grader to bind evidence to the requested final deck (including import's
+create-new response). All 24 retained traces regrade identically. Original
+adapter/grader hashes remain unchanged in the historical receipts.
+
+Retained receipts link to complete per-task prompts, MCP JSONL, host JSONL,
+stderr, final state and independent grading:
+
+- Baseline: [Claude](hosts/baseline-claude-node24/receipt.json),
+  [Codex](hosts/baseline-codex-node24/receipt.json).
+- Initial current: [Claude](hosts/current-claude/receipt.json),
+  [Codex](hosts/current-codex/receipt.json).
+- Final candidate: [Claude](hosts/final-claude/receipt.json),
+  [Codex](hosts/final-codex/receipt.json).
+- Scripted integration observation:
+  [v0.3.0-integration.json](v0.3.0-integration.json). Its deterministic call/error
+  counts and result sizes match the reviewed advice observation.
+
+Four Claude captures used the authenticated account email as a generated deck
+name, although the fixture supplied no email. Before commit, that identifier
+was replaced consistently by an ASCII placeholder of the same UTF-8 length
+in the host/MCP/state files for baseline acquisition/recovery, initial import,
+and final budget build (12 files). These are redacted traces. The replacement
+preserves response-byte counts; replay confirms all grades, call/error metrics
+and observed token counters are unchanged. Prompts and source/provenance hashes
+are untouched.
+
+Each receipt reports wall time and summed tool time separately. Token usage is
+the actual host report, preserving each provider's input/cache/output fields.
+Claude's cache-read and cache-creation counters must not be omitted when
+interpreting its small plain-input counter; Codex's cached-input counter is
+part of its reported total input. These totals include repeated context, not
+unique prompt tokens. This is one observation per host/task/revision, with
+shared caches and concurrent runs: timing, tokens and call-count differences
+are observations, not statistically established improvements or CI targets.
+
+### Reproduce a real-host observation
+
+Install and authenticate the chosen host separately. The runner uses that
+existing account; it never logs in or changes host settings. On a POSIX host:
+
+```sh
+node scripts/evaluate-hosts.mjs --host claude --model claude-fable-5 --out /tmp/mtg-claude-new
+node scripts/evaluate-hosts.mjs --host codex --model gpt-6-astra --out /tmp/mtg-codex-new
+```
+
+The output directory must not exist. `--scenario budget-build` runs one task.
+`--source-root /path/to/comparison-checkout` selects another implementation
+with its own installed dependencies. Use the **same absolute Node executable**
+to install/rebuild its native SQLite addon and run the evaluator. The runner
+checks that exact runtime before making a model request.
+
+The adapter forbids ambient network access, supplies only synthetic providers,
+and keeps user state separate from real `MCP_DATA_DIR`. Only the `mtg` server
+is configured; shell/browser/plugins/delegation are disabled for host tasks.
+The host capture runner currently supports POSIX process-group cleanup.
+Windows **server** acceptance remains in CI; Windows model-host capture is
+explicitly unsupported. Models and their accounts are never invoked by
+`npm test` or CI. CI replays retained evidence and the independent deterministic
+protocol suite without model access.
+
+### Failed environment attempts
+
+[Initial Claude](hosts/baseline-claude/receipt.json) and
+[initial Codex](hosts/baseline-codex/receipt.json) baseline attempts all failed
+before tool execution. The comparison checkout installed SQLite under Node
+26 while the evaluator used Node 24. A pinned-Node-24 rebuild fixed the ABI
+mismatch; the `-node24` directories are separate successful retries. The
+runner gained only a native-runtime preflight between current and corrected
+baseline captures, so their runner hashes differ; prompts, grading and model
+configuration did not change. These failed attempts remain failures.
+
+The synthetic many-basic-land fixture proves workflow contracts, not deck
+strategy. HTTP/stdio initialization, durability, crashes, backups and recovery
+have separate production tests and installed-package/Rust gates. Current-revision
+Linux/macOS/Windows CI is a separate final release gate. Publication is not part
+of this evaluation.

@@ -1,0 +1,119 @@
+{
+  "scenario": "budget-build",
+  "original_prompt": "Build a legal 100-card Krenko deck for at most $100, using my owned Sol Ring and Goblin Matron.",
+  "prompt_sha256": "e1da5cb55718f02c713272803b34e3499ecc32a624fddcc4728b73e4f2c0a06d",
+  "host": "claude",
+  "host_version": "2.1.263 (Claude Code)",
+  "requested_model": "claude-fable-5",
+  "observed_model": "claude-fable-5",
+  "model_identity_source": "host_init_event",
+  "exit": {
+    "code": 0,
+    "signal": null
+  },
+  "timed_out": false,
+  "spawn_error": null,
+  "host_completed": true,
+  "protocol_version": null,
+  "server_info": null,
+  "workflow_version": "1",
+  "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+  "metrics": {
+    "tool_calls": 0,
+    "invalid_calls": 0,
+    "partial_failure_calls": 0,
+    "tool_errors": 0,
+    "rpc_errors": 0,
+    "expected_errors": 0,
+    "response_bytes": 0,
+    "elapsed_ms": 2822.610125,
+    "tool_elapsed_ms": 0,
+    "unanswered_tool_calls": 0,
+    "token_counts": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 874,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 49,
+      "output_tokens_details": {
+        "thinking_tokens": 18
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 874,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 49,
+          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 874,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 874
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard"
+    },
+    "token_source": "host_reported"
+  },
+  "grade": {
+    "passed": false,
+    "checks": [
+      {
+        "id": "fixture_identity",
+        "passed": true,
+        "detail": "Scenario and immutable fixture provenance match"
+      },
+      {
+        "id": "one_deck",
+        "passed": false,
+        "detail": "Observed 0 final decks"
+      },
+      {
+        "id": "legal_100_cards_including_commander",
+        "passed": false,
+        "detail": "Independent fixture count 0; commander "
+      },
+      {
+        "id": "validation_observed",
+        "passed": false,
+        "detail": "Host requested successful rules validation of the final deck state"
+      },
+      {
+        "id": "full_price_at_most_100_usd",
+        "passed": true,
+        "detail": "Commander-inclusive fixture price $0.00"
+      },
+      {
+        "id": "owned_cards_used",
+        "passed": false,
+        "detail": "Owned Sol Ring and Goblin Matron remain in collection and deck"
+      },
+      {
+        "id": "requested_prospector_used",
+        "passed": false,
+        "detail": "The explicitly requested Skirk Prospector is in the final deck"
+      },
+      {
+        "id": "collection_budget_observed",
+        "passed": false,
+        "detail": "Host observed collection-aware acquisition reduction"
+      },
+      {
+        "id": "export_observed",
+        "passed": false,
+        "detail": "Host requested the finished library export"
+      }
+    ]
+  },
+  "prohibited_host_events": 0,
+  "agent_task_success": false
+}

@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { build } from "esbuild";
 import { z } from "zod";
@@ -67,7 +67,7 @@ beforeAll(async () => {
         name: "external-native-sqlite",
         setup(builder) {
           builder.onResolve({ filter: /^better-sqlite3$/ }, ({ path: specifier }) => ({
-            path: require.resolve(specifier),
+            path: pathToFileURL(require.resolve(specifier)).href,
             external: true,
           }));
         },
