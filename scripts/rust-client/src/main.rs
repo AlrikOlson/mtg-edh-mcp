@@ -15,6 +15,7 @@ use tokio::{
 
 const DEADLINE: Duration = Duration::from_secs(15);
 const ORACLE_ID: &str = "00000000-0000-4000-8000-000000000001";
+const MODAL_ID: &str = "00000000-0000-4000-8000-000000000003";
 
 struct Server {
     client: RunningService<RoleClient, ()>,
@@ -158,6 +159,106 @@ impl Server {
         ensure!(status.success(), "server failed on normal close: {status}");
         Ok(())
     }
+}
+
+async fn gameplay_acceptance(server: &Server) -> Result<()> {
+    let full = server
+        .call(
+            "card_get",
+            json!({"cards": [ORACLE_ID, MODAL_ID], "include_printings": true}),
+        )
+        .await?;
+    let compact = server
+        .call(
+            "card_get",
+            json!({"cards": [ORACLE_ID, MODAL_ID], "compact": true}),
+        )
+        .await?;
+    let cards = full["cards"].as_array().context("full card array")?;
+    let lean = compact["cards"].as_array().context("compact card array")?;
+    ensure!(
+        cards.len() == 2
+            && lean.len() == 2
+            && full["missing"] == json!([])
+            && compact["missing"] == json!([]),
+        "card_get must resolve both fixture cards: {full}, {compact}"
+    );
+    for (card, compact_card) in cards.iter().zip(lean) {
+        ensure!(
+            card["gameplay"].is_object()
+                && card["gameplay"] == compact_card["gameplay"]
+                && card["oracle_id"] == compact_card["oracle_id"]
+                && card["printings"]
+                    .as_array()
+                    .is_some_and(|items| items.len() == 1)
+                && compact_card.get("printings").is_none(),
+            "compact card_get must preserve complete gameplay evidence: {card}, {compact_card}"
+        );
+    }
+    let single = &cards[0]["gameplay"];
+    ensure!(
+        cards[0]["oracle_id"] == ORACLE_ID
+            && single["version"] == 1
+            && single["layout"] == "normal"
+            && single["face_relationship"] == "single"
+            && single["playability"] == "not_evaluated"
+            && single["source"]
+                == json!({
+                    "scryfall_id": "00000000-0000-4000-8000-000000000002",
+                    "oracle_id": ORACLE_ID
+                })
+            && single["characteristics"]["mana_cost"] == "{1}"
+            && single["characteristics"]["produced_mana"] == json!(["C"])
+            && single["characteristics"].get("defense") == Some(&Value::Null),
+        "normal card lost its source facts or unknown values: {single}"
+    );
+    let root_faces = single["faces"].as_array().context("normal card faces")?;
+    ensure!(
+        root_faces.len() == 1
+            && root_faces[0]["face_index"] == 0
+            && root_faces[0]["source_path"] == ""
+            && root_faces[0]["oracle_id"] == ORACLE_ID
+            && root_faces[0]["characteristics"] == single["characteristics"],
+        "normal card must retain one root-source face: {single}"
+    );
+    let modal = &cards[1]["gameplay"];
+    ensure!(
+        cards[1]["oracle_id"] == MODAL_ID
+            && modal["layout"] == "modal_dfc"
+            && modal["face_relationship"] == "modal"
+            && modal["playability"] == "not_evaluated"
+            && modal["color_identity"] == json!(["G"])
+            && modal["characteristics"]["cmc"] == 3
+            && modal["characteristics"]["keywords"] == json!(["Vigilance"])
+            && modal["characteristics"]["produced_mana"] == json!(["G"])
+            && modal["characteristics"].get("oracle_text") == Some(&Value::Null)
+            && cards[1]["oracle_text"] == "Vigilance\n//\n{T}: Add {G}.",
+        "modal source facts were replaced by compatibility projections: {modal}"
+    );
+    let faces = modal["faces"].as_array().context("modal card faces")?;
+    ensure!(faces.len() == 2, "modal faces missing: {modal}");
+    for (position, face) in faces.iter().enumerate() {
+        ensure!(
+            face["face_index"] == position
+                && face["source_path"] == format!("/card_faces/{position}")
+                && face.get("oracle_id") == Some(&Value::Null)
+                && face["characteristics"].get("cmc") == Some(&Value::Null)
+                && face["characteristics"].get("keywords") == Some(&Value::Null)
+                && face["characteristics"].get("produced_mana") == Some(&Value::Null),
+            "whole-card aggregates or identities leaked into a source face: {face}"
+        );
+    }
+    ensure!(
+        faces[0]["characteristics"]["name"] == "Rust Acceptance Front"
+            && faces[0]["characteristics"]["mana_cost"] == "{2}{G}"
+            && faces[0]["characteristics"]["colors"] == json!(["G"])
+            && faces[1]["characteristics"]["name"] == "Rust Acceptance Land"
+            && faces[1]["characteristics"]["mana_cost"] == ""
+            && faces[1]["characteristics"]["colors"] == json!([])
+            && faces[1]["characteristics"]["oracle_text"] == "{T}: Add {G}.",
+        "ordered modal faces or supplied empty values changed: {faces:?}"
+    );
+    Ok(())
 }
 
 async fn role_acceptance(server: Server, root: &Path, deck_id: &str, version: u64) -> Result<()> {
@@ -334,11 +435,13 @@ async fn acceptance() -> Result<()> {
     first
         .require_tools(&[
             "card_search",
+            "card_get",
             "deck_add",
             "collection_add",
             "collection_get",
         ])
         .await?;
+    gameplay_acceptance(&first).await?;
     first
         .call(
             "deck_add",
@@ -423,7 +526,7 @@ async fn acceptance() -> Result<()> {
     );
     isolated.close().await?;
     println!(
-        "PASS: rmcp initialize/discovery/calls, offline first-run ingest, structured/text parity, acknowledged deck+collection durability after kill/reconnect, role replacement/empty/reset with durable analysis effects, stale version conflicts, data-directory isolation"
+        "PASS: rmcp initialize/discovery/calls, offline first-run ingest, full/compact card gameplay source facts and face isolation, structured/text parity, acknowledged deck+collection durability after kill/reconnect, role replacement/empty/reset with durable analysis effects, stale version conflicts, data-directory isolation"
     );
     Ok(())
 }

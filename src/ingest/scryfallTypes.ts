@@ -1,45 +1,51 @@
 /**
- * Raw Scryfall card shapes (the upstream API contract). Owned by the ingest
- * layer; the canonical §4 Card mapping (src/index/map.ts) consumes these, and so
- * does the live fallback client — keeping all Scryfall-shaped types in one place
- * and preserving one-way layering (index depends on ingest, never the reverse).
+ * Raw Scryfall shapes shared by bulk ingest and live lookup. Nullable optional
+ * fields preserve the API's absent values; canonical mapping owns projections.
  */
-
-export interface ScryfallCardFace {
-  name?: string;
-  mana_cost?: string;
-  oracle_text?: string;
-  type_line?: string;
-  power?: string;
-  toughness?: string;
-  loyalty?: string;
+export interface ScryfallCharacteristicsRaw {
+  name?: string | null;
+  mana_cost?: string | null;
+  cmc?: number | null;
+  colors?: string[] | null;
+  color_indicator?: string[] | null;
+  type_line?: string | null;
+  oracle_text?: string | null;
+  power?: string | null;
+  toughness?: string | null;
+  loyalty?: string | null;
+  defense?: string | null;
+  keywords?: string[] | null;
+  produced_mana?: string[] | null;
+  printed_name?: string | null;
+  printed_text?: string | null;
+  printed_type_line?: string | null;
 }
-
-/** The subset of Scryfall card fields we read (from bulk files or the live API). */
-export interface ScryfallCardRaw {
-  /** Present on oracle_cards; may be absent on a few default_cards rows (skip those). */
+export interface ScryfallCardFace extends ScryfallCharacteristicsRaw {
+  oracle_id?: string | null;
+}
+export interface ScryfallRelatedCard {
+  id: string;
+  component: string;
+  name: string;
+  type_line: string;
+  uri: string;
+}
+/** The subset of Scryfall fields read from bulk files or the live API. */
+export interface ScryfallCardRaw extends ScryfallCharacteristicsRaw {
   oracle_id?: string;
-  /** Scryfall print id (used as the printing key in default_cards). */
+  /** Scryfall printing identity, distinct from canonical Oracle identity. */
   id?: string;
   name: string;
-  mana_cost?: string;
-  cmc?: number;
-  colors?: string[];
+  layout?: string | null;
   color_identity?: string[];
-  type_line?: string;
-  oracle_text?: string;
-  power?: string;
-  toughness?: string;
-  loyalty?: string;
-  keywords?: string[];
   legalities?: Record<string, string>;
   prices?: Record<string, string | null>;
-  card_faces?: ScryfallCardFace[];
+  card_faces?: ScryfallCardFace[] | null;
+  all_parts?: ScryfallRelatedCard[] | null;
   set?: string;
   set_name?: string;
   collector_number?: string;
   rarity?: string;
   released_at?: string;
-  /** True when the card is on WotC's official Game Changers list. */
   game_changer?: boolean;
 }

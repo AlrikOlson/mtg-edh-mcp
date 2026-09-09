@@ -11,7 +11,7 @@ import Database from "better-sqlite3";
 import type { Card, CardRef, Color, Prices, Printing, RefColorIdentity } from "../types/index.js";
 import type { QueryNode } from "../query/index.js";
 import { streamCardArray, VersionedStore } from "../ingest/index.js";
-import { SCHEMA_SQL } from "./schema.js";
+import { CARD_INDEX_VERSION, SCHEMA_SQL } from "./schema.js";
 import {
   colorIdentitySorted,
   extractPrinting,
@@ -169,6 +169,7 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
     );
 
     db.exec("BEGIN");
+    db.pragma(`user_version = ${CARD_INDEX_VERSION}`);
     for await (const raw of streamCardArray<ScryfallCardRaw>(
       await store.stagedFile(version, "oracle_cards"),
     )) {
@@ -244,6 +245,12 @@ export class CardIndex {
 
   /** Register functions + prepare all statements against `db`. */
   private static prepare(db: Db): CardIndexState {
+    const version = db.pragma("user_version", { simple: true });
+    if (version !== CARD_INDEX_VERSION) {
+      throw new Error(
+        `Unsupported card index format ${version}; expected ${CARD_INDEX_VERSION}. Run data_ingest to rebuild card data.`,
+      );
+    }
     // Register REGEXP so `column REGEXP ?` works in evaluated queries.
     db.function("regexp", (pattern: unknown, value: unknown): number => {
       if (typeof pattern !== "string" || typeof value !== "string") return 0;

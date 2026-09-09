@@ -24,6 +24,7 @@ const NEW_CARD = {
   oracle_id: "o-new",
   id: "p-new",
   name: "Brand New Commander",
+  layout: "normal",
   cmc: 3,
   color_identity: ["U"],
   type_line: "Legendary Creature — Bird Wizard",
@@ -68,15 +69,34 @@ afterEach(async () => {
 
 describe("resolveCardByNameFallback", () => {
   it("resolves a locally-indexed card from the index", async () => {
-    const result = await resolveCardByNameFallback({ index, live, name: "Sol Ring" });
+    const result = await resolveCardByNameFallback({
+      index,
+      live,
+      name: "Sol Ring",
+    });
     expect(result.source).toBe("index");
     expect(result.card.name).toBe("Sol Ring");
   });
 
   it("falls back to live for a card newer than the snapshot (not in the index)", async () => {
-    const result = await resolveCardByNameFallback({ index, live, name: "Brand New Commander" });
+    const result = await resolveCardByNameFallback({
+      index,
+      live,
+      name: "Brand New Commander",
+    });
     expect(result.source).toBe("live");
     expect(result.card.name).toBe("Brand New Commander");
     expect(result.card.is_commander_eligible).toBe(true); // mapped via mapScryfallCard
+    expect(result.card.gameplay?.faces?.[0]).toMatchObject({
+      face_index: 0,
+      source_path: "",
+      oracle_id: "o-new",
+      characteristics: {
+        name: "Brand New Commander",
+        oracle_text: "Flying.",
+        cmc: 3,
+        produced_mana: null,
+      },
+    });
   });
 });

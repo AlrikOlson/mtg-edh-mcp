@@ -11,6 +11,8 @@ Call `data_status` to confirm `has_index: true`, then `deck_list` to find
 existing builds. If there is no index, call `data_ingest`, poll `data_status`
 until ingestion is `done` and `has_index: true`, then request `tools/list`
 again. You can search and build on the same connection; no restart is needed.
+Older index formats also require `data_ingest` after an upgrade. The rebuild
+publishes a new recoverable snapshot and preserves saved decks and collections.
 An `error` is retryable after addressing its reported cause. See the
 [first-run flow](./INSTALL.md#starting-without-an-index) and the read-only
 `doctor` command for diagnostics. Avoid creating a new deck every time the
@@ -121,6 +123,34 @@ chosen names or IDs; set `compact: true` for larger batches. Request
 ```text
 card_get {"cards":["Sol Ring","Arcane Signet"],"compact":true}
 ```
+
+Both full and compact `card_get` responses retain `gameplay`, the versioned
+source evidence also returned by `card://{oracle_id}`. It carries the supplied
+layout, Scryfall/Oracle identifiers, top-level `characteristics`, ordered
+`faces`, and `related_cards`. Each face has a zero-based `face_index` and a
+`source_path` JSON Pointer into the original card (`/card_faces/0`, or `""`
+for a single face drawn from the root). Missing source values are `null`;
+an explicitly empty mana cost or list remains empty. A missing or unsupported
+layout does not imply a normal single-faced card. `gameplay.color_identity`
+preserves the supplied whole-card identity separately from face colors.
+
+For code consumers, `oracleTextEvidence(card, faceIndex, start, end)` returns
+an exact Oracle substring, source field pointer and printing/Oracle identity.
+Offsets are half-open UTF-16 code units in the unmodified source field; a null
+face index selects root text. Missing text or invalid bounds return `null`.
+
+Read `gameplay.faces` when the card has alternative faces or spell parts.
+The existing flat `mana_cost`, `mv`, `type_line`, `oracle_text`, and roles are
+compatibility projections for search and heuristic analysis. Joined face costs
+and types do not establish a playable combination, and an absent face mana
+value does not inherit another face's value. `produced_mana` describes possible
+mana types, not how much mana is available or whether an ability can be used.
+Do not count alternative faces as simultaneous lands, spells, or mana sources.
+`face_relationship` labels the source layout; `playability: "not_evaluated"`
+means this evidence does not determine castability, activation conditions,
+zone-specific characteristics, alternative costs, or current mana availability.
+See Scryfall's [card objects](https://scryfall.com/docs/api/cards) and
+[layouts](https://scryfall.com/docs/api/layouts) for the source field semantics.
 
 The query language supports text (`o:`, `t:`, `kw:`), comparisons (`mv<=3`,
 `usd<5`), color identity (`id<=wubg`, also `ci<=wubg`), printing predicates (`set:`, `rarity:`,

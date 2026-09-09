@@ -3,11 +3,25 @@
  *
  * Double-faced cards carry per-face oracle_text/mana_cost/type_line in
  * `card_faces[]`; we flatten them (joined with " // " / "\n//\n") so the index
- * has a single searchable text per oracle_id.
+ * has a single searchable text per oracle_id. The gameplay object separately
+ * preserves the source characteristics, ordered faces and exact evidence paths.
  */
-import type { Card, Color, ColorIdentity, Legalities, Prices } from "../types/index.js";
+import type {
+  Card,
+  CardCharacteristics,
+  CardGameplay,
+  OracleTextEvidence,
+  Color,
+  ColorIdentity,
+  Legalities,
+  Prices,
+} from "../types/index.js";
 import { classifyRoles } from "../analyze/index.js";
-import type { ScryfallCardFace, ScryfallCardRaw } from "../ingest/scryfallTypes.js";
+import type {
+  ScryfallCardFace,
+  ScryfallCardRaw,
+  ScryfallCharacteristicsRaw,
+} from "../ingest/scryfallTypes.js";
 
 // Re-export the raw Scryfall shapes so existing importers of ./map keep working.
 export type { ScryfallCardFace, ScryfallCardRaw } from "../ingest/scryfallTypes.js";
@@ -21,24 +35,24 @@ export function colorIdentitySorted(ci: ColorIdentity): string {
 
 function faceJoin(
   raw: ScryfallCardRaw,
-  pick: (f: ScryfallCardFace) => string | undefined,
+  pick: (f: ScryfallCardFace) => string | null | undefined,
   sep: string,
 ): string {
   return (raw.card_faces ?? []).map((f) => pick(f) ?? "").join(sep);
 }
 
 function flattenOracleText(raw: ScryfallCardRaw): string {
-  if (raw.oracle_text !== undefined) return raw.oracle_text;
+  if (raw.oracle_text != null) return raw.oracle_text;
   return faceJoin(raw, (f) => f.oracle_text, "\n//\n");
 }
 
 function flattenManaCost(raw: ScryfallCardRaw): string {
-  if (raw.mana_cost !== undefined) return raw.mana_cost;
+  if (raw.mana_cost != null) return raw.mana_cost;
   return faceJoin(raw, (f) => f.mana_cost, " // ");
 }
 
 function flattenTypeLine(raw: ScryfallCardRaw): string {
-  if (raw.type_line !== undefined) return raw.type_line;
+  if (raw.type_line != null) return raw.type_line;
   return faceJoin(raw, (f) => f.type_line, " // ");
 }
 
@@ -60,11 +74,89 @@ export function isCommanderEligible(
   return legendaryPermanent || /can be your commander/i.test(oracleText);
 }
 
+/** Preserve only supplied facts; never distribute aggregate fields across faces. */
+function sourceCharacteristics(raw: ScryfallCharacteristicsRaw): CardCharacteristics {
+  return {
+    name: raw.name ?? null,
+    mana_cost: raw.mana_cost ?? null,
+    cmc: raw.cmc ?? null,
+    type_line: raw.type_line ?? null,
+    oracle_text: raw.oracle_text ?? null,
+    colors: raw.colors?.slice() ?? null,
+    color_indicator: raw.color_indicator?.slice() ?? null,
+    power: raw.power ?? null,
+    toughness: raw.toughness ?? null,
+    loyalty: raw.loyalty ?? null,
+    defense: raw.defense ?? null,
+    keywords: raw.keywords?.slice() ?? null,
+    produced_mana: raw.produced_mana?.slice() ?? null,
+    printed_name: raw.printed_name ?? null,
+    printed_text: raw.printed_text ?? null,
+    printed_type_line: raw.printed_type_line ?? null,
+  };
+}
+
+/** Layout labels describe relationships, not which faces can be played together. */
+function faceRelationship(layout: string | null): CardGameplay["face_relationship"] {
+  switch (layout) {
+    case null:
+      return "unknown";
+    case "normal":
+      return "single";
+    case "split":
+      return "split";
+    case "adventure":
+      return "adventure";
+    case "modal_dfc":
+      return "modal";
+    case "transform":
+      return "transform";
+    case "meld":
+      return "meld";
+    default:
+      return "unsupported";
+  }
+}
+
+function mapGameplay(raw: ScryfallCardRaw): CardGameplay {
+  const layout = raw.layout ?? null;
+  const characteristics = sourceCharacteristics(raw);
+  const faces =
+    raw.card_faces?.map((face, face_index) => ({
+      face_index,
+      source_path: `/card_faces/${face_index}`,
+      oracle_id: face.oracle_id ?? null,
+      characteristics: sourceCharacteristics(face),
+    })) ??
+    (layout === "normal" || layout === "meld"
+      ? [
+          {
+            face_index: 0,
+            source_path: "",
+            oracle_id: raw.oracle_id ?? null,
+            characteristics: sourceCharacteristics(raw),
+          },
+        ]
+      : null);
+  return {
+    version: 1,
+    source: { scryfall_id: raw.id ?? null, oracle_id: raw.oracle_id ?? null },
+    layout,
+    color_identity: raw.color_identity?.slice() ?? null,
+    face_relationship: faceRelationship(layout),
+    playability: "not_evaluated",
+    characteristics,
+    faces,
+    related_cards: raw.all_parts?.map((part) => ({ ...part })) ?? null,
+  };
+}
+
 /** Map a raw oracle_cards entry to a canonical Card (printings filled separately). */
 export function mapScryfallCard(raw: ScryfallCardRaw): Card {
   const type_line = flattenTypeLine(raw);
   const oracle_text = flattenOracleText(raw);
   return {
+    gameplay: mapGameplay(raw),
     oracle_id: raw.oracle_id ?? raw.id ?? "",
     name: raw.name,
     mana_cost: flattenManaCost(raw),
@@ -73,13 +165,18 @@ export function mapScryfallCard(raw: ScryfallCardRaw): Card {
     color_identity: (raw.color_identity ?? []) as ColorIdentity,
     type_line,
     oracle_text,
-    power: raw.power,
-    toughness: raw.toughness,
-    loyalty: raw.loyalty,
+    power: raw.power ?? undefined,
+    toughness: raw.toughness ?? undefined,
+    loyalty: raw.loyalty ?? undefined,
     keywords: raw.keywords ?? [],
     legalities: (raw.legalities ?? {}) as Legalities,
     prices: (raw.prices ?? {}) as Prices,
-    is_commander_eligible: isCommanderEligible(type_line, oracle_text, raw.power, raw.toughness),
+    is_commander_eligible: isCommanderEligible(
+      type_line,
+      oracle_text,
+      raw.power ?? undefined,
+      raw.toughness ?? undefined,
+    ),
     game_changer: raw.game_changer === true,
     roles: classifyRoles({
       name: raw.name,
@@ -158,5 +255,42 @@ export function extractPrinting(raw: ScryfallCardRaw): PrintingRow | null {
     rarity: raw.rarity ?? "",
     prices: JSON.stringify(raw.prices ?? {}),
     released_at: raw.released_at ?? null,
+  };
+}
+/** Exact evidence in supplied Oracle text. A null face index addresses root text.
+ * Invalid/missing spans return null; no match is fabricated from joined projections.
+ */
+export function oracleTextEvidence(
+  card: Card,
+  faceIndex: number | null,
+  start = 0,
+  end?: number,
+): OracleTextEvidence | null {
+  const gameplay = card.gameplay;
+  if (!gameplay) return null;
+  if (faceIndex !== null && (!Number.isInteger(faceIndex) || faceIndex < 0)) return null;
+  const face = faceIndex === null ? null : gameplay.faces?.[faceIndex];
+  if (faceIndex !== null && !face) return null;
+  const original = face ? face.characteristics.oracle_text : gameplay.characteristics.oracle_text;
+  if (original === null) return null;
+  const stop = end ?? original.length;
+  if (
+    !Number.isInteger(start) ||
+    !Number.isInteger(stop) ||
+    start < 0 ||
+    stop < start ||
+    stop > original.length
+  )
+    return null;
+  return {
+    oracle_id: card.oracle_id,
+    scryfall_id: gameplay.source.scryfall_id,
+    source_oracle_id: face ? face.oracle_id : gameplay.source.oracle_id,
+    face_index: faceIndex,
+    field_path: `${face?.source_path ?? ""}/oracle_text`,
+    offset_unit: "utf16_code_units",
+    start,
+    end: stop,
+    text: original.slice(start, stop),
   };
 }

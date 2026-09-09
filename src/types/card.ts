@@ -95,12 +95,84 @@ export interface Printing {
   released_at?: string;
 }
 
-/**
- * `Card` (§4) — the full object, returned only by `card_get` / the `card://`
- * resource. Carries all Scryfall gameplay fields plus server-derived `roles`
- * (§7) and `printings`.
+/** Source characteristics only. Null means not supplied, never a derived zero/empty.
+ * Arrays preserve upstream values/order, including future mana symbols.
+ * cmc is supplied mana value, not a cost calculation or a claim about a face in play.
  */
+export interface CardCharacteristics {
+  name: string | null;
+  mana_cost: string | null;
+  cmc: number | null;
+  type_line: string | null;
+  oracle_text: string | null;
+  colors: readonly string[] | null;
+  color_indicator: readonly string[] | null;
+  power: string | null;
+  toughness: string | null;
+  loyalty: string | null;
+  defense: string | null;
+  keywords: readonly string[] | null;
+  /** Possible outputs; does not establish quantity, restrictions or availability. */
+  produced_mana: readonly string[] | null;
+  printed_name: string | null;
+  printed_text: string | null;
+  printed_type_line: string | null;
+}
+
+export interface CardFace {
+  /** Position within this canonical card, never a separate physical-card count. */
+  face_index: number;
+  /** JSON Pointer in the source card: "" for root, "/card_faces/0" for a face. */
+  source_path: string;
+  /** A face's own supplied Oracle identity (e.g. reversible cards), not inherited. */
+  oracle_id: string | null;
+  characteristics: CardCharacteristics;
+}
+
+/** Scryfall printing links, not additional faces or additional deck entries. */
+export interface RelatedCard {
+  id: string;
+  component: string;
+  name: string;
+  type_line: string;
+  uri: string;
+}
+
+export interface CardGameplay {
+  version: 1;
+  source: { scryfall_id: string | null; oracle_id: string | null };
+  layout: string | null;
+  /** Supplied whole-card Commander identity; never copied to individual faces. */
+  color_identity: readonly string[] | null;
+  /** Layout classification only. Split/Fuse, Adventure, transform and meld need rules/context. */
+  face_relationship:
+    "single" | "split" | "adventure" | "modal" | "transform" | "meld" | "unknown" | "unsupported";
+  /** No face or combination is asserted to be currently playable. */
+  playability: "not_evaluated";
+  characteristics: CardCharacteristics;
+  /** Supplied ordered faces; one root-source face for normal/meld; null when unknown. */
+  faces: readonly CardFace[] | null;
+  related_cards: readonly RelatedCard[] | null;
+}
+
+export interface OracleTextEvidence {
+  oracle_id: string;
+  scryfall_id: string | null;
+  face_index: number | null;
+  source_oracle_id: string | null;
+  /** JSON Pointer to the original Oracle field, never the joined display projection. */
+  field_path: string;
+  offset_unit: "utf16_code_units";
+  /** Half-open [start, end) offsets into that field's unmodified text. */
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** Full card plus flat compatibility projections, source evidence and printings. */
 export interface Card {
+  /** Present on newly ingested cards; absent on legacy caller-created objects. */
+  gameplay?: CardGameplay | null;
   oracle_id: string;
   name: string;
   mana_cost: string;

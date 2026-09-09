@@ -7,6 +7,9 @@
  * default_cards live in a joined `printings` table.
  */
 
+/** Mapped Card semantics as well as SQL shape; unversioned indexes predate gameplay fields. */
+export const CARD_INDEX_VERSION = 1;
+
 export const SCHEMA_SQL = `
 CREATE TABLE cards (
   oracle_id            TEXT PRIMARY KEY,

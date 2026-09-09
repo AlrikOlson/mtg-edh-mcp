@@ -5,7 +5,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "./cardIndex.js";
-import { SECONDARY_INDEXES } from "./schema.js";
+import { CARD_INDEX_VERSION, SECONDARY_INDEXES } from "./schema.js";
 import { parseQuery } from "../query/index.js";
 
 const ORACLE = [
@@ -236,6 +236,41 @@ describe("CardIndex.evaluate — owned-collection allow-set (bl-collection)", ()
 });
 
 describe("index schema", () => {
+  it("stamps the mapped Card format on every fresh index", () => {
+    const probe = new Database(dbPath, { readonly: true });
+    try {
+      expect(probe.pragma("user_version", { simple: true })).toBe(CARD_INDEX_VERSION);
+    } finally {
+      probe.close();
+    }
+  });
+
+  it.each([0, 99])(
+    "rejects incompatible Card format %s without changing live readers",
+    async (version) => {
+      const candidate = store.filePath("v-test", "incompatible.sqlite");
+      await writeFile(candidate, await readFile(dbPath));
+      const legacy = new Database(candidate);
+      legacy.pragma(`user_version = ${version}`);
+      // A detached SQLite image cannot resolve WAL sidecars.
+      legacy.pragma("journal_mode = DELETE");
+      legacy.close();
+      const bytes = await readFile(candidate);
+      expect(() => {
+        const opened = CardIndex.open(candidate);
+        opened.close();
+      }).toThrow(/data_ingest/);
+      expect(() => {
+        const opened = CardIndex.open(bytes);
+        opened.close();
+      }).toThrow(/data_ingest/);
+      expect(() => index.prepareReopen(candidate).dispose()).toThrow(/data_ingest/);
+      expect(index.getCard("o-atraxa")?.name).toBe("Atraxa, Praetors' Voice");
+      expect(index.count()).toBe(3);
+      expect(await readFile(candidate)).toEqual(bytes);
+    },
+  );
+
   it("creates the secondary indexes for ci/mv/type/legalities", () => {
     const probe = new Database(dbPath, { readonly: true });
     const names = (

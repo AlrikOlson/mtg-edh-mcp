@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import Database from "better-sqlite3";
 import { BulkClient, VersionedStore, type FetchFn } from "../ingest/index.js";
+import { UserDataStore } from "../storage/userData.js";
 import { openCurrentSnapshot, refreshSnapshot } from "./refresh.js";
 
 const CARD = {
   oracle_id: "oracle-sol",
   id: "printing-sol",
   name: "Sol Ring",
+  layout: "normal",
   cmc: 1,
   color_identity: [],
   colors: [],
@@ -188,6 +191,96 @@ describe("refreshSnapshot", () => {
     expect(next.skipped).toBe(false);
     expect(nextSource.downloads).toHaveBeenCalledTimes(2);
     expect(await readdir(store.versionsDir)).toContain(first.version);
+  });
+
+  it("rebuilds an old Card format without changing recovery files or personal data", async () => {
+    const first = await refreshSnapshot({ store, client: source().client });
+    const legacy = new Database(first.dbPath);
+    legacy.pragma("user_version = 0");
+    legacy.exec("UPDATE cards SET card = json_remove(card, '$.gameplay')");
+    legacy.close();
+    const personal = new UserDataStore(root);
+    const deck = personal.deckStore.create({ name: "Keep my deck" }, "alice");
+    const updated = personal.deckStore.update(
+      deck.deck_id,
+      (d) => ({
+        ...d,
+        cards: [{ oracle_id: CARD.oracle_id, qty: 1 }],
+        role_overrides: { [CARD.oracle_id]: ["ramp"] },
+      }),
+      "alice",
+    );
+    const snapshot = personal.deckStore.snapshot(deck.deck_id, "alice");
+    personal.collection.add([CARD.oracle_id], "alice");
+    personal.collection.add(["bob-card"], "bob");
+    personal.close();
+    const preservedPaths = [
+      first.dbPath,
+      store.filePath(first.version, "oracle_cards.json"),
+      store.filePath(first.version, "default_cards.json"),
+      store.filePath(first.version, "manifest.json"),
+      path.join(root, "user-data.sqlite"),
+    ];
+    const before = await Promise.all(preservedPaths.map((file) => readFile(file)));
+    const outdated = await openCurrentSnapshot(store);
+    try {
+      expect(outdated).toBeNull();
+    } finally {
+      outdated?.index.close();
+    }
+
+    await expect(
+      refreshSnapshot({
+        store,
+        client: source("2026-09-01", "download").client,
+      }),
+    ).rejects.toThrow();
+    expect(await store.readCurrent()).toBe(first.version);
+    expect(await Promise.all(preservedPaths.map((file) => readFile(file)))).toEqual(before);
+
+    const upstream = source();
+    const rebuilt = await refreshSnapshot({ store, client: upstream.client });
+    expect(rebuilt.version).not.toBe(first.version);
+    expect(rebuilt).toMatchObject({ skipped: false, snapshot: first.snapshot });
+    expect(upstream.downloads).toHaveBeenCalledTimes(2);
+    expect(await Promise.all(preservedPaths.map((file) => readFile(file)))).toEqual(before);
+    const reopened = await openCurrentSnapshot(store);
+    try {
+      expect(reopened?.version).toBe(rebuilt.version);
+      expect(reopened?.index.getCard(CARD.oracle_id)).toMatchObject({
+        gameplay: { version: 1, layout: "normal" },
+      });
+    } finally {
+      reopened?.index.close();
+    }
+    const restored = new UserDataStore(root);
+    try {
+      expect(restored.deckStore.get(deck.deck_id, "alice")).toEqual(updated);
+      expect(restored.deckStore.getSnapshot(deck.deck_id, snapshot.snapshot_id, "alice")).toEqual(
+        snapshot,
+      );
+      expect(restored.deckStore.list("bob")).toEqual([]);
+      expect(restored.collection.get("alice")).toEqual(new Set([CARD.oracle_id]));
+      expect(restored.collection.get("bob")).toEqual(new Set(["bob-card"]));
+    } finally {
+      restored.close();
+    }
+  });
+
+  it("recovers the compatible explicit predecessor when the current Card format is incompatible", async () => {
+    const first = await refreshSnapshot({ store, client: source().client });
+    const second = await refreshSnapshot({ store, client: source("2026-09-02").client });
+    const incompatible = new Database(second.dbPath);
+    incompatible.pragma("user_version = 99");
+    incompatible.close();
+    const recovered = await openCurrentSnapshot(store);
+    try {
+      expect(recovered?.version).toBe(first.version);
+      expect(recovered?.index.getCard(CARD.oracle_id)?.name).toBe(CARD.name);
+      expect(await store.readCurrent()).toBe(second.version);
+    } finally {
+      recovered?.index.close();
+    }
   });
 
   it("rejects another refresh while the store lease is held and releases it after a failure", async () => {

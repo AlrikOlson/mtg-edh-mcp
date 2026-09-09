@@ -21,6 +21,7 @@ export {
 } from "./queryEval.js";
 export {
   mapScryfallCard,
+  oracleTextEvidence,
   extractPrinting,
   colorIdentitySorted,
   isCommanderEligible,

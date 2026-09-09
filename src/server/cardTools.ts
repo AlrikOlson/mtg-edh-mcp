@@ -100,8 +100,8 @@ function cardGetTool(index: CardIndex): ToolDefinition {
         "Fetch full Card objects by name or oracle_id, singular or array.\n" +
         "USE: reading oracle text/roles/legality/prices for known cards. NOT: browsing (card_search).\n" +
         "FLOW: card_search/deck_get -> card_get -> deck_add.\n" +
-        'ARGS: cards: "Sol Ring" | [names or ids] (oracle_ids is a legacy alias); include_printings:true for the heavy printings[] (default lean: default_usd + cheapest_usd instead); compact:true trims to gameplay essentials (oracle text, cost, types, ci, commander legality, roles, usd) — use for batches over ~15 names; 50+ fit compactly.\n' +
-        "RETURNS: cards[] (full or compact Card + pricing), missing[] (unresolvable inputs).",
+        'ARGS: cards: "Sol Ring" | [names or ids] (legacy alias: oracle_ids); include_printings:true adds printings[]; compact:true trims detail, keeping gameplay face evidence, oracle text, cost, types, ci, commander legality, roles, usd.\n' +
+        "RETURNS: cards[] (full or compact Card + pricing), missing[] (unresolvable inputs). gameplay preserves source characteristics and ordered faces; playability is not evaluated. Flat fields remain search/analysis projections.",
       inputSchema: {
         cards: StringOrStringsSchema.optional(),
         oracle_ids: StringOrStringsSchema.optional(),
@@ -141,9 +141,8 @@ function cardGetTool(index: CardIndex): ToolDefinition {
         };
         // compact: the fields a deckbuilding agent reads, minus the bulk — the
         // ~30-format legalities map and the full prices/keywords are most of a
-        // Card's bytes and rarely consulted in batch reads. Trimming them lets
-        // 50+ cards fit under a client's tool-result token cap (batches of ~15
-        // full Cards were the practical limit).
+        // Card's bytes and rarely consulted in batch reads. Preserve the full
+        // gameplay source evidence even in compact batches.
         const lean: Partial<Card> = compact
           ? {
               oracle_id: card.oracle_id,
@@ -154,6 +153,7 @@ function cardGetTool(index: CardIndex): ToolDefinition {
               color_identity: card.color_identity,
               type_line: card.type_line,
               oracle_text: card.oracle_text,
+              gameplay: card.gameplay ?? null,
               power: card.power,
               toughness: card.toughness,
               loyalty: card.loyalty,
