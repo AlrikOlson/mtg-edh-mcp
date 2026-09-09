@@ -198,12 +198,44 @@ whether a failed refresh returned stale data. Fetch age describes this server's
 cache; the upstream dataset's update time can remain unknown. `data_snapshot`
 identifies local card data, while pricing timestamps may be unknown.
 
-Advice budgets use local cheapest-printing USD estimates for the library;
-commanders and companions are excluded, and owned-card membership is not
-deducted. Missing prices or unresolved cards make the total partial, not zero
-cost: check budget completeness before interpreting a target. Full-deck
-affordability still requires adding command-zone costs and considering ownership.
-Shipping, taxes, availability, and resale proceeds are not included.
+Budget reports separate `full_deck` (library plus every command-zone slot),
+`library`, `command_zone`, and the outside-deck `companion`. Use
+`budget_plan.full_deck`, `analyze_stats.budget.full_deck`, or
+`deck_status.price.full_deck` for complete-deck value. Existing top-level
+budget/stats price fields and `deck_status.price.total_usd/min_buy_usd`
+retain library scope, explicitly labeled `price_scope: "library"`.
+Card counts and mana statistics remain library statistics. Auxiliary zones
+are not represented by the stored deck model; their cost is not included.
+Stored extra copies across zones are counted and flagged, never silently
+deduplicated. Pricing a deck does not certify its count or legality.
+
+`meta_budget_swaps.target_met` compares the projected complete-deck estimate;
+`current_full_deck` and `projected_full_deck` include commanders.
+The existing `current_min_buy_usd/projected_min_buy_usd` fields retain library
+scope. Proposals replace library cards only and do not deduct ownership.
+
+All sums use integer USD cents internally. Numeric totals are known subtotals
+when cards or prices are missing: inspect `coverage`, including unresolved
+identifiers, quantities, and default/cheapest/acquisition coverage. A missing
+required price makes the corresponding target comparison unknown, never a
+zero-price success. `target_met` compares the observed estimate, not a checkout
+quote. Price timestamps remain null and freshness unknown when the index has
+no provider observation timestamp; `data_snapshot` is a separate dataset date.
+A supplied observation timestamp reports stale coverage against a 24-hour
+default age threshold. A set release date is not a pricing timestamp.
+
+`full_deck.default_total_usd` estimates default-printing deck value;
+`full_deck.min_buy_usd` estimates buying all copies at the cheapest indexed
+nonfoil USD printing. Opting into `use_collection` adds
+`full_deck.acquire_usd`, the estimated new spending under the existing
+membership model: membership covers **all copies** of that oracle card,
+including basics and commanders. It does not establish inventory quantities
+or available copies. An absent/empty collection retains null acquisition
+figures for compatibility. No sale proceeds are deducted.
+
+[Scryfall prices](https://scryfall.com/docs/api/cards) are daily market
+estimates. Fees, taxes, shipping, stock availability, condition and seller
+minimums can change actual spending; these are not checkout quotes.
 
 ## MCP prompts and tool annotations
 

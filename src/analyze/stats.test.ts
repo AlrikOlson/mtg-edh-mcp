@@ -164,3 +164,25 @@ describe("cheapest-printing pricing + min buy (review #4)", () => {
     expect(r.min_buy_usd).toBe(3); // 10 * 0.30 (cheapest)
   });
 });
+
+describe("price parsing and minor-unit totals", () => {
+  it.each(["-1", "Infinity", "NaN", "", " ", "not a price", "0x10"])(
+    "rejects invalid USD %s",
+    (usd) => {
+      const invalid = card({ oracle_id: "invalid", name: "Invalid", prices: { usd } });
+      expect(defaultUsd(invalid)).toBeNull();
+      expect(cheapestUsd(invalid)).toBeNull();
+    },
+  );
+
+  it("accumulates rounded minor units, including repeated fractional-cent prices", () => {
+    const fractional = card({
+      oracle_id: "fractional",
+      name: "Fractional",
+      prices: { usd: "1.005" },
+    });
+    const stats = analyzeStats([{ oracle_id: "fractional", qty: 3 }], () => fractional);
+    expect(stats.total_price_usd).toBe(3.03);
+    expect(stats.min_buy_usd).toBe(3.03);
+  });
+});

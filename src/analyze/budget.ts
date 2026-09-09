@@ -17,9 +17,33 @@
  * (Scryfall-derived); for bulk commons those floors can sit well above real
  * street prices. Advisory only.
  */
-import type { DeckCardEntry, Role } from "../types/index.js";
+import type { Deck, DeckCardEntry, Role } from "../types/index.js";
 import type { CardLookup } from "./stats.js";
-import { cheapestUsd, defaultUsd } from "./stats.js";
+import { cheapestUsdCents, defaultUsdCents, priceUsdCents } from "./pricing.js";
+
+export interface PriceCoverage {
+  complete: boolean;
+  priced_quantity: number;
+  missing_quantity: number;
+  /** Resolved owned copies need no acquisition price. */
+  excluded_quantity: number;
+}
+
+export interface BudgetCoverage {
+  complete: boolean;
+  requested_quantity: number;
+  resolved_quantity: number;
+  unresolved: Array<{ oracle_id: string; qty: number }>;
+  missing_prices: Array<{
+    oracle_id: string;
+    name: string;
+    qty: number;
+    fields: Array<"default_total" | "min_buy">;
+  }>;
+  default_total: PriceCoverage;
+  min_buy: PriceCoverage;
+  acquire: PriceCoverage | null;
+}
 
 export interface ReprintSaving {
   oracle_id: string;
@@ -66,6 +90,27 @@ export interface BudgetPlan {
   owned_value_usd: number | null;
   /** How far the acquire cost exceeds the target (0 when within budget), or null. */
   over_acquire_by_usd: number | null;
+  /** Observed price estimates; missing prices never count as evidence of zero cost. */
+  minor_units: { default_total: number; min_buy: number; acquire: number | null };
+  coverage: BudgetCoverage;
+  pricing: {
+    currency: "USD";
+    source: "scryfall";
+    basis: "local_index";
+    data_snapshot: string | null;
+    price_timestamp: string | null;
+  };
+  /** Age of the min-buy observations, separate from price and card coverage. */
+  freshness: {
+    status: "fresh" | "stale" | "unknown";
+    price_timestamp: string | null;
+    max_age_ms: number;
+    stale_quantity: number;
+    unknown_quantity: number;
+  };
+  target_met: boolean | null;
+  acquire_target_met: boolean | null;
+  ownership_basis: "oracle_id_membership_all_copies" | null;
 }
 
 export interface BudgetOptions {
@@ -78,9 +123,24 @@ export interface BudgetOptions {
    * buy only the cards you don't own. Omitted = no collection (acquire figures null).
    */
   owned?: ReadonlySet<string>;
+  /** Actual observation time, never the dataset or printing release date. */
+  priceTimestamp?: string;
+  dataSnapshot?: string;
+  /** Milliseconds since epoch; injectable for deterministic freshness checks. */
+  now?: number;
+  /** Freshness threshold; defaults to one day. */
+  maxAgeMs?: number;
 }
 
-const round2 = (n: number): number => Math.round(n * 100) / 100;
+function coverage(requested: number, priced: number, excluded = 0): PriceCoverage {
+  const missing = requested - priced - excluded;
+  return {
+    complete: missing === 0,
+    priced_quantity: priced,
+    missing_quantity: missing,
+    excluded_quantity: excluded,
+  };
+}
 
 /**
  * Compute a deterministic budget plan for a deck: reprint savings, cost drivers,
@@ -97,38 +157,71 @@ export function budgetPlan(
   let defaultTotal = 0;
   let minBuyTotal = 0;
   let acquireTotal = 0;
+  let requestedQuantity = 0;
+  let resolvedQuantity = 0;
+  let defaultPriced = 0;
+  let cheapestPriced = 0;
+  let acquirePriced = 0;
+  let ownedQuantity = 0;
+  const unresolved: BudgetCoverage["unresolved"] = [];
+  const missingPrices: BudgetCoverage["missing_prices"] = [];
   const reprints: ReprintSaving[] = [];
   const drivers: CostDriver[] = [];
 
   for (const entry of entries) {
-    const card = lookup(entry.oracle_id);
-    if (!card) continue;
-    const d = defaultUsd(card) ?? 0;
-    const c = cheapestUsd(card) ?? 0;
     const qty = entry.qty;
-    defaultTotal += d * qty;
-    minBuyTotal += c * qty;
+    requestedQuantity += qty;
+    const card = lookup(entry.oracle_id);
+    if (!card) {
+      unresolved.push({ oracle_id: entry.oracle_id, qty });
+      continue;
+    }
+    resolvedQuantity += qty;
+    const d = defaultUsdCents(card);
+    const c = cheapestUsdCents(card);
+    const missingFields: Array<"default_total" | "min_buy"> = [];
+    if (d === null) missingFields.push("default_total");
+    else {
+      defaultTotal += d * qty;
+      defaultPriced += qty;
+    }
+    if (c === null) missingFields.push("min_buy");
+    else {
+      minBuyTotal += c * qty;
+      cheapestPriced += qty;
+    }
+    if (missingFields.length > 0)
+      missingPrices.push({
+        oracle_id: card.oracle_id,
+        name: card.name,
+        qty,
+        fields: missingFields,
+      });
     // Owned cards are already in hand ($0 to acquire); the rest cost cheapest×qty.
-    if (!owned?.has(entry.oracle_id)) acquireTotal += c * qty;
+    if (owned?.has(entry.oracle_id)) ownedQuantity += qty;
+    else if (c !== null) {
+      acquireTotal += c * qty;
+      acquirePriced += qty;
+    }
 
-    const savings = (d - c) * qty;
-    if (savings > 0) {
+    const savings = d !== null && c !== null ? (d - c) * qty : 0;
+    if (d !== null && c !== null && savings > 0) {
       reprints.push({
         oracle_id: card.oracle_id,
         name: card.name,
         qty,
-        default_usd: round2(d),
-        cheapest_usd: round2(c),
-        savings: round2(savings),
+        default_usd: d / 100,
+        cheapest_usd: c / 100,
+        savings: savings / 100,
       });
     }
-    if (c > 0) {
+    if (c !== null && c > 0) {
       drivers.push({
         oracle_id: card.oracle_id,
         name: card.name,
         qty,
-        cheapest_usd: round2(c),
-        contribution: round2(c * qty),
+        cheapest_usd: c / 100,
+        contribution: (c * qty) / 100,
         roles: [...card.roles],
       });
     }
@@ -137,18 +230,101 @@ export function budgetPlan(
   reprints.sort((a, b) => b.savings - a.savings || a.oracle_id.localeCompare(b.oracle_id));
   drivers.sort((a, b) => b.contribution - a.contribution || a.oracle_id.localeCompare(b.oracle_id));
 
-  const target = opts.targetUsd ?? null;
+  const targetCents = opts.targetUsd === undefined ? null : priceUsdCents(String(opts.targetUsd));
+  const target = targetCents === null ? null : targetCents / 100;
+  const defaultCoverage = coverage(requestedQuantity, defaultPriced);
+  const minBuyCoverage = coverage(requestedQuantity, cheapestPriced);
+  const acquireCoverage = owned ? coverage(requestedQuantity, acquirePriced, ownedQuantity) : null;
+  const maxAgeMs = opts.maxAgeMs ?? 86_400_000;
+  const now = opts.now ?? Date.now();
+  const observed = opts.priceTimestamp === undefined ? NaN : Date.parse(opts.priceTimestamp);
+  const validObservation = Number.isFinite(observed) && observed <= now;
+  const priceTimestamp = validObservation ? (opts.priceTimestamp ?? null) : null;
+  const staleQuantity = validObservation && now - observed > maxAgeMs ? cheapestPriced : 0;
+  const unknownQuantity = validObservation ? requestedQuantity - cheapestPriced : requestedQuantity;
+  const freshness: BudgetPlan["freshness"] = {
+    status:
+      staleQuantity > 0 ? "stale" : unknownQuantity > 0 || !validObservation ? "unknown" : "fresh",
+    price_timestamp: priceTimestamp,
+    max_age_ms: maxAgeMs,
+    stale_quantity: staleQuantity,
+    unknown_quantity: unknownQuantity,
+  };
+  const canCompareMin = targetCents !== null && minBuyCoverage.complete;
+  const canCompareAcquire = targetCents !== null && acquireCoverage?.complete === true;
   return {
-    default_total_usd: round2(defaultTotal),
-    min_buy_usd: round2(minBuyTotal),
-    reprint_savings_usd: round2(defaultTotal - minBuyTotal),
+    default_total_usd: defaultTotal / 100,
+    min_buy_usd: minBuyTotal / 100,
+    reprint_savings_usd: (defaultTotal - minBuyTotal) / 100,
     reprint_suggestions: reprints.slice(0, limit),
     cost_drivers: drivers.slice(0, limit),
     target_usd: target,
-    over_min_buy_by_usd: target !== null ? round2(Math.max(0, minBuyTotal - target)) : null,
-    acquire_usd: owned ? round2(acquireTotal) : null,
-    owned_value_usd: owned ? round2(minBuyTotal - acquireTotal) : null,
-    over_acquire_by_usd:
-      owned && target !== null ? round2(Math.max(0, acquireTotal - target)) : null,
+    over_min_buy_by_usd: canCompareMin ? Math.max(0, minBuyTotal - targetCents) / 100 : null,
+    acquire_usd: owned ? acquireTotal / 100 : null,
+    owned_value_usd: owned ? (minBuyTotal - acquireTotal) / 100 : null,
+    over_acquire_by_usd: canCompareAcquire ? Math.max(0, acquireTotal - targetCents) / 100 : null,
+    minor_units: {
+      default_total: defaultTotal,
+      min_buy: minBuyTotal,
+      acquire: owned ? acquireTotal : null,
+    },
+    coverage: {
+      complete: defaultCoverage.complete && minBuyCoverage.complete,
+      requested_quantity: requestedQuantity,
+      resolved_quantity: resolvedQuantity,
+      unresolved,
+      missing_prices: missingPrices,
+      default_total: defaultCoverage,
+      min_buy: minBuyCoverage,
+      acquire: acquireCoverage,
+    },
+    pricing: {
+      currency: "USD",
+      source: "scryfall",
+      basis: "local_index",
+      data_snapshot: opts.dataSnapshot ?? null,
+      price_timestamp: priceTimestamp,
+    },
+    freshness,
+    target_met: canCompareMin ? minBuyTotal <= targetCents : null,
+    acquire_target_met: canCompareAcquire ? acquireTotal <= targetCents : null,
+    ownership_basis: owned ? "oracle_id_membership_all_copies" : null,
+  };
+}
+
+/** Authoritative deck price scope: library quantities plus one per command-zone slot. */
+export function wholeDeckBudget(deck: Deck, lookup: CardLookup, opts: BudgetOptions = {}) {
+  const options = { ...opts, dataSnapshot: opts.dataSnapshot ?? deck.data_snapshot };
+  const commanders = deck.commanders.map((oracle_id) => ({ oracle_id, qty: 1 }));
+  const companion = deck.companion ? [{ oracle_id: deck.companion, qty: 1 }] : [];
+  const library = budgetPlan(deck.cards, lookup, options);
+  const commandZone = budgetPlan(commanders, lookup, options);
+  const seenCommanders = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const id of deck.commanders) {
+    if (seenCommanders.has(id)) duplicates.add(id);
+    seenCommanders.add(id);
+  }
+  return {
+    library,
+    command_zone: commandZone,
+    full_deck: budgetPlan([...deck.cards, ...commanders], lookup, options),
+    companion: budgetPlan(companion, lookup, options),
+    scope: {
+      library_quantity: library.coverage.requested_quantity,
+      command_zone_quantity: commanders.length,
+      full_deck_quantity: library.coverage.requested_quantity + commanders.length,
+      companion_quantity: companion.length,
+      companion_included: false,
+      auxiliary_zones: "not_represented",
+      duplicate_commanders: [...duplicates].sort(),
+      command_library_overlap: [
+        ...new Set(
+          deck.cards
+            .filter((entry) => seenCommanders.has(entry.oracle_id))
+            .map((entry) => entry.oracle_id),
+        ),
+      ].sort(),
+    },
   };
 }

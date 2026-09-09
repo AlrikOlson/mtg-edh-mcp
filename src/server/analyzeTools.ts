@@ -5,6 +5,8 @@
  * the index, then calls the pure analyzers (src/analyze). Advisory only.
  */
 import { z } from "zod";
+import { wholeDeckBudget } from "../analyze/budget.js";
+import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { ROLES, StructuredError } from "../types/index.js";
 import { deckRoleLookup, deckRoleProvenance } from "../analyze/deckRoles.js";
 import type { Card, Color, Role } from "../types/index.js";
@@ -18,7 +20,6 @@ import {
   analyzeManaBase,
   analyzeRoleCoverage,
   simulateDeck,
-  budgetPlan,
   type RoleBands,
   type SimOptions,
   type BudgetOptions,
@@ -29,6 +30,46 @@ import { READS_LOCAL } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 const COLOR_ENUM = ["W", "U", "B", "R", "G"] as const;
+
+/** Omit recommendation lists from zone summaries and general statistics. */
+function budgetReport(budget: ReturnType<typeof wholeDeckBudget>, detailed = false) {
+  const summarize = (plan: typeof budget.full_deck) => ({
+    default_total_usd: plan.default_total_usd,
+    min_buy_usd: plan.min_buy_usd,
+    acquire_usd: plan.acquire_usd,
+    owned_value_usd: plan.owned_value_usd,
+    target_usd: plan.target_usd,
+    target_met: plan.target_met,
+    acquire_target_met: plan.acquire_target_met,
+    over_min_buy_by_usd: plan.over_min_buy_by_usd,
+    over_acquire_by_usd: plan.over_acquire_by_usd,
+    minor_units: plan.minor_units,
+    coverage: plan.coverage,
+    pricing: plan.pricing,
+    freshness: plan.freshness,
+    ownership_basis: plan.ownership_basis,
+  });
+  return {
+    library: summarize(budget.library),
+    command_zone: summarize(budget.command_zone),
+    full_deck: detailed ? budget.full_deck : summarize(budget.full_deck),
+    companion: summarize(budget.companion),
+    scope: budget.scope,
+  };
+}
+
+function budgetSummary(budget: ReturnType<typeof wholeDeckBudget>): string {
+  const full = budget.full_deck;
+  const acquire =
+    full.acquire_usd === null
+      ? ""
+      : `; estimated new spending USD ${full.acquire_usd} (collection membership covers all copies)`;
+  return (
+    `full-deck estimated value USD ${full.default_total_usd}, cheapest-printing estimate USD ${full.min_buy_usd}` +
+    ` (library ${budget.library.min_buy_usd}, command zone ${budget.command_zone.min_buy_usd}); companion ${budget.companion.min_buy_usd} separate` +
+    `${full.coverage.complete ? "" : "; incomplete price coverage — known subtotals only"}${acquire}; price freshness ${full.freshness.status}; excludes fees, tax and shipping`
+  );
+}
 
 function analyzeCurveTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
   return {
@@ -66,7 +107,11 @@ function analyzeCurveTool(store: DeckStore, index: CardIndex, session: string): 
             text: `${result.total} cards across ${Object.keys(result.buckets).length} buckets`,
           },
         ],
-        structuredContent: { deck_id: deckId, ...result, ...deckRoleProvenance(deck) },
+        structuredContent: {
+          deck_id: deckId,
+          ...result,
+          ...deckRoleProvenance(deck),
+        },
       };
     },
   };
@@ -98,13 +143,22 @@ function analyzeCompositionTool(
       const result = analyzeComposition(deck.cards, lookup);
       return {
         content: [{ type: "text", text: `${result.total} cards` }],
-        structuredContent: { deck_id: deckId, ...result, ...deckRoleProvenance(deck) },
+        structuredContent: {
+          deck_id: deckId,
+          ...result,
+          ...deckRoleProvenance(deck),
+        },
       };
     },
   };
 }
 
-function analyzeStatsTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
+function analyzeStatsTool(
+  store: DeckStore,
+  index: CardIndex,
+  session: string,
+  snapshot: SnapshotProvider,
+): ToolDefinition {
   return {
     name: "analyze_stats",
     config: {
@@ -115,7 +169,7 @@ function analyzeStatsTool(store: DeckStore, index: CardIndex, session: string): 
         "USE: precise numbers for tuning (LLMs miscount — this doesn't). NOT: the one-call overview (deck_status).\n" +
         "FLOW: deck_status -> analyze_stats -> budget_plan.\n" +
         "ARGS: deck_id.\n" +
-        "RETURNS: total_cards, nonland_cards, avg_mv, avg_mv_nonland, color_pips, total_price_usd (default printings), min_buy_usd (cheapest printings).",
+        "RETURNS: total_cards, nonland_cards, avg_mv, avg_mv_nonland, color_pips, total_price_usd and min_buy_usd (library compatibility); budget.full_deck, command_zone, companion and coverage. USD estimates exclude fees, tax and shipping.",
       inputSchema: { deck_id: z.string() },
     },
     handler: (args) => {
@@ -124,14 +178,24 @@ function analyzeStatsTool(store: DeckStore, index: CardIndex, session: string): 
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const lookup = (id: string): Card | null => index.getCard(id);
       const result = analyzeStats(deck.cards, lookup);
+      const budget = wholeDeckBudget(deck, lookup, {
+        dataSnapshot: snapshot(),
+        limit: 0,
+      });
       return {
         content: [
           {
             type: "text",
-            text: `${result.total_cards} cards, avg MV ${result.avg_mv}, $${result.total_price_usd} (min buy $${result.min_buy_usd})`,
+            text: `${result.total_cards} library cards, avg MV ${result.avg_mv}; ${budgetSummary(budget)}`,
           },
         ],
-        structuredContent: { deck_id: deckId, ...result },
+        structuredContent: {
+          deck_id: deckId,
+          version: deck.version,
+          ...result,
+          price_scope: "library",
+          budget: budgetReport(budget),
+        },
       };
     },
   };
@@ -208,7 +272,11 @@ function analyzeRoleCoverageTool(
       const under = result.gaps.filter((g) => g.status === "under").length;
       return {
         content: [{ type: "text", text: `${under} role(s) under target` }],
-        structuredContent: { deck_id: deckId, ...result, ...deckRoleProvenance(deck) },
+        structuredContent: {
+          deck_id: deckId,
+          ...result,
+          ...deckRoleProvenance(deck),
+        },
       };
     },
   };
@@ -217,7 +285,12 @@ function analyzeRoleCoverageTool(
 /** Cap for the violations echoed by deck_status (full counts always reported). */
 const STATUS_ERROR_CAP = 20;
 
-function deckStatusTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
+function deckStatusTool(
+  store: DeckStore,
+  index: CardIndex,
+  session: string,
+  snapshot: SnapshotProvider,
+): ToolDefinition {
   return {
     name: "deck_status",
     config: {
@@ -230,7 +303,7 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
         "ARGS: deck_id.\n" +
         "RETURNS: vitals (card_count/100, land_count, color_identity, legal, version); legality (errors capped at " +
         `${STATUS_ERROR_CAP}, exact error_count/warning_count); curve (buckets, avg_mv); mana (sources_by_color, ` +
-        "under_supported); roles (below-band gaps); price (total_usd, min_buy_usd).",
+        "under_supported); roles (below-band gaps); price (total_usd/min_buy_usd library compatibility; full_deck, command_zone, companion and price coverage).",
       inputSchema: { deck_id: z.string() },
       // Preserve the existing no-outputSchema contract; see card_search.
     },
@@ -250,6 +323,10 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
       const warnings = violations.filter((v) => v.severity === "warning");
       const curve = analyzeCurve(deck.cards, lookup);
       const stats = analyzeStats(deck.cards, lookup);
+      const budget = wholeDeckBudget(deck, lookup, {
+        dataSnapshot: snapshot(),
+        limit: 0,
+      });
       const mana = analyzeManaBase(deck.cards, lookup, {
         identity: deck.computed_color_identity,
       });
@@ -269,7 +346,7 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
               `curve avg ${stats.avg_mv} (nonland ${stats.avg_mv_nonland}); mana under-supported: ${
                 mana.under_supported.join("") || "none"
               }\n` +
-              `${gapNote}; price $${stats.total_price_usd} (min buy $${stats.min_buy_usd})`,
+              `${gapNote}; ${budgetSummary(budget)}`,
           },
         ],
         structuredContent: {
@@ -296,6 +373,8 @@ function deckStatusTool(store: DeckStore, index: CardIndex, session: string): To
           price: {
             total_usd: stats.total_price_usd,
             min_buy_usd: stats.min_buy_usd,
+            price_scope: "library",
+            ...budgetReport(budget),
           },
         },
       };
@@ -348,7 +427,11 @@ function simulateDeckTool(store: DeckStore, index: CardIndex, session: string): 
               `${Math.round(result.dead_on_arrival_rate * 100)}% dead-on-arrival, first spell ~T${result.avg_turn_to_first_spell ?? "n/a"}`,
           },
         ],
-        structuredContent: { deck_id: deckId, ...result, ...deckRoleProvenance(deck) },
+        structuredContent: {
+          deck_id: deckId,
+          ...result,
+          ...deckRoleProvenance(deck),
+        },
       };
     },
   };
@@ -358,7 +441,8 @@ function budgetPlanTool(
   store: DeckStore,
   index: CardIndex,
   session: string,
-  collection?: CollectionStore,
+  collection: CollectionStore | undefined,
+  snapshot: SnapshotProvider,
 ): ToolDefinition {
   return {
     name: "budget_plan",
@@ -370,7 +454,7 @@ function budgetPlanTool(
         "USE: reprint savings, cost drivers, over-budget gap, acquire cost vs the owned collection. NOT: replacement suggestions (meta_budget_swaps).\n" +
         "FLOW: analyze_stats -> budget_plan -> meta_budget_swaps.\n" +
         "ARGS: deck_id; target_usd; limit (max 100); use_collection:true for acquire_usd (needs collection_set).\n" +
-        "RETURNS: min_buy_usd, default_total_usd, reprint_savings_usd, reprint_suggestions[], cost_drivers[], over_min_buy_by_usd, acquire_usd. Local-index price floors, advisory.",
+        "RETURNS: full_deck (library + commanders), library, command_zone, companion (separate), coverage and freshness. Top-level min_buy_usd/default_total_usd/acquire_usd retain library scope; use full_deck.target_met and full_deck.acquire_usd. USD estimates exclude fees, tax and shipping; collection membership covers all copies.",
       inputSchema: {
         deck_id: z.string(),
         target_usd: z.number().nonnegative().optional(),
@@ -383,25 +467,36 @@ function budgetPlanTool(
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const lookup = deckRoleLookup(deck, (id) => index.getCard(id));
-      const opts: BudgetOptions = {};
+      const opts: BudgetOptions = { dataSnapshot: snapshot() };
       if (typeof args.target_usd === "number") opts.targetUsd = args.target_usd;
       if (typeof args.limit === "number") opts.limit = args.limit;
       // Opt-in collection awareness: zero out cards already owned in this session.
       if (args.use_collection === true && collection && collection.size(session) > 0) {
         opts.owned = collection.get(session);
       }
-      const plan = budgetPlan(deck.cards, lookup, opts);
+      const budget = wholeDeckBudget(deck, lookup, opts);
+      const full = budget.full_deck;
       const gap =
-        plan.over_min_buy_by_usd !== null ? `, $${plan.over_min_buy_by_usd} over target` : "";
-      const acquire = plan.acquire_usd !== null ? `; acquire $${plan.acquire_usd}` : "";
+        full.target_usd === null
+          ? ""
+          : full.target_met === null
+            ? "; full-deck target unknown"
+            : `; full-deck estimated gap ${full.over_min_buy_by_usd}`;
       return {
         content: [
           {
             type: "text",
-            text: `min buy $${plan.min_buy_usd} (default $${plan.default_total_usd}); reprint savings $${plan.reprint_savings_usd}${acquire}${gap}`,
+            text: `${budgetSummary(budget)}${gap}`,
           },
         ],
-        structuredContent: { deck_id: deckId, ...plan, ...deckRoleProvenance(deck) },
+        structuredContent: {
+          deck_id: deckId,
+          version: deck.version,
+          ...budget.library,
+          price_scope: "library",
+          ...budgetReport(budget, true),
+          ...deckRoleProvenance(deck),
+        },
       };
     },
   };
@@ -413,15 +508,16 @@ export function makeAnalyzeTools(
   index: CardIndex,
   session = "local",
   collection?: CollectionStore,
+  snapshot: SnapshotProvider = staticSnapshotProvider(),
 ): ToolDefinition[] {
   return [
     analyzeCurveTool(store, index, session),
     analyzeCompositionTool(store, index, session),
-    analyzeStatsTool(store, index, session),
+    analyzeStatsTool(store, index, session, snapshot),
     analyzeManaBaseTool(store, index, session),
     analyzeRoleCoverageTool(store, index, session),
-    deckStatusTool(store, index, session),
+    deckStatusTool(store, index, session, snapshot),
     simulateDeckTool(store, index, session),
-    budgetPlanTool(store, index, session, collection),
+    budgetPlanTool(store, index, session, collection, snapshot),
   ];
 }

@@ -93,6 +93,141 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
+describe("whole-deck budget MCP contract", () => {
+  it("keeps full value separate from membership acquisition without mutating deck versions", async () => {
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      commanders: ["o-sol"],
+      cards: [{ oracle_id: "o-forest", qty: 99 }],
+    }));
+    await client.callTool({
+      name: "collection_set",
+      arguments: { cards: ["o-forest"] },
+    });
+    const before = deckStore.get("deck-1");
+    const response = await client.callTool({
+      name: "budget_plan",
+      arguments: { deck_id: "deck-1", target_usd: 2, use_collection: true },
+    });
+    expect(response.structuredContent).toMatchObject({
+      version: before?.version,
+      price_scope: "library",
+      acquire_usd: 0,
+      full_deck: {
+        min_buy_usd: 11.4,
+        acquire_usd: 1.5,
+        owned_value_usd: 9.9,
+        target_met: false,
+        acquire_target_met: true,
+        ownership_basis: "oracle_id_membership_all_copies",
+      },
+    });
+    expect(deckStore.get("deck-1")).toEqual(before);
+    const conflict = await client.callTool({
+      name: "deck_rename",
+      arguments: {
+        deck_id: "deck-1",
+        name: "Stale write",
+        expected_version: 0,
+      },
+    });
+    expect(conflict.structuredContent).toMatchObject({
+      ok: false,
+      conflict: true,
+    });
+    const after = await client.callTool({
+      name: "budget_plan",
+      arguments: { deck_id: "deck-1", target_usd: 2, use_collection: true },
+    });
+    expect(after.structuredContent).toEqual(response.structuredContent);
+  });
+
+  it("includes both commanders, keeps library compatibility, and excludes a companion", async () => {
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      commanders: ["o-sol", "o-counter"],
+      command_zone_kind: "partner",
+      cards: [{ oracle_id: "o-forest", qty: 98 }],
+      companion: "o-sol",
+    }));
+    const response = await client.callTool({
+      name: "budget_plan",
+      arguments: { deck_id: "deck-1", target_usd: 10 },
+    });
+    expect(response.structuredContent).toMatchObject({
+      price_scope: "library",
+      min_buy_usd: 9.8,
+      library: { min_buy_usd: 9.8 },
+      command_zone: { min_buy_usd: 2.5 },
+      full_deck: {
+        min_buy_usd: 12.3,
+        target_met: false,
+        over_min_buy_by_usd: 2.3,
+      },
+      companion: { min_buy_usd: 1.5 },
+      scope: { full_deck_quantity: 100, companion_included: false },
+    });
+    const jsonBlock = response.content.find(
+      (block) => block.type === "text" && block.text.startsWith("{"),
+    );
+    expect(jsonBlock?.type === "text" ? JSON.parse(jsonBlock.text) : null).toEqual(
+      response.structuredContent,
+    );
+    for (const name of ["analyze_stats", "deck_status"]) {
+      const result = await client.callTool({
+        name,
+        arguments: { deck_id: "deck-1" },
+      });
+      expect(result.structuredContent).toMatchObject(
+        name === "analyze_stats"
+          ? {
+              min_buy_usd: 9.8,
+              price_scope: "library",
+              budget: { full_deck: { min_buy_usd: 12.3 } },
+            }
+          : {
+              price: {
+                min_buy_usd: 9.8,
+                price_scope: "library",
+                full_deck: { min_buy_usd: 12.3 },
+              },
+            },
+      );
+    }
+  });
+
+  it("discloses unknown commanders and timestamp coverage without claiming within budget", async () => {
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      commanders: ["missing-commander"],
+    }));
+    const response = await client.callTool({
+      name: "budget_plan",
+      arguments: { deck_id: "deck-1", target_usd: 100 },
+    });
+    expect(response.structuredContent).toMatchObject({
+      full_deck: {
+        target_met: null,
+        over_min_buy_by_usd: null,
+        coverage: {
+          complete: false,
+          unresolved: [{ oracle_id: "missing-commander", qty: 1 }],
+        },
+        pricing: {
+          currency: "USD",
+          data_snapshot: "2026-06-27",
+          price_timestamp: null,
+        },
+        freshness: { status: "unknown" },
+      },
+    });
+    expect(response.content[0]).toMatchObject({
+      type: "text",
+      text: expect.stringContaining("incomplete"),
+    });
+  });
+});
+
 describe("analysis tools", () => {
   it("registers analyze_curve, analyze_composition, analyze_stats", async () => {
     const names = (await client.listTools()).tools.map((t) => t.name);

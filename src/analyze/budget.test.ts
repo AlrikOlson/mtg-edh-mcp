@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { Card, Printing, Role } from "../types/index.js";
+import type { Card, Deck, Printing, Role } from "../types/index.js";
 import { budgetPlan, type CardLookup } from "./index.js";
+import { wholeDeckBudget } from "./budget.js";
 
 function printing(usd: string): Printing {
   return {
@@ -124,5 +125,210 @@ describe("budgetPlan — owned collection (bl-collection-budget)", () => {
     const plan = budgetPlan(entries, lookup, { owned: new Set(["o-rats", "o-sol"]) });
     expect(plan.acquire_usd).toBe(0);
     expect(plan.owned_value_usd).toBe(2.4);
+  });
+});
+
+function deck(p: Partial<Deck> = {}): Deck {
+  return {
+    deck_id: "budget-deck",
+    name: "Budget",
+    format: "commander",
+    commanders: ["o-sol"],
+    command_zone_kind: "single",
+    cards: [{ oracle_id: "o-rats", qty: 3 }],
+    computed_color_identity: [],
+    version: 1,
+    data_snapshot: "2026-09-08",
+    ...p,
+  };
+}
+
+describe("wholeDeckBudget", () => {
+  it("accounts for one commander, quantities, and a companion outside the deck", () => {
+    const result = wholeDeckBudget(deck({ companion: "o-sol" }), lookup, { targetUsd: 1 });
+    expect(result.library.minor_units.min_buy).toBe(90);
+    expect(result.command_zone.minor_units.min_buy).toBe(150);
+    expect(result.full_deck.minor_units.min_buy).toBe(240);
+    expect(result.full_deck.over_min_buy_by_usd).toBe(1.4);
+    expect(result.companion.minor_units.min_buy).toBe(150);
+    expect(result.scope).toMatchObject({
+      library_quantity: 3,
+      command_zone_quantity: 1,
+      full_deck_quantity: 4,
+      companion_quantity: 1,
+      companion_included: false,
+      auxiliary_zones: "not_represented",
+    });
+  });
+
+  it.each(["partner", "background", "doctor_companion"] as const)(
+    "prices both %s command-zone slots",
+    (kind) => {
+      const result = wholeDeckBudget(
+        deck({
+          commanders: ["o-sol", "o-rats"],
+          command_zone_kind: kind,
+          cards: [{ oracle_id: "o-sol", qty: 2 }],
+        }),
+        lookup,
+      );
+      expect(result.command_zone.minor_units.min_buy).toBe(180);
+      expect(result.full_deck.minor_units.min_buy).toBe(480);
+      expect(result.scope.command_library_overlap).toEqual(["o-sol"]);
+    },
+  );
+
+  it("flags duplicate commanders while retaining every stored copy", () => {
+    const result = wholeDeckBudget(deck({ commanders: ["o-sol", "o-sol"], cards: [] }), lookup);
+    expect(result.full_deck.minor_units.min_buy).toBe(300);
+    expect(result.scope.duplicate_commanders).toEqual(["o-sol"]);
+  });
+
+  it("covers owned commander copies and keeps an unresolved companion outside the total", () => {
+    const result = wholeDeckBudget(
+      deck({ commanders: ["o-sol", "o-sol"], companion: "missing" }),
+      lookup,
+      { owned: new Set(["o-sol"]), targetUsd: 1 },
+    );
+    expect(result.full_deck.minor_units).toMatchObject({ min_buy: 390, acquire: 90 });
+    expect(result.full_deck.coverage.acquire).toMatchObject({
+      complete: true,
+      excluded_quantity: 2,
+    });
+    expect(result.full_deck.target_met).toBe(false);
+    expect(result.full_deck.acquire_target_met).toBe(true);
+    expect(result.companion.coverage.unresolved).toEqual([{ oracle_id: "missing", qty: 1 }]);
+  });
+
+  it("includes unresolved commander quantities and never asserts an incomplete target", () => {
+    const result = wholeDeckBudget(
+      deck({
+        commanders: ["missing"],
+        cards: [
+          { oracle_id: "missing-library", qty: 2 },
+          { oracle_id: "o-rats", qty: 3 },
+        ],
+      }),
+      lookup,
+      { targetUsd: 100, owned: new Set(["missing"]) },
+    );
+    expect(result.full_deck.min_buy_usd).toBe(0.9);
+    expect(result.full_deck.coverage).toMatchObject({
+      complete: false,
+      requested_quantity: 6,
+      resolved_quantity: 3,
+      unresolved: [
+        { oracle_id: "missing-library", qty: 2 },
+        { oracle_id: "missing", qty: 1 },
+      ],
+    });
+    expect(result.full_deck.over_min_buy_by_usd).toBeNull();
+    expect(result.full_deck.target_met).toBeNull();
+    expect(result.full_deck.over_acquire_by_usd).toBeNull();
+  });
+});
+
+describe("budget price evidence", () => {
+  it("distinguishes zero USD from missing/invalid prices and tracks each field", () => {
+    const cards = [
+      card({ oracle_id: "zero", name: "Zero", prices: { usd: "0.00" } }),
+      card({
+        oracle_id: "invalid",
+        name: "Invalid",
+        prices: { usd: "-1" },
+        printings: [printing("Infinity")],
+      }),
+      card({ oracle_id: "only-cheapest", name: "Only cheapest", printings: [printing("0.10")] }),
+    ];
+    const result = budgetPlan(
+      cards.map((c) => ({ oracle_id: c.oracle_id, qty: 2 })),
+      (id) => cards.find((c) => c.oracle_id === id) ?? null,
+      { targetUsd: 100, owned: new Set(["invalid"]) },
+    );
+    expect(result.minor_units).toEqual({ default_total: 0, min_buy: 20, acquire: 20 });
+    expect(result.coverage.default_total).toMatchObject({
+      complete: false,
+      priced_quantity: 2,
+      missing_quantity: 4,
+    });
+    expect(result.coverage.min_buy).toMatchObject({
+      complete: false,
+      priced_quantity: 4,
+      missing_quantity: 2,
+    });
+    expect(result.coverage.acquire).toMatchObject({
+      complete: true,
+      priced_quantity: 4,
+      missing_quantity: 0,
+      excluded_quantity: 2,
+    });
+    expect(result.coverage.missing_prices).toEqual([
+      { oracle_id: "invalid", name: "Invalid", qty: 2, fields: ["default_total", "min_buy"] },
+      { oracle_id: "only-cheapest", name: "Only cheapest", qty: 2, fields: ["default_total"] },
+    ]);
+    expect(result.target_met).toBeNull();
+    expect(result.acquire_target_met).toBe(true);
+    expect(result.ownership_basis).toBe("oracle_id_membership_all_copies");
+  });
+
+  it("uses cents before multiplying and accumulating", () => {
+    const fractional = card({
+      oracle_id: "fractional",
+      name: "Fractional",
+      prices: { usd: "1.005" },
+    });
+    const result = budgetPlan([{ oracle_id: "fractional", qty: 3 }], () => fractional, {
+      targetUsd: 3.03,
+    });
+    expect(result.minor_units.min_buy).toBe(303);
+    expect(result.min_buy_usd).toBe(3.03);
+    expect(result.over_min_buy_by_usd).toBe(0);
+    expect(result.target_met).toBe(true);
+  });
+
+  it("does not turn a dataset snapshot into a price observation timestamp", () => {
+    const result = wholeDeckBudget(deck(), lookup);
+    expect(result.full_deck.pricing).toMatchObject({
+      currency: "USD",
+      source: "scryfall",
+      data_snapshot: "2026-09-08",
+      price_timestamp: null,
+    });
+    expect(result.full_deck.freshness).toMatchObject({
+      status: "unknown",
+      price_timestamp: null,
+      unknown_quantity: 4,
+    });
+  });
+
+  it("keeps missing quantities unknown even when observed prices are fresh", () => {
+    const result = budgetPlan(
+      [
+        { oracle_id: "o-sol", qty: 1 },
+        { oracle_id: "missing", qty: 2 },
+      ],
+      lookup,
+      { priceTimestamp: "2026-09-08T00:00:00Z", now: Date.parse("2026-09-08T12:00:00Z") },
+    );
+    expect(result.freshness).toMatchObject({
+      status: "unknown",
+      unknown_quantity: 2,
+      stale_quantity: 0,
+    });
+  });
+
+  it.each([
+    ["2026-09-08T00:00:00Z", "fresh", 0],
+    ["2026-09-06T00:00:00Z", "stale", 1],
+    ["bad-date", "unknown", 0],
+    ["2026-09-10T00:00:00Z", "unknown", 0],
+  ])("classifies actual price timestamp %s as %s", (priceTimestamp, status, staleQuantity) => {
+    const result = budgetPlan([{ oracle_id: "o-sol", qty: 1 }], lookup, {
+      priceTimestamp,
+      now: Date.parse("2026-09-08T12:00:00Z"),
+      maxAgeMs: 86_400_000,
+    });
+    expect(result.freshness.status).toBe(status);
+    expect(result.freshness.stale_quantity).toBe(staleQuantity);
   });
 });

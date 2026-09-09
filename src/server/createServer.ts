@@ -129,8 +129,16 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     ...(options.deckStore
       ? [
           ...makeValidateTools(options.deckStore, current, session),
-          ...makeAnalyzeTools(options.deckStore, current, session, collection),
-          ...makeMetaTools(options.deckStore, current, edhrec, spellbook, gameChangers, session),
+          ...makeAnalyzeTools(options.deckStore, current, session, collection, snapshot),
+          ...makeMetaTools(
+            options.deckStore,
+            current,
+            edhrec,
+            spellbook,
+            gameChangers,
+            session,
+            snapshot,
+          ),
         ]
       : []),
   ];

@@ -45,9 +45,9 @@ const buildCommanderDeck: PromptDefinition = {
   build: (args) => {
     const theme = args.theme ? ` with a '${args.theme}' theme` : "";
     const budget = args.budget_usd
-      ? `\n7. Budget pass (target $${args.budget_usd}): budget_plan with target_usd for ` +
+      ? `\n7. Budget pass (target \u0024${args.budget_usd}): budget_plan with target_usd for ` +
         "zero-change reprint savings, then meta_budget_swaps for out/in replacements until " +
-        "projected_min_buy_usd is under target."
+        "budget_plan.full_deck.target_met or meta_budget_swaps.target_met is true with complete price coverage. Disclose unknown/stale price freshness and extra purchase costs."
       : "";
     return (
       `Build a legal 100-card Commander deck around ${args.commander}${theme}.\n\n` +
@@ -100,11 +100,11 @@ const fitBudget: PromptDefinition = {
   },
   build: (args) => {
     return (
-      `Fit deck ${args.deck_id} under $${args.target_usd}.\n\n` +
+      `Fit deck ${args.deck_id} under \u0024${args.target_usd}.\n\n` +
       "Recipe:\n" +
-      `1. budget_plan {deck_id: "${args.deck_id}", target_usd: ${args.target_usd}} — reprint_savings_usd costs ZERO deck changes (buy cheaper printings); check over_min_buy_by_usd for the remaining gap.\n` +
+      `1. budget_plan {deck_id: "${args.deck_id}", target_usd: ${args.target_usd}} — reprint_savings_usd costs ZERO deck changes (buy cheaper printings); check full_deck.over_min_buy_by_usd for the remaining gap; full_deck.target_met is unknown when required prices are missing.\n` +
       "2. If still over: meta_budget_swaps with the same target_usd — role-matched cheaper replacements with per-swap savings; apply each via deck_remove + deck_add.\n" +
-      "3. deck_status to confirm the deck is still legal and shaped right; price.min_buy_usd is the floor to compare against the target.\n\n" +
+      "3. deck_status to confirm the deck is still legal and shaped right; price.full_deck.min_buy_usd includes commanders; compare only with complete required coverage and disclose unknown/stale prices. Companion costs are separate; estimates exclude fees, tax and shipping.\n\n" +
       CONVENTIONS
     );
   },

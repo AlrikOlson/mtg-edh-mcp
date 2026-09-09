@@ -15,6 +15,8 @@ import type { Card, CardRef, Deck, Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
 import { cheapestUsd } from "../analyze/index.js";
+import { wholeDeckBudget, type BudgetPlan } from "../analyze/budget.js";
+import { cheapestUsdCents } from "../analyze/pricing.js";
 import { effectiveRoles, roleEvidence } from "../analyze/deckRoles.js";
 import type { EdhrecCard, SourcedCommanderProfile } from "../meta/edhrec.js";
 import type {
@@ -63,6 +65,7 @@ async function deckTwoCardCombos(
 }
 import { READS_LIVE } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
+import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
@@ -97,7 +100,6 @@ function adviceEvidence(
 
 /** Coverage describes only the library price floor, never a complete acquisition quote. */
 function libraryBudget(deck: Deck, index: CardIndex) {
-  let total = 0;
   let unpriced = 0;
   let unresolved = 0;
   for (const entry of deck.cards) {
@@ -106,12 +108,10 @@ function libraryBudget(deck: Deck, index: CardIndex) {
       unresolved += entry.qty;
       continue;
     }
-    const price = cheapestUsd(card);
+    const price = cheapestUsdCents(card);
     if (price === null) unpriced += entry.qty;
-    else total += price * entry.qty;
   }
   return {
-    total,
     coverage: {
       scope: "library_only",
       ownership_adjusted: false,
@@ -121,6 +121,18 @@ function libraryBudget(deck: Deck, index: CardIndex) {
       unresolved_copies: unresolved,
       complete: unpriced === 0 && unresolved === 0,
     },
+  };
+}
+
+/** Keep cost/coverage reports compact; swap evidence already explains the individual cards. */
+function swapBudgetSummary(plan: BudgetPlan) {
+  return {
+    min_buy_usd: plan.min_buy_usd,
+    minor_units: { min_buy: plan.minor_units.min_buy },
+    coverage: plan.coverage,
+    pricing: plan.pricing,
+    freshness: plan.freshness,
+    target_met: plan.target_met,
   };
 }
 
@@ -353,7 +365,7 @@ interface SwapCandidate {
   oracle_id: string;
   name: string;
   roles: Role[];
-  cheapest: number;
+  cheapestCents: number;
   card: Card;
   metrics: ProfileCandidate;
 }
@@ -363,6 +375,7 @@ function metaBudgetSwapsTool(
   index: CardIndex,
   edhrec: EdhrecClient,
   session: string,
+  snapshot: SnapshotProvider,
 ): ToolDefinition {
   return {
     name: "meta_budget_swaps",
@@ -374,7 +387,7 @@ function metaBudgetSwapsTool(
         "USE: reduce library cost with explained out/in swaps. NOT: additions (meta_recommend); reprint savings (budget_plan).\n" +
         "FLOW: budget_plan -> meta_budget_swaps -> deck_remove/deck_add -> validate_deck.\n" +
         "ARGS: deck_id; target_usd; limit (10, max 50).\n" +
-        "RETURNS: swaps[] {out, in, roles_matched, savings, rationale, tradeoffs, uncertainty, budget_impact}; role/synergy evidence; source/freshness; current/projected_min_buy_usd, budget coverage, target_met. Price floors exclude command zone and ownership.",
+        "RETURNS: swaps[] with evidence and savings; current/projected_min_buy_usd are legacy library totals. current_full_deck/projected_full_deck include commanders; target_met uses complete whole-deck price coverage. Companion costs and ownership are excluded from the target. Local estimates, not purchase quotes.",
       inputSchema: {
         deck_id: z.string(),
         target_usd: z.number().nonnegative().optional(),
@@ -396,13 +409,13 @@ function metaBudgetSwapsTool(
       for (const pc of filtered.candidates) {
         const full = index.getCard(pc.oracle_id);
         if (!full) continue;
-        const cheap = cheapestUsd(full);
+        const cheap = cheapestUsdCents(full);
         if (cheap === null) continue;
         candidates.push({
           oracle_id: pc.oracle_id,
           name: pc.name,
           roles: [...effectiveRoles(full, deck.role_overrides)],
-          cheapest: cheap,
+          cheapestCents: cheap,
           card: full,
           metrics: pc,
         });
@@ -413,24 +426,27 @@ function metaBudgetSwapsTool(
         oracle_id: string;
         name: string;
         roles: readonly Role[];
-        cheapest: number;
+        cheapestCents: number;
         qty: number;
         contribution: number;
         card: Card;
         metrics: EdhrecCard | undefined;
       }> = [];
-      const budget = libraryBudget(deck, index);
-      const deckMinBuy = budget.total;
+      const lookup = (id: string) => index.getCard(id);
+      const budgetOptions = { targetUsd: target ?? undefined, dataSnapshot: snapshot() };
+      const budget = wholeDeckBudget(deck, lookup, budgetOptions);
+      let projectedDeck = { ...deck, cards: deck.cards.map((entry) => ({ ...entry })) };
+      let projectedBudget = budget;
       for (const e of deck.cards) {
         const full = index.getCard(e.oracle_id);
         if (!full) continue;
-        const cheap = cheapestUsd(full);
+        const cheap = cheapestUsdCents(full);
         if (cheap === null) continue;
         drivers.push({
           oracle_id: full.oracle_id,
           name: full.name,
           roles: effectiveRoles(full, deck.role_overrides),
-          cheapest: cheap,
+          cheapestCents: cheap,
           qty: e.qty,
           contribution: cheap * e.qty,
           card: full,
@@ -443,20 +459,19 @@ function metaBudgetSwapsTool(
 
       const swaps: Record<string, unknown>[] = [];
       const usedCand = new Set<string>();
-      let savings = 0;
       for (const d of drivers) {
         if (swaps.length >= limit) break;
-        if (target !== null && budget.coverage.complete && round2(deckMinBuy - savings) <= target)
-          break;
+        if (projectedBudget.full_deck.target_met === true) break;
         let best: (SwapCandidate & { shared: Role[] }) | null = null;
         for (const c of candidates) {
-          if (usedCand.has(c.oracle_id) || c.cheapest >= d.cheapest) continue;
+          if (usedCand.has(c.oracle_id) || c.cheapestCents >= d.cheapestCents) continue;
           const shared = c.roles.filter((r) => d.roles.includes(r));
           if (shared.length === 0) continue;
           if (
             !best ||
-            c.cheapest < best.cheapest ||
-            (c.cheapest === best.cheapest && c.oracle_id.localeCompare(best.oracle_id) < 0)
+            c.cheapestCents < best.cheapestCents ||
+            (c.cheapestCents === best.cheapestCents &&
+              c.oracle_id.localeCompare(best.oracle_id) < 0)
           ) {
             best = { ...c, shared };
           }
@@ -464,29 +479,39 @@ function metaBudgetSwapsTool(
         if (!best) continue;
         usedCand.add(best.oracle_id);
         // One new oracle_id means one copy: never multiply a singleton replacement by outgoing qty.
-        const saved = d.cheapest - best.cheapest;
-        savings += saved;
+        const saved = (d.cheapestCents - best.cheapestCents) / 100;
+        const outgoing = projectedDeck.cards.find((entry) => entry.oracle_id === d.oracle_id);
+        if (!outgoing) continue;
+        outgoing.qty -= 1;
+        projectedDeck = {
+          ...projectedDeck,
+          cards: [
+            ...projectedDeck.cards.filter((entry) => entry.qty > 0),
+            { oracle_id: best.oracle_id, qty: 1 },
+          ],
+        };
+        projectedBudget = wholeDeckBudget(projectedDeck, lookup, budgetOptions);
         const lost = d.roles.filter((role) => !best.roles.includes(role));
         const gained = best.roles.filter((role) => !d.roles.includes(role));
         swaps.push({
           out: {
             oracle_id: d.oracle_id,
             name: d.name,
-            cheapest_usd: round2(d.cheapest),
+            cheapest_usd: d.cheapestCents / 100,
             qty: 1,
             remaining_qty: d.qty - 1,
-            rationale: `Cut one copy to reduce the library price floor by $${round2(saved)}; replacement shares ${best.shared.join(", ")}.`,
+            rationale: `Cut one copy to reduce the library price floor by $${saved}; replacement shares ${best.shared.join(", ")}.`,
             evidence: adviceEvidence(d.card, deck, d.metrics),
           },
           in: {
             oracle_id: best.oracle_id,
             name: best.name,
-            cheapest_usd: round2(best.cheapest),
+            cheapest_usd: best.cheapestCents / 100,
             qty: 1,
             evidence: adviceEvidence(best.card, deck, best.metrics),
           },
           roles_matched: best.shared,
-          savings: round2(saved),
+          savings: saved,
           rationale: `Lower local price with ${best.shared.length} shared effective role(s); review lost roles and mana value before replacing.`,
           tradeoffs: {
             roles_lost: lost,
@@ -498,14 +523,16 @@ function metaBudgetSwapsTool(
             ...(d.metrics?.synergy === undefined || best.metrics.synergy === null
               ? ["Synergy evidence is unavailable for at least one side of the swap."]
               : []),
-            ...(!budget.coverage.complete
-              ? ["Unknown library prices or unresolved cards prevent confirming the budget target."]
+            ...(!budget.full_deck.coverage.min_buy.complete
+              ? [
+                  "Unknown library or command-zone prices prevent confirming the whole-deck budget target.",
+                ]
               : []),
           ],
           budget_impact: {
             currency: "USD",
             qty: 1,
-            delta_min_buy_usd: -round2(saved),
+            delta_min_buy_usd: -saved,
             price_basis: "local_index_usd_floor",
             ownership_adjusted: false,
             price_fetched_at: null,
@@ -517,21 +544,23 @@ function metaBudgetSwapsTool(
         content: [
           {
             type: "text",
-            text: `${swaps.length} one-copy budget swap(s); known library price floor $${round2(deckMinBuy)} → $${round2(deckMinBuy - savings)}${budget.coverage.complete ? "" : " (incomplete price coverage)"}`,
+            text: `${swaps.length} one-copy budget swap(s); known whole-deck price floor $${budget.full_deck.min_buy_usd} → $${projectedBudget.full_deck.min_buy_usd}${budget.full_deck.coverage.min_buy.complete ? "" : " (incomplete price coverage)"}; includes commanders, excludes companion and ownership`,
           },
         ],
         structuredContent: {
           deck_id: deckId,
           commander: commanderCard.name,
           swaps,
-          current_min_buy_usd: round2(deckMinBuy),
-          projected_min_buy_usd: round2(deckMinBuy - savings),
+          current_min_buy_usd: budget.library.min_buy_usd,
+          projected_min_buy_usd: projectedBudget.library.min_buy_usd,
+          price_scope: "library",
+          current_full_deck: swapBudgetSummary(budget.full_deck),
+          projected_full_deck: swapBudgetSummary(projectedBudget.full_deck),
+          scope: budget.scope,
+          target_scope: "library_plus_command_zone",
           target_usd: target,
-          target_met:
-            target === null || !budget.coverage.complete
-              ? null
-              : round2(deckMinBuy - savings) <= target,
-          budget: budget.coverage,
+          target_met: projectedBudget.full_deck.target_met,
+          budget: libraryBudget(deck, index).coverage,
           source: profile.source,
           unresolved: filtered.unresolved,
         },
@@ -644,11 +673,12 @@ export function makeMetaTools(
   spellbook: SpellbookClient,
   gameChangers: GameChangersClient,
   session = "local",
+  snapshot: SnapshotProvider = staticSnapshotProvider(),
 ): ToolDefinition[] {
   return [
     metaCommanderProfileTool(edhrec),
     metaRecommendTool(store, index, edhrec, session),
-    metaBudgetSwapsTool(store, index, edhrec, session),
+    metaBudgetSwapsTool(store, index, edhrec, session, snapshot),
     metaCombosTool(store, index, spellbook, session),
     metaClassifyBracketTool(store, index, gameChangers, spellbook, session),
   ];

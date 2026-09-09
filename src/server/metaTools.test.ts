@@ -374,7 +374,7 @@ describe("explainable deck advice", () => {
           name: "meta_budget_swaps",
           arguments: {
             deck_id: "deck-1",
-            target_usd: 0.3,
+            target_usd: 1.3,
           },
         })
       ).structuredContent;
@@ -382,7 +382,108 @@ describe("explainable deck advice", () => {
         swaps: [],
         current_min_buy_usd: 0.3,
         projected_min_buy_usd: 0.3,
+        current_full_deck: { min_buy_usd: 1.3 },
+        projected_full_deck: { min_buy_usd: 1.3 },
         target_met: true,
+      });
+    },
+  );
+
+  it("compares the target with command-zone costs while preserving library totals", async () => {
+    const before = deckStore.get("deck-1");
+    const result = (
+      await client.callTool({
+        name: "meta_budget_swaps",
+        arguments: { deck_id: "deck-1", target_usd: 2 },
+      })
+    ).structuredContent;
+    expect(result).toMatchObject({
+      swaps: [{ savings: 0.5 }],
+      current_min_buy_usd: 1.5,
+      projected_min_buy_usd: 1,
+      current_full_deck: {
+        min_buy_usd: 2.5,
+        target_met: false,
+        pricing: { data_snapshot: "2026-06-27", price_timestamp: null },
+        freshness: { status: "unknown" },
+      },
+      projected_full_deck: { min_buy_usd: 2, target_met: true },
+      target_met: true,
+      budget: { scope: "library_only" },
+      price_scope: "library",
+      target_scope: "library_plus_command_zone",
+    });
+    expect(deckStore.get("deck-1")).toEqual(before);
+  });
+
+  it("projects one-copy savings with integer cents at an exact whole-deck cap", async () => {
+    deckStore.update("deck-1", (deck) => ({
+      ...deck,
+      cards: [
+        { oracle_id: "o-rock-0.10", qty: 1 },
+        { oracle_id: "o-rock-0.20", qty: 1 },
+      ],
+    }));
+    edhrecPage = {
+      container: {
+        json_dict: {
+          cardlists: [{ header: "Mana", cardviews: [{ name: "Rock 0.05", inclusion: 1 }] }],
+        },
+      },
+    };
+    const result = (
+      await client.callTool({
+        name: "meta_budget_swaps",
+        arguments: { deck_id: "deck-1", target_usd: 1.15 },
+      })
+    ).structuredContent;
+    expect(result).toMatchObject({
+      swaps: [{ out: { name: "Rock 0.20" }, savings: 0.15 }],
+      projected_min_buy_usd: 0.15,
+      current_full_deck: { min_buy_usd: 1.3, minor_units: { min_buy: 130 } },
+      projected_full_deck: { min_buy_usd: 1.15, minor_units: { min_buy: 115 } },
+      target_met: true,
+    });
+  });
+
+  it("cannot meet a library-sized cap when commanders keep the whole deck over budget", async () => {
+    deckStore.update("deck-1", (deck) => ({
+      ...deck,
+      commanders: ["o-talrand", "o-opt"],
+      companion: "o-mystery",
+    }));
+    const result = (
+      await client.callTool({
+        name: "meta_budget_swaps",
+        arguments: { deck_id: "deck-1", target_usd: 1.5 },
+      })
+    ).structuredContent;
+    expect(result).toMatchObject({
+      swaps: [{ savings: 0.5 }],
+      current_full_deck: { min_buy_usd: 2.75, coverage: { complete: true } },
+      projected_full_deck: { min_buy_usd: 2.25, coverage: { complete: true } },
+      target_met: false,
+    });
+  });
+
+  it.each(["o-mystery", "missing"])(
+    "does not certify a target with an unpriced or unresolved second commander (%s)",
+    async (commander) => {
+      deckStore.update("deck-1", (deck) => ({
+        ...deck,
+        commanders: ["o-talrand", commander],
+      }));
+      const result = (
+        await client.callTool({
+          name: "meta_budget_swaps",
+          arguments: { deck_id: "deck-1", target_usd: 100 },
+        })
+      ).structuredContent;
+      expect(result).toMatchObject({
+        swaps: [{ savings: 0.5 }],
+        current_full_deck: { coverage: { complete: false } },
+        projected_full_deck: { coverage: { complete: false }, target_met: null },
+        target_met: null,
       });
     },
   );

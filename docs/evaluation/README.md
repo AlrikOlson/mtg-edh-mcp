@@ -70,10 +70,43 @@ and prompt identity, domain invariants, text fallback and snapshot agreement,
 and recomputes the stored metrics from the retained calls. Deterministic
 ceilings for tool calls, invalid calls, partial failures, and tool/RPC errors
 remain the actual v0.2.0 observations. Expected recovery errors must still
-occur. Result-byte ceilings use the reviewed advice observation below; no
-arbitrary multiplier or timing threshold is applied. Both retained traces have
+occur. Result-byte ceilings use the reviewed whole-deck observation below; no
+arbitrary multiplier or timing threshold is applied. All retained traces have
 the same fixture, prompts, and domain invariants, and their metrics are
 recomputed during replay.
+
+### Whole-deck budget observation
+
+[whole-deck-budget-v2.json](whole-deck-budget-v2.json) records the complete-deck
+pricing correction with SDK 2.0.0 and Node 24.14.0 on macOS arm64. It preserves
+the version-1 workflow fixture, prompts and all original behavior limits.
+Original v0.2.0, advice and host captures are unchanged. The new trace carries
+source/lockfile digests and dirty-checkout provenance; it is a scripted SDK
+observation, not a model-host rerun.
+
+| Workflow                    | Advice result bytes | Whole-deck result bytes |
+| --------------------------- | ------------------: | ----------------------: |
+| Budget and collection build |               8,701 |                  20,635 |
+| Import and tune             |               9,184 |                  17,133 |
+| Acquisition cost reduction  |               9,327 |                  32,651 |
+| Error recovery              |              16,587 |                  16,587 |
+
+The added bytes are explicit library/command-zone/whole-deck/companion totals,
+per-field price coverage, unresolved quantities, timestamp and freshness evidence,
+integer cents, and membership acquisition assumptions, plus required JSON text
+fallback. Zone summaries omit recommendation lists; general statistics omit them
+entirely. The reviewed whole-deck observation supplies the new byte ceilings;
+call counts, invalid calls and errors still use the original limits.
+
+The budget fixture now directly reports full value $92.85 and membership-based
+new spending $12.35, including its $2.50 commander. Acquisition reduction reports
+full spending $92.20 to $13.20; the old top-level library figures remain unchanged.
+The new `src/evaluation/wholeDeckBudget.test.ts` also checks all 22 frozen
+Commander corpus cases against independent authored price arithmetic, including
+the intentionally unpriced case. The frozen baseline adapter and historical
+failure receipts retain their original library-field comparison; they are not
+rewritten as successful whole-deck observations. Quantity-aware acquisition
+remains a separate capability: membership still covers every copy.
 
 ### Advice observation
 
