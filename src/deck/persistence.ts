@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { ROLES } from "../types/card.js";
 import type { DeckStoreDump } from "./deckStore.js";
+import { DeckIntentSchema } from "./intent.js";
 
 const identifier = z
   .string()
@@ -28,6 +29,7 @@ const deckSchema = z
     version: z.number().int().positive(),
     data_snapshot: z.string(),
     role_overrides: z.record(identifier, z.array(z.enum(ROLES))).optional(),
+    intent: DeckIntentSchema.optional(),
   })
   .strict();
 const snapshotSchema = z

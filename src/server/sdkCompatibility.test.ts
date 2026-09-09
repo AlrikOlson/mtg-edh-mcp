@@ -119,7 +119,7 @@ function stdioTransport(): StdioClientTransport {
 
 async function verifyCatalogAndResults(client: Client): Promise<void> {
   const { tools } = await client.listTools();
-  expect(tools).toHaveLength(42);
+  expect(tools).toHaveLength(44);
   expect(tools.find((tool) => tool.name === "deck_set_roles")?.annotations).toMatchObject({
     readOnlyHint: false,
     openWorldHint: false,
@@ -178,6 +178,91 @@ async function verifyCatalogAndResults(client: Client): Promise<void> {
       text: JSON.stringify(corrected.structuredContent),
     });
   }
+  const initial = await client.callTool({
+    name: "deck_get_intent",
+    arguments: { deck_id: deckId },
+  });
+  let version = z.object({ version: z.number() }).parse(initial.structuredContent).version;
+  for (const request of [
+    {
+      action: "set",
+      intent: {
+        schema_version: 1,
+        hard: { locked_cards: [{ oracle_id: "Sol Ring", qty: 1 }] },
+        soft: {
+          goals: ["Artifacts"],
+          role_targets: { ramp: { min: 1, max: 3 } },
+        },
+      },
+    },
+    { action: "patch", patch: { soft: { goals: null, strategy: "Tokens" } } },
+    { action: "clear" },
+  ]) {
+    const changed = await client.callTool({
+      name: "deck_set_intent",
+      arguments: { deck_id: deckId, expected_version: version, ...request },
+    });
+    expect(changed.isError).not.toBe(true);
+    expect(changed.structuredContent).toMatchObject({
+      ok: true,
+      changed: true,
+      version: version + 1,
+    });
+    expect(changed.content).toContainEqual({
+      type: "text",
+      text: JSON.stringify(changed.structuredContent),
+    });
+    const read = await client.callTool({
+      name: "deck_get_intent",
+      arguments: { deck_id: deckId, expected_version: version + 1 },
+    });
+    expect(read.content).toContainEqual({
+      type: "text",
+      text: JSON.stringify(read.structuredContent),
+    });
+    expect(z.object({ intent: z.unknown() }).parse(read.structuredContent).intent).toEqual(
+      z.object({ intent: z.unknown() }).parse(changed.structuredContent).intent,
+    );
+    const stale = await client.callTool({
+      name: "deck_set_intent",
+      arguments: {
+        deck_id: deckId,
+        expected_version: version,
+        action: "clear",
+      },
+    });
+    expect(stale.structuredContent).toMatchObject({
+      ok: false,
+      conflict: true,
+      current_version: version + 1,
+    });
+    expect(stale.content).toContainEqual({
+      type: "text",
+      text: JSON.stringify(stale.structuredContent),
+    });
+    version++;
+  }
+  const rejected = await client.callTool({
+    name: "deck_set_intent",
+    arguments: {
+      deck_id: deckId,
+      expected_version: version,
+      action: "set",
+      intent: {
+        schema_version: 1,
+        hard: {
+          locked_cards: [{ oracle_id: "Sol Ring", qty: 1 }],
+          excluded_cards: ["o-sol"],
+        },
+      },
+    },
+  });
+  expect(rejected.isError).toBe(true);
+  expect(rejected.structuredContent).toMatchObject({ code: "INTENT_CONFLICT" });
+  expect(rejected.content).toContainEqual({
+    type: "text",
+    text: JSON.stringify(rejected.structuredContent),
+  });
 }
 
 describe("SDK v2 protocol compatibility", () => {

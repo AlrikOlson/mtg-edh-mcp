@@ -87,6 +87,56 @@ thresholds, and bracket classifications are advisory.
 `force: true` on `deck_add` permits rule-breaking cards with an illegal flag.
 Use it only for an intentional experiment agreed with the user.
 
+## Preserve build goals and constraints
+
+Create a deck with `deck_create` even when no commander or cards are chosen,
+then use `deck_get_intent` to read its version and defaults. Intent does not
+require an EDHREC profile. Every `deck_set_intent` mutation requires the current
+`expected_version`; a stale version returns a conflict without writing.
+
+```text
+deck_create {"name":"Artifact workshop"}
+deck_get_intent {"deck_id":"DECK_ID"}
+deck_set_intent {"deck_id":"DECK_ID","expected_version":1,"action":"set","intent":{"schema_version":1,"hard":{"locked_cards":[{"oracle_id":"Sol Ring","qty":1}],"excluded_cards":["Mana Vault"],"change_limit":10},"soft":{"goals":["Win with an artifact engine"],"strategy":"Artifact recursion","favorites":[{"oracle_id":"Myr Retriever","qty":1}],"role_targets":{"ramp":{"min":10,"max":14}},"spend_target_usd":100,"playgroup_preferences":["Long interactive games"]},"unsupported":["Guarantee a turn-five win"]}}
+deck_set_intent {"deck_id":"DECK_ID","expected_version":2,"action":"patch","patch":{"soft":{"role_targets":{"ramp":null},"strategy":"Artifact tokens"}}}
+deck_set_intent {"deck_id":"DECK_ID","expected_version":3,"action":"clear"}
+```
+
+Use returned versions after each write. `set` replaces the entire intent;
+`patch` uses an object-shaped [JSON Merge Patch](https://www.rfc-editor.org/rfc/rfc7396.html):
+omission retains fields, `null` removes them, nested objects merge and arrays
+replace in full. `schema_version` must remain 1. `clear` removes all authored
+intent. Legacy decks read as `intent: null`, with computed defaults rather than
+invented preferences.
+
+`hard` stores `locked_cards` minimum quantities across the 100-card deck,
+`excluded_cards`, a `change_limit` for future change plans, and `commanders`
+constraints: `allowed` candidates, `required` choices, and `color_identity`
+as a permitted color set (`[]` means colorless). Missing constraints are open.
+References in ID fields accept installed Oracle IDs or exact case-insensitive
+card names, then persist canonical IDs. Partial names, unknown references,
+duplicate quantities and contradictory hard requirements reject atomically
+with diagnostics. Retained canonical IDs can survive a missing card index
+during patches; new references require installed card data.
+
+`soft` contains advisory goals, strategy, favorites (desired quantities),
+role targets, a USD spend target and qualitative playgroup preferences.
+Favorites may coexist with exclusions: the hard exclusion takes precedence
+in future planning. `unsupported` records requirements the engine cannot
+evaluate. These sections do not automatically add/remove cards, choose a
+commander, enforce a playgroup policy or certify a build. Hard constraints
+are checked for internal contradictions; their satisfaction by the current
+deck remains `not_evaluated`. Rules legality is always independent.
+
+`analyze_role_coverage` and `deck_status` overlay saved role targets on their
+heuristic Commander defaults; explicit analysis `bands` override this view.
+Clearing a role target restores its default without changing card role
+overrides. Spend targets are exposed for planning and are advisory; pass an
+explicit `target_usd` to `budget_plan` to evaluate a price target.
+Intent survives restart, snapshots and restore, is session-scoped, and appears
+in `deck_get`, the deck resource and `deck_diff.metadata.intent`. Text decklist
+exports contain cards only; use deck state/snapshots to retain intent.
+
 ## Correct role labels
 
 Use `deck_set_roles` for a card already in this deck (library, commander, or

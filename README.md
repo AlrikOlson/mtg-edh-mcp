@@ -98,20 +98,20 @@ see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
 
 ## What the server exposes
 
-With a card index loaded, the server exposes **42 tools**, **3 workflow
+With a card index loaded, the server exposes **44 tools**, **3 workflow
 prompts**, and addressable card, deck, and collection resources. Tool schemas
 and descriptions are available through MCP `tools/list`.
 
-| Group                | Tools                                                                                                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Data                 | `ping`, `data_status`, `data_ingest`                                                                                                                          |
-| Cards                | `card_search`, `card_get`, `card_resolve_name`, `card_printings`                                                                                              |
-| Collection           | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                                      |
-| Decks                | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_set_roles`, `deck_add`, `deck_remove` |
-| History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                                    |
-| Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                                        |
-| Analysis             | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `simulate_deck`, `budget_plan`          |
-| Community data       | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`                                                       |
+| Group                | Tools                                                                                                                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Data                 | `ping`, `data_status`, `data_ingest`                                                                                                                                                                |
+| Cards                | `card_search`, `card_get`, `card_resolve_name`, `card_printings`                                                                                                                                    |
+| Collection           | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                                                                            |
+| Decks                | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_set_roles`, `deck_get_intent`, `deck_set_intent`, `deck_add`, `deck_remove` |
+| History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                                                                          |
+| Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                                                                              |
+| Analysis             | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `simulate_deck`, `budget_plan`                                                |
+| Community data       | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`                                                                                             |
 
 The prompts `build_commander_deck`, `tune_deck`, and `fit_budget` teach clients
 the corresponding workflows. Resources use `card://{oracle_id}`,

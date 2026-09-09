@@ -38,6 +38,7 @@ import type { SnapshotProvider } from "./snapshot.js";
 import { READS_LOCAL, mutates } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 import { roleEvidence } from "../analyze/deckRoles.js";
+import { makeDeckIntentTools } from "./deckIntentTools.js";
 
 /** Project a deck's card entries for output (lean names, or full cards on expand). */
 function projectDeck(
@@ -52,7 +53,14 @@ function projectDeck(
       card && deck.role_overrides && Object.hasOwn(deck.role_overrides, entry.oracle_id)
         ? roleEvidence(card, deck.role_overrides)
         : {};
-    if (expand) return { oracle_id: entry.oracle_id, qty: entry.qty, card, ...flag, ...evidence };
+    if (expand)
+      return {
+        oracle_id: entry.oracle_id,
+        qty: entry.qty,
+        card,
+        ...flag,
+        ...evidence,
+      };
     return {
       oracle_id: entry.oracle_id,
       qty: entry.qty,
@@ -1019,6 +1027,7 @@ export function makeDeckTools(
   return [
     deckCreateTool(store, session, index, snapshot),
     deckGetTool(store, session, index),
+    ...makeDeckIntentTools(store, session, index),
     deckListTool(store, session, index),
     deckRenameTool(store, session, index),
     deckSetRolesTool(store, session, index),

@@ -5,6 +5,7 @@
  * the index, then calls the pure analyzers (src/analyze). Advisory only.
  */
 import { z } from "zod";
+import { effectiveRoleTargets } from "../deck/intent.js";
 import { wholeDeckBudget } from "../analyze/budget.js";
 import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { ROLES, StructuredError } from "../types/index.js";
@@ -254,7 +255,7 @@ function analyzeRoleCoverageTool(
         "Compare functional-role counts against target bands (under/ok/over).\n" +
         "USE: finding what the deck lacks (ramp, draw, removal...). NOT: EDHREC suggestions (meta_recommend).\n" +
         "FLOW: deck_status -> analyze_role_coverage -> card_search.\n" +
-        "ARGS: deck_id; bands {role: {min, max}} (sensible Commander defaults otherwise).\n" +
+        "ARGS: deck_id; bands {role: {min, max}} (saved intent over Commander defaults otherwise).\n" +
         "RETURNS: gaps[] {role, have, want_min, want_max, status}. Advisory — never feeds validate_deck.",
       inputSchema: {
         deck_id: z.string(),
@@ -267,7 +268,9 @@ function analyzeRoleCoverageTool(
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const lookup = deckRoleLookup(deck, (id) => index.getCard(id));
       const bands =
-        args.bands && typeof args.bands === "object" ? (args.bands as RoleBands) : undefined;
+        args.bands && typeof args.bands === "object"
+          ? (args.bands as RoleBands)
+          : effectiveRoleTargets(deck);
       const result = analyzeRoleCoverage(deck.cards, lookup, bands);
       const under = result.gaps.filter((g) => g.status === "under").length;
       return {
@@ -330,7 +333,11 @@ function deckStatusTool(
       const mana = analyzeManaBase(deck.cards, lookup, {
         identity: deck.computed_color_identity,
       });
-      const coverage = analyzeRoleCoverage(deck.cards, deckRoleLookup(deck, lookup));
+      const coverage = analyzeRoleCoverage(
+        deck.cards,
+        deckRoleLookup(deck, lookup),
+        effectiveRoleTargets(deck),
+      );
       const gaps = coverage.gaps.filter((g) => g.status === "under");
 
       const gapNote =

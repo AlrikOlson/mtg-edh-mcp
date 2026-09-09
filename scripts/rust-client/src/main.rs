@@ -401,6 +401,176 @@ async fn role_acceptance(server: Server, root: &Path, deck_id: &str, version: u6
     reset_server.close().await
 }
 
+async fn intent_acceptance(server: Server, root: &Path, deck_id: &str) -> Result<()> {
+    server
+        .require_tools(&[
+            "deck_get_intent",
+            "deck_set_intent",
+            "analyze_role_coverage",
+        ])
+        .await?;
+    let baseline = server
+        .call("deck_get_intent", json!({"deck_id": deck_id}))
+        .await?;
+    let original_deck = server.call("deck_get", json!({"deck_id": deck_id})).await?;
+    let original_status = server
+        .call("deck_status", json!({"deck_id": deck_id}))
+        .await?;
+    ensure!(
+        baseline["intent"].is_null()
+            && baseline["effective"]["role_targets"] == baseline["defaults"]["role_targets"]
+            && baseline["effective"]["spend_target_usd"].is_null(),
+        "absent intent must expose explicit defaults: {baseline}"
+    );
+    let version = baseline["version"]
+        .as_u64()
+        .context("intent deck version")?;
+    let set = server
+        .call(
+            "deck_set_intent",
+            json!({
+                "deck_id": deck_id, "expected_version": version, "action": "set",
+                "intent": {
+                    "schema_version": 1,
+                    "hard": {"locked_cards": [{"oracle_id": "Rust Acceptance Artifact", "qty": 1}], "change_limit": 2},
+                    "soft": {"goals": ["Artifact resilience"], "role_targets": {"ramp": {"min": 1, "max": 1}}, "spend_target_usd": 20},
+                    "unsupported": ["Guarantee every opening hand has ramp"]
+                }
+            }),
+        )
+        .await?;
+    ensure!(
+        set["ok"] == true
+            && set["changed"] == true
+            && set["version"] == version + 1
+            && set["intent"]["hard"]["locked_cards"] == json!([{"oracle_id": ORACLE_ID, "qty": 1}])
+            && set["evaluation"]
+                == json!({
+                    "hard_constraints": "not_evaluated",
+                    "soft_preferences": "advisory",
+                    "unsupported_requirements": "not_evaluated"
+                }),
+        "intent must retain canonical identity and honest evaluation status: {set}"
+    );
+    server.kill().await?;
+
+    let restarted = Server::connect(root).await?;
+    let restored = restarted
+        .call("deck_get_intent", json!({"deck_id": deck_id}))
+        .await?;
+    ensure!(
+        restored["intent"] == set["intent"] && restored["version"] == set["version"],
+        "acknowledged intent changed after immediate kill: {restored}"
+    );
+    let deck = restarted
+        .call("deck_get", json!({"deck_id": deck_id}))
+        .await?;
+    let status = restarted
+        .call("deck_status", json!({"deck_id": deck_id}))
+        .await?;
+    let coverage = restarted
+        .call("analyze_role_coverage", json!({"deck_id": deck_id}))
+        .await?;
+    ensure!(
+        deck["deck"]["cards"] == original_deck["deck"]["cards"]
+            && deck["deck"]["role_overrides"] == original_deck["deck"]["role_overrides"]
+            && status["legality"] == original_status["legality"]
+            && coverage["gaps"].as_array().is_some_and(|gaps| gaps.iter().any(|gap| {
+                gap == &json!({"role": "ramp", "have": 1, "want_min": 1, "want_max": 1, "status": "ok"})
+            })),
+        "saved intent must change advisory targets only: {deck}, {status}, {coverage}"
+    );
+    let snapshot = restarted
+        .call("deck_snapshot", json!({"deck_id": deck_id}))
+        .await?;
+    let patched = restarted
+        .call(
+            "deck_set_intent",
+            json!({
+                "deck_id": deck_id, "expected_version": version + 1, "action": "patch",
+                "patch": {"soft": {"goals": ["New goal"], "spend_target_usd": null}, "unsupported": null}
+            }),
+        )
+        .await?;
+    ensure!(
+        patched["version"] == version + 2
+            && patched["intent"]["hard"] == set["intent"]["hard"]
+            && patched["intent"]["soft"]["role_targets"] == set["intent"]["soft"]["role_targets"]
+            && patched["intent"]["soft"]["goals"] == json!(["New goal"])
+            && patched["intent"]["soft"].get("spend_target_usd").is_none()
+            && patched["intent"].get("unsupported").is_none(),
+        "merge patch must retain omitted values, replace arrays and remove nulls: {patched}"
+    );
+    let conflict = restarted
+        .call(
+            "deck_set_intent",
+            json!({"deck_id": deck_id, "expected_version": version + 1, "action": "clear"}),
+        )
+        .await?;
+    ensure!(
+        conflict["ok"] == false
+            && conflict["conflict"] == true
+            && conflict["current_version"] == version + 2,
+        "stale intent clear must report a version conflict: {conflict}"
+    );
+    let contradictory = restarted
+        .raw_call(
+            "deck_set_intent",
+            json!({
+                "deck_id": deck_id, "expected_version": version + 2, "action": "patch",
+                "patch": {"hard": {"excluded_cards": [ORACLE_ID]}}
+            }),
+        )
+        .await?;
+    ensure!(
+        contradictory.is_error == Some(true)
+            && contradictory
+                .structured_content
+                .as_ref()
+                .is_some_and(|body| body["code"] == "INTENT_CONFLICT"),
+        "contradictory hard constraints must return a structured error: {contradictory:?}"
+    );
+    ensure!(
+        restarted
+            .call("deck_get_intent", json!({"deck_id": deck_id}))
+            .await?["intent"]
+            == patched["intent"],
+        "rejected mutations changed saved intent"
+    );
+    let rolled_back = restarted
+        .call(
+            "deck_restore",
+            json!({"deck_id": deck_id, "snapshot_id": snapshot["snapshot_id"]}),
+        )
+        .await?;
+    ensure!(
+        rolled_back["deck"]["intent"] == set["intent"],
+        "snapshot restore lost intent: {rolled_back}"
+    );
+    let cleared = restarted
+        .call(
+            "deck_set_intent",
+            json!({"deck_id": deck_id, "expected_version": version + 3, "action": "clear"}),
+        )
+        .await?;
+    ensure!(
+        cleared["intent"].is_null(),
+        "clear did not remove intent: {cleared}"
+    );
+    restarted.kill().await?;
+    let final_server = Server::connect(root).await?;
+    let final_intent = final_server
+        .call("deck_get_intent", json!({"deck_id": deck_id}))
+        .await?;
+    ensure!(
+        final_intent["intent"].is_null()
+            && final_intent["version"] == version + 4
+            && final_intent["effective"] == baseline["effective"],
+        "acknowledged clear did not durably restore defaults: {final_intent}"
+    );
+    final_server.close().await
+}
+
 async fn acceptance() -> Result<()> {
     let root = tempfile::tempdir().context("empty data directory")?;
     ensure!(
@@ -503,6 +673,7 @@ async fn acceptance() -> Result<()> {
         "conflicting mutation changed saved deck"
     );
     role_acceptance(restarted, root.path(), &deck_id, version).await?;
+    intent_acceptance(Server::connect(root.path()).await?, root.path(), &deck_id).await?;
 
     // Stdio always uses the local principal; a separate MCP_DATA_DIR is its
     // isolation boundary. Verify both a known deck ID and collection membership.
@@ -526,7 +697,7 @@ async fn acceptance() -> Result<()> {
     );
     isolated.close().await?;
     println!(
-        "PASS: rmcp initialize/discovery/calls, offline first-run ingest, full/compact card gameplay source facts and face isolation, structured/text parity, acknowledged deck+collection durability after kill/reconnect, role replacement/empty/reset with durable analysis effects, stale version conflicts, data-directory isolation"
+        "PASS: rmcp initialize/discovery/calls, offline first-run ingest, full/compact card gameplay source facts and face isolation, structured/text parity, acknowledged deck+collection durability after kill/reconnect, role replacement/empty/reset with durable analysis effects, intent set/patch/clear and snapshot restore, intent advisory defaults and hard conflicts, stale version conflicts, data-directory isolation"
     );
     Ok(())
 }

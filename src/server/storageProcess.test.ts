@@ -564,6 +564,143 @@ describe("durable user state across real MCP processes", () => {
     ).toMatchObject({ ok: true });
   }, 30_000);
 
+  it.each(["set", "patch", "clear"])(
+    "persists acknowledged intent %s through immediate SIGKILL and keeps principal isolation",
+    async (action) => {
+      const writer = start();
+      const alice = await connect(writer);
+      const deckId = id(await call(alice, "deck_create", { name: "Intent durability" }));
+      const baseline = await call(alice, "deck_set_intent", {
+        deck_id: deckId,
+        expected_version: 1,
+        action: "set",
+        intent: { schema_version: 1, soft: { goals: ["Baseline"], spend_target_usd: 25 } },
+      });
+      const snapshot = await call(alice, "deck_snapshot", { deck_id: deckId });
+      const payload =
+        action === "set"
+          ? {
+              intent: {
+                schema_version: 1,
+                hard: { locked_cards: [{ oracle_id: "Sol Ring", qty: 1 }] },
+              },
+            }
+          : action === "patch"
+            ? { patch: { soft: { goals: ["Revised"], spend_target_usd: null } } }
+            : {};
+      const acknowledged = await call(alice, "deck_set_intent", {
+        deck_id: deckId,
+        expected_version: baseline.version,
+        action,
+        ...payload,
+      });
+      // Mutation acknowledgement is immediately followed by an uncatchable kill.
+      await kill(writer);
+
+      const reader = start();
+      const ready = await reader.waitFor("ready");
+      const restored = await connect(reader, "alice", ready.port);
+      const bob = await connect(reader, "bob", ready.port);
+      const persisted = await call(restored, "deck_get_intent", { deck_id: deckId });
+      expect(persisted).toMatchObject({
+        intent: acknowledged.intent,
+        version: acknowledged.version,
+        effective: acknowledged.effective,
+      });
+      for (const name of ["deck_get_intent", "deck_set_intent"]) {
+        expect(
+          await bob.callTool({
+            name,
+            arguments: {
+              deck_id: deckId,
+              expected_version: acknowledged.version,
+              ...(name === "deck_set_intent" ? { action: "clear" } : {}),
+            },
+          }),
+        ).toMatchObject({ isError: true, structuredContent: { code: "DECK_NOT_FOUND" } });
+      }
+      expect(await call(restored, "deck_get_intent", { deck_id: deckId })).toEqual(persisted);
+      expect(
+        await call(restored, "deck_restore", {
+          deck_id: deckId,
+          snapshot_id: id(snapshot, "snapshot_id"),
+        }),
+      ).toMatchObject({ deck: { intent: baseline.intent } });
+    },
+    30_000,
+  );
+
+  it("admits exactly one same-version intent patch across live CLI processes", async () => {
+    const first = start();
+    const second = start();
+    const [a, b] = await Promise.all([connect(first), connect(second)]);
+    const deckId = id(await call(a, "deck_create", { name: "Intent race" }));
+    await call(a, "deck_set_intent", {
+      deck_id: deckId,
+      expected_version: 1,
+      action: "set",
+      intent: { schema_version: 1, soft: { strategy: "Artifacts" } },
+    });
+    const replies = await Promise.all(
+      [a, b].map((connected, writer) =>
+        call(connected, "deck_set_intent", {
+          deck_id: deckId,
+          expected_version: 2,
+          action: "patch",
+          patch: { soft: { goals: [`Writer ${writer}`] } },
+        }),
+      ),
+    );
+    expect(replies.filter((reply) => reply.ok === true)).toHaveLength(1);
+    expect(replies.filter((reply) => reply.conflict === true)).toEqual([
+      expect.objectContaining({ current_version: 3, expected_version: 2 }),
+    ]);
+    const winner = replies.find((reply) => reply.ok === true);
+    for (const connected of [a, b]) {
+      expect(await call(connected, "deck_get_intent", { deck_id: deckId })).toMatchObject({
+        version: 3,
+        intent: winner?.intent,
+      });
+    }
+    await Promise.all([kill(first), kill(second)]);
+    expect(
+      await call(await connect(start()), "deck_get_intent", { deck_id: deckId }),
+    ).toMatchObject({
+      version: 3,
+      intent: winner?.intent,
+    });
+  }, 30_000);
+
+  it("rolls back a failed intent commit and permits the same version to retry after restart", async () => {
+    const writer = start("fixture");
+    const connected = await connect(writer);
+    const deckId = id(await call(connected, "deck_create", { name: "Intent rollback" }));
+    const before = await call(connected, "deck_get_intent", { deck_id: deckId });
+    const mutation = {
+      deck_id: deckId,
+      expected_version: 1,
+      action: "set",
+      intent: { schema_version: 1, soft: { goals: ["Durable intent"] } },
+    };
+    writer.child.send({ type: "fail-next-commit" });
+    await writer.waitFor("armed");
+    expect(
+      await connected.callTool({ name: "deck_set_intent", arguments: mutation }),
+    ).toMatchObject({
+      isError: true,
+      structuredContent: { code: "STORAGE_ERROR" },
+    });
+    expect(await call(connected, "deck_get_intent", { deck_id: deckId })).toEqual(before);
+    await kill(writer);
+    const restarted = await connect(start());
+    expect(await call(restarted, "deck_get_intent", { deck_id: deckId })).toEqual(before);
+    expect(await call(restarted, "deck_set_intent", mutation)).toMatchObject({
+      ok: true,
+      version: 2,
+      intent: mutation.intent,
+    });
+  }, 30_000);
+
   it("returns STORAGE_ERROR over MCP and preserves the previous durable state on a failed commit", async () => {
     const writer = start("fixture");
     const client = await connect(writer);

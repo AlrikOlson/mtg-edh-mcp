@@ -3,6 +3,7 @@
  */
 import type { ColorIdentity } from "./color.js";
 import type { Role } from "./card.js";
+import type { DeckIntent } from "../deck/intent.js";
 
 /**
  * Deckbuilding format. `commander` is the v1 target; the field is first-class so
@@ -53,4 +54,6 @@ export interface Deck {
   data_snapshot: string;
   /** User-specified role labels, preserved by persistence and deck snapshots. */
   role_overrides?: Readonly<Record<string, readonly Role[]>>;
+  /** User-declared deckbuilding constraints and advisory preferences. */
+  intent?: DeckIntent;
 }

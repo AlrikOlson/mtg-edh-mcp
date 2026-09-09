@@ -5,6 +5,8 @@
  * are entries in both with a different quantity.
  */
 import type { Deck } from "../types/index.js";
+import { isDeepStrictEqual } from "node:util";
+import type { DeckIntent } from "./intent.js";
 
 /** A card entry whose quantity changed between the two decks. */
 export interface CardQtyChange {
@@ -30,6 +32,7 @@ export interface DeckDiff {
     name?: FieldChange<string>;
     commanders?: FieldChange<readonly string[]>;
     command_zone_kind?: FieldChange<string>;
+    intent?: FieldChange<DeckIntent | null>;
     version: FieldChange<number>;
   };
 }
@@ -69,6 +72,9 @@ export function diffDecks(from: Deck, to: Deck): DeckDiff {
   }
   if (from.command_zone_kind !== to.command_zone_kind) {
     metadata.command_zone_kind = { from: from.command_zone_kind, to: to.command_zone_kind };
+  }
+  if (!isDeepStrictEqual(from.intent, to.intent)) {
+    metadata.intent = { from: from.intent ?? null, to: to.intent ?? null };
   }
 
   return { cards: { added, removed, changed }, metadata };
