@@ -1,9 +1,10 @@
 /**
- * EDHREC enrichment tools (spec §5E, consolidated in ergo-meta): five
+ * EDHREC enrichment and policy tools (spec §5E): six
  * non-overlapping tools — meta_commander_profile (the raw profile),
  * meta_recommend (cards to ADD, ranked by synergy or inclusion),
  * meta_budget_swaps (cheaper REPLACEMENTS), meta_combos (Spellbook),
- * meta_classify_bracket (power verdict). All deck-grounded suggestions flow
+ * meta_classify_bracket (power estimate), meta_check_policy (declared constraints).
+ * All deck-grounded suggestions flow
  * through one shared profile-filter pipeline: resolve profile names to
  * oracle_ids, filter to the deck's color identity, exclude cards already in
  * the deck, report unresolved names. Each reads live data via injected
@@ -26,6 +27,7 @@ import type {
   BracketCombo,
 } from "../meta/index.js";
 import { classifyBracket } from "../meta/index.js";
+import { evaluatePlaygroupPolicy, type PolicyEvidence } from "../meta/playgroupPolicy.js";
 import type { BracketComboEvidence } from "../meta/bracket.js";
 import { evaluateCombo, spellbookDeckQuery } from "../meta/comboApplicability.js";
 
@@ -709,6 +711,126 @@ function metaCombosTool(
   };
 }
 
+/** Evaluate authored policy independently of a heuristic bracket or rules legality. */
+function metaCheckPolicyTool(
+  store: DeckStore,
+  index: CardIndex,
+  spellbook: SpellbookClient,
+  session: string,
+  snapshot: SnapshotProvider,
+): ToolDefinition {
+  return {
+    name: "meta_check_policy",
+    config: {
+      annotations: READS_LIVE,
+      title: "Check playgroup policy",
+      description:
+        "Evaluate saved playgroup declarations with versioned evidence.\n" +
+        "USE: pod constraints and construction planning. NOT: legality (validate_deck) or quality scoring.\n" +
+        "FLOW: deck_set_intent -> meta_check_policy -> deck_get_intent.\n" +
+        "ARGS: deck_id; expected_version optionally checks the read; limit (20, max 200) bounds combo evidence. Save intent.playgroup.\n" +
+        "RETURNS: status (compatible/incompatible/unknown), policy, findings, evidence, deck_version. Custom limits and protected cards remain explicit; partial classifications, combo absence, timing and free-text preferences are never assumed proven.",
+      inputSchema: {
+        deck_id: z.string().min(1),
+        expected_version: z.number().int().nonnegative().optional(),
+        limit: z.number().int().positive().max(200).optional(),
+      },
+    },
+    handler: async (args) => {
+      const deckId = String(args.deck_id);
+      const deck = store.get(deckId, session);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      if (typeof args.expected_version === "number" && args.expected_version !== deck.version) {
+        return {
+          content: [{ type: "text", text: "Deck version conflict" }],
+          structuredContent: {
+            ok: false,
+            conflict: true,
+            deck_id: deckId,
+            current_version: deck.version,
+            expected_version: args.expected_version,
+          },
+        };
+      }
+      const dataSnapshot = snapshot();
+      // Local flags identify observed members, but missing legacy flags are
+      // normalized to false. Therefore this snapshot cannot certify non-membership.
+      const names = index.gameChangerNames() ?? new Set<string>();
+      let combos: PolicyEvidence["combos"] = {
+        status: "not_checked",
+        candidates: [],
+        freshness: null,
+        coverage: null,
+        error: null,
+      };
+      const bracket = deck.intent?.playgroup?.bracket;
+      const needsCombos =
+        (bracket !== undefined && bracket <= 3) ||
+        deck.intent?.playgroup?.limits?.infinite_combos !== undefined;
+      if (needsCombos) {
+        try {
+          const observation = await deckComboEvidence(deck, index, spellbook);
+          combos = {
+            status: "available",
+            candidates: observation.all,
+            freshness: observation.results.freshness,
+            coverage: observation.results.coverage,
+            error: null,
+          };
+        } catch (error) {
+          if (!(error instanceof StructuredError) || error.code !== "UPSTREAM_UNAVAILABLE")
+            throw error;
+          combos = {
+            status: "unavailable",
+            candidates: [],
+            freshness: null,
+            coverage: null,
+            error: { code: error.code, message: error.message },
+          };
+        }
+      }
+      const report = evaluatePlaygroupPolicy(deck, (id) => index.getCard(id), {
+        game_changers: {
+          names,
+          complete: false,
+          source: {
+            type: "scryfall_snapshot",
+            snapshot: dataSnapshot,
+            source_url: "https://scryfall.com/docs/api/cards",
+            membership_version: null,
+            note: "Observed positive Game Changer flags; missing/default false flags and publication age prevent certifying absence.",
+          },
+        },
+        combos,
+        data_snapshot: dataSnapshot,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Declared playgroup policy: ${report.status}. Review findings and evidence coverage.`,
+          },
+        ],
+        structuredContent: {
+          deck_id: deckId,
+          deck_version: deck.version,
+          ...report,
+          findings: report.findings.map((finding) => {
+            if (!finding.combo_candidates) return finding;
+            const limit = typeof args.limit === "number" ? args.limit : 20;
+            return {
+              ...finding,
+              combo_candidate_count: finding.combo_candidates.length,
+              combo_candidates_truncated: finding.combo_candidates.length > limit,
+              combo_candidates: finding.combo_candidates.slice(0, limit),
+            };
+          }),
+        },
+      };
+    },
+  };
+}
+
 function metaClassifyBracketTool(
   store: DeckStore,
   index: CardIndex,
@@ -771,5 +893,6 @@ export function makeMetaTools(
     metaBudgetSwapsTool(store, index, edhrec, session, snapshot),
     metaCombosTool(store, index, spellbook, session),
     metaClassifyBracketTool(store, index, gameChangers, spellbook, session),
+    metaCheckPolicyTool(store, index, spellbook, session, snapshot),
   ];
 }

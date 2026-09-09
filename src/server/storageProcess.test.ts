@@ -574,7 +574,15 @@ describe("durable user state across real MCP processes", () => {
         deck_id: deckId,
         expected_version: 1,
         action: "set",
-        intent: { schema_version: 1, soft: { goals: ["Baseline"], spend_target_usd: 25 } },
+        intent: {
+          schema_version: 1,
+          playgroup: {
+            profile: "casual",
+            bracket: 2,
+            limits: { fast_mana: 0 },
+          },
+          soft: { goals: ["Baseline"], spend_target_usd: 25 },
+        },
       });
       const snapshot = await call(alice, "deck_snapshot", { deck_id: deckId });
       const payload =
@@ -583,10 +591,19 @@ describe("durable user state across real MCP processes", () => {
               intent: {
                 schema_version: 1,
                 hard: { locked_cards: [{ oracle_id: "Sol Ring", qty: 1 }] },
+                playgroup: { profile: "competitive", bracket: 5 },
               },
             }
           : action === "patch"
-            ? { patch: { soft: { goals: ["Revised"], spend_target_usd: null } } }
+            ? {
+                patch: {
+                  playgroup: {
+                    bracket: 3,
+                    limits: { fast_mana: null, tutors: 1 },
+                  },
+                  soft: { goals: ["Revised"], spend_target_usd: null },
+                },
+              }
             : {};
       const acknowledged = await call(alice, "deck_set_intent", {
         deck_id: deckId,
@@ -601,7 +618,9 @@ describe("durable user state across real MCP processes", () => {
       const ready = await reader.waitFor("ready");
       const restored = await connect(reader, "alice", ready.port);
       const bob = await connect(reader, "bob", ready.port);
-      const persisted = await call(restored, "deck_get_intent", { deck_id: deckId });
+      const persisted = await call(restored, "deck_get_intent", {
+        deck_id: deckId,
+      });
       expect(persisted).toMatchObject({
         intent: acknowledged.intent,
         version: acknowledged.version,
@@ -617,7 +636,10 @@ describe("durable user state across real MCP processes", () => {
               ...(name === "deck_set_intent" ? { action: "clear" } : {}),
             },
           }),
-        ).toMatchObject({ isError: true, structuredContent: { code: "DECK_NOT_FOUND" } });
+        ).toMatchObject({
+          isError: true,
+          structuredContent: { code: "DECK_NOT_FOUND" },
+        });
       }
       expect(await call(restored, "deck_get_intent", { deck_id: deckId })).toEqual(persisted);
       expect(
@@ -639,7 +661,11 @@ describe("durable user state across real MCP processes", () => {
       deck_id: deckId,
       expected_version: 1,
       action: "set",
-      intent: { schema_version: 1, soft: { strategy: "Artifacts" } },
+      intent: {
+        schema_version: 1,
+        playgroup: { profile: "thematic" },
+        soft: { strategy: "Artifacts" },
+      },
     });
     const replies = await Promise.all(
       [a, b].map((connected, writer) =>
@@ -647,7 +673,10 @@ describe("durable user state across real MCP processes", () => {
           deck_id: deckId,
           expected_version: 2,
           action: "patch",
-          patch: { soft: { goals: [`Writer ${writer}`] } },
+          patch: {
+            playgroup: { limits: { tutors: writer } },
+            soft: { goals: [`Writer ${writer}`] },
+          },
         }),
       ),
     );
@@ -664,7 +693,9 @@ describe("durable user state across real MCP processes", () => {
     }
     await Promise.all([kill(first), kill(second)]);
     expect(
-      await call(await connect(start()), "deck_get_intent", { deck_id: deckId }),
+      await call(await connect(start()), "deck_get_intent", {
+        deck_id: deckId,
+      }),
     ).toMatchObject({
       version: 3,
       intent: winner?.intent,
@@ -675,17 +706,26 @@ describe("durable user state across real MCP processes", () => {
     const writer = start("fixture");
     const connected = await connect(writer);
     const deckId = id(await call(connected, "deck_create", { name: "Intent rollback" }));
-    const before = await call(connected, "deck_get_intent", { deck_id: deckId });
+    const before = await call(connected, "deck_get_intent", {
+      deck_id: deckId,
+    });
     const mutation = {
       deck_id: deckId,
       expected_version: 1,
       action: "set",
-      intent: { schema_version: 1, soft: { goals: ["Durable intent"] } },
+      intent: {
+        schema_version: 1,
+        playgroup: { bracket: 3, limits: { tutors: 0 } },
+        soft: { goals: ["Durable intent"] },
+      },
     };
     writer.child.send({ type: "fail-next-commit" });
     await writer.waitFor("armed");
     expect(
-      await connected.callTool({ name: "deck_set_intent", arguments: mutation }),
+      await connected.callTool({
+        name: "deck_set_intent",
+        arguments: mutation,
+      }),
     ).toMatchObject({
       isError: true,
       structuredContent: { code: "STORAGE_ERROR" },

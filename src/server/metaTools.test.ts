@@ -174,11 +174,12 @@ afterEach(async () => {
 });
 
 describe("EDHREC meta tools", () => {
-  it("registers exactly five meta_* tools (ergo-meta consolidation)", async () => {
+  it("registers six distinct meta_* tools including declared policy checks", async () => {
     const names = (await client.listTools()).tools.map((t) => t.name);
     const meta = names.filter((n) => n.startsWith("meta_")).sort();
     expect(meta).toEqual([
       "meta_budget_swaps",
+      "meta_check_policy",
       "meta_classify_bracket",
       "meta_combos",
       "meta_commander_profile",
@@ -427,7 +428,12 @@ describe("explainable deck advice", () => {
     edhrecPage = {
       container: {
         json_dict: {
-          cardlists: [{ header: "Mana", cardviews: [{ name: "Rock 0.05", inclusion: 1 }] }],
+          cardlists: [
+            {
+              header: "Mana",
+              cardviews: [{ name: "Rock 0.05", inclusion: 1 }],
+            },
+          ],
         },
       },
     };
@@ -482,7 +488,10 @@ describe("explainable deck advice", () => {
       expect(result).toMatchObject({
         swaps: [{ savings: 0.5 }],
         current_full_deck: { coverage: { complete: false } },
-        projected_full_deck: { coverage: { complete: false }, target_met: null },
+        projected_full_deck: {
+          coverage: { complete: false },
+          target_met: null,
+        },
         target_met: null,
       });
     },
@@ -491,12 +500,20 @@ describe("explainable deck advice", () => {
   it("excludes a declared companion from addition and replacement candidates", async () => {
     deckStore.update("deck-1", (d) => ({ ...d, companion: "o-signet" }));
     expect(
-      (await client.callTool({ name: "meta_recommend", arguments: { deck_id: "deck-1" } }))
-        .structuredContent,
+      (
+        await client.callTool({
+          name: "meta_recommend",
+          arguments: { deck_id: "deck-1" },
+        })
+      ).structuredContent,
     ).toMatchObject({ suggestions: [] });
     expect(
-      (await client.callTool({ name: "meta_budget_swaps", arguments: { deck_id: "deck-1" } }))
-        .structuredContent,
+      (
+        await client.callTool({
+          name: "meta_budget_swaps",
+          arguments: { deck_id: "deck-1" },
+        })
+      ).structuredContent,
     ).toMatchObject({ swaps: [] });
   });
 
@@ -517,7 +534,10 @@ describe("explainable deck advice", () => {
         },
       },
     };
-    const request = { name: "meta_recommend", arguments: { deck_id: "deck-1" } };
+    const request = {
+      name: "meta_recommend",
+      arguments: { deck_id: "deck-1" },
+    };
     const first = (await client.callTool(request)).structuredContent as {
       suggestions: Array<{
         name: string;
@@ -529,7 +549,10 @@ describe("explainable deck advice", () => {
     };
     expect(first.suggestions.map((s) => s.name)).toEqual(["Opt", "Arcane Signet", "Mystery Spell"]);
     expect(first.suggestions[0]?.budget_impact.delta_min_buy_usd).toBe(0.25);
-    expect(first.suggestions[2]?.evidence).toMatchObject({ synergy: null, inclusion: null });
+    expect(first.suggestions[2]?.evidence).toMatchObject({
+      synergy: null,
+      inclusion: null,
+    });
     expect(first.suggestions[2]?.budget_impact.delta_min_buy_usd).toBeNull();
     expect(first.suggestions[2]?.uncertainty.length).toBeGreaterThan(0);
     cacheNow += 200;
@@ -556,14 +579,20 @@ describe("explainable deck advice", () => {
       role_overrides: { "o-sol": ["ramp", "protection"] },
     }));
     const result = (
-      await client.callTool({ name: "meta_budget_swaps", arguments: { deck_id: "deck-1" } })
+      await client.callTool({
+        name: "meta_budget_swaps",
+        arguments: { deck_id: "deck-1" },
+      })
     ).structuredContent;
     expect(result).toMatchObject({
       swaps: [
         {
           out: {
             qty: 1,
-            evidence: { role_source: "user_override", effective_roles: ["ramp", "protection"] },
+            evidence: {
+              role_source: "user_override",
+              effective_roles: ["ramp", "protection"],
+            },
           },
           in: { qty: 1, evidence: { role_source: "classifier" } },
           tradeoffs: { roles_lost: ["protection"], mana_value_delta: 1 },
@@ -572,10 +601,17 @@ describe("explainable deck advice", () => {
       ],
     });
     expect(index.getCard("o-sol")?.roles).not.toContain("protection");
-    deckStore.update("deck-1", (d) => ({ ...d, role_overrides: { "o-sol": [] } }));
+    deckStore.update("deck-1", (d) => ({
+      ...d,
+      role_overrides: { "o-sol": [] },
+    }));
     expect(
-      (await client.callTool({ name: "meta_budget_swaps", arguments: { deck_id: "deck-1" } }))
-        .structuredContent,
+      (
+        await client.callTool({
+          name: "meta_budget_swaps",
+          arguments: { deck_id: "deck-1" },
+        })
+      ).structuredContent,
     ).toMatchObject({ swaps: [] });
   });
 

@@ -29,6 +29,9 @@ knowledge, durable state, and checks to make those choices reviewable.
   face requirements, templates, mana and steps. Separate card inclusion from
   checked deck prerequisites; execution stays unknown. Advisory bracket estimates
   expose provider failures, stale observations and incomplete combo coverage.
+- **Declared playgroup policies.** Save bracket and custom category limits with
+  casual, thematic or competitive goals. Get separate policy findings, protected
+  card constraints, versioned sources and explicit unknowns through `meta_check_policy`.
 - **Verbatim rules evidence.** Exact Comprehensive Rules lookup, bounded keyword
   search and per-card rulings from a versioned local corpus with release dates,
   digests and staleness; unknown rule numbers are reported, never guessed.
@@ -103,7 +106,7 @@ see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
 
 ## What the server exposes
 
-With a card index loaded, the server exposes **49 tools**, **3 workflow
+With a card index loaded, the server exposes **50 tools**, **3 workflow
 prompts**, and addressable card, deck, and collection resources. Tool schemas
 and descriptions are available through MCP `tools/list`.
 
@@ -117,7 +120,7 @@ and descriptions are available through MCP `tools/list`.
 | Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                                                                              |
 | Rules and rulings    | `rules_lookup`, `rules_search`, `rules_refresh`, `card_rulings`                                                                                                                                     |
 | Analysis             | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `simulate_deck`, `budget_plan`                                                |
-| Community data       | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`                                                                                             |
+| Community data       | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`, `meta_check_policy`                                                                        |
 
 The prompts `build_commander_deck`, `tune_deck`, and `fit_budget` teach clients
 the corresponding workflows. Resources use `card://{oracle_id}`,
@@ -157,7 +160,7 @@ version, and reuse unchanged indexes. See [refresh recovery and disk cleanup](./
 - **EDHREC** supplies commander profiles and recommendations through an
   unofficial endpoint, which may change or become unavailable.
 - **Commander Spellbook** receives commander and main-deck card names for
-  combo lookup, including during bracket classification.
+  combo lookup, including during bracket classification and applicable playgroup checks.
 - **Game Changers** come from the local Scryfall snapshot, with a live Scryfall
   fallback for older indexes. Brackets, role coverage, simulations, and prices
   are advisory; they are not guarantees about a deck's performance or cost.

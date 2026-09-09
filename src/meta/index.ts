@@ -51,3 +51,12 @@ export {
   type ComboCardResolver,
   type RequirementStatus,
 } from "./comboApplicability.js";
+export {
+  compilePlaygroupPolicy,
+  evaluatePlaygroupPolicy,
+  PLAYGROUP_RULESET,
+  type PolicyEvidence,
+  type PolicyFinding,
+  type PlaygroupPolicyReport,
+  type CompiledPlaygroupPolicy,
+} from "./playgroupPolicy.js";

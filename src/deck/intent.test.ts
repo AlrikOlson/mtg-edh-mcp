@@ -8,6 +8,51 @@ import {
   patchDeckIntent,
 } from "./intent.js";
 
+describe("typed playgroup policy intent", () => {
+  it("persists explicit category limits without interpreting free-text preferences", () => {
+    const value = {
+      schema_version: 1,
+      playgroup: {
+        profile: "thematic",
+        bracket: 3,
+        limits: { tutors: 0, game_changers: 1 },
+      },
+      soft: { playgroup_preferences: ["No long turns"] },
+    };
+    const intent = DeckIntentSchema.parse(value);
+    expect(intent).toEqual(value);
+    expect(
+      patchDeckIntent(intent, {
+        playgroup: { limits: { tutors: null, fast_mana: 0 } },
+      }),
+    ).toMatchObject({
+      playgroup: {
+        profile: "thematic",
+        bracket: 3,
+        limits: { game_changers: 1, fast_mana: 0 },
+      },
+    });
+    expect(patchDeckIntent(intent, { playgroup: null })).toEqual({
+      schema_version: 1,
+      soft: value.soft,
+    });
+    expect(DeckIntentSchema.parse({ schema_version: 1 })).not.toHaveProperty("playgroup");
+  });
+  it.each([
+    { bracket: 0 },
+    { bracket: 6 },
+    { bracket: 2.5 },
+    { profile: "powerful" },
+    { limits: { tutors: -1 } },
+    { limits: { tutors: 0.5 } },
+    { limits: { tutors: 101 } },
+    { limits: { mysterious: 0 } },
+    { inferred: true },
+  ])("rejects unsupported declarations %j", (playgroup) => {
+    expect(DeckIntentSchema.safeParse({ schema_version: 1, playgroup }).success).toBe(false);
+  });
+});
+
 describe("deck intent validation", () => {
   it("keeps hard constraints distinct from soft preferences and unsupported requests", () => {
     const intent = DeckIntentSchema.parse({
@@ -15,7 +60,11 @@ describe("deck intent validation", () => {
       hard: {
         locked_cards: [{ oracle_id: "favorite", qty: 2 }],
         excluded_cards: ["unwanted"],
-        commanders: { allowed: ["leader"], required: ["leader"], color_identity: ["G"] },
+        commanders: {
+          allowed: ["leader"],
+          required: ["leader"],
+          color_identity: ["G"],
+        },
         change_limit: 0,
       },
       soft: {
@@ -37,15 +86,27 @@ describe("deck intent validation", () => {
     { schema_version: 2 },
     { schema_version: 1, mysterious: true },
     { schema_version: 1, hard: { locked_cards: [{ oracle_id: "x", qty: 0 }] } },
-    { schema_version: 1, hard: { locked_cards: [{ oracle_id: "x", qty: 101 }] } },
-    { schema_version: 1, hard: { locked_cards: [{ oracle_id: "x", qty: 1.5 }] } },
+    {
+      schema_version: 1,
+      hard: { locked_cards: [{ oracle_id: "x", qty: 101 }] },
+    },
+    {
+      schema_version: 1,
+      hard: { locked_cards: [{ oracle_id: "x", qty: 1.5 }] },
+    },
     { schema_version: 1, hard: { excluded_cards: ["   "] } },
     { schema_version: 1, hard: { excluded_cards: [" x "] } },
     { schema_version: 1, hard: { excluded_cards: ["x\0y"] } },
     { schema_version: 1, hard: { commanders: { color_identity: ["C"] } } },
     { schema_version: 1, hard: { change_limit: -1 } },
-    { schema_version: 1, soft: { role_targets: { flying: { min: 0, max: 3 } } } },
-    { schema_version: 1, soft: { role_targets: { ramp: { min: 0, max: 3, weight: 4 } } } },
+    {
+      schema_version: 1,
+      soft: { role_targets: { flying: { min: 0, max: 3 } } },
+    },
+    {
+      schema_version: 1,
+      soft: { role_targets: { ramp: { min: 0, max: 3, weight: 4 } } },
+    },
     { schema_version: 1, soft: { spend_target_usd: Number.POSITIVE_INFINITY } },
     { schema_version: 1, soft: { goals: [""] } },
   ])("rejects malformed intent %j", (value) => {
@@ -67,15 +128,30 @@ describe("deck intent validation", () => {
     });
     expect(intentDiagnostics(intent)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "DUPLICATE_CARD", path: "/hard/locked_cards/1" }),
-        expect.objectContaining({ code: "DUPLICATE_CARD", path: "/hard/excluded_cards/2" }),
-        expect.objectContaining({ code: "LOCKED_EXCLUDED", path: "/hard/locked_cards/0" }),
-        expect.objectContaining({ code: "REQUIRED_EXCLUDED", path: "/hard/commanders/required/0" }),
+        expect.objectContaining({
+          code: "DUPLICATE_CARD",
+          path: "/hard/locked_cards/1",
+        }),
+        expect.objectContaining({
+          code: "DUPLICATE_CARD",
+          path: "/hard/excluded_cards/2",
+        }),
+        expect.objectContaining({
+          code: "LOCKED_EXCLUDED",
+          path: "/hard/locked_cards/0",
+        }),
+        expect.objectContaining({
+          code: "REQUIRED_EXCLUDED",
+          path: "/hard/commanders/required/0",
+        }),
         expect.objectContaining({
           code: "REQUIRED_NOT_ALLOWED",
           path: "/hard/commanders/required/0",
         }),
-        expect.objectContaining({ code: "NO_ALLOWED_COMMANDER", path: "/hard/commanders/allowed" }),
+        expect.objectContaining({
+          code: "NO_ALLOWED_COMMANDER",
+          path: "/hard/commanders/allowed",
+        }),
         expect.objectContaining({
           code: "TOO_MANY_REQUIRED_COMMANDERS",
           path: "/hard/commanders/required",
@@ -84,7 +160,10 @@ describe("deck intent validation", () => {
           code: "LOCKED_QUANTITY_EXCEEDS_DECK",
           path: "/hard/locked_cards",
         }),
-        expect.objectContaining({ code: "INVALID_ROLE_RANGE", path: "/soft/role_targets/ramp" }),
+        expect.objectContaining({
+          code: "INVALID_ROLE_RANGE",
+          path: "/soft/role_targets/ramp",
+        }),
       ]),
     );
   });
@@ -109,14 +188,26 @@ describe("deck intent validation", () => {
     });
     expect(intentDiagnostics(intent)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "DUPLICATE_CARD", path: "/hard/commanders/allowed/1" }),
-        expect.objectContaining({ code: "DUPLICATE_CARD", path: "/hard/commanders/required/1" }),
+        expect.objectContaining({
+          code: "DUPLICATE_CARD",
+          path: "/hard/commanders/allowed/1",
+        }),
+        expect.objectContaining({
+          code: "DUPLICATE_CARD",
+          path: "/hard/commanders/required/1",
+        }),
         expect.objectContaining({
           code: "DUPLICATE_COLOR",
           path: "/hard/commanders/color_identity/1",
         }),
-        expect.objectContaining({ code: "DUPLICATE_CARD", path: "/soft/favorites/1" }),
-        expect.objectContaining({ code: "NO_ALLOWED_COMMANDER", path: "/hard/commanders/allowed" }),
+        expect.objectContaining({
+          code: "DUPLICATE_CARD",
+          path: "/soft/favorites/1",
+        }),
+        expect.objectContaining({
+          code: "NO_ALLOWED_COMMANDER",
+          path: "/hard/commanders/allowed",
+        }),
       ]),
     );
   });
@@ -131,7 +222,10 @@ describe("deck intent validation", () => {
     });
     expect(intentDiagnostics(intent)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "REQUIRED_QUANTITY_EXCEEDS_DECK", path: "/hard" }),
+        expect.objectContaining({
+          code: "REQUIRED_QUANTITY_EXCEEDS_DECK",
+          path: "/hard",
+        }),
       ]),
     );
     const inLimit = DeckIntentSchema.parse({
@@ -175,10 +269,15 @@ describe("deck intent merge patches", () => {
     expect(next).toEqual({
       schema_version: 1,
       hard: { excluded_cards: ["new"], change_limit: 3 },
-      soft: { strategy: "tokens", role_targets: { ramp: { min: 10, max: 12 } } },
+      soft: {
+        strategy: "tokens",
+        role_targets: { ramp: { min: 10, max: 12 } },
+      },
     });
     expect(original).toEqual(saved);
-    expect(patchDeckIntent(next, { hard: null, soft: null })).toEqual({ schema_version: 1 });
+    expect(patchDeckIntent(next, { hard: null, soft: null })).toEqual({
+      schema_version: 1,
+    });
   });
 
   it("initializes absent intent with the supported schema version", () => {
@@ -214,7 +313,11 @@ describe("deck intent merge patches", () => {
     if (!(caught instanceof z.ZodError)) throw new Error("missing validation issue");
     expect(caught.issues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "custom", path, message: expect.any(String) }),
+        expect.objectContaining({
+          code: "custom",
+          path,
+          message: expect.any(String),
+        }),
       ]),
     );
   });
@@ -225,7 +328,10 @@ describe("effective role targets", () => {
     const intent = DeckIntentSchema.parse({
       schema_version: 1,
       soft: {
-        role_targets: { ramp: { min: 12, max: 16 }, wincon: { min: 2, max: 4 } },
+        role_targets: {
+          ramp: { min: 12, max: 16 },
+          wincon: { min: 2, max: 4 },
+        },
       },
     });
     const bands = effectiveRoleTargets({ intent });

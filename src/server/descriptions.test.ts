@@ -39,7 +39,7 @@ const ORACLE = [
   },
 ];
 
-const EXPECTED_TOOL_COUNT = 49;
+const EXPECTED_TOOL_COUNT = 50;
 const MAX_DESCRIPTION_CHARS = 700;
 
 const TEMPLATE =
@@ -83,6 +83,7 @@ const READ_ONLY_TOOLS = [
   "meta_budget_swaps",
   "meta_combos",
   "meta_classify_bracket",
+  "meta_check_policy",
 ].sort();
 
 /** Tools that reach the network (openWorldHint: true). */
@@ -94,6 +95,7 @@ const OPEN_WORLD_TOOLS = [
   "meta_budget_swaps",
   "meta_combos",
   "meta_classify_bracket",
+  "meta_check_policy",
 ].sort();
 
 // Keep the established catalog contract: no advertised outputSchema. Earlier

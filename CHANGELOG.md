@@ -6,6 +6,14 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `meta_check_policy` (50 tools total) and persisted `intent.playgroup`
+  declarations for profile goals, bracket restrictions and custom category limits.
+  Policy compatibility is independent of legality and deck quality. Reports retain
+  hard exclusions, protected quantities and soft objectives with pinned Wizards
+  sources, card/package evidence and explicit classification, timing and provider
+  uncertainty. Existing decks gain no invented policy; declarations follow normal
+  version checks, merge patches, snapshots and durable storage.
+
 - Preserve Commander Spellbook variant status, quantities, starting zones/state,
   commander/face requirements, templates, mana, prerequisites, steps and outputs
   with provider links and explicit missingness. `meta_combos` reports all six

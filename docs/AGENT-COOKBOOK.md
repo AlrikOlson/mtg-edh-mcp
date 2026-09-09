@@ -126,7 +126,8 @@ in future planning. `unsupported` records requirements the engine cannot
 evaluate. These sections do not automatically add/remove cards, choose a
 commander, enforce a playgroup policy or certify a build. Hard constraints
 are checked for internal contradictions; their satisfaction by the current
-deck remains `not_evaluated`. Rules legality is always independent.
+deck remains `not_evaluated` in the intent storage view. Use `meta_check_policy`
+for supported policy and construction checks. Rules legality is always independent.
 
 `analyze_role_coverage` and `deck_status` overlay saved role targets on their
 heuristic Commander defaults; explicit analysis `bands` override this view.
@@ -136,6 +137,53 @@ explicit `target_usd` to `budget_plan` to evaluate a price target.
 Intent survives restart, snapshots and restore, is session-scoped, and appears
 in `deck_get`, the deck resource and `deck_diff.metadata.intent`. Text decklist
 exports contain cards only; use deck state/snapshots to retain intent.
+
+## Check declared playgroup policies
+
+Save structured declarations in `intent.playgroup`, then evaluate them separately
+from `validate_deck` and the heuristic `meta_classify_bracket` estimate:
+
+```text
+deck_get_intent {"deck_id":"DECK_ID"}
+deck_set_intent {"deck_id":"DECK_ID","expected_version":4,"action":"patch","patch":{"playgroup":{"profile":"thematic","bracket":3,"limits":{"tutors":1,"fast_mana":0}}}}
+meta_check_policy {"deck_id":"DECK_ID","expected_version":5}
+```
+
+Use actual returned versions. Profiles (`casual`, `thematic`, `competitive`,
+`custom`) state advisory goals; they do not infer a bracket or numeric score.
+The optional `bracket` selects pinned published restrictions. Optional integer
+`limits` (0–100) override category maxima for `game_changers`, `tutors`,
+`fast_mana`, `extra_turns`, `mass_land_denial` and `infinite_combos`.
+Overrides are identified as custom playgroup decisions. Setting an override to
+`null` in a merge patch restores the published default; removing `playgroup`
+removes the declaration.
+
+The report returns `compatible`, `incompatible` or `unknown` for declared
+constraints, with individual findings, card identities, combo evidence and
+source versions. Combo observations are bounded by `limit` (default 20, maximum 200)
+per finding; `combo_candidate_count` and `combo_candidates_truncated` expose omitted
+evidence. Evaluation counts all observed packages before truncating: variants sharing
+canonical ingredient identities and quantities count once. `compatible` does not certify deck quality, bracket suitability,
+timing or legality. Hard exclusions, locked quantities and commander constraints
+remain structured construction inputs; favorites and theme goals stay advisory.
+An excluded or protected-card conflict requires revising the constraints or deck,
+not silently cutting a protected card. Free-text preferences are retained but
+never translated into hidden bans.
+
+Published restrictions are pinned to the [October 21, 2025 update](https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-october-21-2025)
+and [February 9, 2026 clarification](https://magic.wizards.com/en/news/announcements/commander-brackets-beta-update-february-9-2026),
+with the [original bracket definitions](https://magic.wizards.com/en/news/announcements/introducing-commander-brackets-beta).
+Tutors have no official numerical cap. Intentional two-card combos, early wins
+and extra-turn chaining require context the deck list cannot establish; a custom
+infinite-combo limit concerns detected packages, not proven execution.
+
+Game Changer evidence uses positive flags from the installed Scryfall snapshot.
+Missing or legacy false flags and unknown publication age prevent certifying
+absence. Role/text classifications are incomplete review evidence; explicit
+published examples are distinguished. Spellbook failures, stale observations
+and non-exhaustive coverage never become proof of no combos. Combo lookup sends
+card names to Spellbook only when a bracket 1–3 or custom combo restriction needs
+it; other policy checks use local data.
 
 ## Correct role labels
 
@@ -315,7 +363,7 @@ only restricts results when the collection is nonempty; an empty collection
 does not mean an empty search result.
 
 `meta_combos` sends the deck's card names to Commander Spellbook.
-`meta_classify_bracket` may do so too. EDHREC-backed tools query an unofficial
+`meta_classify_bracket` and applicable `meta_check_policy` combo checks may do so too. EDHREC-backed tools query an unofficial
 service. Use local tools when the user wants to keep deck contents local.
 
 ## Inspect combo prerequisites

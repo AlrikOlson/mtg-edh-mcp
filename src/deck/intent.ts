@@ -1,5 +1,6 @@
 /** Durable deckbuilding intent: hard constraints, advisory preferences and explicit limits. */
 import { z } from "zod";
+import { PlaygroupPolicySchema } from "./playgroupPolicy.js";
 import { DEFAULT_BANDS, type RoleBands } from "../analyze/mana.js";
 import { ROLES } from "../types/card.js";
 import type { Deck } from "../types/deck.js";
@@ -29,6 +30,7 @@ const roleBand = z.object({ min: count, max: count }).strict();
 export const DeckIntentSchema = z
   .object({
     schema_version: z.literal(1),
+    playgroup: PlaygroupPolicySchema.optional(),
     hard: z
       .object({
         locked_cards: z.array(cardQuantity).max(100).optional(),
@@ -191,7 +193,11 @@ function mergePatch(current: unknown, patch: unknown, path: string[] = []): unkn
   for (const [key, value] of Object.entries(patch)) {
     if (key === "__proto__" || key === "constructor" || key === "prototype") {
       throw new z.ZodError([
-        { code: "custom", path: [...path, key], message: `Unsupported intent patch key '${key}'.` },
+        {
+          code: "custom",
+          path: [...path, key],
+          message: `Unsupported intent patch key '${key}'.`,
+        },
       ]);
     }
     if (value === null) merged.delete(key);
@@ -204,12 +210,19 @@ function mergePatch(current: unknown, patch: unknown, path: string[] = []): unkn
 export function patchDeckIntent(current: DeckIntent | undefined, patch: unknown): DeckIntent {
   if (!isObject(patch))
     throw new z.ZodError([
-      { code: "custom", path: [], message: "Deck intent patch must be an object." },
+      {
+        code: "custom",
+        path: [],
+        message: "Deck intent patch must be an object.",
+      },
     ]);
   return DeckIntentSchema.parse(mergePatch(current ?? { schema_version: 1 }, patch));
 }
 
 /** Per-deck preferences overlay the established advisory bands without sharing mutable objects. */
 export function effectiveRoleTargets(deck: Pick<Deck, "intent">): RoleBands {
-  return structuredClone({ ...DEFAULT_BANDS, ...deck.intent?.soft?.role_targets });
+  return structuredClone({
+    ...DEFAULT_BANDS,
+    ...deck.intent?.soft?.role_targets,
+  });
 }
