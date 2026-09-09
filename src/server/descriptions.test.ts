@@ -39,7 +39,7 @@ const ORACLE = [
   },
 ];
 
-const EXPECTED_TOOL_COUNT = 55;
+const EXPECTED_TOOL_COUNT = 56;
 const MAX_DESCRIPTION_CHARS = 700;
 
 const TEMPLATE =
@@ -60,6 +60,7 @@ const READ_ONLY_TOOLS = [
   "card_mechanics",
   "card_discover",
   "construction_spec",
+  "deck_construct",
   "card_rulings",
   "rules_lookup",
   "rules_search",

@@ -92,7 +92,11 @@ describe("workflow prompts (ergo-prompts)", () => {
     const plain = await promptText("build_commander_deck", {
       commander: "Sol Ring",
     });
-    expect(plain).toContain('deck_set_commander {commanders: "Sol Ring"}');
+    expect(plain).toContain('deck_construct {"request":{"commanders":["Sol Ring"]}}');
+    expect(plain).toContain("deck_plan_apply");
+    expect(plain).toContain("search_exhausted");
+    expect(plain).toContain("review the complete desired deck");
+    expect(plain).not.toContain("deck_create");
     expect(plain).not.toContain("Budget pass");
 
     const budgeted = await promptText("build_commander_deck", {

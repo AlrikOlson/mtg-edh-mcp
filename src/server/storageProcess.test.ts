@@ -57,6 +57,7 @@ const oracle = [
 ].map((card) => ({
   ...card,
   id: `printing-${card.oracle_id}`,
+  layout: "normal",
   colors: [],
   color_identity: [],
   legalities: { commander: "legal" },
@@ -277,6 +278,101 @@ function deckPlanInput(name = "Planned deck", includeSol = false): Record<string
 }
 
 describe("atomic deck plans across real MCP processes", () => {
+  it.each(["new", "partial"])(
+    "constructs a reviewed %s deck, rolls back an injected apply failure and restores after retry",
+    async (kind) => {
+      const writer = start("fixture");
+      const client = await connect(writer);
+      const source =
+        kind === "partial"
+          ? await call(client, "deck_create", { name: "Empty saved draft" })
+          : undefined;
+      const deckId = source ? id(source) : undefined;
+      const baseline = deckId ? await call(client, "deck_get", { deck_id: deckId }) : undefined;
+      const before = persistedDeckDump();
+      // This tiny process fixture isolates transaction behavior. Diverse complete
+      // game plans and ordinary land ratios live in constructionBenchmark.test.ts.
+      const generated = await call(client, "deck_construct", {
+        name: "Generated complete deck",
+        request: {
+          commanders: ["Plan Captain"],
+          budget: { mode: "unbounded" },
+          lands: { min: 98, max: 98, strength: "hard" },
+          roles: { ramp: { min: 1, max: 1, strength: "hard" } },
+          strategy_dependencies: [
+            {
+              id: "mana-source",
+              strength: "hard",
+              requires_cards: ["Sol Ring"],
+            },
+          ],
+        },
+        ...(deckId ? { deck_id: deckId, expected_version: 1 } : {}),
+      });
+      expect(
+        generated,
+        JSON.stringify({
+          normalization: generated.normalization,
+          search: generated.search,
+        }),
+      ).toMatchObject({
+        status: "found",
+        validation: { valid: true },
+      });
+      expect(generated.plan).toBeTruthy();
+      expect(persistedDeckDump()).toEqual(before);
+      writer.child.send({ type: "fail-next-commit" });
+      await writer.waitFor("armed");
+      expect(
+        await client.callTool({
+          name: "deck_plan_apply",
+          arguments: { plan: generated.plan },
+        }),
+      ).toMatchObject({
+        isError: true,
+        structuredContent: { code: "STORAGE_ERROR" },
+      });
+      expect(persistedDeckDump()).toEqual(before);
+      await kill(writer);
+      const restarted = await connect(start("fixture"));
+      expect(persistedDeckDump()).toEqual(before);
+      const saved = await call(restarted, "deck_plan_apply", {
+        plan: generated.plan,
+      });
+      if (!generated.desired || typeof generated.desired !== "object")
+        throw new Error("Missing reviewed desired deck");
+      expect(saved.deck).toEqual({
+        ...generated.desired,
+        deck_id: saved.deck_id,
+      });
+      expect(saved).toMatchObject({
+        version: kind === "new" ? 1 : 2,
+        replayed: false,
+      });
+      const checked = await call(restarted, "validate_deck", {
+        deck_id: saved.deck_id,
+      });
+      expect(checked).toMatchObject({ ok: true, error_count: 0 });
+      expect(await call(restarted, "deck_plan_apply", { plan: generated.plan })).toMatchObject({
+        replayed: true,
+        deck: saved.deck,
+      });
+      if (deckId) {
+        await call(restarted, "deck_restore", {
+          deck_id: deckId,
+          snapshot_id: saved.snapshot_id,
+        });
+        if (!baseline?.deck || typeof baseline.deck !== "object")
+          throw new Error("Missing baseline deck");
+        expect((await call(restarted, "deck_get", { deck_id: deckId })).deck).toEqual({
+          ...baseline.deck,
+          version: 3,
+        });
+      }
+    },
+    30_000,
+  );
+
   it("previews without writes and creates only once across concurrent apply and SIGKILL retry", async () => {
     const first = start();
     const second = start();

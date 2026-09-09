@@ -63,28 +63,26 @@ const buildCommanderDeck: PromptDefinition = {
       : args.budget_usd !== undefined
         ? "\nBudget input is invalid; request a finite nonnegative USD amount or an explicit unbounded choice."
         : "";
-    const seed = args.deck_id
-      ? "Use the saved partial deck and its intent; preserve protected cards and edit bounds."
-      : args.commander
-        ? "After choices resolve, deck_create {name} then deck_set_commander {commanders: " +
-          JSON.stringify(args.commander) +
-          "}."
-        : "After a command zone is explicitly selected, deck_create {name} then deck_set_commander with that selection.";
+    const source = args.deck_id
+      ? "Read deck_status for the current version; preserve protected cards and edit bounds. Add expected_version to deck_construct for this saved draft. "
+      : "";
     return (
       "Build a legal 100-card Commander deck" +
       (args.theme ? " with a " + JSON.stringify(args.theme) + " theme" : "") +
       ".\n\nRecipe:\n" +
       "0. construction_spec " +
       normalization +
-      " before searching or changing cards. Resolve conflict diagnostics and choices; unsupported hard requirements need a supported reformulation or explicit user decision. Never silently relax mandatory constraints.\n" +
+      " to inspect goals and unresolved requirements. Unsupported hard requirements need a supported reformulation or explicit user decision. Never silently relax mandatory constraints.\n" +
       "1. " +
-      seed +
-      " If no commander is selected, use card_discover mode commanders for theme-based alternatives, present the choices, and rerun construction_spec with the chosen command zone. Do not invent a budget.\n" +
-      "2. meta_recommend for local contributions to the actual deck and saved intent; review interactions, requirements and tradeoffs.\n" +
-      "3. deck_add in batches of 10-20 card names; inspect failed[] and verdicts[]. Multiple role memberships never create extra physical copies.\n" +
-      "4. deck_status after each batch to check count/100, legality, mana and role gaps.\n" +
-      "5. analyze_mana_base, then card_search and deck_add for mana needs. Commanders count inside 100; a declared companion stays outside and has separate restrictions and costs.\n" +
-      "6. validate_deck and meta_check_policy for final checks; budget_plan for costs; deck_export to share." +
+      source +
+      "deck_construct " +
+      normalization +
+      " searches locally without saving. With only a theme, inspect the proposed commander; card_discover mode commanders provides alternatives. Do not invent a budget.\n" +
+      "2. For found, review the complete desired deck, diff, validation, whole-deck price coverage, game plan and key dependencies. Check that the selected commander and strategy match the request. Commanders count inside 100; a declared companion stays outside with separate conditions and explicit budget scope.\n" +
+      "3. For proven_conflict, inspect the direct contradiction. For search_exhausted, inspect limits, choices and unsupported evidence; a bounded failure does not prove impossibility. Resolve choices or revise search bounds, then rerun.\n" +
+      "4. After review, pass plan unchanged to deck_plan_apply. This saves exactly the reviewed proposal atomically; retry the same plan for the original receipt. Version/data conflicts require a fresh proposal and review.\n" +
+      "5. Independently check validate_deck, deck_status, analyze_mana_base and meta_check_policy; baseline mana coverage does not prove castability. Use deck_restore with snapshot_id to roll back a saved-deck revision.\n" +
+      "6. budget_plan for costs; deck_export to share." +
       budget +
       "\n\n" +
       CONVENTIONS

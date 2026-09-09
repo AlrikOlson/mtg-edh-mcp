@@ -305,6 +305,13 @@ describe("first card-data activation", () => {
         expect(names).toContain("card_get");
         expect(names).toContain("validate_deck");
         expect(names).toContain("construction_spec");
+        expect(names).toContain("deck_construct");
+        expect(
+          (await mcp.callTool({ name: "deck_construct", arguments: {} })).structuredContent,
+        ).toMatchObject({
+          status: "search_exhausted",
+          data_snapshot: day,
+        });
         expect(
           (await mcp.callTool({ name: "construction_spec", arguments: {} })).structuredContent,
         ).toMatchObject({

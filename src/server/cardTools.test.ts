@@ -139,6 +139,7 @@ describe("card tools registration", () => {
       "construction_spec",
       "data_ingest",
       "data_status",
+      "deck_construct",
       "ping",
       "rules_lookup",
       "rules_refresh",

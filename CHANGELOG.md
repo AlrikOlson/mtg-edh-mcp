@@ -6,6 +6,15 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `deck_construct` (56 tools total), a bounded deterministic local builder
+  for complete Commander decks from commander, theme and partial requests.
+  Found candidates pass shared complete-deck validation and return reviewed
+  atomic plans for `deck_plan_apply`, with supported game plans, dependencies,
+  whole-deck budget evidence and baseline mana limitations. Direct conflicts
+  and search exhaustion are distinct; unknown hard requirements cannot pass.
+  The build prompt now teaches construction, review, atomic apply and independent
+  checks. Pinned diverse builds and real MCP/process rollback tests cover the flow.
+
 - Add `deck_plan_preview` and `deck_plan_apply` (55 tools total) for complete
   new decks and full revisions. Preview returns exact desired inventory, complete
   zone and metadata diffs, legality and constraint evidence without saving.

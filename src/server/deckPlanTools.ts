@@ -5,7 +5,7 @@ import { prepareDeckChange } from "../deck/deckPlan.js";
 import { diffDecks } from "../deck/diff.js";
 import type { DeckStore } from "../deck/deckStore.js";
 import type { CardIndex } from "../index/cardIndex.js";
-import { DeckPlanRequestSchema } from "../types/deckPlan.js";
+import { DeckPlanRequestSchema, type DeckPlanRequest } from "../types/deckPlan.js";
 import { StructuredError, type Deck } from "../types/index.js";
 import { READS_LOCAL, mutates, type ToolDefinition } from "./registry.js";
 import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
@@ -98,6 +98,40 @@ function emptySource(desired: Deck): Deck {
   };
 }
 
+/** Build the same reviewed payload for exact inventories and generated proposals.
+ * The caller owns a single CardIndex read snapshot across search and this binding.
+ */
+export function previewDeckChange(
+  input: DeckPlanRequest,
+  index: CardIndex,
+  base: Deck | undefined,
+  dataSnapshot: string,
+  session: string,
+) {
+  const prepared = prepareDeckChange(input, index, base, dataSnapshot);
+  const diff = diffDecks(base ?? emptySource(prepared.desired), prepared.desired);
+  const bound = {
+    schema_version: 1 as const,
+    plan_id: randomUUID(),
+    input,
+    ...(base ? { deck_id: base.deck_id, expected_version: base.version } : {}),
+    data_snapshot: dataSnapshot,
+    data_revision: index.revision(),
+    inventory_revision: null,
+    session_binding: hash({ scope: "deck-change-plan", session }),
+    review: { desired: prepared.desired, diff, validation: prepared.validation },
+  };
+  const plan = DeckChangePlanSchema.parse({ ...bound, request_hash: hash(bound) });
+  return {
+    ok: prepared.validation.valid,
+    ...(prepared.validation.valid ? {} : { code: "PLAN_INVALID" }),
+    plan,
+    desired: prepared.desired,
+    diff,
+    validation: prepared.validation,
+  };
+}
+
 export function makeDeckPlanTools(
   store: DeckStore,
   session: string,
@@ -171,35 +205,14 @@ export function makeDeckPlanTools(
               "PLAN_INVENTORY_UNSUPPORTED",
               "Inventory revision binding is not supported; no inventory guarantee can be made.",
             );
-          const dataSnapshot = snapshot();
-          const currentIndex = requireIndex();
-          const prepared = prepareDeckChange(parsed.input, currentIndex, deck, dataSnapshot);
-          const diff = diffDecks(deck ?? emptySource(prepared.desired), prepared.desired);
-          const bound = {
-            schema_version: 1 as const,
-            plan_id: randomUUID(),
-            input: parsed.input,
-            ...(parsed.deck_id === undefined
-              ? {}
-              : { deck_id: parsed.deck_id, expected_version: parsed.expected_version }),
-            data_snapshot: dataSnapshot,
-            data_revision: currentIndex.revision(),
-            inventory_revision: null,
-            session_binding: sessionBinding,
-            review: { desired: prepared.desired, diff, validation: prepared.validation },
-          };
-          const plan = DeckChangePlanSchema.parse({ ...bound, request_hash: hash(bound) });
-          return reply(
-            {
-              ok: prepared.validation.valid,
-              ...(prepared.validation.valid ? {} : { code: "PLAN_INVALID" }),
-              plan,
-              desired: prepared.desired,
-              diff,
-              validation: prepared.validation,
-            },
-            !prepared.validation.valid,
+          const preview = previewDeckChange(
+            parsed.input,
+            requireIndex(),
+            deck,
+            snapshot(),
+            session,
           );
+          return reply(preview, !preview.ok);
         }),
     },
     {
@@ -210,7 +223,7 @@ export function makeDeckPlanTools(
         description:
           "Apply a reviewed full-deck plan atomically and return its durable receipt.\n" +
           "USE: saving a reviewed preview. NOT: changing its payload (deck_plan_preview again).\n" +
-          "FLOW: deck_plan_preview -> deck_plan_apply -> deck_status/deck_restore.\n" +
+          "FLOW: deck_construct/deck_plan_preview -> deck_plan_apply -> deck_status/deck_restore.\n" +
           "ARGS: plan exactly as previewed; digest checks consistency, not authorization. Revalidates version, served data and final constraints.\n" +
           "RETURNS: deck_id, deck, version, snapshot_id for revisions, receipt, replayed. Exact retries return the original receipt even after later edits or deletion; they never reapply. A fresh preview permits another new build.",
         inputSchema: { plan: DeckChangePlanSchema },

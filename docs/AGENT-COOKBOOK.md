@@ -122,8 +122,89 @@ candidate search.
 
 `ready` means normalization has no blocking choices or conflicts. It is not a
 completed deck, a card search, or proof that a feasible 100-card solution exists.
-Use `card_discover` or `card_search` for candidates, then normal deck mutations
-and `validate_deck`, `meta_check_policy` and budget checks to evaluate the result.
+Use `deck_construct` for a complete proposal, or `card_discover` and
+`card_search` to select the full inventory yourself.
+
+## Construct a complete deck
+
+`deck_construct` searches the installed card pool and returns a complete reviewed
+proposal without saving it. It accepts the same `request` as `construction_spec`,
+an optional `name`, and optional bounded `search` settings. For saved drafts,
+supply `deck_id` and the current `expected_version`.
+
+```text
+deck_construct {
+  "name":"Marwyn elf engine",
+  "request":{
+    "commanders":["Marwyn, the Nurturer"],
+    "theme":"counters",
+    "budget":{"mode":"unbounded"},
+    "lands":{"min":36,"max":38,"strength":"hard"},
+    "roles":{
+      "ramp":{"min":8,"max":20,"strength":"hard"},
+      "card_draw":{"min":6,"max":15,"strength":"hard"}
+    },
+    "strategy_dependencies":[{
+      "id":"elf-mana-engine",
+      "strength":"hard",
+      "requires_cards":["Elvish Archdruid"]
+    }]
+  }
+}
+```
+
+A theme-only request can propose a commander from local discovery; review that
+choice with the entire library before applying. Explicit legal command-zone
+alternatives also participate in the bounded search. Partial cards are editable
+seeds; hard locks, exclusions and edit bounds determine what must stay. Unknown
+themes and unsupported hard evidence remain explicit; no provider profile or
+server-side LLM key is needed. Theme-first discovery needs a supported theme;
+with an explicit commander, an unsupported theme remains an advisory preference.
+Use hard card dependencies and supported count constraints for enforceable goals.
+
+- `found`: a complete candidate passed shared final validation. Review
+  `desired`, `diff`, `validation`, the supported game plan and dependencies.
+  Pass `plan` unchanged to `deck_plan_apply` to save exactly that proposal.
+- `proven_conflict`: a direct constraint contradiction was established.
+  Read the diagnostics; changing a hard requirement is a separate user decision.
+- `search_exhausted`: no validated candidate was found within the reported
+  limits, or required choices/evidence remain unresolved. There is no applyable
+  plan. This never proves that the requested deck is impossible.
+
+Search settings are positive integers:
+
+| Setting           | Default | Maximum | Scope                                                  |
+| ----------------- | ------: | ------: | ------------------------------------------------------ |
+| `scan_limit`      |  50,000 | 100,000 | Cards per scan stage                                   |
+| `candidate_limit` |     512 |   2,000 | Retained inventory candidates per command zone         |
+| `node_limit`      |  10,000 | 100,000 | Attempted inventory expansions across command zones    |
+| `branch_limit`    |       4 |      16 | Children per expansion and states retained in the beam |
+
+Theme-first requests use a separate commander-discovery scan before the inventory
+scan; each has its own `scan_limit`. `search.scanned` counts the inventory
+stage. `search.discovery` separately reports discovery cards, pair checks,
+limits and truncation; its pair-check bound is also `node_limit`, separate
+from inventory expansion work. Seed, favorite and required cards may be read
+directly outside the general scan. Truncation flags disclose discarded choices.
+
+The same request, source deck, card data and search settings reproduce the
+selected deck. Each public proposal has a fresh plan ID so separately reviewed
+new builds remain separate creations. Search is heuristic and incomplete; it
+does not certify optimal deck quality. Hard land/role ranges and strategy card
+dependencies constrain the result; role labels and supported mechanic links
+remain bounded evidence rather than a playtest.
+
+Hard budget caps count the complete starting deck, including commanders, and
+the companion only when `budget.include_companion:true`. Any required unknown
+price prevents satisfying a hard cap. Prices are installed estimates, excluding
+fees, tax and shipping. Quantity-based owned-only guarantees are unsupported.
+
+After applying, independently run `validate_deck`, `deck_status`,
+`analyze_mana_base` and any declared policy checks. Baseline mana counts do not
+prove on-curve casting or advanced land sequencing. Supported companion
+conditions and special copy limits are checked before a proposal is found;
+unproved conditions stay unresolved. Existing-deck apply returns a
+`snapshot_id` for `deck_restore`; exact retries of the same plan are idempotent.
 
 ## Preview and apply a complete deck
 

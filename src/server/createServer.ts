@@ -142,7 +142,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     ...makeCardTools(current, collection, session),
     ...makeMechanicsTools(current, options.deckStore, session),
     ...makeDiscoveryTools(current, options.deckStore, session),
-    ...makeConstructionTools(current, options.deckStore, session),
+    ...makeConstructionTools(current, options.deckStore, session, snapshot),
     ...makeCardRulingsTools(rules, current),
     ...makeCollectionTools(collection, current, session),
     ...(options.deckStore

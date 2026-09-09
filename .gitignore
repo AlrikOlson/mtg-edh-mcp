@@ -25,6 +25,8 @@ data/
 
 # Local build artifacts
 build/
+# The construction engine is source, not generated build output.
+!/src/build/
 
 # ── magistr managed ── DO NOT EDIT between markers ──
 .workbench/

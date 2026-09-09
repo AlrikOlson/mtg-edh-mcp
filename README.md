@@ -20,6 +20,10 @@ knowledge, durable state, and checks to make those choices reviewable.
 - **Build goals before card choices.** `construction_spec` normalizes empty,
   theme, commander, partial-list or saved-deck requests. Budget choices, hard
   constraints, preferences and unresolved requirements stay explicit.
+- **Complete decks from build goals.** `deck_construct` searches locally from
+  commander, theme or partial-deck requests and returns a reviewed proposal,
+  validation, budget evidence and a supported game plan. Search limits and
+  unresolved requirements stay explicit.
 - **Complete changes you can review.** `deck_plan_preview` checks a full new or
   revised deck without saving it. `deck_plan_apply` saves a valid plan in one
   transaction, snapshots an existing deck, and makes exact retries safe.
@@ -113,7 +117,7 @@ see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
 
 ## What the server exposes
 
-With a card index loaded, the server exposes **55 tools**, **3 workflow
+With a card index loaded, the server exposes **56 tools**, **3 workflow
 prompts**, and addressable card, deck, and collection resources. Tool schemas
 and descriptions are available through MCP `tools/list`.
 
@@ -122,7 +126,7 @@ and descriptions are available through MCP `tools/list`.
 | Data                 | `ping`, `data_status`, `data_ingest`                                                                                                                                                                |
 | Cards                | `card_search`, `card_discover`, `card_get`, `card_resolve_name`, `card_printings`, `card_mechanics`                                                                                                 |
 | Collection           | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                                                                            |
-| Construction         | `construction_spec`, `deck_plan_preview`, `deck_plan_apply`                                                                                                                                         |
+| Construction         | `construction_spec`, `deck_construct`, `deck_plan_preview`, `deck_plan_apply`                                                                                                                       |
 | Decks                | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_set_roles`, `deck_get_intent`, `deck_set_intent`, `deck_add`, `deck_remove` |
 | History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                                                                          |
 | Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                                                                              |
@@ -158,6 +162,24 @@ establish that a completed deck exists or that the requirements are feasible.
 The tool neither searches for cards nor saves deck changes. See the
 [construction recipe](./docs/AGENT-COOKBOOK.md#normalize-construction-goals)
 for partial lists, saved intent, command-zone alternatives and constraints.
+
+### Construct, review and save
+
+```text
+deck_construct {"request":{"commanders":["Marwyn, the Nurturer"],"theme":"counters","budget":{"mode":"unbounded"},"lands":{"min":36,"max":38,"strength":"hard"}}}
+```
+
+A `found` result includes the complete `desired` deck, `diff`, `validation`
+and an atomic `plan`. Review the proposal, then pass that plan unchanged to
+`deck_plan_apply`. Independently check the saved deck with `validate_deck`
+and `deck_status`. Saved drafts also require `deck_id` and `expected_version`.
+
+`proven_conflict` reports a direct contradiction; `search_exhausted` reports
+a bounded failure or unresolved evidence and never proves impossibility.
+The deterministic search does not promise optimal quality. Hard budgets include
+commanders, explicitly scope companions, and require complete price coverage.
+See the [complete construction recipe](./docs/AGENT-COOKBOOK.md#construct-a-complete-deck)
+for strategy constraints, companions, bounds, retry and rollback.
 
 ### Search examples
 
