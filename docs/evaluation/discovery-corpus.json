@@ -1,0 +1,1104 @@
+{
+  "version": 1,
+  "source": "https://api.scryfall.com/cards/collection",
+  "retrieved_at": "2026-09-09T06:11:27.057013+00:00",
+  "methodology": "Oracle-grounded positive labels fixed before recall execution. Three query spellings were corrected after the first red run to cover FTS token inflections (counter/counters, attack/attacking, explore/explores); no positive labels were removed. No provider recommendations are supplied. This is a curated fixture, not measured recall on the live full Scryfall pool.",
+  "cards": [
+    {
+      "id": "69848ec1-dba7-419f-a5f9-f934bebeeaa6",
+      "oracle_id": "7b5c3d28-6d8b-488b-b088-567b24faadc7",
+      "name": "Shirei, Shizo's Caretaker",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Spirit",
+      "oracle_text": "Whenever a creature with power 1 or less is put into your graveyard from the battlefield, you may return that card to the battlefield at the beginning of the next end step if Shirei is still on the battlefield.",
+      "cmc": 5,
+      "mana_cost": "{4}{B}",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2023-08-04",
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "id": "f511830b-1c1f-4d30-aa5d-4314726d142e",
+      "oracle_id": "f82a4e85-526d-4456-b700-7760043a31be",
+      "name": "Viscera Seer",
+      "layout": "normal",
+      "type_line": "Creature — Vampire Wizard",
+      "oracle_text": "Sacrifice a creature: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "cmc": 1,
+      "mana_cost": "{B}",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Scry"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2026-04-24",
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "id": "9ff08225-82a5-4636-be6a-d38d32f5663f",
+      "oracle_id": "e05c6c80-a91a-45e0-b991-0014fd5a6472",
+      "name": "Blood Pet",
+      "layout": "normal",
+      "type_line": "Creature — Thrull",
+      "oracle_text": "Sacrifice this creature: Add {B}.",
+      "cmc": 1,
+      "mana_cost": "{B}",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2001-04-11",
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "id": "1a6bb0c2-1e3c-48cd-8f10-49f047e0514c",
+      "oracle_id": "12c98c1e-7e02-473d-b494-ad8a0731fe82",
+      "name": "Lagomos, Hand of Hatred",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Human Shaman",
+      "oracle_text": "At the beginning of combat on your turn, create a 2/1 red Elemental creature token with trample and haste. Sacrifice it at the beginning of the next end step.\n{T}: Search your library for a card, put it into your hand, then shuffle. Activate only if five or more creatures died this turn.",
+      "cmc": 3,
+      "mana_cost": "{1}{B}{R}",
+      "colors": ["B", "R"],
+      "color_identity": ["B", "R"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2022-09-09",
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "id": "1ce91e38-4601-4354-ad1b-2c5c1c70da17",
+      "oracle_id": "00225c40-27ff-410f-a591-5c788c6a2bd6",
+      "name": "Ruthless Knave",
+      "layout": "normal",
+      "type_line": "Creature — Orc Pirate",
+      "oracle_text": "{2}{B}, Sacrifice a creature: Create two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")\nSacrifice three Treasures: Draw a card.",
+      "cmc": 3,
+      "mana_cost": "{2}{B}",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Treasure"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2017-09-29",
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "id": "4d431445-d7db-4ce1-b422-41494d9be1b4",
+      "oracle_id": "9dbc3530-b278-4c8d-b2cc-a09dfac9d5e5",
+      "name": "Reassembling Skeleton",
+      "layout": "normal",
+      "type_line": "Creature — Skeleton Warrior",
+      "oracle_text": "{1}{B}: Return this card from your graveyard to the battlefield tapped.",
+      "cmc": 2,
+      "mana_cost": "{1}{B}",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2025-04-11",
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "id": "d53a775d-5898-41a8-b404-9b7d4721c6ba",
+      "oracle_id": "619e0686-e88c-4238-8364-75395e733533",
+      "name": "Kambal, Profiteering Mayor",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Human Advisor",
+      "oracle_text": "Whenever one or more tokens your opponents control enter, for each of them, create a tapped token that's a copy of it. This ability triggers only once each turn.\nWhenever one or more tokens you control enter, each opponent loses 1 life and you gain 1 life.",
+      "cmc": 3,
+      "mana_cost": "{1}{W}{B}",
+      "colors": ["B", "W"],
+      "color_identity": ["B", "W"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2024-04-19",
+      "power": "2",
+      "toughness": "4"
+    },
+    {
+      "id": "cb83e33c-810e-4de3-800d-2038f38a1eda",
+      "oracle_id": "ab431f93-73bb-49d9-9321-a0712f096ed7",
+      "name": "Slaughter Specialist",
+      "layout": "normal",
+      "type_line": "Creature — Vampire Warrior",
+      "oracle_text": "When this creature enters, each opponent creates a 1/1 white Human creature token.\nWhenever a creature an opponent controls dies, put a +1/+1 counter on this creature.",
+      "cmc": 2,
+      "mana_cost": "{1}{B}",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2021-09-24",
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "id": "d080c35d-f2c6-4f4e-8f7c-305b319d4cde",
+      "oracle_id": "3db8466c-864f-48ba-b617-f2c863dfdcbd",
+      "name": "Benevolent Offering",
+      "layout": "normal",
+      "type_line": "Instant",
+      "oracle_text": "Choose an opponent. You and that player each create three 1/1 white Spirit creature tokens with flying.\nChoose an opponent. You gain 2 life for each creature you control and that player gains 2 life for each creature they control.",
+      "cmc": 4,
+      "mana_cost": "{3}{W}",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2021-11-19"
+    },
+    {
+      "id": "d96c33f5-f891-44bc-8ae1-11bc6f6544b6",
+      "oracle_id": "df72b5d6-6f9e-4d6b-acf6-7dec4ff35468",
+      "name": "Bess, Soul Nourisher",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Human Citizen",
+      "oracle_text": "Whenever one or more other creatures you control with base power and toughness 1/1 enter, put a +1/+1 counter on Bess.\nWhenever Bess attacks, each other creature you control with base power and toughness 1/1 gets +X/+X until end of turn, where X is the number of +1/+1 counters on Bess.",
+      "cmc": 3,
+      "mana_cost": "{1}{G}{W}",
+      "colors": ["G", "W"],
+      "color_identity": ["G", "W"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2022-04-29",
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "id": "c6d36786-6e36-4a9b-97ad-ad7d9d2b8d92",
+      "oracle_id": "a2fe5937-212c-4e71-8d6e-f408b38100aa",
+      "name": "Conclave Mentor",
+      "layout": "normal",
+      "type_line": "Creature — Centaur Cleric",
+      "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on that creature instead.\nWhen this creature dies, you gain life equal to its power.",
+      "cmc": 2,
+      "mana_cost": "{G}{W}",
+      "colors": ["G", "W"],
+      "color_identity": ["G", "W"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2023-04-21",
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "id": "eabbe163-2b15-42e3-89ce-7363e6250d3a",
+      "oracle_id": "1e0cdff3-3ec5-41fc-8053-f072bae156b3",
+      "name": "Good-Fortune Unicorn",
+      "layout": "normal",
+      "type_line": "Creature — Unicorn",
+      "oracle_text": "Whenever another creature you control enters, put a +1/+1 counter on that creature.",
+      "cmc": 3,
+      "mana_cost": "{1}{G}{W}",
+      "colors": ["G", "W"],
+      "color_identity": ["G", "W"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2024-11-15",
+      "power": "2",
+      "toughness": "2"
+    },
+    {
+      "id": "02645651-cd55-4bd0-8a4d-fa257270a0e0",
+      "oracle_id": "db266661-f783-4907-9e52-6963eec05431",
+      "name": "Hashaton, Scarab's Fist",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Zombie Wizard",
+      "oracle_text": "Whenever you discard a creature card, you may pay {2}{U}. If you do, create a tapped token that's a copy of that card, except it's a 4/4 black Zombie.",
+      "cmc": 2,
+      "mana_cost": "{W}{B}",
+      "colors": ["B", "W"],
+      "color_identity": ["B", "U", "W"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2025-02-14",
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "id": "47a929a4-b861-432c-a2f3-3125f8a2665b",
+      "oracle_id": "7192ff07-9a84-49ad-a40c-ce255ce21544",
+      "name": "Putrid Imp",
+      "layout": "normal",
+      "type_line": "Creature — Zombie Imp",
+      "oracle_text": "Discard a card: This creature gains flying until end of turn.\nThreshold — As long as there are seven or more cards in your graveyard, this creature gets +1/+1 and can't block.",
+      "cmc": 1,
+      "mana_cost": "{B}",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Threshold"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2014-06-16",
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "id": "2d92fcf1-2ccd-47d2-9a24-f44b766a0b68",
+      "oracle_id": "ba95f24d-42da-48ce-bcf1-1b7c4b3c45b5",
+      "name": "Skirge Familiar",
+      "layout": "normal",
+      "type_line": "Creature — Phyrexian Imp",
+      "oracle_text": "Flying\nDiscard a card: Add {B}.",
+      "cmc": 5,
+      "mana_cost": "{4}{B}",
+      "colors": ["B"],
+      "color_identity": ["B"],
+      "keywords": ["Flying"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2021-06-18",
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "id": "f94e888b-6eeb-4ef3-ab21-5ed2bf0036a3",
+      "oracle_id": "cee836f1-87a4-43db-a6ea-55575a4ce781",
+      "name": "Slogurk, the Overslime",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Ooze",
+      "oracle_text": "Trample\nWhenever a land card is put into your graveyard from anywhere, put a +1/+1 counter on Slogurk.\nRemove three +1/+1 counters from Slogurk: Return it to its owner's hand.\nWhen Slogurk leaves the battlefield, return up to three target land cards from your graveyard to your hand.",
+      "cmc": 3,
+      "mana_cost": "{1}{G}{U}",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": ["Trample"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2021-09-24",
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "id": "6edbedf9-273f-4d7f-80a2-705858bd4d6d",
+      "oracle_id": "17b4778b-82b1-4845-ad08-00f3ff66877b",
+      "name": "Perpetual Timepiece",
+      "layout": "normal",
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Mill two cards. (Put the top two cards of your library into your graveyard.)\n{2}, Exile this artifact: Shuffle any number of target cards from your graveyard into your library.",
+      "cmc": 2,
+      "mana_cost": "{2}",
+      "colors": [],
+      "color_identity": [],
+      "keywords": ["Mill"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2026-04-24"
+    },
+    {
+      "id": "cc765da4-4bca-4250-80e4-05575d6fa98c",
+      "oracle_id": "3c075bb6-1831-4521-bd8d-4ed2825ae796",
+      "name": "World Shaper",
+      "layout": "normal",
+      "type_line": "Creature — Merfolk Shaman",
+      "oracle_text": "Whenever this creature attacks, you may mill three cards.\nWhen this creature dies, return all land cards from your graveyard to the battlefield tapped.",
+      "cmc": 4,
+      "mana_cost": "{3}{G}",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Mill"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2024-04-19",
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "id": "54819d7a-eec6-49e6-a0bb-d9d07d42b4a6",
+      "oracle_id": "b05a2b5f-1b5c-4f1b-8a6b-525c5c8b8ba1",
+      "name": "Ovika, Enigma Goliath",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Phyrexian Nightmare",
+      "oracle_text": "Flying\nWard—{3}, Pay 3 life.\nWhenever you cast a noncreature spell, create X 1/1 red Phyrexian Goblin creature tokens, where X is the mana value of that spell. They gain haste until end of turn.",
+      "cmc": 7,
+      "mana_cost": "{5}{U}{R}",
+      "colors": ["R", "U"],
+      "color_identity": ["R", "U"],
+      "keywords": ["Flying", "Ward"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2024-11-15",
+      "power": "6",
+      "toughness": "6"
+    },
+    {
+      "id": "5852a174-eef6-4c06-abcd-fd90f4b8a188",
+      "oracle_id": "a4a8af4e-8686-45ba-94fd-ccf6cc8adaae",
+      "name": "Whispers of the Muse",
+      "layout": "normal",
+      "type_line": "Instant",
+      "oracle_text": "Buyback {5} (You may pay an additional {5} as you cast this spell. If you do, put this card into your hand as it resolves.)\nDraw a card.",
+      "cmc": 1,
+      "mana_cost": "{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Buyback"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2015-05-06"
+    },
+    {
+      "id": "92adfcb4-6a0a-46f9-a171-bfa9fade2156",
+      "oracle_id": "a58adf82-d9e2-4b47-933e-68180f280ba2",
+      "name": "Mystic Speculation",
+      "layout": "normal",
+      "type_line": "Sorcery",
+      "oracle_text": "Buyback {2} (You may pay an additional {2} as you cast this spell. If you do, put this card into your hand as it resolves.)\nScry 3. (Look at the top three cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+      "cmc": 1,
+      "mana_cost": "{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Buyback", "Scry"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2007-05-04"
+    },
+    {
+      "id": "0b45ab13-9bb6-48af-8b37-d97b25801ac8",
+      "oracle_id": "7da19fc5-cb85-4ec7-beea-95210378bbfe",
+      "name": "Balmor, Battlemage Captain",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Bird Wizard",
+      "oracle_text": "Flying\nWhenever you cast an instant or sorcery spell, creatures you control get +1/+0 and gain trample until end of turn.",
+      "cmc": 2,
+      "mana_cost": "{U}{R}",
+      "colors": ["R", "U"],
+      "color_identity": ["R", "U"],
+      "keywords": ["Flying"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2024-11-15",
+      "power": "1",
+      "toughness": "3"
+    },
+    {
+      "id": "04d250d6-7ab1-4b30-85a4-acb0b620629c",
+      "oracle_id": "f621dcaa-c500-4a17-a65a-60d9b5516a3b",
+      "name": "Goblin Wizardry",
+      "layout": "normal",
+      "type_line": "Instant",
+      "oracle_text": "Create two 1/1 red Goblin Wizard creature tokens with prowess. (Whenever you cast a noncreature spell, they get +1/+1 until end of turn.)",
+      "cmc": 4,
+      "mana_cost": "{3}{R}",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2024-02-23"
+    },
+    {
+      "id": "e4138531-ef42-4c56-864e-d3525a4f2082",
+      "oracle_id": "a6450b8e-eb18-431c-9eb7-7daf107978b2",
+      "name": "Hordeling Outburst",
+      "layout": "normal",
+      "type_line": "Sorcery",
+      "oracle_text": "Create three 1/1 red Goblin creature tokens.",
+      "cmc": 3,
+      "mana_cost": "{1}{R}{R}",
+      "colors": ["R"],
+      "color_identity": ["R"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2018-03-16"
+    },
+    {
+      "id": "24955f5f-093c-4d33-b0c1-911cd36032ce",
+      "oracle_id": "bfd614d5-4c7f-416b-9cb2-bb167c0893a0",
+      "name": "Elenda, Saint of Dusk",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Vampire Knight",
+      "oracle_text": "Lifelink, hexproof from instants\nAs long as your life total is greater than your starting life total, Elenda gets +1/+1 and has menace. Elenda gets an additional +5/+5 as long as your life total is at least 10 greater than your starting life total.",
+      "cmc": 4,
+      "mana_cost": "{2}{W}{B}",
+      "colors": ["B", "W"],
+      "color_identity": ["B", "W"],
+      "keywords": ["Lifelink", "Hexproof from", "Hexproof"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2024-11-15",
+      "power": "4",
+      "toughness": "4"
+    },
+    {
+      "id": "f70ea481-1751-4097-af41-2d13fe79e788",
+      "oracle_id": "195837b4-e5e4-479d-8dab-6ac77f9fcd83",
+      "name": "Chaplain's Blessing",
+      "layout": "normal",
+      "type_line": "Sorcery",
+      "oracle_text": "You gain 5 life.",
+      "cmc": 1,
+      "mana_cost": "{W}",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2016-04-08"
+    },
+    {
+      "id": "96b8f4be-9f4d-4373-8141-a03518ecd38a",
+      "oracle_id": "1f493e26-a556-4ca0-bb44-5408800ccf82",
+      "name": "Soothing Balm",
+      "layout": "normal",
+      "type_line": "Instant",
+      "oracle_text": "Target player gains 5 life.",
+      "cmc": 2,
+      "mana_cost": "{1}{W}",
+      "colors": ["W"],
+      "color_identity": ["W"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "1999-10-04"
+    },
+    {
+      "id": "0d446cb9-519a-4889-b057-029db9400021",
+      "oracle_id": "7d5e734f-3efc-4124-b1d8-4fe3e9d3db28",
+      "name": "Tatyova, Steward of Tides",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Merfolk Druid",
+      "oracle_text": "Land creatures you control have flying.\nWhenever a land you control enters, if you control seven or more lands, up to one target land you control becomes a 3/3 Elemental creature with haste. It's still a land.",
+      "cmc": 3,
+      "mana_cost": "{G}{G}{U}",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2022-09-09",
+      "power": "3",
+      "toughness": "3"
+    },
+    {
+      "id": "9a2fd9e5-1986-4998-b08c-80897b9b27e7",
+      "oracle_id": "8f47a230-7500-4afb-97cd-dbd444c307c8",
+      "name": "Skyshroud Ranger",
+      "layout": "normal",
+      "type_line": "Creature — Elf Ranger",
+      "oracle_text": "{T}: You may put a land card from your hand onto the battlefield. Activate only as a sorcery.",
+      "cmc": 1,
+      "mana_cost": "{G}",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2007-07-13",
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "id": "53515042-e729-4a7c-ac3b-36ef70dbbe8d",
+      "oracle_id": "855a4837-7fc8-4b97-afbd-daa88e322c89",
+      "name": "Walking Atlas",
+      "layout": "normal",
+      "type_line": "Artifact Creature — Construct",
+      "oracle_text": "{T}: You may put a land card from your hand onto the battlefield.",
+      "cmc": 2,
+      "mana_cost": "{2}",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2010-02-05",
+      "power": "1",
+      "toughness": "1"
+    },
+    {
+      "id": "5e6f4aba-3500-4fb7-ab78-02f63c03778a",
+      "oracle_id": "4cb86fb6-3e06-4c67-aee0-d5952178f664",
+      "name": "Nicanzil, Current Conductor",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Merfolk Scout",
+      "oracle_text": "Whenever a creature you control explores a land card, you may put a land card from your hand onto the battlefield tapped.\nWhenever a creature you control explores a nonland card, put a +1/+1 counter on Nicanzil.",
+      "cmc": 2,
+      "mana_cost": "{G}{U}",
+      "colors": ["G", "U"],
+      "color_identity": ["G", "U"],
+      "keywords": ["Explore"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2023-11-17",
+      "power": "2",
+      "toughness": "3"
+    },
+    {
+      "id": "8063528c-7347-4757-8254-5aa3e4b61c6f",
+      "oracle_id": "52714c3c-6821-44dd-88ba-813554df9914",
+      "name": "Path of Discovery",
+      "layout": "normal",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature you control enters, it explores. (Reveal the top card of your library. Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter on the creature, then put the card back or put it into your graveyard.)",
+      "cmc": 4,
+      "mana_cost": "{3}{G}",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Explore"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2026-06-26"
+    },
+    {
+      "id": "f10c22b9-bdb7-4933-a58a-c53d040ae3bb",
+      "oracle_id": "5007425e-a626-46f7-ab7d-777af97ee724",
+      "name": "Emperor's Vanguard",
+      "layout": "normal",
+      "type_line": "Creature — Human Scout",
+      "oracle_text": "Whenever this creature deals combat damage to a player, it explores. (Reveal the top card of your library. Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter on this creature, then put the card back or put it into your graveyard.)",
+      "cmc": 4,
+      "mana_cost": "{3}{G}",
+      "colors": ["G"],
+      "color_identity": ["G"],
+      "keywords": ["Explore"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2017-09-29",
+      "power": "4",
+      "toughness": "3"
+    },
+    {
+      "id": "1a0adf34-1a2b-497b-aaab-4b2b998ed8b3",
+      "oracle_id": "65e15354-4258-411f-a8f1-f64f4ccb873b",
+      "name": "Eligeth, Crossroads Augur",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Sphinx",
+      "oracle_text": "Flying\nIf you would scry a number of cards, draw that many cards instead.\nPartner (You can have two commanders if both have partner.)",
+      "cmc": 6,
+      "mana_cost": "{4}{U}{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Flying", "Partner"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2020-11-20",
+      "power": "5",
+      "toughness": "6"
+    },
+    {
+      "id": "5377e2d9-a846-4533-aeaf-9144ca8765da",
+      "oracle_id": "32ebc862-3bf6-4754-b7b8-8bb73f1651cf",
+      "name": "Cryptic Annelid",
+      "layout": "normal",
+      "type_line": "Creature — Worm Beast",
+      "oracle_text": "When this creature enters, scry 1, then scry 2, then scry 3. (To scry X, look at the top X cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+      "cmc": 4,
+      "mana_cost": "{3}{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Scry"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2021-03-19",
+      "power": "1",
+      "toughness": "4"
+    },
+    {
+      "id": "4678132d-85bc-49cc-b3be-62cf709de42b",
+      "oracle_id": "5baa7abe-5bdf-40ce-9a83-a93b7cae71a3",
+      "name": "Soldevi Excavations",
+      "layout": "normal",
+      "type_line": "Land",
+      "oracle_text": "If this land would enter, sacrifice an untapped Island instead. If you do, put this land onto the battlefield. If you don't, put it into its owner's graveyard.\n{T}: Add {C}{U}.\n{1}, {T}: Scry 1.",
+      "cmc": 0,
+      "mana_cost": "",
+      "colors": [],
+      "color_identity": ["U"],
+      "keywords": ["Scry"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2008-09-22"
+    },
+    {
+      "id": "3705d3e4-317e-460d-b16e-e57238a19070",
+      "oracle_id": "55e21534-ec3e-46e1-8faf-59f0c3d48128",
+      "name": "Veilstone Amulet",
+      "layout": "normal",
+      "type_line": "Artifact",
+      "oracle_text": "Whenever you cast a spell, creatures you control can't be the targets of spells or abilities your opponents control this turn.",
+      "cmc": 3,
+      "mana_cost": "{3}",
+      "colors": [],
+      "color_identity": [],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2007-05-04"
+    },
+    {
+      "id": "e55ba092-abc0-49ba-b756-6cb714165fec",
+      "oracle_id": "95a5e444-39f6-4f42-a83f-befa76350bc1",
+      "name": "Skywise Teachings",
+      "layout": "normal",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever you cast a noncreature spell, you may pay {1}{U}. If you do, create a 2/2 blue Djinn Monk creature token with flying.",
+      "cmc": 4,
+      "mana_cost": "{3}{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2017-11-17"
+    },
+    {
+      "id": "3de11222-c2fa-4544-a501-a02b31797259",
+      "oracle_id": "d22ff377-d282-4a28-9dce-96f25913dc96",
+      "name": "Grazilaxx, Illithid Scholar",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Horror",
+      "oracle_text": "Whenever a creature you control becomes blocked, you may return it to its owner's hand.\nWhenever one or more creatures you control deal combat damage to a player, draw a card.",
+      "cmc": 3,
+      "mana_cost": "{1}{U}{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2022-06-10",
+      "power": "3",
+      "toughness": "2"
+    },
+    {
+      "id": "3c3d9916-76c4-425a-a215-6226d0921f0b",
+      "oracle_id": "8a05ec32-7b0c-4f23-a4f7-413301c2a70a",
+      "name": "Coastal Piracy",
+      "layout": "normal",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature you control deals combat damage to an opponent, you may draw a card.",
+      "cmc": 4,
+      "mana_cost": "{2}{U}{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2025-11-21"
+    },
+    {
+      "id": "e98489bc-b5fd-43f2-9afb-198e34e70723",
+      "oracle_id": "847b5be5-cb0c-4857-bcd9-c5cfe55fdaeb",
+      "name": "Keep Watch",
+      "layout": "normal",
+      "type_line": "Instant",
+      "oracle_text": "Draw a card for each attacking creature.",
+      "cmc": 3,
+      "mana_cost": "{2}{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": [],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2009-09-04"
+    },
+    {
+      "id": "8812e448-241e-4640-9cb6-0cdbe1ad2fcc",
+      "oracle_id": "ecf808fd-4828-497e-b84b-1cb018a9924b",
+      "name": "Siani, Eye of the Storm",
+      "layout": "normal",
+      "type_line": "Legendary Creature — Djinn Monk",
+      "oracle_text": "Flying\nWhenever Siani attacks, scry X, where X is the number of attacking creatures with flying.\nPartner (You can have two commanders if both have partner.)",
+      "cmc": 4,
+      "mana_cost": "{3}{U}",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "keywords": ["Scry", "Flying", "Partner"],
+      "legalities": {
+        "commander": "legal"
+      },
+      "released_at": "2020-11-20",
+      "power": "3",
+      "toughness": "2"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "shirei-sacrifice",
+      "theme": "sacrifice",
+      "commanders": ["Shirei, Shizo's Caretaker"],
+      "query": "Find small creatures that can sacrifice themselves or other creatures.",
+      "relevant_cards": ["Viscera Seer", "Blood Pet"],
+      "commander_oracle_ids": ["7b5c3d28-6d8b-488b-b088-567b24faadc7"],
+      "relevant_oracle_ids": [
+        "f82a4e85-526d-4456-b700-7760043a31be",
+        "e05c6c80-a91a-45e0-b991-0014fd5a6472"
+      ],
+      "source_urls": {
+        "Shirei, Shizo's Caretaker": "https://scryfall.com/card/cmm/186/shirei-shizos-caretaker",
+        "Viscera Seer": "https://scryfall.com/card/soc/229/viscera-seer",
+        "Blood Pet": "https://scryfall.com/card/7ed/121/blood-pet"
+      },
+      "request": {
+        "mechanics": ["cost.sacrifice_self", "cost.sacrifice_permanent"],
+        "oracle_query": "t:creature pow<=1",
+        "commanders": ["7b5c3d28-6d8b-488b-b088-567b24faadc7"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "lagomos-sacrifice-graveyard",
+      "theme": "sacrifice",
+      "commanders": ["Lagomos, Hand of Hatred"],
+      "query": "Find sacrifice outlets and reusable fodder for death triggers.",
+      "relevant_cards": ["Ruthless Knave", "Reassembling Skeleton"],
+      "commander_oracle_ids": ["12c98c1e-7e02-473d-b494-ad8a0731fe82"],
+      "relevant_oracle_ids": [
+        "00225c40-27ff-410f-a591-5c788c6a2bd6",
+        "9dbc3530-b278-4c8d-b2cc-a09dfac9d5e5"
+      ],
+      "source_urls": {
+        "Lagomos, Hand of Hatred": "https://scryfall.com/card/dmu/205/lagomos-hand-of-hatred",
+        "Ruthless Knave": "https://scryfall.com/card/xln/119/ruthless-knave",
+        "Reassembling Skeleton": "https://scryfall.com/card/tdc/195/reassembling-skeleton"
+      },
+      "request": {
+        "mechanics": ["cost.sacrifice_permanent", "effect.return_from_graveyard"],
+        "commanders": ["12c98c1e-7e02-473d-b494-ad8a0731fe82"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "kambal-opponent-tokens",
+      "theme": "tokens",
+      "commanders": ["Kambal, Profiteering Mayor"],
+      "query": "Find cards that give opponents tokens.",
+      "relevant_cards": ["Slaughter Specialist", "Benevolent Offering"],
+      "commander_oracle_ids": ["619e0686-e88c-4238-8364-75395e733533"],
+      "relevant_oracle_ids": [
+        "ab431f93-73bb-49d9-9321-a0712f096ed7",
+        "3db8466c-864f-48ba-b617-f2c863dfdcbd"
+      ],
+      "source_urls": {
+        "Kambal, Profiteering Mayor": "https://scryfall.com/card/otj/211/kambal-profiteering-mayor",
+        "Slaughter Specialist": "https://scryfall.com/card/mid/122/slaughter-specialist",
+        "Benevolent Offering": "https://scryfall.com/card/voc/78/benevolent-offering"
+      },
+      "request": {
+        "theme": "tokens",
+        "oracle_query": "o:opponent",
+        "commanders": ["619e0686-e88c-4238-8364-75395e733533"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "bess-counters",
+      "theme": "counters",
+      "commanders": ["Bess, Soul Nourisher"],
+      "query": "Find cards that add or increase +1/+1 counters.",
+      "relevant_cards": ["Conclave Mentor", "Good-Fortune Unicorn"],
+      "commander_oracle_ids": ["df72b5d6-6f9e-4d6b-acf6-7dec4ff35468"],
+      "relevant_oracle_ids": [
+        "a2fe5937-212c-4e71-8d6e-f408b38100aa",
+        "1e0cdff3-3ec5-41fc-8053-f072bae156b3"
+      ],
+      "source_urls": {
+        "Bess, Soul Nourisher": "https://scryfall.com/card/ncc/67/bess-soul-nourisher",
+        "Conclave Mentor": "https://scryfall.com/card/moc/320/conclave-mentor",
+        "Good-Fortune Unicorn": "https://scryfall.com/card/fdn/240/good-fortune-unicorn"
+      },
+      "request": {
+        "theme": "+1/+1 counter support",
+        "oracle_query": "(o:\"+1/+1 counter\" or o:\"+1/+1 counters\")",
+        "commanders": ["df72b5d6-6f9e-4d6b-acf6-7dec4ff35468"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "hashaton-discard",
+      "theme": "draw_discard",
+      "commanders": ["Hashaton, Scarab's Fist"],
+      "query": "Find repeatable creature-discard outlets.",
+      "relevant_cards": ["Putrid Imp", "Skirge Familiar"],
+      "commander_oracle_ids": ["db266661-f783-4907-9e52-6963eec05431"],
+      "relevant_oracle_ids": [
+        "7192ff07-9a84-49ad-a40c-ce255ce21544",
+        "ba95f24d-42da-48ce-bcf1-1b7c4b3c45b5"
+      ],
+      "source_urls": {
+        "Hashaton, Scarab's Fist": "https://scryfall.com/card/drc/1/hashaton-scarabs-fist",
+        "Putrid Imp": "https://scryfall.com/card/vma/135/putrid-imp",
+        "Skirge Familiar": "https://scryfall.com/card/mh2/276/skirge-familiar"
+      },
+      "request": {
+        "theme": "discard",
+        "commanders": ["db266661-f783-4907-9e52-6963eec05431"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "slogurk-self-mill",
+      "theme": "graveyard",
+      "commanders": ["Slogurk, the Overslime"],
+      "query": "Find self-mill engines that can put lands into my graveyard.",
+      "relevant_cards": ["Perpetual Timepiece", "World Shaper"],
+      "commander_oracle_ids": ["cee836f1-87a4-43db-a6ea-55575a4ce781"],
+      "relevant_oracle_ids": [
+        "17b4778b-82b1-4845-ad08-00f3ff66877b",
+        "3c075bb6-1831-4521-bd8d-4ed2825ae796"
+      ],
+      "source_urls": {
+        "Slogurk, the Overslime": "https://scryfall.com/card/mid/242/slogurk-the-overslime",
+        "Perpetual Timepiece": "https://scryfall.com/card/soc/354/perpetual-timepiece",
+        "World Shaper": "https://scryfall.com/card/otc/214/world-shaper"
+      },
+      "request": {
+        "mechanics": ["effect.mill"],
+        "commanders": ["cee836f1-87a4-43db-a6ea-55575a4ce781"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "ovika-spellcast",
+      "theme": "spellcast",
+      "commanders": ["Ovika, Enigma Goliath"],
+      "query": "Find permanents that reward casting noncreature spells.",
+      "relevant_cards": ["Veilstone Amulet", "Skywise Teachings"],
+      "commander_oracle_ids": ["b05a2b5f-1b5c-4f1b-8a6b-525c5c8b8ba1"],
+      "relevant_oracle_ids": [
+        "55e21534-ec3e-46e1-8faf-59f0c3d48128",
+        "95a5e444-39f6-4f42-a83f-befa76350bc1"
+      ],
+      "source_urls": {
+        "Ovika, Enigma Goliath": "https://scryfall.com/card/fdn/663/ovika-enigma-goliath",
+        "Veilstone Amulet": "https://scryfall.com/card/fut/166/veilstone-amulet",
+        "Skywise Teachings": "https://scryfall.com/card/ima/73/skywise-teachings"
+      },
+      "request": {
+        "theme": "spellcast",
+        "oracle_query": "(t:artifact or t:enchantment or t:creature)",
+        "commanders": ["b05a2b5f-1b5c-4f1b-8a6b-525c5c8b8ba1"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "grazilaxx-combat-draw",
+      "theme": "combat",
+      "commanders": ["Grazilaxx, Illithid Scholar"],
+      "query": "Find card draw that rewards attacking or combat damage.",
+      "relevant_cards": ["Coastal Piracy", "Keep Watch"],
+      "commander_oracle_ids": ["d22ff377-d282-4a28-9dce-96f25913dc96"],
+      "relevant_oracle_ids": [
+        "8a05ec32-7b0c-4f23-a4f7-413301c2a70a",
+        "847b5be5-cb0c-4857-bcd9-c5cfe55fdaeb"
+      ],
+      "source_urls": {
+        "Grazilaxx, Illithid Scholar": "https://scryfall.com/card/clb/723/grazilaxx-illithid-scholar",
+        "Coastal Piracy": "https://scryfall.com/card/tle/156/coastal-piracy",
+        "Keep Watch": "https://scryfall.com/card/hop/10/keep-watch"
+      },
+      "request": {
+        "theme": "draw",
+        "oracle_query": "(o:attack or o:attacking or o:\"combat damage\")",
+        "commanders": ["d22ff377-d282-4a28-9dce-96f25913dc96"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "elenda-lifegain",
+      "theme": "lifegain",
+      "commanders": ["Elenda, Saint of Dusk"],
+      "query": "Find inexpensive spells that gain five life.",
+      "relevant_cards": ["Chaplain's Blessing", "Soothing Balm"],
+      "commander_oracle_ids": ["bfd614d5-4c7f-416b-9cb2-bb167c0893a0"],
+      "relevant_oracle_ids": [
+        "195837b4-e5e4-479d-8dab-6ac77f9fcd83",
+        "1f493e26-a556-4ca0-bb44-5408800ccf82"
+      ],
+      "source_urls": {
+        "Elenda, Saint of Dusk": "https://scryfall.com/card/fdn/119/elenda-saint-of-dusk",
+        "Chaplain's Blessing": "https://scryfall.com/card/soi/10/chaplains-blessing",
+        "Soothing Balm": "https://scryfall.com/card/mmq/48/soothing-balm"
+      },
+      "request": {
+        "theme": "lifegain",
+        "oracle_query": "mv<=2 o:\"5 life\"",
+        "commanders": ["bfd614d5-4c7f-416b-9cb2-bb167c0893a0"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "tatyova-additional-lands",
+      "theme": "landfall",
+      "commanders": ["Tatyova, Steward of Tides"],
+      "query": "Find repeatable ways to put additional lands onto the battlefield.",
+      "relevant_cards": ["Skyshroud Ranger", "Walking Atlas"],
+      "commander_oracle_ids": ["7d5e734f-3efc-4124-b1d8-4fe3e9d3db28"],
+      "relevant_oracle_ids": [
+        "8f47a230-7500-4afb-97cd-dbd444c307c8",
+        "855a4837-7fc8-4b97-afbd-daa88e322c89"
+      ],
+      "source_urls": {
+        "Tatyova, Steward of Tides": "https://scryfall.com/card/dmu/222/tatyova-steward-of-tides",
+        "Skyshroud Ranger": "https://scryfall.com/card/10e/297/skyshroud-ranger",
+        "Walking Atlas": "https://scryfall.com/card/wwk/131/walking-atlas"
+      },
+      "request": {
+        "theme": "additional land drops",
+        "oracle_query": "o:\"land card\" o:\"onto the battlefield\" t:creature",
+        "commanders": ["7d5e734f-3efc-4124-b1d8-4fe3e9d3db28"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "nicanzil-explore",
+      "theme": "text_fallback",
+      "commanders": ["Nicanzil, Current Conductor"],
+      "query": "Find cards whose rules text makes creatures explore.",
+      "relevant_cards": ["Path of Discovery", "Emperor's Vanguard"],
+      "commander_oracle_ids": ["4cb86fb6-3e06-4c67-aee0-d5952178f664"],
+      "relevant_oracle_ids": [
+        "52714c3c-6821-44dd-88ba-813554df9914",
+        "5007425e-a626-46f7-ab7d-777af97ee724"
+      ],
+      "source_urls": {
+        "Nicanzil, Current Conductor": "https://scryfall.com/card/lci/236/nicanzil-current-conductor",
+        "Path of Discovery": "https://scryfall.com/card/msc/179/path-of-discovery",
+        "Emperor's Vanguard": "https://scryfall.com/card/xln/189/emperors-vanguard"
+      },
+      "request": {
+        "theme": "explore",
+        "oracle_query": "(o:explore or o:explores)",
+        "commanders": ["4cb86fb6-3e06-4c67-aee0-d5952178f664"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "eligeth-scry",
+      "theme": "text_fallback",
+      "commanders": ["Eligeth, Crossroads Augur"],
+      "query": "Find repeatable or multiple scry effects.",
+      "relevant_cards": ["Cryptic Annelid", "Soldevi Excavations"],
+      "commander_oracle_ids": ["65e15354-4258-411f-a8f1-f64f4ccb873b"],
+      "relevant_oracle_ids": [
+        "32ebc862-3bf6-4754-b7b8-8bb73f1651cf",
+        "5baa7abe-5bdf-40ce-9a83-a93b7cae71a3"
+      ],
+      "source_urls": {
+        "Eligeth, Crossroads Augur": "https://scryfall.com/card/cmr/66/eligeth-crossroads-augur",
+        "Cryptic Annelid": "https://scryfall.com/card/tsr/60/cryptic-annelid",
+        "Soldevi Excavations": "https://scryfall.com/card/me2/236/soldevi-excavations"
+      },
+      "request": {
+        "theme": "scry",
+        "commanders": ["65e15354-4258-411f-a8f1-f64f4ccb873b"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "balmor-spellcast-tokens",
+      "theme": "spellcast",
+      "commanders": ["Balmor, Battlemage Captain"],
+      "query": "Find noncreature spells that create multiple small creature tokens.",
+      "relevant_cards": ["Goblin Wizardry", "Hordeling Outburst"],
+      "commander_oracle_ids": ["7da19fc5-cb85-4ec7-beea-95210378bbfe"],
+      "relevant_oracle_ids": [
+        "f621dcaa-c500-4a17-a65a-60d9b5516a3b",
+        "a6450b8e-eb18-431c-9eb7-7daf107978b2"
+      ],
+      "source_urls": {
+        "Balmor, Battlemage Captain": "https://scryfall.com/card/fdn/237/balmor-battlemage-captain",
+        "Goblin Wizardry": "https://scryfall.com/card/clu/136/goblin-wizardry",
+        "Hordeling Outburst": "https://scryfall.com/card/a25/134/hordeling-outburst"
+      },
+      "request": {
+        "theme": "tokens",
+        "oracle_query": "-t:creature",
+        "commanders": ["7da19fc5-cb85-4ec7-beea-95210378bbfe"]
+      },
+      "provided_profile_oracle_ids": []
+    },
+    {
+      "id": "eligeth-siani-scry",
+      "theme": "text_fallback",
+      "commanders": ["Eligeth, Crossroads Augur", "Siani, Eye of the Storm"],
+      "query": "Find repeatable or multiple scry effects.",
+      "relevant_cards": ["Cryptic Annelid", "Soldevi Excavations"],
+      "commander_oracle_ids": [
+        "65e15354-4258-411f-a8f1-f64f4ccb873b",
+        "ecf808fd-4828-497e-b84b-1cb018a9924b"
+      ],
+      "relevant_oracle_ids": [
+        "32ebc862-3bf6-4754-b7b8-8bb73f1651cf",
+        "5baa7abe-5bdf-40ce-9a83-a93b7cae71a3"
+      ],
+      "source_urls": {
+        "Eligeth, Crossroads Augur": "https://scryfall.com/card/cmr/66/eligeth-crossroads-augur",
+        "Siani, Eye of the Storm": "https://scryfall.com/card/cmr/95/siani-eye-of-the-storm",
+        "Cryptic Annelid": "https://scryfall.com/card/tsr/60/cryptic-annelid",
+        "Soldevi Excavations": "https://scryfall.com/card/me2/236/soldevi-excavations"
+      },
+      "request": {
+        "theme": "scry",
+        "commanders": [
+          "65e15354-4258-411f-a8f1-f64f4ccb873b",
+          "ecf808fd-4828-497e-b84b-1cb018a9924b"
+        ]
+      },
+      "provided_profile_oracle_ids": []
+    }
+  ]
+}

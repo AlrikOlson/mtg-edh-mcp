@@ -6,6 +6,14 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `card_discover` (51 tools total) for local mechanics/theme retrieval and
+  validated single or paired commander choices without recommendation providers.
+  Results include Oracle evidence, query fallback, identity/intent exclusions,
+  deck and extractor versions, snapshot provenance and explicit scan/pair/output
+  bounds. Commander validation now rejects duplicate partners, back-face ability
+  leakage and noncreature Doctor companions. A 14-task curated recall benchmark
+  and modern/legacy MCP HTTP tests cover the new read-only contract.
+
 - Add `meta_check_policy` (50 tools total) and persisted `intent.playgroup`
   declarations for profile goals, bracket restrictions and custom category limits.
   Policy compatibility is independent of legality and deck quality. Reports retain

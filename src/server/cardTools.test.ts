@@ -122,9 +122,10 @@ afterEach(async () => {
 });
 
 describe("card tools registration", () => {
-  it("registers the four card tools + card_mechanics + card_rulings + collection, data, rules tools + ping", async () => {
+  it("registers the four card tools + card_discover + card_mechanics + card_rulings + collection, data, rules tools + ping", async () => {
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
     expect(names).toEqual([
+      "card_discover",
       "card_get",
       "card_mechanics",
       "card_printings",
@@ -157,7 +158,9 @@ describe("card_search", () => {
     });
     expect(alias.isError).not.toBe(true);
     expect(alias.structuredContent).toEqual(canonical.structuredContent);
-    const body = alias.structuredContent as { results: Array<{ oracle_id: string }> };
+    const body = alias.structuredContent as {
+      results: Array<{ oracle_id: string }>;
+    };
     expect(body.results.map((card) => card.oracle_id).sort()).toEqual([
       "o-llan",
       "o-llanv",
@@ -193,7 +196,10 @@ describe("card_search", () => {
     expect(details?.examples?.[0]).toContain("t:instant");
     assert(details?.examples);
     for (const query of details.examples) {
-      const example = await client.callTool({ name: "card_search", arguments: { query } });
+      const example = await client.callTool({
+        name: "card_search",
+        arguments: { query },
+      });
       expect(example.isError, `Published recovery example: ${query}`).not.toBe(true);
     }
   });

@@ -19,6 +19,7 @@ import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { BUILTIN_TOOLS } from "./tools.js";
 import { makeCardTools } from "./cardTools.js";
 import { makeMechanicsTools } from "./mechanicsTools.js";
+import { makeDiscoveryTools } from "./discoveryTools.js";
 import { makeCollectionTools } from "./collectionTools.js";
 import { makeDeckTools } from "./deckTools.js";
 import { makeValidateTools } from "./validateTools.js";
@@ -139,6 +140,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
   const indexedTools = (current: CardIndex): ToolDefinition[] => [
     ...makeCardTools(current, collection, session),
     ...makeMechanicsTools(current, options.deckStore, session),
+    ...makeDiscoveryTools(current, options.deckStore, session),
     ...makeCardRulingsTools(rules, current),
     ...makeCollectionTools(collection, current, session),
     ...(options.deckStore

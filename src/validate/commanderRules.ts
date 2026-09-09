@@ -33,6 +33,7 @@ interface CommanderShape {
   isBackground: boolean;
   /** A legendary Time Lord Doctor creature with no other creature types (702.124m). */
   isTimeLordDoctor: boolean;
+  isLegendaryCreature: boolean;
 }
 
 /** Creature subtypes of the front face, e.g. "Time Lord Doctor" -> ["Time Lord", "Doctor"]. */
@@ -48,7 +49,8 @@ function creatureTypes(typeLine: string): string[] {
 }
 
 function classify(card: Card): CommanderShape {
-  const text = card.oracle_text;
+  const front = commanderCharacteristics(card);
+  const text = front.oracle_text;
   const withMatch = /partner with ([^.(\n]+)/i.exec(text);
   // Scryfall's keywords list every variant as "Partner", so the label must be
   // read from the printed text (702.124i). "Friends forever" is printed as its
@@ -64,48 +66,74 @@ function classify(card: Card): CommanderShape {
     partner = "partner_text";
     partnerLabel = "friends forever";
   } else if (/doctor.?s companion/i.test(text)) partner = "doctors_companion";
-  else if (card.keywords.some((k) => k.toLowerCase() === "partner") || /\bpartner\b/i.test(text))
+  else if (
+    front.keywords.some((k) => k.toLowerCase() === "partner") ||
+    /(?:^|\n|\.\s+)partner(?:\s*\(|\s*$)/im.test(text)
+  )
     partner = "partner";
-  const types = creatureTypes(card.type_line);
-  const legendary = /Legendary/i.test(card.type_line);
+  const types = creatureTypes(front.type_line);
+  const legendary = /Legendary/i.test(front.type_line);
   return {
     partner,
+    isLegendaryCreature: legendary && /\bCreature\b/.test(front.type_line),
     partnerName: withMatch?.[1]?.trim(),
     partnerLabel,
     choosesBackground: /choose a background/i.test(text),
     isBackground: isLegendaryBackground(card),
     isTimeLordDoctor:
       legendary &&
-      /\bCreature\b/.test(card.type_line) &&
+      /\bCreature\b/.test(front.type_line) &&
       types.length === 2 &&
       types.includes("Time Lord") &&
       types.includes("Doctor"),
   };
 }
 
+/** Front/primary characteristics govern command-zone abilities, never flattened backs.
+ * Missing canonical fields remain unknown; legacy callers retain the flat fallback.
+ */
+function commanderCharacteristics(card: Card) {
+  const gameplay = card.gameplay;
+  if (!gameplay) return card;
+  const front =
+    gameplay.faces?.find((f) => f.face_index === 0)?.characteristics ?? gameplay.characteristics;
+  return {
+    type_line: front.type_line ?? "",
+    oracle_text: front.oracle_text ?? "",
+    power: front.power ?? undefined,
+    toughness: front.toughness ?? undefined,
+    keywords: front.keywords ?? [],
+  };
+}
+
 /** A legendary Background enchantment card (CR 702.124k). */
 export function isLegendaryBackground(card: Card): boolean {
+  const front = commanderCharacteristics(card);
   return (
-    /Legendary/i.test(card.type_line) &&
-    /\bEnchantment\b/.test(card.type_line) &&
-    /\bBackground\b/.test(card.type_line)
+    /Legendary/i.test(front.type_line) &&
+    /\bEnchantment\b/.test(front.type_line) &&
+    /\bBackground\b/.test(front.type_line)
   );
 }
 
-/** A card can be a sole commander if eligible by the server flag, type, or text. */
+/** A sole commander according to its front-face facts; legacy flags remain compatible. */
 export function isCommanderEligible(card: Card): boolean {
-  // Legendary + a printed power/toughness box is command-zone eligible: a
-  // creature (matched by type, since DFC/meld faces may lack a top-level P/T),
-  // or — since Edge of Eternities broadened rule 903.3 — a Vehicle or Spacecraft
-  // (a non-creature with a printed P/T). The server flag and "can be your
-  // commander" text cover the rest.
-  const legendary = /Legendary/i.test(card.type_line);
-  const hasPrintedPT = card.power !== undefined && card.toughness !== undefined;
+  const front = commanderCharacteristics(card);
+  const legendary = /Legendary/i.test(front.type_line);
+  const printedPT = front.power !== undefined && front.toughness !== undefined;
   return (
-    card.is_commander_eligible ||
-    (legendary && (/Creature/i.test(card.type_line) || hasPrintedPT)) ||
-    /can be your commander/i.test(card.oracle_text)
+    (!card.gameplay && card.is_commander_eligible) ||
+    (legendary &&
+      (/\bCreature\b/i.test(front.type_line) ||
+        (/\b(?:Vehicle|Spacecraft)\b/i.test(front.type_line) && printedPT))) ||
+    /can be your commander/i.test(front.oracle_text)
   );
+}
+
+/** A cheap enumeration hint only: every proposed pair still needs validateCommander. */
+export function commanderPairingCandidate(card: Card): boolean {
+  const shape = classify(card);
+  return !!shape.partner || shape.choosesBackground || shape.isBackground || shape.isTimeLordDoctor;
 }
 
 /** Union of the commanders' color identities, in WUBRG order. Only reads `commanders`. */
@@ -146,7 +174,12 @@ export function checkCommanderEligibility(deck: Deck, lookup: CardLookup): Viola
 }
 
 function multi(detail: string): Violation {
-  return { rule: "MULTI_COMMANDER", severity: "error", detail, fix_hint: "fix the command zone" };
+  return {
+    rule: "MULTI_COMMANDER",
+    severity: "error",
+    detail,
+    fix_hint: "fix the command zone",
+  };
 }
 
 /**
@@ -156,6 +189,8 @@ function multi(detail: string): Violation {
 export function checkMultiCommander(deck: Deck, lookup: CardLookup): Violation[] {
   const kind = deck.command_zone_kind;
   const ids = deck.commanders;
+  if (new Set(ids).size !== ids.length)
+    return [multi("Commanders must be distinct canonical cards")];
   if (kind === "single") {
     return ids.length === 1
       ? []
@@ -202,8 +237,8 @@ export function checkMultiCommander(deck: Deck, lookup: CardLookup): Violation[]
   }
   // doctor_companion (702.124m)
   const ok =
-    (sa.isTimeLordDoctor && sb.partner === "doctors_companion") ||
-    (sb.isTimeLordDoctor && sa.partner === "doctors_companion");
+    (sa.isTimeLordDoctor && sb.isLegendaryCreature && sb.partner === "doctors_companion") ||
+    (sb.isTimeLordDoctor && sa.isLegendaryCreature && sa.partner === "doctors_companion");
   return ok
     ? []
     : [

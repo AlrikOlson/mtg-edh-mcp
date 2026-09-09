@@ -276,6 +276,47 @@ raw `source` and a `source_type`: `wizards_ruling` (official) or
 verdict: legality stays with `validate_deck`, and interactions are for the
 assistant to reason about with the quoted rules in view.
 
+## Discover candidates from the installed pool
+
+`card_discover` searches local cards without EDHREC, Spellbook or Game Changer
+requests. Start with a supported theme (returned in `supported_themes`), explicit
+`card_mechanics` pattern IDs, or a local `oracle_query`. Theme expansions are
+retrieval hints; inspect the returned spans before judging contribution to a deck.
+
+```text
+card_discover {"deck_id":"DECK_ID","theme":"sacrifice","limit":20}
+card_discover {"mode":"commanders","theme":"scry","include_pairs":true}
+card_discover {"mode":"commanders","theme":"explore","oracle_query":"(o:explore or o:explores)"}
+card_discover {"commanders":["Eligeth, Crossroads Augur","Siani, Eye of the Storm"],"theme":"scry"}
+```
+
+Card mode excludes the selected command zone, companion, existing library and
+saved hard exclusions. It intersects explicit colors, saved intent colors and
+the actual command-zone identity. Commander mode honors saved allowed/required
+commander IDs and validates each proposed single or pair through the shared
+rules. One member of a legal pair may match while the other provides no thematic
+evidence. `color_identity:[]` means colorless only.
+
+When mechanics and a query are both supplied, both must match. Local `o:`
+search uses complete FTS tokens/phrases: include inflections explicitly, such
+as `(o:explore or o:explores)`. Unknown themes return `needs_query` unless
+an explicit query or supported mechanic is supplied. A fallback is reported;
+free text is never silently treated as a known strategy.
+
+Results carry `data_snapshot`, `deck_version`, `discovery_version` and
+`extractor_version`. The default scan and pair-check bounds are 50,000 each
+(maximum 100,000), with at most 50 results and eight mechanic spans per card.
+Read `truncation`, exclusion counts and evidence truncation flags. These are
+candidates from the evaluated portion of the installed pool, not proof that
+no other useful cards exist. The tool makes no edits; use normal deck version
+checks when applying choices. Pregame color choices are not inferred.
+
+Locked quantities, change limits, full playgroup/package restrictions and soft
+goals still need whole-deck evaluation (`meta_check_policy`). The curated
+[14-task benchmark](evaluation/discovery-corpus.json) measures retrieval against
+42 sourced cards plus 240 irrelevant distractors; it is not a live-pool quality
+or precision guarantee.
+
 ## Find cards without filling the context
 
 `card_search` returns lean card references. Use `card_get` to inspect the

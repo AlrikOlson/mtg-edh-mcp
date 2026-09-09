@@ -106,14 +106,14 @@ see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
 
 ## What the server exposes
 
-With a card index loaded, the server exposes **50 tools**, **3 workflow
+With a card index loaded, the server exposes **51 tools**, **3 workflow
 prompts**, and addressable card, deck, and collection resources. Tool schemas
 and descriptions are available through MCP `tools/list`.
 
 | Group                | Tools                                                                                                                                                                                               |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Data                 | `ping`, `data_status`, `data_ingest`                                                                                                                                                                |
-| Cards                | `card_search`, `card_get`, `card_resolve_name`, `card_printings`                                                                                                                                    |
+| Cards                | `card_search`, `card_discover`, `card_get`, `card_resolve_name`, `card_printings`, `card_mechanics`                                                                                                 |
 | Collection           | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                                                                            |
 | Decks                | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_set_roles`, `deck_get_intent`, `deck_set_intent`, `deck_add`, `deck_remove` |
 | History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                                                                          |
