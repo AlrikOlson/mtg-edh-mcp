@@ -39,7 +39,7 @@ const ORACLE = [
   },
 ];
 
-const EXPECTED_TOOL_COUNT = 51;
+const EXPECTED_TOOL_COUNT = 52;
 const MAX_DESCRIPTION_CHARS = 700;
 
 const TEMPLATE =
@@ -77,6 +77,7 @@ const READ_ONLY_TOOLS = [
   "analyze_stats",
   "analyze_mana_base",
   "analyze_role_coverage",
+  "analyze_strategy",
   "simulate_deck",
   "budget_plan",
   "meta_commander_profile",

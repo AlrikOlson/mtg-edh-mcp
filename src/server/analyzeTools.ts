@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { effectiveRoleTargets } from "../deck/intent.js";
 import { wholeDeckBudget } from "../analyze/budget.js";
+import { analyzeStrategy } from "../analyze/strategy.js";
 import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { ROLES, StructuredError } from "../types/index.js";
 import { deckRoleLookup, deckRoleProvenance } from "../analyze/deckRoles.js";
@@ -29,6 +30,53 @@ import { validateCore, validateCommander, validateCompanion } from "../validate/
 import { deckVitals, formatVitals } from "./vitals.js";
 import { READS_LOCAL } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
+
+/** Offline strategy evidence is scoped to a saved deck and never mutates it. */
+function analyzeStrategyTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
+  return {
+    name: "analyze_strategy",
+    config: {
+      annotations: READS_LOCAL,
+      title: "Analyze deck strategy",
+      description:
+        "Explain supported engines and dependencies in the actual deck.\n" +
+        "USE: game plans, fragile support and deliberate niche builds. NOT: legality (validate_deck) or provider combo evidence (meta_combos).\n" +
+        "FLOW: deck_get_intent -> analyze_strategy -> card_discover.\n" +
+        "ARGS: deck_id; expected_version optionally checks the read.\n" +
+        "RETURNS: nodes, edges with Oracle evidence, dependencies, bottlenecks, redundancy, recovery_options, conflicts, win_condition_requirements, game_plan, declared_intent, coverage, deck_version. Conditional advisory catalog; unknown interactions stay explicit; no win rates.",
+      inputSchema: {
+        deck_id: z.string().min(1),
+        expected_version: z.number().int().nonnegative().optional(),
+      },
+    },
+    handler: (args) => {
+      const deck = store.get(String(args.deck_id), session);
+      if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${args.deck_id}'`);
+      if (typeof args.expected_version === "number" && args.expected_version !== deck.version) {
+        return {
+          content: [{ type: "text", text: "Deck version conflict" }],
+          structuredContent: {
+            ok: false,
+            conflict: true,
+            deck_id: deck.deck_id,
+            expected_version: args.expected_version,
+            current_version: deck.version,
+          },
+        };
+      }
+      const report = analyzeStrategy(deck, (id) => index.getCard(id));
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${deck.name}: ${report.edges.length} candidate support links; inspect requirements and coverage before planning.`,
+          },
+        ],
+        structuredContent: { ok: true, ...report },
+      };
+    },
+  };
+}
 
 const COLOR_ENUM = ["W", "U", "B", "R", "G"] as const;
 
@@ -518,6 +566,7 @@ export function makeAnalyzeTools(
   snapshot: SnapshotProvider = staticSnapshotProvider(),
 ): ToolDefinition[] {
   return [
+    analyzeStrategyTool(store, index, session),
     analyzeCurveTool(store, index, session),
     analyzeCompositionTool(store, index, session),
     analyzeStatsTool(store, index, session, snapshot),

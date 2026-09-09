@@ -106,7 +106,7 @@ see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
 
 ## What the server exposes
 
-With a card index loaded, the server exposes **51 tools**, **3 workflow
+With a card index loaded, the server exposes **52 tools**, **3 workflow
 prompts**, and addressable card, deck, and collection resources. Tool schemas
 and descriptions are available through MCP `tools/list`.
 
@@ -119,7 +119,7 @@ and descriptions are available through MCP `tools/list`.
 | History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                                                                          |
 | Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                                                                              |
 | Rules and rulings    | `rules_lookup`, `rules_search`, `rules_refresh`, `card_rulings`                                                                                                                                     |
-| Analysis             | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `simulate_deck`, `budget_plan`                                                |
+| Analysis             | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `analyze_strategy`, `simulate_deck`, `budget_plan`                            |
 | Community data       | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`, `meta_check_policy`                                                                        |
 
 The prompts `build_commander_deck`, `tune_deck`, and `fit_budget` teach clients

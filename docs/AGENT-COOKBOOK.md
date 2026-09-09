@@ -246,6 +246,61 @@ deck's corrections. The tool never changes roles, card data or legality, and
 `legality` is always `not_evaluated`. Measured precision on the annotated
 corpus is documented in `docs/evaluation/mechanics/README.md`.
 
+## Explain the actual deck's strategy
+
+Use `analyze_strategy` after saving the command zone, library and build intent.
+It runs entirely on the installed card snapshot, without recommendation providers,
+and returns `deck_version`, `strategy_version` and `data_snapshot` for comparison.
+
+```text
+deck_get_intent {"deck_id":"DECK_ID"}
+analyze_strategy {"deck_id":"DECK_ID"}
+analyze_strategy {"deck_id":"DECK_ID","expected_version":3}
+```
+
+An optional `expected_version` rejects a stale read with the same conflict shape as
+`deck_get_intent`. The report does not change the deck. All commanders and the
+library contribute; the outside-the-deck companion does not. Node quantities
+count copies, while redundancy counts distinct card identities.
+
+The initial edge catalog covers compatible token sacrifice/tapping, draw,
+lifegain, discard, sacrifice, death and token-created payoffs, self-mill/discard
+supply for unfiltered graveyard use, and compatible counter-removal resources.
+Other mechanics can still appear as node evidence while their relationships
+remain unmodeled. The ten contrast fixtures are synthetic Oracle-text regression
+pairs, not a measured precision or coverage claim for the live card pool.
+
+Analysis considers up to 250 distinct card identities and 32 annotations per card.
+Presentation returns at most 500 edges, 200 resource conflicts and 100 edge
+references per game-plan motif. `coverage` reports analyzed totals and truncation;
+provider counts use all analyzed matches even when edges are omitted from display.
+Missing cards or truncated analysis make zero/one-source dependencies
+`unknown_incomplete`, with `provider_search_complete:false`. A `not_modeled`
+dependency has a mechanic or filter outside the graph catalog. Raw node mechanics
+retain their own extraction coverage; extracted text is not automatically a
+supported graph relationship.
+
+Read `game_plan` alongside `dependencies`, `bottlenecks` and `redundancy`.
+A missing local provider means that this catalog found no support in the deck;
+it does not prove that the card is unplayable. A single source identifies a fragile
+dependency, and multiple sources identify possible redundancy, without promising
+that they are available at the same time. Every `edges` entry contains both
+mechanic annotations, with exact Oracle source spans, face and ability addresses,
+and requirements that remain to be checked.
+
+`declared_intent` preserves authored goals, strategy, constraints and role targets.
+Node role evidence distinguishes the classifier from user overrides; protected
+quantities and favorites stay visible. Free-text goals are not mechanically
+proved or silently replaced with a popular commander archetype.
+
+`recovery_options`, `conflicts` and `win_condition_requirements` describe candidate
+recursion, possible resource competition and requirements for supported payoff
+routes. They do not certify an executable loop, a win rate or a power level.
+For external combo variants and their starting zones, mana and prerequisite
+text, call `meta_combos` separately. Check `coverage` and `limitations`: omitted
+or unmodeled interactions are unknown, and alternate faces, triggers, targets,
+mana payment and actual game state still require contextual review.
+
 ## Cite rules and rulings verbatim
 
 The rules tools answer from a local, versioned copy of the Comprehensive Rules

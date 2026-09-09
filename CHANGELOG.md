@@ -6,6 +6,13 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `analyze_strategy` (52 tools total) for offline analysis of the actual
+  command zone and library. Evidence-linked candidate support, resource
+  dependencies, bottlenecks, redundancy, recovery, possible package conflicts
+  and payoff requirements preserve authored intent and role overrides.
+  Reports keep unmodeled interactions and execution uncertainty explicit;
+  modern and legacy MCP clients receive the same versioned JSON evidence.
+
 - Add `card_discover` (51 tools total) for local mechanics/theme retrieval and
   validated single or paired commander choices without recommendation providers.
   Results include Oracle evidence, query fallback, identity/intent exclusions,
