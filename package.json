@@ -45,6 +45,7 @@
     "dev": "tsup --watch",
     "ingest": "node dist/ingest.js",
     "typecheck": "tsc --noEmit",
+    "pretest": "node --test scripts/check-engine-source.test.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:workflows": "vitest run src/server/workflowMetrics.test.ts src/server/workflowScenarios.test.ts src/server/workflowBaseline.test.ts",
