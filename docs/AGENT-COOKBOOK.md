@@ -198,6 +198,36 @@ deck's corrections. The tool never changes roles, card data or legality, and
 `legality` is always `not_evaluated`. Measured precision on the annotated
 corpus is documented in `docs/evaluation/mechanics/README.md`.
 
+## Cite rules and rulings verbatim
+
+The rules tools answer from a local, versioned copy of the Comprehensive Rules
+and Scryfall's rulings export. Nothing is stored until you call
+`rules_refresh`; every rules response carries `corpus` with the release URL,
+SHA-256 digest, effective date, retrieval time and a `status` of `current`,
+`stale` or `unavailable`.
+
+```text
+rules_refresh {}
+rules_search {"query":"commander color identity","section":"903","limit":5}
+rules_lookup {"rules":["903.4","903.5c"],"glossary":"Color Identity"}
+card_rulings {"cards":["Rhystic Study","Dockside Extortionist"],"source":"wizards_ruling"}
+```
+
+`rules_search` requires every query word and returns bounded excerpts; read the
+full text with `rules_lookup` before quoting it. A lookup can name a chapter
+(`9`), a section (`903`), a rule (`903.5`) or a subrule (`903.5a`). Unknown
+identifiers come back with `status: "unknown"`, the reason and the `nearest`
+existing prefix. Rule numbers change between releases, so cite the corpus
+`effective_date` alongside any number.
+
+`card_rulings` resolves names to Oracle identities and returns each ruling's
+raw `source` and a `source_type`: `wizards_ruling` (official) or
+`provider_note` (Scryfall's own note). `rulings_status` distinguishes
+`recorded`, `none_recorded` (the export lists nothing for that card) and
+`unavailable` (no rulings corpus stored). These tools return text, never a
+verdict: legality stays with `validate_deck`, and interactions are for the
+assistant to reason about with the quoted rules in view.
+
 ## Find cards without filling the context
 
 `card_search` returns lean card references. Use `card_get` to inspect the

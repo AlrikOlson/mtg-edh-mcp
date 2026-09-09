@@ -27,6 +27,9 @@ knowledge, durable state, and checks to make those choices reviewable.
   combo pieces and payoffs; reset restores inferred roles without changing legality.
 - **Optional community context.** Commander Spellbook combos and an advisory
   Commander bracket classification.
+- **Verbatim rules evidence.** Exact Comprehensive Rules lookup, bounded keyword
+  search and per-card rulings from a versioned local corpus with release dates,
+  digests and staleness; unknown rule numbers are reported, never guessed.
 
 **Start here:** [Installation](./docs/INSTALL.md) ·
 [Agent cookbook](./docs/AGENT-COOKBOOK.md) ·
@@ -98,7 +101,7 @@ see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
 
 ## What the server exposes
 
-With a card index loaded, the server exposes **44 tools**, **3 workflow
+With a card index loaded, the server exposes **49 tools**, **3 workflow
 prompts**, and addressable card, deck, and collection resources. Tool schemas
 and descriptions are available through MCP `tools/list`.
 
@@ -110,6 +113,7 @@ and descriptions are available through MCP `tools/list`.
 | Decks                | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_set_roles`, `deck_get_intent`, `deck_set_intent`, `deck_add`, `deck_remove` |
 | History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                                                                          |
 | Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                                                                              |
+| Rules and rulings    | `rules_lookup`, `rules_search`, `rules_refresh`, `card_rulings`                                                                                                                                     |
 | Analysis             | `deck_status`, `analyze_curve`, `analyze_composition`, `analyze_stats`, `analyze_mana_base`, `analyze_role_coverage`, `simulate_deck`, `budget_plan`                                                |
 | Community data       | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`                                                                                             |
 
@@ -196,8 +200,11 @@ may change as the project develops.
 
 MIT licensed. See [LICENSE](./LICENSE).
 
-Card data via [Scryfall](https://scryfall.com). Community data via
-[EDHREC](https://edhrec.com) and [Commander Spellbook](https://commanderspellbook.com).
+Card data and card rulings via [Scryfall](https://scryfall.com). Comprehensive
+Rules text is downloaded from the official
+[Wizards of the Coast rules page](https://magic.wizards.com/en/rules). Community
+data via [EDHREC](https://edhrec.com) and
+[Commander Spellbook](https://commanderspellbook.com).
 Magic: The Gathering is owned by Wizards of the Coast. This is an unofficial
 fan project, unaffiliated with and not endorsed by these organizations.
 

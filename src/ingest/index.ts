@@ -9,6 +9,7 @@ export {
   MIN_REQUEST_SPACING_MS,
   resolveBulkDownload,
   type BulkType,
+  type BulkEntryType,
   type BulkDataEntry,
   type BulkClientOptions,
   type ResolvedBulkDownload,

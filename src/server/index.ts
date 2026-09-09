@@ -14,6 +14,8 @@ export type {
   OracleTextEvidence,
 } from "../types/card.js";
 export { UserDataStore } from "../storage/userData.js";
+export { RulesService, RulesStore } from "../rules/index.js";
+export type { RulesCorpusStatus } from "../rules/index.js";
 export { createServer, SERVER_NAME, SERVER_VERSION } from "./createServer.js";
 export type { CreateServerOptions } from "./createServer.js";
 export { registerTool, registerTools, stampSnapshot } from "./registry.js";

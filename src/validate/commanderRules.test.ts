@@ -235,6 +235,122 @@ describe("checkMultiCommander", () => {
   });
 });
 
+describe("checkMultiCommander partner variants (CR 702.124f/i/k/m)", () => {
+  const survivorA = card({
+    oracle_id: "abby",
+    name: "Abby, Merciless Soldier",
+    type_line: "Legendary Creature — Human Survivor",
+    keywords: ["Partner"],
+    oracle_text: "Partner—Survivors (You can have two commanders if both have Partner—Survivors.)",
+  });
+  const survivorB = card({
+    oracle_id: "joel",
+    name: "Joel, Resolute Survivor",
+    type_line: "Legendary Creature — Human Survivor",
+    keywords: ["Partner", "Menace"],
+    oracle_text:
+      "Menace\nPartner—Survivors (You can have two commanders if both have Partner—Survivors.)",
+  });
+  const fatherSon = card({
+    oracle_id: "jecht",
+    name: "Jecht, Blitzball Legend",
+    keywords: ["Partner"],
+    oracle_text:
+      "Partner—Father & son (You can have two commanders if both have Partner—Father & son.)",
+  });
+  const plainPartner = card({
+    oracle_id: "tymna",
+    name: "Tymna the Weaver",
+    keywords: ["Partner"],
+    oracle_text: "Partner (You can have two commanders if both have partner.)",
+  });
+  const friendsA = card({
+    oracle_id: "eleven",
+    name: "Eleven, the Mage",
+    keywords: ["Friends forever"],
+    oracle_text: "Friends forever (You can have two commanders if both have friends forever.)",
+  });
+  const friendsB = card({
+    oracle_id: "mike",
+    name: "Mike, the Dungeon Master",
+    keywords: ["Friends forever"],
+    oracle_text: "Friends forever (You can have two commanders if both have friends forever.)",
+  });
+  const partnerZone = (a: string, b: string) =>
+    deck({ commanders: [a, b], command_zone_kind: "partner" });
+
+  it("pairs two cards that share the same Partner—[text] label (702.124i)", () => {
+    expect(
+      checkMultiCommander(partnerZone("abby", "joel"), lookupOf(survivorA, survivorB)),
+    ).toEqual([]);
+    expect(
+      checkMultiCommander(partnerZone("eleven", "mike"), lookupOf(friendsA, friendsB)),
+    ).toEqual([]);
+  });
+
+  it("rejects a Partner—[text] card paired with plain Partner even though Scryfall lists both as Partner (702.124f)", () => {
+    const v = checkMultiCommander(partnerZone("abby", "tymna"), lookupOf(survivorA, plainPartner));
+    expect(v[0]).toMatchObject({ rule: "MULTI_COMMANDER" });
+  });
+
+  it("rejects two different Partner—[text] labels (702.124i)", () => {
+    const v = checkMultiCommander(partnerZone("abby", "jecht"), lookupOf(survivorA, fatherSon));
+    expect(v[0]).toMatchObject({ rule: "MULTI_COMMANDER" });
+  });
+
+  it("requires a Doctor's companion to pair with a Time Lord Doctor that has no other creature types (702.124m)", () => {
+    const companion = card({
+      oracle_id: "ace",
+      name: "Ace, Fearless Rebel",
+      type_line: "Legendary Creature — Human Rebel",
+      keywords: ["Doctor's companion"],
+      oracle_text: "Doctor's companion (You can have two commanders if the other is the Doctor.)",
+    });
+    const doctor = card({
+      oracle_id: "fourth",
+      name: "The Fourth Doctor",
+      type_line: "Legendary Creature — Time Lord Doctor",
+    });
+    const missy = card({
+      oracle_id: "missy",
+      name: "Missy",
+      type_line: "Legendary Creature — Time Lord Rogue",
+    });
+    const extraType = card({
+      oracle_id: "hybrid",
+      name: "Hypothetical Doctor",
+      type_line: "Legendary Creature — Time Lord Doctor Noble",
+    });
+    const zone = (a: string, b: string) =>
+      deck({ commanders: [a, b], command_zone_kind: "doctor_companion" });
+    expect(checkMultiCommander(zone("fourth", "ace"), lookupOf(doctor, companion))).toEqual([]);
+    expect(checkMultiCommander(zone("missy", "ace"), lookupOf(missy, companion))[0]).toMatchObject({
+      rule: "MULTI_COMMANDER",
+    });
+    expect(
+      checkMultiCommander(zone("hybrid", "ace"), lookupOf(extraType, companion))[0],
+    ).toMatchObject({ rule: "MULTI_COMMANDER" });
+  });
+
+  it("requires the Background half to be a legendary Background enchantment (702.124k)", () => {
+    const cmd = card({
+      oracle_id: "wil",
+      name: "Wilson, Refined Grizzly",
+      oracle_text: "Choose a Background",
+    });
+    const notEnchantment = card({
+      oracle_id: "fake",
+      name: "Background Painting",
+      type_line: "Legendary Artifact — Background",
+      is_commander_eligible: false,
+    });
+    const d = deck({ commanders: ["wil", "fake"], command_zone_kind: "background" });
+    expect(checkMultiCommander(d, lookupOf(cmd, notEnchantment))[0]).toMatchObject({
+      rule: "MULTI_COMMANDER",
+    });
+  });
+});
+
 describe("commanderColorIdentity", () => {
   it("unions the commanders' identities in WUBRG order", () => {
     const a = card({ oracle_id: "a", name: "A", color_identity: ["G", "W"] as Color[] });

@@ -87,6 +87,12 @@ export class VersionedStore {
     await mkdir(this.versionDir(id));
   }
 
+  /** Write an in-memory payload into the version dir, flushed before returning. */
+  async writeBytes(id: string, name: string, bytes: Uint8Array): Promise<number> {
+    await writeFile(this.filePath(id, name), bytes, { flush: true });
+    return bytes.byteLength;
+  }
+
   /** Stream a web ReadableStream into a file inside the version dir. */
   async writeStream(id: string, name: string, body: ReadableStream<Uint8Array>): Promise<number> {
     const dest = this.filePath(id, name);
@@ -95,16 +101,24 @@ export class VersionedStore {
     return out.bytesWritten;
   }
 
-  async writeManifest(id: string, manifest: Manifest): Promise<void> {
+  /**
+   * Write a version's manifest. The card store writes {@link Manifest}; other
+   * versioned corpora sharing this layout (the rules store) write their own
+   * manifest shape, so the type is a parameter rather than fixed.
+   */
+  async writeManifest<M extends { version: string } = Manifest>(
+    id: string,
+    manifest: M,
+  ): Promise<void> {
     await writeFile(this.filePath(id, "manifest.json"), JSON.stringify(manifest, null, 2), {
       encoding: "utf8",
       flush: true,
     });
   }
 
-  async readManifest(id: string): Promise<Manifest | null> {
+  async readManifest<M = Manifest>(id: string): Promise<M | null> {
     try {
-      return JSON.parse(await readFile(this.filePath(id, "manifest.json"), "utf8")) as Manifest;
+      return JSON.parse(await readFile(this.filePath(id, "manifest.json"), "utf8")) as M;
     } catch {
       return null;
     }

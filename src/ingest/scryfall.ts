@@ -25,9 +25,11 @@ export const MIN_REQUEST_SPACING_MS = 100;
 export const SCRYFALL_JSON_TIMEOUT_MS = 30_000;
 export const BULK_DOWNLOAD_TIMEOUT_MS = 15 * 60 * 1000;
 
-/** The two bulk exports this server ingests. */
+/** The two bulk exports the card index ingests. */
 export type BulkType = "oracle_cards" | "default_cards";
 export const BULK_TYPES: readonly BulkType[] = ["oracle_cards", "default_cards"];
+/** Every bulk export this server reads: the card index pair plus the rulings export. */
+export type BulkEntryType = BulkType | "rulings";
 
 /** A single bulk-data descriptor from the /bulk-data list (subset we use). */
 export interface BulkDataEntry {
@@ -158,7 +160,7 @@ export class BulkClient {
   }
 
   /** Resolve a single bulk entry by type, or fail with UPSTREAM_UNAVAILABLE. */
-  async getEntry(type: BulkType): Promise<BulkDataEntry> {
+  async getEntry(type: BulkEntryType): Promise<BulkDataEntry> {
     const entry = (await this.listBulkData()).find((e) => e.type === type);
     if (!entry) {
       throw new StructuredError(

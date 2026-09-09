@@ -1,51 +1,95 @@
 /**
- * Commander & multi-commander rules (spec §6) — pure functions over a deck and a
- * card lookup. Validates the command zone: each commander must be eligible, and
- * a two-card command zone must form a legal pairing (partner, friends forever,
- * partner with [name], Choose a Background + Background, or a Time Lord Doctor +
- * Doctor's companion). The combined color identity is the union of the
- * commanders' identities.
+ * Commander & multi-commander rules (spec §6; CR 903 and 702.124) — pure
+ * functions over a deck and a card lookup. Validates the command zone: each
+ * commander must be eligible (903.3, 903.3a), and a two-card command zone must
+ * form one legal partner pairing: partner (702.124h), the same partner—[text]
+ * label (702.124i), partner with [name] (702.124j), Choose a Background plus a
+ * legendary Background enchantment (702.124k), or a Doctor's companion plus a
+ * Time Lord Doctor with no other creature types (702.124m). Different partner
+ * abilities never combine (702.124f). The combined color identity is the union
+ * of the commanders' identities (702.124c, 903.4).
  *
- * COMPANION (§6) is intentionally NOT validated here: the Deck model has no
- * companion slot to declare one against, so there is nothing to check yet. See
- * the chunk close note — it needs a deck-model field first.
+ * Companion deckbuilding conditions (702.139) live in companionRules.ts. The
+ * frozen rule text these checks were audited against is
+ * docs/evaluation/rules/commander-rules-excerpt-20260807.json.
  */
 import type { Card, Color, Deck, Violation } from "../types/index.js";
 import type { CardLookup } from "./coreRules.js";
 
 const WUBRG: readonly Color[] = ["W", "U", "B", "R", "G"];
 
-/** A command-zone-relevant ability detected on a card. */
-type PartnerKind = "partner" | "partner_with" | "friends_forever" | "doctors_companion";
+/** A command-zone-relevant ability detected on a card (CR 702.124a). */
+type PartnerKind = "partner" | "partner_text" | "partner_with" | "doctors_companion";
 
 interface CommanderShape {
   partner?: PartnerKind;
   /** The named partner, when the card has "Partner with [name]". */
   partnerName?: string;
+  /** The lowercase label of a "Partner—[text]" ability (survivors, friends forever, ...). */
+  partnerLabel?: string;
   /** A "Choose a Background" commander. */
   choosesBackground: boolean;
-  /** A Background enchantment (legal as a second commander). */
+  /** A legendary Background enchantment (legal only as the second commander). */
   isBackground: boolean;
-  /** A Time Lord Doctor (pairs with a Doctor's companion). */
-  isTimeLord: boolean;
+  /** A legendary Time Lord Doctor creature with no other creature types (702.124m). */
+  isTimeLordDoctor: boolean;
+}
+
+/** Creature subtypes of the front face, e.g. "Time Lord Doctor" -> ["Time Lord", "Doctor"]. */
+function creatureTypes(typeLine: string): string[] {
+  const front = typeLine.split("//")[0] ?? typeLine;
+  const sub = (front.split("—")[1] ?? "").trim();
+  if (sub.length === 0) return [];
+  // "Time Lord" is the one two-word creature type (CR 205.3m).
+  return sub
+    .replace(/\bTime Lord\b/g, "Time_Lord")
+    .split(/\s+/)
+    .map((t) => t.replace("Time_Lord", "Time Lord"));
 }
 
 function classify(card: Card): CommanderShape {
   const text = card.oracle_text;
   const withMatch = /partner with ([^.(\n]+)/i.exec(text);
+  // Scryfall's keywords list every variant as "Partner", so the label must be
+  // read from the printed text (702.124i). "Friends forever" is printed as its
+  // own keyword line on older cards and is the partner—Friends forever ability.
+  const labelMatch = /\bpartner\s*[—–-]\s*([^.(\n]+)/i.exec(text);
   let partner: PartnerKind | undefined;
+  let partnerLabel: string | undefined;
   if (withMatch) partner = "partner_with";
-  else if (/friends forever/i.test(text)) partner = "friends_forever";
-  else if (/doctor.?s companion/i.test(text)) partner = "doctors_companion";
+  else if (labelMatch) {
+    partner = "partner_text";
+    partnerLabel = labelMatch[1]!.trim().toLowerCase();
+  } else if (/friends forever/i.test(text)) {
+    partner = "partner_text";
+    partnerLabel = "friends forever";
+  } else if (/doctor.?s companion/i.test(text)) partner = "doctors_companion";
   else if (card.keywords.some((k) => k.toLowerCase() === "partner") || /\bpartner\b/i.test(text))
     partner = "partner";
+  const types = creatureTypes(card.type_line);
+  const legendary = /Legendary/i.test(card.type_line);
   return {
     partner,
     partnerName: withMatch?.[1]?.trim(),
+    partnerLabel,
     choosesBackground: /choose a background/i.test(text),
-    isBackground: /\bBackground\b/.test(card.type_line),
-    isTimeLord: /Time Lord/i.test(card.type_line),
+    isBackground: isLegendaryBackground(card),
+    isTimeLordDoctor:
+      legendary &&
+      /\bCreature\b/.test(card.type_line) &&
+      types.length === 2 &&
+      types.includes("Time Lord") &&
+      types.includes("Doctor"),
   };
+}
+
+/** A legendary Background enchantment card (CR 702.124k). */
+export function isLegendaryBackground(card: Card): boolean {
+  return (
+    /Legendary/i.test(card.type_line) &&
+    /\bEnchantment\b/.test(card.type_line) &&
+    /\bBackground\b/.test(card.type_line)
+  );
 }
 
 /** A card can be a sole commander if eligible by the server flag, type, or text. */
@@ -88,7 +132,8 @@ export function checkCommanderEligibility(deck: Deck, lookup: CardLookup): Viola
     const card = lookup(id);
     if (!card) continue;
     if (isCommanderEligible(card)) continue;
-    if (deck.command_zone_kind === "background" && /\bBackground\b/.test(card.type_line)) continue;
+    // 702.124k: only a legendary Background enchantment rides along a Choose-a-Background commander.
+    if (deck.command_zone_kind === "background" && isLegendaryBackground(card)) continue;
     violations.push({
       rule: "COMMANDER_ELIGIBILITY",
       severity: "error",
@@ -128,27 +173,44 @@ export function checkMultiCommander(deck: Deck, lookup: CardLookup): Violation[]
   const sb = classify(b);
 
   if (kind === "partner") {
+    // 702.124f: different partner abilities cannot be combined.
     const bothPartner = sa.partner === "partner" && sb.partner === "partner";
-    const bothFriends = sa.partner === "friends_forever" && sb.partner === "friends_forever";
+    const sameLabel =
+      sa.partner === "partner_text" &&
+      sb.partner === "partner_text" &&
+      sa.partnerLabel !== undefined &&
+      sa.partnerLabel === sb.partnerLabel;
     const namedPair =
       sa.partner === "partner_with" &&
       sb.partner === "partner_with" &&
       sa.partnerName === b.name &&
       sb.partnerName === a.name;
-    return bothPartner || bothFriends || namedPair
+    return bothPartner || sameLabel || namedPair
       ? []
       : [multi(`${a.name} and ${b.name} are not a legal partner pairing`)];
   }
   if (kind === "background") {
     const ok =
       (sa.choosesBackground && sb.isBackground) || (sb.choosesBackground && sa.isBackground);
-    return ok ? [] : [multi(`${a.name} + ${b.name} is not a Choose-a-Background pairing`)];
+    return ok
+      ? []
+      : [
+          multi(
+            `${a.name} + ${b.name} is not a Choose-a-Background pairing (the second commander must be a legendary Background enchantment)`,
+          ),
+        ];
   }
-  // doctor_companion
+  // doctor_companion (702.124m)
   const ok =
-    (sa.isTimeLord && sb.partner === "doctors_companion") ||
-    (sb.isTimeLord && sa.partner === "doctors_companion");
-  return ok ? [] : [multi(`${a.name} + ${b.name} is not a Doctor / Doctor's companion pairing`)];
+    (sa.isTimeLordDoctor && sb.partner === "doctors_companion") ||
+    (sb.isTimeLordDoctor && sa.partner === "doctors_companion");
+  return ok
+    ? []
+    : [
+        multi(
+          `${a.name} + ${b.name} is not a Doctor / Doctor's companion pairing (the Doctor must be a legendary Time Lord Doctor with no other creature types)`,
+        ),
+      ];
 }
 
 /** Run the commander rules and return the concatenated violations (§6). */

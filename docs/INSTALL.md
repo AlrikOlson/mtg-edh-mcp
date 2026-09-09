@@ -233,6 +233,7 @@ An incomplete legacy index causes a fresh version to be built instead.
 | Data                                | Location and lifetime                                                                   |
 | ----------------------------------- | --------------------------------------------------------------------------------------- |
 | Card exports and SQLite index       | Versioned directories under `MCP_DATA_DIR`.                                             |
+| Comprehensive Rules and rulings     | Versioned directories under `MCP_DATA_DIR/rules/`; published only by `rules_refresh`.   |
 | Decks, snapshots and role overrides | `MCP_DATA_DIR/user-data.sqlite`; committed before successful mutation responses.        |
 | Owned-card collections              | The same user-data database, scoped by principal; membership, not inventory quantities. |
 | User-data backups                   | `MCP_DATA_DIR/backups/`; automatic snapshots taken before mutations.                    |

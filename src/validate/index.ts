@@ -19,6 +19,7 @@ export {
   checkCommanderEligibility,
   checkMultiCommander,
   isCommanderEligible,
+  isLegendaryBackground,
   commanderColorIdentity,
 } from "./commanderRules.js";
 export { validateCompanion, isCompanionCard } from "./companionRules.js";

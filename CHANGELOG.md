@@ -6,6 +6,21 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `rules_lookup`, `rules_search`, `rules_refresh` and `card_rulings` (49
+  tools total): exact Comprehensive Rules and glossary lookup, bounded keyword
+  search and per-card rulings answered verbatim from a versioned local corpus.
+  `rules_refresh` is the only network path: it discovers the current release on
+  the Wizards rules page (pinned fallback, explicit wizards.com override),
+  downloads Scryfall's rulings export, validates both and publishes them
+  atomically with URL, digest, effective date and retrieval time; a failed or
+  malformed download keeps the previous corpus and reports it stale. Rulings
+  separate Wizards rulings from provider notes and report missingness. Unknown
+  rule numbers are reported with the nearest existing identifier, never guessed.
+- Audit Commander validation against the 2026-08-07 Comprehensive Rules with a
+  pinned excerpt and fixture: `Partner—[text]` cards now pair only with the same
+  label (702.124i) and a Doctor's companion pairs only with a Time Lord Doctor
+  that has no other creature types (702.124m). Eligibility, color identity,
+  singleton exemptions and companion checks are verified unchanged.
 - Add `card_mechanics` (45 tools total): read-time extraction of a declared
   catalog of triggers, costs, effects and permissions with exact Oracle
   evidence spans, subject and condition, explicit/inferred provenance and

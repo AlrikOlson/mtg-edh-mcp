@@ -39,7 +39,7 @@ const ORACLE = [
   },
 ];
 
-const EXPECTED_TOOL_COUNT = 45;
+const EXPECTED_TOOL_COUNT = 49;
 const MAX_DESCRIPTION_CHARS = 700;
 
 const TEMPLATE =
@@ -47,7 +47,7 @@ const TEMPLATE =
 
 /** Tool-name-shaped tokens inside a FLOW line. */
 const FLOW_TOOL_TOKEN =
-  /\b(?:ping|budget_plan|simulate_deck|(?:card|deck|meta|analyze|validate|collection|data)_[a-z_]+)\b/g;
+  /\b(?:ping|budget_plan|simulate_deck|(?:card|deck|meta|analyze|validate|collection|data|rules)_[a-z_]+)\b/g;
 
 /** The lint-pinned read-only set (ergo-protocol): drift in either direction fails. */
 const READ_ONLY_TOOLS = [
@@ -58,6 +58,9 @@ const READ_ONLY_TOOLS = [
   "card_resolve_name",
   "card_printings",
   "card_mechanics",
+  "card_rulings",
+  "rules_lookup",
+  "rules_search",
   "collection_get",
   "deck_get",
   "deck_get_intent",
@@ -85,6 +88,7 @@ const READ_ONLY_TOOLS = [
 /** Tools that reach the network (openWorldHint: true). */
 const OPEN_WORLD_TOOLS = [
   "data_ingest",
+  "rules_refresh",
   "meta_commander_profile",
   "meta_recommend",
   "meta_budget_swaps",

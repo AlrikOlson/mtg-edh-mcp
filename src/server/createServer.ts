@@ -25,6 +25,9 @@ import { makeValidateTools } from "./validateTools.js";
 import { makeAnalyzeTools } from "./analyzeTools.js";
 import { makeMetaTools } from "./metaTools.js";
 import { IngestRunner, makeDataTools, type StalenessProvider } from "./dataTools.js";
+import { makeCardRulingsTools, makeRulesTools } from "./rulesTools.js";
+import { RulesService, RulesStore } from "../rules/index.js";
+import { DEFAULT_DATA_ROOT } from "../index/index.js";
 import type { CardDataSource } from "./cardData.js";
 import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
@@ -94,6 +97,12 @@ export interface CreateServerOptions {
   ingest?: IngestRunner;
   /** When provided, data_status reports bulk-data age + a stale flag. */
   staleness?: StalenessProvider;
+  /**
+   * Shared rules/rulings corpus behind rules_* and card_rulings. Like the
+   * ingest runner, HTTP mode MUST pass one instance across per-request servers.
+   * Default-constructed (unloaded, `unavailable`) so the tools always exist.
+   */
+  rules?: RulesService;
 }
 
 /** Construct a fully wired (but not yet connected) MCP server. */
@@ -107,6 +116,9 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
   const edhrec = options.edhrec ?? new EdhrecClient(new CacheStore());
   const spellbook = options.spellbook ?? new SpellbookClient(new CacheStore());
   const gameChangers = options.gameChangers ?? new GameChangersClient(new CacheStore());
+  const rules =
+    options.rules ??
+    new RulesService(new RulesStore(process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT));
 
   // SDK capabilities cannot first be registered after a transport connects.
   // Resource templates read the live source; workflow prompts stay disabled
@@ -127,6 +139,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
   const indexedTools = (current: CardIndex): ToolDefinition[] => [
     ...makeCardTools(current, collection, session),
     ...makeMechanicsTools(current, options.deckStore, session),
+    ...makeCardRulingsTools(rules, current),
     ...makeCollectionTools(collection, current, session),
     ...(options.deckStore
       ? [
@@ -154,6 +167,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     [
       ...BUILTIN_TOOLS,
       ...dataTools,
+      ...makeRulesTools(rules),
       ...deckTools,
       ...(index ? indexedTools(index) : []),
       ...(options.tools ?? []),

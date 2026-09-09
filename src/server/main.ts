@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { VersionedStore } from "../ingest/index.js";
 import { DEFAULT_DATA_ROOT, freshnessConfigFromEnv } from "../index/index.js";
 import { UserDataStore } from "../storage/userData.js";
+import { RulesService, RulesStore } from "../rules/index.js";
 import { openCardData } from "./cardData.js";
 import { autoRefreshDisabled, startScheduler } from "./scheduler.js";
 import { startStdio } from "./stdio.js";
@@ -29,8 +30,12 @@ async function boot() {
   const userData = new UserDataStore(root);
   try {
     const data = await openCardData(store);
+    // The rules corpus is read from disk only; rules_refresh is the network path.
+    const rules = new RulesService(new RulesStore(root));
+    await rules.load();
     process.once("exit", () => userData.close());
     return {
+      rules,
       cardData: data,
       snapshot: data.snapshot,
       ingest: data.ingest,
@@ -82,6 +87,7 @@ async function main(): Promise<void> {
     ingest,
     staleness,
     bulkAge,
+    rules,
   } = await boot();
   const snapshot = cachedSnapshot.provider;
   const freshness = freshnessConfigFromEnv();
@@ -102,6 +108,7 @@ async function main(): Promise<void> {
       collection,
       ingest,
       staleness,
+      rules,
     });
     console.error(
       `mtg-edh-mcp listening on http://${host.includes(":") ? `[${host}]` : host}:${running.port}/mcp (streamable HTTP)`,
@@ -121,6 +128,7 @@ async function main(): Promise<void> {
       collection,
       ingest,
       staleness,
+      rules,
     });
     console.error("mtg-edh-mcp serving on stdio");
     // A closed stdin means the client (and the transport) is gone; exit even if
