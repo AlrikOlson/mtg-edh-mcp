@@ -8,6 +8,7 @@ import { z } from "zod";
 import { effectiveRoleTargets } from "../deck/intent.js";
 import { wholeDeckBudget } from "../analyze/budget.js";
 import { analyzeStrategy } from "../analyze/strategy.js";
+import { manaModelOverrideSchema, modelDeckMana } from "../analyze/manaModel.js";
 import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { ROLES, StructuredError } from "../types/index.js";
 import { deckRoleLookup, deckRoleProvenance } from "../analyze/deckRoles.js";
@@ -257,14 +258,16 @@ function analyzeManaBaseTool(store: DeckStore, index: CardIndex, session: string
       annotations: READS_LOCAL,
       title: "Analyze mana base",
       description:
-        "Analyze mana sources: per-color counts, tapped/untapped, fixing, under-supported colors.\n" +
-        "USE: land-base tuning ('any color' sources count toward each identity color). NOT: curve shape (analyze_curve).\n" +
+        "Inspect supported mana costs, source alternatives, conditions and quantity coverage.\n" +
+        "USE: mana-base planning with per-card evidence and explicit uncertainty. NOT: castability or sequencing probabilities.\n" +
         "FLOW: deck_status -> analyze_mana_base -> card_search (t:land).\n" +
-        "ARGS: deck_id; threshold (per-color source floor, default 10).\n" +
-        "RETURNS: total_lands, untapped_lands/tapped_lands, sources (per color, lands + rocks + dorks), fixing_sources, under_supported.",
+        "ARGS: deck_id; threshold (heuristic source floor, default 10); expected_version; overrides (bounded per-face assumptions, reason required).\n" +
+        "RETURNS: mana_model (library), command_zone_mana_model, deck_version; costs, source choices and supported/unsupported/unresolved/overridden quantities. Existing source/land counts have summary_basis=legacy_heuristic; they do not prove simultaneous mana or availability.",
       inputSchema: {
         deck_id: z.string(),
         threshold: z.number().int().positive().optional(),
+        expected_version: z.number().int().nonnegative().optional(),
+        overrides: z.array(manaModelOverrideSchema).max(200).optional(),
       },
     },
     handler: (args) => {
@@ -272,18 +275,46 @@ function analyzeManaBaseTool(store: DeckStore, index: CardIndex, session: string
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const lookup = (id: string): Card | null => index.getCard(id);
+      if (typeof args.expected_version === "number" && args.expected_version !== deck.version) {
+        return {
+          content: [{ type: "text", text: "Deck version conflict" }],
+          structuredContent: {
+            ok: false,
+            conflict: true,
+            deck_id: deckId,
+            expected_version: args.expected_version,
+            current_version: deck.version,
+          },
+        };
+      }
+      const overrides = z
+        .array(manaModelOverrideSchema)
+        .max(200)
+        .parse(args.overrides ?? []);
+      const options = { identity: deck.computed_color_identity, overrides };
       const report = analyzeManaBase(deck.cards, lookup, {
-        identity: deck.computed_color_identity,
+        ...options,
         threshold: typeof args.threshold === "number" ? args.threshold : undefined,
       });
+      const commandZone = modelDeckMana(
+        deck.commanders.map((oracle_id) => ({ oracle_id, qty: 1 })),
+        lookup,
+        options,
+      );
       return {
         content: [
           {
             type: "text",
-            text: `${report.total_lands} lands; under-supported: ${report.under_supported.join("") || "none"}`,
+            text: `${report.total_lands} heuristic lands; mana model: ${report.mana_model.coverage.supported_quantity} supported, ${report.mana_model.coverage.unsupported_quantity} unsupported, ${report.mana_model.coverage.unresolved_quantity} unresolved, ${report.mana_model.coverage.overridden_quantity} assumed library cards. Source counts do not prove payment or availability.`,
           },
         ],
-        structuredContent: { deck_id: deckId, ...report },
+        structuredContent: {
+          deck_id: deckId,
+          deck_version: deck.version,
+          ...report,
+          command_zone_mana_model: commandZone,
+          companion_scope: "outside companion excluded from library and command-zone models",
+        },
       };
     },
   };
@@ -349,12 +380,12 @@ function deckStatusTool(
       title: "Deck status (one-call dashboard)",
       description:
         "Report the deck's full standing in one offline call.\n" +
-        "USE: after any batch of edits — the default orientation call, replacing a validate_deck + analyze fan-out. NOT: power bracket (meta_classify_bracket, live data); the full card list (deck_get).\n" +
+        "USE: orient after edits. NOT: power bracket (meta_classify_bracket) or the full card list (deck_get).\n" +
         "FLOW: deck_add/deck_import -> deck_status -> card_search/meta_recommend.\n" +
         "ARGS: deck_id.\n" +
         "RETURNS: vitals (card_count/100, land_count, color_identity, legal, version); legality (errors capped at " +
         `${STATUS_ERROR_CAP}, exact error_count/warning_count); curve (buckets, avg_mv); mana (sources_by_color, ` +
-        "under_supported); roles (below-band gaps); price (total_usd/min_buy_usd library compatibility; full_deck, command_zone, companion and price coverage).",
+        "under_supported, summary_basis=legacy_heuristic, model_coverage for library; details in analyze_mana_base); roles (below-band gaps); price (total_usd/min_buy_usd library compatibility; full_deck, command_zone, companion and price coverage).",
       inputSchema: { deck_id: z.string() },
       // Preserve the existing no-outputSchema contract; see card_search.
     },
@@ -398,7 +429,7 @@ function deckStatusTool(
             type: "text",
             text:
               `${deck.name} — ${formatVitals(vitals)}\n` +
-              `curve avg ${stats.avg_mv} (nonland ${stats.avg_mv_nonland}); mana under-supported: ${
+              `curve avg ${stats.avg_mv} (nonland ${stats.avg_mv_nonland}); heuristic mana under-supported: ${
                 mana.under_supported.join("") || "none"
               }\n` +
               `${gapNote}; ${budgetSummary(budget)}`,
@@ -423,6 +454,9 @@ function deckStatusTool(
           mana: {
             sources_by_color: mana.sources,
             under_supported: mana.under_supported,
+            summary_basis: mana.summary_basis,
+            model_scope: mana.model_scope,
+            model_coverage: mana.mana_model.coverage,
           },
           roles: { gaps, ...deckRoleProvenance(deck) },
           price: {

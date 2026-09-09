@@ -36,3 +36,10 @@ export {
   type CostDriver,
 } from "./budget.js";
 export { extractMechanics, SUPPORTED_MECHANIC_PATTERNS } from "./mechanics.js";
+export {
+  modelCardMana,
+  modelDeckMana,
+  checkManaPaymentWitness,
+  manaModelOverrideSchema,
+  type ManaModelOptions,
+} from "./manaModel.js";

@@ -617,6 +617,104 @@ goals still need whole-deck evaluation (`meta_check_policy`). The curated
 42 sourced cards plus 240 irrelevant distractors; it is not a live-pool quality
 or precision guarantee.
 
+## Inspect supported mana sources and costs
+
+`analyze_mana_base` now returns a per-face `mana_model` for the library and a
+separate `command_zone_mana_model` for commander costs. The outside companion
+is excluded. `deck_version` identifies the read; pass `expected_version` to
+reject a stale deck before interpreting the result. The call never saves changes.
+
+```text
+analyze_mana_base {"deck_id":"DECK_ID","expected_version":4}
+```
+
+Start with `mana_model.coverage`. Quantities partition into supported,
+unsupported, overridden and unresolved cards; resolved quantity includes the
+first three. Each card retains its quantity, reasons, assumptions and individual
+face models. Cost and source coverage are reported separately. Missing canonical
+faces are unsupported; a failed lookup is unresolved. Supported means covered by
+this bounded cost/source model, not that the entire card's rules are interpreted.
+
+Costs preserve generic requirements separately from colored and colorless
+requirements. An absent mana cost differs from `{0}`. Hybrid, Phyrexian, snow,
+variable symbols and unmodeled alternate costs stay explicit. MDFC faces are
+exclusive choices for one physical card. A source's output alternatives are
+bundles: `[["W"],["U"]]` means one white **or** one blue; `[["C","C"]]` means two
+colorless together. Never sum different alternatives or both faces.
+
+The minimum supported fixture matrix is pinned in
+`src/analyze/manaModel.fixture.ts` and tested before acceptance:
+
+| Pattern                          | Pinned examples                                 | Required conditions                                                                      |
+| -------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Basic types and colorless        | Plains, Island, Swamp, Mountain, Forest, Wastes | Inherent basic subtype ability or explicit C output                                      |
+| Unconditional dual / tapped land | Tropical Island, Azorius Guildgate              | One output choice per tap; Guildgate enters tapped                                       |
+| Fixed rocks                      | Sol Ring, Sky Diamond, Azorius Signet           | Quantities, tapped entry and Signet's upfront generic activation cost                    |
+| Fixed dorks                      | Llanowar Elves, Birds of Paradise               | Tap cost and creature readiness; Birds chooses one color, never C                        |
+| Commander identity               | Command Tower                                   | Supplied identity; explicit colorless identity supplies no colored output                |
+| Basic fetch                      | Evolving Wilds                                  | Tap and sacrifice; a matching basic target actually in the library; target enters tapped |
+| Exclusive land faces             | Barkchannel Pathway // Tidechannel Pathway      | One chosen face per physical card                                                        |
+| Exclusive spell / land           | Tangled Florahedron // Tangled Vale             | Front spell cost and creature delay; back land enters tapped                             |
+
+Conditional entry such as shock/check lands, board-dependent production such as
+Reflecting Pool, and spending restrictions such as Ancient Ziggurat are outside
+automatic support. The model retains reasons instead of assuming those conditions
+are satisfied. A declared supported fixture cannot be reclassified as unsupported
+to make this matrix pass.
+
+Use bounded per-face caller overrides only for a stated scenario. For example,
+a caller explicitly assuming every payment is a creature spell can supply:
+
+```json
+{
+  "deck_id": "DECK_ID",
+  "overrides": [
+    {
+      "oracle_id": "ANCIENT_ZIGGURAT_ORACLE_ID",
+      "face_index": 0,
+      "reason": "For this scenario every payment is a creature spell.",
+      "source": {
+        "outputs": [["G"]],
+        "activation_cost": "{0}",
+        "enters_tapped": false,
+        "summoning_delay": false
+      }
+    }
+  ]
+}
+```
+
+Overrides are assumptions, not extracted evidence. They are validated, marked in
+the response and counted separately, and apply only to that call. Check
+`override_diagnostics` for assumptions that do not match a card or face in the
+reported zone. They do not alter the index, deck, roles or legality.
+
+The existing `sources`, land counts, fixing counts and `under_supported`
+fields remain compatibility estimates with `summary_basis: "legacy_heuristic"`.
+They can overcount conditional sources or alternative faces and do not prove
+payment. `deck_status.mana.model_coverage` exposes the library coverage; use the
+full mana analysis for reasons.
+
+Code consumers can import `modelCardMana`, `modelDeckMana`, `parseManaCost` and
+`checkManaPaymentWitness` from the library. The checker accepts at most 512
+physical sources and 128 actions for one turn. It checks source use, face/output
+choices and upfront payments; `payment` arrays on actions or the final obligation
+can select which mana pays a generic cost. It permits one normal land play and
+only plays supported mana/fetch-source permanents. Caller-supplied battlefield
+readiness and initial mana are assumptions. Rejection does not prove another
+payment is impossible. It does not search, simulate opponents or external effects,
+advance turns or compute castability probabilities. `cost_policy` limits cost
+support to supplied printed/base mana costs and flags recognized unmodeled cost
+mechanics; it does not certify every casting rule. The existing `simulate_deck`
+remains an opening-shape/land-count heuristic and does not consume this model yet.
+
+The model consumes shared canonical card faces and mechanics evidence. Its
+bounded interpretation follows [Scryfall's source-field contract](https://github.com/scryfall/api-types/blob/main/src/objects/Card/CardFields.ts)
+and the [August 19, 2026 Comprehensive Rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020260819.txt)
+for distinct mana requirements, inherent basic-land abilities, creature
+readiness and modal faces (§§107.4, 302.6, 305.6, 712). Fetching is a separate
+action with a library target; it is not direct mana output.
+
 ## Find cards without filling the context
 
 `card_search` returns lean card references. Use `card_get` to inspect the

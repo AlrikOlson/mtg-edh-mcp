@@ -29,8 +29,11 @@ knowledge, durable state, and checks to make those choices reviewable.
   transaction, snapshots an existing deck, and makes exact retries safe.
 - **Useful answers in one call.** `deck_status` brings together the count,
   legality, curve, mana coverage, role gaps, and estimated price.
-- **Deeper analysis when needed.** Seeded opening-hand simulations, mana-source
-  analysis, owned-card filtering, and cheaper-printing budget plans.
+- **Mana sources with explicit coverage.** Per-face costs, output choices,
+  activation costs and delays, with unsupported cases and caller assumptions
+  reported separately. Existing source counts remain labeled heuristics.
+- **Deeper analysis when needed.** Seeded opening-hand simulations,
+  owned-card filtering, and cheaper-printing budget plans.
 - **Reviewable advice.** Local contextual recommendations use every commander,
   the actual library, supported interactions, role gaps and saved intent.
   Requirements, tradeoffs and uncertainty stay visible; EDHREC is optional.

@@ -70,10 +70,37 @@ and prompt identity, domain invariants, text fallback and snapshot agreement,
 and recomputes the stored metrics from the retained calls. Deterministic
 ceilings for tool calls, invalid calls, partial failures, and tool/RPC errors
 remain the actual v0.2.0 observations. Expected recovery errors must still
-occur. Result-byte ceilings use the reviewed recommendation observation below; no
+occur. Result-byte ceilings use the reviewed mana-model observation below; no
 arbitrary multiplier or timing threshold is applied. All retained traces have
 the same fixture, prompts, and domain invariants, and their metrics are
 recomputed during replay.
+
+### Mana source model observation
+
+[mana-source-model-v1.json](mana-source-model-v1.json) retains the 2026-09-09
+scripted observation with SDK 2.0.0 and Node 24.14.0 on macOS arm64. The capture
+records dirty-checkout provenance at parent commit `60ffa75`, plus production
+source and lockfile digests. All earlier observations remain unchanged.
+
+| Workflow                    | Previous result bytes | Mana-model result bytes | Change |
+| --------------------------- | --------------------: | ----------------------: | -----: |
+| Budget and collection build |                20,635 |                  20,635 |      0 |
+| Import and tune             |                17,133 |                  17,601 |   +468 |
+| Acquisition cost reduction  |                32,651 |                  32,651 |      0 |
+| Error recovery              |                18,379 |                  18,379 |      0 |
+
+Review of every parsed result found one changed response: `deck_status` now
+labels its source counts as heuristic and adds library model scope and quantity
+coverage, including the required JSON text fallback. The legacy fixture lacks
+canonical layouts, so its 99 resolved library cards correctly report unsupported
+model coverage. The separate frozen canonical mana fixtures prove the supported
+source classes; this historical workflow is retained unchanged.
+
+Only the exact measured byte ceiling changes, with no extra margin. Original
+tool-call, invalid-call, partial-failure and error limits, expected recovery
+errors, fixture, prompts and invariants remain pinned. The new receipt's call
+names and arguments also match the recommendation observation. This scripted
+trace does not measure model-host behavior, tokens or castability probabilities.
 
 ### Contextual recommendation observation
 

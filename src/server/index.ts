@@ -6,6 +6,27 @@
  * `main.ts` (the bin entry); this module has no side effects.
  */
 export { oracleTextEvidence } from "../index/map.js";
+export {
+  modelCardMana,
+  modelDeckMana,
+  parseManaCost,
+  checkManaPaymentWitness,
+  manaModelOverrideSchema,
+} from "../analyze/manaModel.js";
+export type {
+  Mana,
+  ManaCostModel,
+  ManaSourceModel,
+  ManaFaceModel,
+  CardManaModel,
+  ManaModelOptions,
+  ManaModelOverride,
+  ManaCoverage,
+  ManaWitnessSource,
+  ManaWitnessAction,
+  ManaPaymentWitness,
+  ManaPaymentWitnessResult,
+} from "../analyze/manaModel.js";
 export type {
   Card,
   CardGameplay,

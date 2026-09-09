@@ -7,6 +7,7 @@
  * target bands -> gaps. Both advisory (never feed validation).
  */
 import type { Card, Color, DeckCardEntry, Role } from "../types/index.js";
+import { modelDeckMana, type ManaModelOptions } from "./manaModel.js";
 
 /** Resolves an oracle_id to its Card, or null when unknown. */
 export type CardLookup = (oracleId: string) => Card | null;
@@ -53,6 +54,10 @@ function resolved(
 }
 
 export interface ManaBaseReport {
+  /** Compatibility counts below are heuristic, never payment or availability proofs. */
+  summary_basis: "legacy_heuristic";
+  model_scope: "library";
+  mana_model: ReturnType<typeof modelDeckMana>;
   total_lands: number;
   untapped_lands: number;
   tapped_lands: number;
@@ -68,7 +73,7 @@ export interface ManaBaseReport {
 export function analyzeManaBase(
   entries: readonly DeckCardEntry[],
   lookup: CardLookup,
-  options: { identity?: readonly Color[]; threshold?: number } = {},
+  options: ManaModelOptions & { threshold?: number } = {},
 ): ManaBaseReport {
   const identity = options.identity ?? [];
   const threshold = options.threshold ?? 10;
@@ -94,6 +99,9 @@ export function analyzeManaBase(
   const scope = identity.length > 0 ? identity : COLORS;
   const under_supported = scope.filter((c) => (sources[c] ?? 0) < threshold);
   return {
+    summary_basis: "legacy_heuristic",
+    model_scope: "library",
+    mana_model: modelDeckMana(entries, lookup, options),
     total_lands,
     untapped_lands: total_lands - tapped_lands,
     tapped_lands,

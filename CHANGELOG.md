@@ -6,6 +6,15 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add a bounded canonical mana cost/source model to `analyze_mana_base`, with
+  per-face colored/generic/colorless requirements, exclusive MDFC choices,
+  output quantities and alternatives, activation costs, entry/readiness delays
+  and explicit basic-fetch targets. Report quantity-weighted support, missing
+  cards and marked caller assumptions; preserve legacy counts with a heuristic
+  label. Add command-zone costs, stale-read checks and dashboard coverage.
+  A finite payment-witness checker tests physical source reuse and costs without
+  claiming sequencing or castability probabilities.
+
 - Add `deck_construct` (56 tools total), a bounded deterministic local builder
   for complete Commander decks from commander, theme and partial requests.
   Found candidates pass shared complete-deck validation and return reviewed
