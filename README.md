@@ -55,6 +55,7 @@ knowledge, durable state, and checks to make those choices reviewable.
   digests and staleness; unknown rule numbers are reported, never guessed.
 
 **Start here:** [Installation](./docs/INSTALL.md) ·
+[Agent skills](./docs/AGENT-SKILLS.md) ·
 [Agent cookbook](./docs/AGENT-COOKBOOK.md) ·
 [Workflow evidence](./docs/evaluation/README.md) ·
 [Contributing](./CONTRIBUTING.md) · [Security](./SECURITY.md)
@@ -121,6 +122,22 @@ MCP server and its tooling; desktop clients are developed separately.
 Stdio and local HTTP support MCP **2026-07-28** and older initialization-based
 clients. Existing client configuration and the tool catalog remain compatible;
 see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
+
+## Install agent skills
+
+Five portable skills teach the complete 56-tool workflow, including construction,
+mana sequencing, rules evidence and budget limits. From a built checkout or unpacked
+release, preview and install them for your client:
+
+```sh
+node dist/skills.js install --client codex --scope user
+node dist/skills.js install --client codex --scope user --apply
+```
+
+The standalone installer needs Node.js only. It copies bundled Markdown, preserves
+unmanaged or locally edited skills, and supports managed updates and removal.
+Choose Claude Code, Cursor, Copilot/VS Code, Gemini CLI, OpenCode, or an explicit
+destination in the [skills guide](./docs/AGENT-SKILLS.md). The MCP connection is configured separately.
 
 ## What the server exposes
 

@@ -6,6 +6,13 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add five portable Agent Skills with a complete 56-tool router, self-contained
+  workflow references and examples checked against live MCP schemas. Add an offline
+  `mtg-edh-skills` installer (`node dist/skills.js`) and `mtg-edh-mcp skills` alias:
+  preview by default, explicit client/scope, hash-checked managed updates/removal,
+  preservation of local edits, symlink refusal and staged failure rollback.
+  Document verified discovery locations and native-host verification limits.
+
 - Add `simulate_deck mode:sequence` for a seeded library or commander target,
   with paid land/rock/dork development, exact colored/colorless costs, physical
   face choices and independently replayed per-turn actions. Replace aggregate

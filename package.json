@@ -27,7 +27,8 @@
     "node": "^22.13.0 || ^24.0.0 || ^26.0.0"
   },
   "bin": {
-    "mtg-edh-mcp": "dist/main.js"
+    "mtg-edh-mcp": "dist/main.js",
+    "mtg-edh-skills": "dist/skills.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -35,6 +36,8 @@
     "dist",
     "docs/INSTALL.md",
     "docs/AGENT-COOKBOOK.md",
+    "docs/AGENT-SKILLS.md",
+    "skills",
     "CHANGELOG.md"
   ],
   "scripts": {
@@ -50,6 +53,7 @@
     "start": "node dist/main.js",
     "prepack": "npm run build",
     "test:package": "node scripts/smoke-package.mjs",
+    "test:skills-package": "npm run build && node scripts/smoke-skills.mjs",
     "test:rust": "npm run build && cargo run --locked --manifest-path scripts/rust-client/Cargo.toml",
     "lint:rust": "cargo fmt --manifest-path scripts/rust-client/Cargo.toml --check && cargo clippy --locked --manifest-path scripts/rust-client/Cargo.toml -- -D warnings"
   },

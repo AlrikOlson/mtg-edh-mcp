@@ -73,6 +73,7 @@ Usage: mtg-edh-mcp [--stdio | --http]
        mtg-edh-mcp --version
        mtg-edh-mcp setup
        mtg-edh-mcp doctor
+       mtg-edh-mcp skills --help
        mtg-edh-mcp restore-user-data <backup-path>
 
 Options:

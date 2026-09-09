@@ -18,6 +18,7 @@ import { startHttp } from "./http.js";
 import { CLI_HELP, parseCli } from "./cli.js";
 import { SERVER_VERSION } from "./createServer.js";
 import { runDoctor, runSetup } from "./setup.js";
+import { runSkillsCli } from "../skills/cli.js";
 
 /**
  * Read the real data_snapshot, open the current version's card index (if one has
@@ -52,6 +53,12 @@ async function boot() {
 }
 
 async function main(): Promise<void> {
+  if (process.argv[2] === "skills") {
+    const result = await runSkillsCli(process.argv.slice(3));
+    process.stdout.write(result.output);
+    process.exitCode = result.exitCode;
+    return;
+  }
   const config = parseCli(process.argv.slice(2), process.env);
   if (config.mode === "help") {
     process.stdout.write(CLI_HELP);

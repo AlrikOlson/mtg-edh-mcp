@@ -7,6 +7,7 @@ export default defineConfig({
     index: "src/server/index.ts",
     main: "src/server/main.ts",
     ingest: "src/server/ingestMain.ts",
+    skills: "src/skills/main.ts",
   },
   format: ["esm"],
   target: "node22",
