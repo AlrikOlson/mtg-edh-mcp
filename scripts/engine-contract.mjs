@@ -13,6 +13,7 @@ const paths = [
   ["protocol/generate.mjs", "engine/contract/generate.mjs"],
   ["protocol/generate.test.mjs", "engine/contract/generate.test.mjs"],
   ["protocol/fixtures.json", "engine/contract/fixtures.json"],
+  ["protocol/catalog-fixture.json", "engine/contract/catalog-fixture.json"],
   ["src/generated.rs", "engine/contract/generated.rs"],
   ["protocol/protocol.generated.ts", "src/engine/protocol.generated.ts"],
 ];

@@ -95,11 +95,23 @@ export function validateSchema(s) {
 			case "string":
 				keys(t, ["kind", "min", "max", "alphabet"]);
 				bounds(t);
-				if (!["id", "hex", "text"].includes(t.alphabet)) fail("alphabet");
+				if (!["id", "hex", "text", "unicode", "color"].includes(t.alphabet))
+					fail("alphabet");
 				break;
 			case "integer":
 				keys(t, ["kind", "min", "max"]);
 				bounds(t);
+				break;
+			case "number":
+				keys(t, ["kind", "min", "max"]);
+				if (
+					!Number.isFinite(t.min) ||
+					!Number.isFinite(t.max) ||
+					t.min < 0 ||
+					t.max > MAX ||
+					t.min > t.max
+				)
+					fail("invalid number bounds");
 				break;
 			case "boolean":
 				keys(t, ["kind"]);
@@ -114,10 +126,15 @@ export function validateSchema(s) {
 				for (const [f, v] of Object.entries(t.fields)) {
 					wire(f);
 					if (keywords.has(f)) fail("reserved field " + f);
-					keys(v, ["type"], ["optional", "array"]);
+					keys(v, ["type"], ["optional", "nullable", "array"]);
 					ref(v.type);
 					if (Object.hasOwn(v, "optional") && v.optional !== true)
 						fail("optional must be true");
+					if (
+						Object.hasOwn(v, "nullable") &&
+						(v.nullable !== true || v.optional)
+					)
+						fail("nullable must be true and required");
 					if (Object.hasOwn(v, "array")) {
 						keys(v.array, ["min", "max"]);
 						bounds(v.array);
@@ -150,25 +167,31 @@ function rust(n, s) {
 	const derive = "#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]";
 	let decl,
 		lines = [];
-	if (["string", "integer", "boolean"].includes(s.kind))
+	if (["string", "integer", "number", "boolean"].includes(s.kind))
 		decl =
 			"pub type " +
 			n +
 			" = " +
-			{ string: "String", integer: "u32", boolean: "bool" }[s.kind] +
+			{ string: "String", integer: "u32", number: "f64", boolean: "bool" }[
+				s.kind
+			] +
 			";";
 	if (s.kind === "string") {
 		const alphabet = {
 			id: 'byte.is_ascii_alphanumeric() || b"_.:-".contains(&byte)',
 			hex: "byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)",
 			text: "(b' '..=b'~').contains(&byte)",
+			color: 'b"WUBRG".contains(&byte)',
 		}[s.alphabet];
-		lines = [
-			...lengthCheck("value", s, n),
-			"if !value.bytes().all(|byte| " + alphabet + ") {",
-			"return Err(" + q(n + " invalid ASCII alphabet") + ".to_owned());",
-			"}",
-		];
+		lines =
+			s.alphabet === "unicode"
+				? lengthCheck("value", s, n)
+				: [
+						...lengthCheck("value", s, n),
+						"if !value.bytes().all(|byte| " + alphabet + ") {",
+						"return Err(" + q(n + " invalid ASCII alphabet") + ".to_owned());",
+						"}",
+					];
 	}
 	if (s.kind === "integer" && (s.min !== 0 || s.max !== MAX))
 		lines = [
@@ -176,12 +199,26 @@ function rust(n, s) {
 			"return Err(" + q(n + " outside contract bounds") + ".to_owned());",
 			"}",
 		];
+	if (s.kind === "number") {
+		const float = (v) => (Number.isInteger(v) ? rn(v) + ".0" : rn(v));
+		lines = [
+			"if !value.is_finite() || !(" +
+				float(s.min) +
+				"..=" +
+				float(s.max) +
+				").contains(value) {",
+			"return Err(" + q(n + " outside contract bounds") + ".to_owned());",
+			"}",
+		];
+	}
 	if (s.kind === "record") {
 		const fields = [];
 		for (const [f, t] of Object.entries(s.fields)) {
 			let type = t.type;
 			if (t.array) type = "Vec<" + type + ">";
-			if (t.optional) type = "Option<" + type + ">";
+			if (t.optional || t.nullable) type = "Option<" + type + ">";
+			if (t.nullable)
+				fields.push('#[serde(deserialize_with = "required_nullable")]');
 			if (t.optional)
 				fields.push(
 					'#[serde(default, skip_serializing_if = "Option::is_none")]',
@@ -190,8 +227,10 @@ function rust(n, s) {
 			const accessor = "&value." + f,
 				validate = validatorName(t.type),
 				label = n + "." + f;
-			if (t.optional) lines.push("if let Some(field) = " + accessor + " {");
-			if (!t.optional) lines.push("let field = " + accessor + ";");
+			if (t.optional || t.nullable)
+				lines.push("if let Some(field) = " + accessor + " {");
+			if (!t.optional && !t.nullable)
+				lines.push("let field = " + accessor + ";");
 			if (t.array)
 				lines.push(
 					...lengthCheck("field", t.array, label),
@@ -206,7 +245,7 @@ function rust(n, s) {
 					"))?;",
 			);
 			if (t.array) lines.push("}");
-			if (t.optional) lines.push("}");
+			if (t.optional || t.nullable) lines.push("}");
 		}
 		decl = [
 			derive,
@@ -274,17 +313,30 @@ function rust(n, s) {
 function ts(s) {
 	switch (s.kind) {
 		case "string":
+			if (s.alphabet === "unicode")
+				return (
+					"z.string().refine((value) => { const bytes = new TextEncoder().encode(value).length; return isWellFormed(value) && bytes >= " +
+					s.min +
+					" && bytes <= " +
+					s.max +
+					'; }, "Invalid Unicode or UTF-8 byte length")'
+				);
 			return (
 				"z.string().min(" +
 				s.min +
 				").max(" +
 				s.max +
 				").regex(/^" +
-				{ id: "[A-Za-z0-9_.:-]", hex: "[0-9a-f]", text: "[\\x20-\\x7e]" }[
-					s.alphabet
-				] +
+				{
+					id: "[A-Za-z0-9_.:-]",
+					hex: "[0-9a-f]",
+					text: "[\\x20-\\x7e]",
+					color: "[WUBRG]",
+				}[s.alphabet] +
 				"*$(?![\\s\\S])/)"
 			);
+		case "number":
+			return "z.number().min(" + s.min + ").max(" + s.max + ")";
 		case "integer":
 			return "z.number().int().min(" + s.min + ").max(" + s.max + ")";
 		case "boolean":
@@ -307,6 +359,7 @@ function ts(s) {
 								t.array.max +
 								")";
 						if (t.optional) val += ".nullable().optional()";
+						if (t.nullable) val += ".nullable()";
 						return q(f) + ": " + val + ",";
 					})
 					.join("\n") +
@@ -338,6 +391,7 @@ export function generate(schema) {
 	return {
 		rust: [
 			"use serde::{Deserialize, Serialize};",
+			"fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }",
 			"pub const PROTOCOL_VERSION: u32 = " + PROTOCOL_VERSION + ";",
 			"pub const ENGINE_VERSION: &str = " + q(ENGINE_VERSION) + ";",
 			"pub const MAX_FRAME_BYTES: usize = " + rn(MAX_FRAME_BYTES) + ";",
@@ -346,6 +400,7 @@ export function generate(schema) {
 		].join("\n\n"),
 		typescript: [
 			'import { z } from "zod";',
+			"const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });",
 			"export const PROTOCOL_VERSION = " + PROTOCOL_VERSION + ";",
 			"export const ENGINE_VERSION = " + q(ENGINE_VERSION) + ";",
 			"export const MAX_FRAME_BYTES = " + MAX_FRAME_BYTES + ";",

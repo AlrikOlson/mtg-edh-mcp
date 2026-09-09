@@ -79,3 +79,32 @@ for (const [name, change] of [
 		assert.throws(() => generate(changed));
 	});
 }
+
+test("catalog scalars preserve Unicode, fractional mana values and required nulls", () => {
+	const schema = structuredClone(contract);
+	schema.types.CatalogTextTest = {
+		kind: "string",
+		min: 0,
+		max: 64,
+		alphabet: "unicode",
+	};
+	schema.types.ManaValueTest = { kind: "number", min: 0, max: 1000000 };
+	schema.types.FaceTest = {
+		kind: "record",
+		fields: {
+			text: { type: "CatalogTextTest", nullable: true },
+			cmc: { type: "ManaValueTest", nullable: true },
+		},
+	};
+	const result = generate(schema);
+	assert.match(result.rust, /deserialize_with = "required_nullable"/);
+	assert.match(result.typescript, /isWellFormed/);
+	assert.match(result.rust, /f64/);
+	for (const bad of [false, "yes"]) {
+		const invalid = structuredClone(schema);
+		invalid.types.FaceTest.fields.text.nullable = bad;
+		assert.throws(() => generate(invalid));
+	}
+	schema.types.ManaValueTest.max = Infinity;
+	assert.throws(() => generate(schema));
+});

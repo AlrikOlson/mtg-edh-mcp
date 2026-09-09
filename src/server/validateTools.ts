@@ -10,9 +10,8 @@ import type { Card, Deck, DeckCardEntry, Violation, CommandZoneKind } from "../t
 import type { CardIndex } from "../index/index.js";
 import type { DeckStore } from "../deck/index.js";
 import {
-  validateCore,
+  validateDeck,
   validateCommander,
-  validateCompanion,
   commanderColorIdentity,
   checkBanlist,
   checkColorIdentity,
@@ -24,7 +23,10 @@ import { READS_LOCAL } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 
 /** Partition violations into hard errors and advisory warnings by severity. */
-function split(violations: Violation[]): { errors: Violation[]; warnings: Violation[] } {
+function split(violations: Violation[]): {
+  errors: Violation[];
+  warnings: Violation[];
+} {
   return {
     errors: violations.filter((v) => v.severity === "error"),
     warnings: violations.filter((v) => v.severity === "warning"),
@@ -50,11 +52,7 @@ function validateDeckTool(store: DeckStore, index: CardIndex, session: string): 
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
       const lookup = (id: string): Card | null => index.getCard(id);
-      const violations = [
-        ...validateCore(deck, lookup),
-        ...validateCommander(deck, lookup),
-        ...validateCompanion(deck, lookup),
-      ];
+      const violations = validateDeck(deck, lookup);
       const { errors, warnings } = split(violations);
       // Advisory (review #14): qty>1 cards legally exempt from singleton (basics,
       // allowlist, "any number" oracle text) — confirms the exception applied.
@@ -64,7 +62,10 @@ function validateDeckTool(store: DeckStore, index: CardIndex, session: string): 
       const CAP = 50;
       return {
         content: [
-          { type: "text", text: `${errors.length} error(s), ${warnings.length} warning(s)` },
+          {
+            type: "text",
+            text: `${errors.length} error(s), ${warnings.length} warning(s)`,
+          },
         ],
         structuredContent: {
           deck_id: deckId,

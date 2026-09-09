@@ -1,12 +1,14 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-export const SCHEMA_SHA256 = "c5e80398f5ba654d58c81d7263ab0e8a1563d03b71a9a48181992eda877697ec";
+export const SCHEMA_SHA256 = "7557a7bcdbb50cb168af15e681c36f33ba99234f8b92a1e5cdc05ef9e8016398";
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 1;
+const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });
+
+export const PROTOCOL_VERSION = 2;
 
 export const ENGINE_VERSION = "0.1.0";
 
-export const MAX_FRAME_BYTES = 65536;
+export const MAX_FRAME_BYTES = 2097152;
 
 export const IdSchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9_.:-]*$(?![\s\S])/);
 export type Id = z.infer<typeof IdSchema>;
@@ -29,7 +31,7 @@ export type Positive = z.infer<typeof PositiveSchema>;
 export const SeatSchema = z.number().int().min(0).max(3);
 export type Seat = z.infer<typeof SeatSchema>;
 
-export const FrameLimitSchema = z.number().int().min(1).max(65536);
+export const FrameLimitSchema = z.number().int().min(1).max(2097152);
 export type FrameLimit = z.infer<typeof FrameLimitSchema>;
 
 export const FlagSchema = z.boolean();
@@ -126,6 +128,135 @@ export const CancelSchema = z.strictObject({
 });
 export type Cancel = z.infer<typeof CancelSchema>;
 
+export const CatalogTextSchema = z.string().refine((value) => { const bytes = new TextEncoder().encode(value).length; return isWellFormed(value) && bytes >= 0 && bytes <= 32768; }, "Invalid Unicode or UTF-8 byte length");
+export type CatalogText = z.infer<typeof CatalogTextSchema>;
+
+export const CatalogJsonSchema = z.string().refine((value) => { const bytes = new TextEncoder().encode(value).length; return isWellFormed(value) && bytes >= 2 && bytes <= 1048576; }, "Invalid Unicode or UTF-8 byte length");
+export type CatalogJson = z.infer<typeof CatalogJsonSchema>;
+
+export const ColorCodeSchema = z.string().min(1).max(1).regex(/^[WUBRG]*$(?![\s\S])/);
+export type ColorCode = z.infer<typeof ColorCodeSchema>;
+
+export const ManaValueSchema = z.number().min(0).max(1000000);
+export type ManaValue = z.infer<typeof ManaValueSchema>;
+
+export const CatalogVersionSchema = z.number().int().min(1).max(1);
+export type CatalogVersion = z.infer<typeof CatalogVersionSchema>;
+
+export const FaceRelationshipSchema = z.enum(["single","split","adventure","modal","transform","meld","unknown","unsupported"]);
+export type FaceRelationship = z.infer<typeof FaceRelationshipSchema>;
+
+export const PlayabilitySchema = z.enum(["not_evaluated"]);
+export type Playability = z.infer<typeof PlayabilitySchema>;
+
+export const CharacteristicsSchema = z.strictObject({
+"name": CatalogTextSchema.nullable(),
+"mana_cost": CatalogTextSchema.nullable(),
+"type_line": CatalogTextSchema.nullable(),
+"oracle_text": CatalogTextSchema.nullable(),
+"power": CatalogTextSchema.nullable(),
+"toughness": CatalogTextSchema.nullable(),
+"loyalty": CatalogTextSchema.nullable(),
+"defense": CatalogTextSchema.nullable(),
+"printed_name": CatalogTextSchema.nullable(),
+"printed_text": CatalogTextSchema.nullable(),
+"printed_type_line": CatalogTextSchema.nullable(),
+"cmc": ManaValueSchema.nullable(),
+"colors": z.array(CatalogTextSchema).min(0).max(256).nullable(),
+"color_indicator": z.array(CatalogTextSchema).min(0).max(256).nullable(),
+"keywords": z.array(CatalogTextSchema).min(0).max(256).nullable(),
+"produced_mana": z.array(CatalogTextSchema).min(0).max(256).nullable(),
+});
+export type Characteristics = z.infer<typeof CharacteristicsSchema>;
+
+export const CatalogFaceSchema = z.strictObject({
+"face_index": CountSchema,
+"source_path": CatalogTextSchema,
+"oracle_id": IdSchema.nullable(),
+"characteristics": CharacteristicsSchema,
+});
+export type CatalogFace = z.infer<typeof CatalogFaceSchema>;
+
+export const CatalogSourceSchema = z.strictObject({
+"scryfall_id": IdSchema.nullable(),
+"oracle_id": IdSchema.nullable(),
+});
+export type CatalogSource = z.infer<typeof CatalogSourceSchema>;
+
+export const RelatedCardSchema = z.strictObject({
+"id": IdSchema,
+"component": CatalogTextSchema,
+"name": CatalogTextSchema,
+"type_line": CatalogTextSchema,
+"uri": CatalogTextSchema,
+"object": CatalogTextSchema.nullable().optional(),
+});
+export type RelatedCard = z.infer<typeof RelatedCardSchema>;
+
+export const CatalogGameplaySchema = z.strictObject({
+"version": CatalogVersionSchema,
+"source": CatalogSourceSchema,
+"layout": CatalogTextSchema.nullable(),
+"color_identity": z.array(ColorCodeSchema).min(0).max(5).nullable(),
+"face_relationship": FaceRelationshipSchema,
+"playability": PlayabilitySchema,
+"characteristics": CharacteristicsSchema,
+"faces": z.array(CatalogFaceSchema).min(1).max(16).nullable(),
+"related_cards": z.array(RelatedCardSchema).min(0).max(256).nullable(),
+});
+export type CatalogGameplay = z.infer<typeof CatalogGameplaySchema>;
+
+export const CatalogRecordSchema = z.strictObject({
+"oracle_id": IdSchema,
+"gameplay": CatalogGameplaySchema,
+"printing_ids": z.array(IdSchema).min(0).max(4096),
+});
+export type CatalogRecord = z.infer<typeof CatalogRecordSchema>;
+
+export const CatalogEntrySchema = z.strictObject({
+"oracle_id": IdSchema,
+"qty": PositiveSchema,
+"printing_id": IdSchema.nullable(),
+});
+export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
+
+export const DeckFormatSchema = z.enum(["commander"]);
+export type DeckFormat = z.infer<typeof DeckFormatSchema>;
+
+export const CommandZoneKindSchema = z.enum(["single","partner","background","doctor_companion"]);
+export type CommandZoneKind = z.infer<typeof CommandZoneKindSchema>;
+
+export const CapturedDeckSchema = z.strictObject({
+"deck_id": IdSchema,
+"version": PositiveSchema,
+"data_snapshot": IdSchema,
+"format": DeckFormatSchema,
+"command_zone_kind": CommandZoneKindSchema,
+"computed_color_identity": z.array(ColorCodeSchema).min(0).max(5),
+"commanders": z.array(CatalogEntrySchema).min(1).max(2),
+"cards": z.array(CatalogEntrySchema).min(1).max(1000),
+"companion": CatalogEntrySchema.nullable(),
+});
+export type CapturedDeck = z.infer<typeof CapturedDeckSchema>;
+
+export const CatalogPayloadSchema = z.strictObject({
+"schema_version": CatalogVersionSchema,
+"data_snapshot": IdSchema,
+"index_revision": DigestSchema,
+"deck": CapturedDeckSchema,
+"records": z.array(CatalogRecordSchema).min(1).max(1024),
+});
+export type CatalogPayload = z.infer<typeof CatalogPayloadSchema>;
+
+export const CatalogEnvelopeSchema = z.strictObject({
+"payload_json": CatalogJsonSchema,
+"payload_digest": DigestSchema,
+"expected_index_revision": DigestSchema,
+"expected_deck_id": IdSchema,
+"expected_deck_version": PositiveSchema,
+});
+export type CatalogEnvelope = z.infer<typeof CatalogEnvelopeSchema>;
+
 export const RequestMessageSchema = z.discriminatedUnion("type", [
 z.strictObject({type: z.literal("hello"), data: HelloSchema}),
 z.strictObject({type: z.literal("capabilities"), data: EmptySchema}),
@@ -133,6 +264,7 @@ z.strictObject({type: z.literal("admit"), data: ScenarioSchema}),
 z.strictObject({type: z.literal("run"), data: RunSchema}),
 z.strictObject({type: z.literal("decision"), data: DecisionSchema}),
 z.strictObject({type: z.literal("cancel"), data: CancelSchema}),
+z.strictObject({type: z.literal("catalog_check"), data: CatalogEnvelopeSchema}),
 ]);
 export type RequestMessage = z.infer<typeof RequestMessageSchema>;
 
@@ -221,6 +353,7 @@ z.strictObject({type: z.literal("capabilities"), data: CapabilitiesSchema}),
 z.strictObject({type: z.literal("admitted"), data: AdmittedSchema}),
 z.strictObject({type: z.literal("event"), data: EventSchema}),
 z.strictObject({type: z.literal("outcome"), data: OutcomeSchema}),
+z.strictObject({type: z.literal("catalog_checked"), data: CatalogEnvelopeSchema}),
 ]);
 export type ResponseMessage = z.infer<typeof ResponseMessageSchema>;
 

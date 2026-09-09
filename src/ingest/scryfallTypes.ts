@@ -24,6 +24,8 @@ export interface ScryfallCardFace extends ScryfallCharacteristicsRaw {
   oracle_id?: string | null;
 }
 export interface ScryfallRelatedCard {
+  /** Scryfall object tag when supplied; retained from related-card source data. */
+  object?: string | null;
   id: string;
   component: string;
   name: string;

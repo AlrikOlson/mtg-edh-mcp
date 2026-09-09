@@ -23,3 +23,4 @@ export {
   commanderColorIdentity,
 } from "./commanderRules.js";
 export { validateCompanion, isCompanionCard } from "./companionRules.js";
+export { validateDeck } from "./validateDeck.js";

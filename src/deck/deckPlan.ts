@@ -6,13 +6,9 @@ import type { Card, Role } from "../types/card.js";
 import type { ConstructionDiagnostic } from "../types/construction.js";
 import type { Deck, DeckCardEntry } from "../types/deck.js";
 import type { DeckPlanRequest, DeckPlanValidation } from "../types/deckPlan.js";
-import { commanderColorIdentity, validateCommander } from "../validate/commanderRules.js";
-import {
-  companionRuleCoverage,
-  isCompanionCard,
-  validateCompanion,
-} from "../validate/companionRules.js";
-import { validateCore } from "../validate/coreRules.js";
+import { commanderColorIdentity } from "../validate/commanderRules.js";
+import { companionRuleCoverage, isCompanionCard } from "../validate/companionRules.js";
+import { validateDeck } from "../validate/validateDeck.js";
 import { copyLimit, normalizeConstruction } from "./construction.js";
 
 const counts = (entries: readonly DeckCardEntry[]): Map<string, number> => {
@@ -25,9 +21,14 @@ const counts = (entries: readonly DeckCardEntry[]): Map<string, number> => {
 function countEdits(base: Deck | undefined, desired: Deck): DeckPlanValidation["edits"] {
   const inventory = (deck: Deck | undefined): Map<string, number> =>
     counts([
-      ...(deck?.cards.map((e) => ({ ...e, oracle_id: `library:${e.oracle_id}` })) ?? []),
-      ...(deck?.commanders.map((oracle_id) => ({ oracle_id: `commander:${oracle_id}`, qty: 1 })) ??
-        []),
+      ...(deck?.cards.map((e) => ({
+        ...e,
+        oracle_id: `library:${e.oracle_id}`,
+      })) ?? []),
+      ...(deck?.commanders.map((oracle_id) => ({
+        oracle_id: `commander:${oracle_id}`,
+        qty: 1,
+      })) ?? []),
       ...(deck?.companion ? [{ oracle_id: `companion:${deck.companion}`, qty: 1 }] : []),
     ]);
   const before = inventory(base);
@@ -228,11 +229,7 @@ export function prepareDeckChange(
         );
     }
   }
-  const legality = [
-    ...validateCore(desired, lookup),
-    ...validateCommander(desired, lookup),
-    ...validateCompanion(desired, lookup),
-  ];
+  const legality = validateDeck(desired, lookup);
   const hard = specification.intent?.hard;
   for (const entry of hard?.locked_cards ?? [])
     if ((startingCounts.get(entry.oracle_id) ?? 0) < entry.qty)

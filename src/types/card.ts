@@ -131,6 +131,8 @@ export interface CardFace {
 
 /** Scryfall printing links, not additional faces or additional deck entries. */
 export interface RelatedCard {
+  /** Scryfall object tag when supplied; retained from related-card source data. */
+  object?: string | null;
   id: string;
   component: string;
   name: string;

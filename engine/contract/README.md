@@ -1,4 +1,4 @@
-# Internal worker contract v1
+# Internal worker contract v2
 
 This package is the sole owner of the authored wire contract:
 `crates/mtg-worker/protocol/contract.json`. It uses a finite typed-source DSL,
@@ -24,7 +24,7 @@ Clippy. Runtime dependencies reuse workspace Serde and the canonical core.
 
 Run `mtg-worker --protocol` with explicit arguments. stdin/stdout carry UTF-8
 JSON objects followed by LF. stderr is for process/I/O diagnostics. Each body is
-at most 65,536 bytes, excluding LF; CR before LF is JSON whitespace and counts
+at most 2,097,152 bytes, excluding LF; CR before LF is JSON whitespace and counts
 toward the body limit. No BOM is accepted. An empty stream closes cleanly;
 nonempty EOF before LF is `invalid/truncated_frame`. An oversized body emits
 `invalid/oversized_frame` and terminates immediately, without interpreting any
@@ -41,13 +41,13 @@ request emits `invalid/handshake_required` and closes it. Malformed frames emit
 delimited frame. The TypeScript response decoder treats malformed worker output
 as terminal; a worker producing invalid output is not compatible.
 
-Only hello and capabilities succeed in this revision. Admission, run, decision
+Hello, capabilities and catalog_check succeed in this revision. Admission, run, decision
 and cancel requests validate fully and then return `unsupported`, with their
 original request IDs. Capabilities advertise all four as false. Unsupported
 does not mean admitted, completed or cancelled. There is no fallback gameplay.
 `--self-check` remains an independent build probe, outside protocol mode.
 
-Version 1 rejects unknown fields, variants and wrong payload types. Optional
+Version 2 rejects unknown fields, variants and wrong payload types. Optional
 fields accept omission or null; Rust reserialization omits absent/null fields.
 Round trips preserve meaning under that equivalence. IDs use 1–128 ASCII bytes
 from letters, digits, underscore, period, colon and hyphen. Diagnostic text is
@@ -79,7 +79,7 @@ Oracle text. Those checks belong to existing owners in downstream admission.
 
 The current observation digest and option IDs reference future retained engine
 evidence; they do not yet deliver policy observations or enable interactive play.
-Catalog payload transfer, admission ownership, runtime execution, process
+Physical catalog integration, runtime admission, execution, process
 supervision/cancellation and replay belong to their later engine MVP chunks.
 No public simulation route is changed here. The TypeScript gameplay/payment
 inventory in MCP's engine-source ADR remains frozen until atomic cutover.
@@ -87,4 +87,38 @@ inventory in MCP's engine-source ADR remains frozen until atomic cutover.
 Primary references: [Serde strict containers](https://serde.rs/container-attrs.html),
 [Serde tagged enums](https://serde.rs/enum-representations.html),
 [Node child processes](https://nodejs.org/api/child_process.html).
+
+## Immutable catalog transfer
+
+Version 2 adds `catalog_check` and `catalog_checked`, not admission to play.
+The generated `CatalogPayload` preserves MCP `CardGameplay` fields, including
+ordered face/source identifiers, nullable values, raw text and supplied color
+identity. Printing IDs are separate from Oracle IDs. A selected printing is
+nullable; no printing or face is selected by name, price or mana cost.
+
+`CatalogEnvelope.payload_json` contains a UTF-8 JSON document bounded to
+1,048,576 bytes. `payload_digest` is SHA-256 of those exact decoded string
+bytes (not the outer frame's JSON spelling). Worker verification checks the
+digest before parsing, then the generated shape, expected index/deck/version,
+source identities, printing ownership, face indices/paths, resolved references
+and the operational 1,000-copy limit. A successful response returns that same
+string unchanged. No files, URIs, card names or prices are resolved.
+The private `VerifiedCatalog` shares read-only data through Arc and allocates
+no game state. Its digest is integrity evidence, not authentication or a
+construction/support verdict. MCP's trusted capture establishes provenance.
+
+Required nullable fields must be present; only explicit null represents
+unknown data. Rust uses a required deserializer rather than Serde's implicit
+missing Option default. Catalog strings permit well-formed Unicode, with UTF-8
+byte bounds; lone surrogate escapes reject. Mana value is finite and between
+0 and 1,000,000, preserving fractions. JSON duplicate keys use the last value
+on both sides. Integer fields retain the v1 numeric-spelling equivalence.
+Source nulls are preserved; null faces/identity do not imply usable runtime
+support. Future strict support admission must reject insufficient evidence.
+
+`catalog-fixture.json` is a synthetic boundary fixture, not a playable or legal
+deck. MCP acceptance additionally transfers all 77 frozen real corpus records.
+Primary data references: [Scryfall card fields](https://github.com/scryfall/api-types/blob/main/src/objects/Card/CardFields.ts),
+[Scryfall faces](https://github.com/scryfall/api-types/blob/main/src/objects/Card/CardFace.ts),
+[Serde field attributes](https://serde.rs/field-attrs.html).
 

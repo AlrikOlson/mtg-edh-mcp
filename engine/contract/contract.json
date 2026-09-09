@@ -1,9 +1,9 @@
 {
 	"version": 1,
 	"constants": {
-		"PROTOCOL_VERSION": 1,
+		"PROTOCOL_VERSION": 2,
 		"ENGINE_VERSION": "0.1.0",
-		"MAX_FRAME_BYTES": 65536
+		"MAX_FRAME_BYTES": 2097152
 	},
 	"types": {
 		"Id": {
@@ -48,7 +48,7 @@
 		"FrameLimit": {
 			"kind": "integer",
 			"min": 1,
-			"max": 65536
+			"max": 2097152
 		},
 		"Flag": {
 			"kind": "boolean"
@@ -257,6 +257,369 @@
 				}
 			}
 		},
+		"CatalogText": {
+			"kind": "string",
+			"min": 0,
+			"max": 32768,
+			"alphabet": "unicode"
+		},
+		"CatalogJson": {
+			"kind": "string",
+			"min": 2,
+			"max": 1048576,
+			"alphabet": "unicode"
+		},
+		"ColorCode": {
+			"kind": "string",
+			"min": 1,
+			"max": 1,
+			"alphabet": "color"
+		},
+		"ManaValue": {
+			"kind": "number",
+			"min": 0,
+			"max": 1000000
+		},
+		"CatalogVersion": {
+			"kind": "integer",
+			"min": 1,
+			"max": 1
+		},
+		"FaceRelationship": {
+			"kind": "enum",
+			"values": [
+				"single",
+				"split",
+				"adventure",
+				"modal",
+				"transform",
+				"meld",
+				"unknown",
+				"unsupported"
+			]
+		},
+		"Playability": {
+			"kind": "enum",
+			"values": ["not_evaluated"]
+		},
+		"Characteristics": {
+			"kind": "record",
+			"fields": {
+				"name": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"mana_cost": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"type_line": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"oracle_text": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"power": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"toughness": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"loyalty": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"defense": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"printed_name": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"printed_text": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"printed_type_line": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"cmc": {
+					"type": "ManaValue",
+					"nullable": true
+				},
+				"colors": {
+					"type": "CatalogText",
+					"array": {
+						"min": 0,
+						"max": 256
+					},
+					"nullable": true
+				},
+				"color_indicator": {
+					"type": "CatalogText",
+					"array": {
+						"min": 0,
+						"max": 256
+					},
+					"nullable": true
+				},
+				"keywords": {
+					"type": "CatalogText",
+					"array": {
+						"min": 0,
+						"max": 256
+					},
+					"nullable": true
+				},
+				"produced_mana": {
+					"type": "CatalogText",
+					"array": {
+						"min": 0,
+						"max": 256
+					},
+					"nullable": true
+				}
+			}
+		},
+		"CatalogFace": {
+			"kind": "record",
+			"fields": {
+				"face_index": {
+					"type": "Count"
+				},
+				"source_path": {
+					"type": "CatalogText"
+				},
+				"oracle_id": {
+					"type": "Id",
+					"nullable": true
+				},
+				"characteristics": {
+					"type": "Characteristics"
+				}
+			}
+		},
+		"CatalogSource": {
+			"kind": "record",
+			"fields": {
+				"scryfall_id": {
+					"type": "Id",
+					"nullable": true
+				},
+				"oracle_id": {
+					"type": "Id",
+					"nullable": true
+				}
+			}
+		},
+		"RelatedCard": {
+			"kind": "record",
+			"fields": {
+				"id": {
+					"type": "Id"
+				},
+				"component": {
+					"type": "CatalogText"
+				},
+				"name": {
+					"type": "CatalogText"
+				},
+				"type_line": {
+					"type": "CatalogText"
+				},
+				"uri": {
+					"type": "CatalogText"
+				},
+				"object": {
+					"type": "CatalogText",
+					"optional": true
+				}
+			}
+		},
+		"CatalogGameplay": {
+			"kind": "record",
+			"fields": {
+				"version": {
+					"type": "CatalogVersion"
+				},
+				"source": {
+					"type": "CatalogSource"
+				},
+				"layout": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"color_identity": {
+					"type": "ColorCode",
+					"array": {
+						"min": 0,
+						"max": 5
+					},
+					"nullable": true
+				},
+				"face_relationship": {
+					"type": "FaceRelationship"
+				},
+				"playability": {
+					"type": "Playability"
+				},
+				"characteristics": {
+					"type": "Characteristics"
+				},
+				"faces": {
+					"type": "CatalogFace",
+					"array": {
+						"min": 1,
+						"max": 16
+					},
+					"nullable": true
+				},
+				"related_cards": {
+					"type": "RelatedCard",
+					"array": {
+						"min": 0,
+						"max": 256
+					},
+					"nullable": true
+				}
+			}
+		},
+		"CatalogRecord": {
+			"kind": "record",
+			"fields": {
+				"oracle_id": {
+					"type": "Id"
+				},
+				"gameplay": {
+					"type": "CatalogGameplay"
+				},
+				"printing_ids": {
+					"type": "Id",
+					"array": {
+						"min": 0,
+						"max": 4096
+					}
+				}
+			}
+		},
+		"CatalogEntry": {
+			"kind": "record",
+			"fields": {
+				"oracle_id": {
+					"type": "Id"
+				},
+				"qty": {
+					"type": "Positive"
+				},
+				"printing_id": {
+					"type": "Id",
+					"nullable": true
+				}
+			}
+		},
+		"DeckFormat": {
+			"kind": "enum",
+			"values": ["commander"]
+		},
+		"CommandZoneKind": {
+			"kind": "enum",
+			"values": ["single", "partner", "background", "doctor_companion"]
+		},
+		"CapturedDeck": {
+			"kind": "record",
+			"fields": {
+				"deck_id": {
+					"type": "Id"
+				},
+				"version": {
+					"type": "Positive"
+				},
+				"data_snapshot": {
+					"type": "Id"
+				},
+				"format": {
+					"type": "DeckFormat"
+				},
+				"command_zone_kind": {
+					"type": "CommandZoneKind"
+				},
+				"computed_color_identity": {
+					"type": "ColorCode",
+					"array": {
+						"min": 0,
+						"max": 5
+					}
+				},
+				"commanders": {
+					"type": "CatalogEntry",
+					"array": {
+						"min": 1,
+						"max": 2
+					}
+				},
+				"cards": {
+					"type": "CatalogEntry",
+					"array": {
+						"min": 1,
+						"max": 1000
+					}
+				},
+				"companion": {
+					"type": "CatalogEntry",
+					"nullable": true
+				}
+			}
+		},
+		"CatalogPayload": {
+			"kind": "record",
+			"fields": {
+				"schema_version": {
+					"type": "CatalogVersion"
+				},
+				"data_snapshot": {
+					"type": "Id"
+				},
+				"index_revision": {
+					"type": "Digest"
+				},
+				"deck": {
+					"type": "CapturedDeck"
+				},
+				"records": {
+					"type": "CatalogRecord",
+					"array": {
+						"min": 1,
+						"max": 1024
+					}
+				}
+			}
+		},
+		"CatalogEnvelope": {
+			"kind": "record",
+			"fields": {
+				"payload_json": {
+					"type": "CatalogJson"
+				},
+				"payload_digest": {
+					"type": "Digest"
+				},
+				"expected_index_revision": {
+					"type": "Digest"
+				},
+				"expected_deck_id": {
+					"type": "Id"
+				},
+				"expected_deck_version": {
+					"type": "Positive"
+				}
+			}
+		},
 		"RequestMessage": {
 			"kind": "union",
 			"variants": {
@@ -265,7 +628,8 @@
 				"admit": "Scenario",
 				"run": "Run",
 				"decision": "Decision",
-				"cancel": "Cancel"
+				"cancel": "Cancel",
+				"catalog_check": "CatalogEnvelope"
 			}
 		},
 		"Request": {
@@ -432,7 +796,8 @@
 				"capabilities": "Capabilities",
 				"admitted": "Admitted",
 				"event": "Event",
-				"outcome": "Outcome"
+				"outcome": "Outcome",
+				"catalog_checked": "CatalogEnvelope"
 			}
 		},
 		"Response": {

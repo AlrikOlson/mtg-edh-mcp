@@ -1,12 +1,14 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-pub const SCHEMA_SHA256: &str = "c5e80398f5ba654d58c81d7263ab0e8a1563d03b71a9a48181992eda877697ec";
+pub const SCHEMA_SHA256: &str = "7557a7bcdbb50cb168af15e681c36f33ba99234f8b92a1e5cdc05ef9e8016398";
 use serde::{Deserialize, Serialize};
 
-pub const PROTOCOL_VERSION: u32 = 1;
+fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }
+
+pub const PROTOCOL_VERSION: u32 = 2;
 
 pub const ENGINE_VERSION: &str = "0.1.0";
 
-pub const MAX_FRAME_BYTES: usize = 65_536;
+pub const MAX_FRAME_BYTES: usize = 2_097_152;
 
 pub type Id = String;
 
@@ -123,7 +125,7 @@ pub type FrameLimit = u32;
 /// Returns the violated constraint.
 #[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 pub fn validate_frame_limit(value: &FrameLimit) -> Result<(), String> {
-if !(1..=65_536).contains(value) {
+if !(1..=2_097_152).contains(value) {
 return Err("FrameLimit outside contract bounds".to_owned());
 }
 Ok(())
@@ -447,6 +449,601 @@ validate_id(field).map_err(|e| format!("Cancel.run_request_id: {e}"))?;
 Ok(())
 }
 
+pub type CatalogText = String;
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_text(value: &str) -> Result<(), String> {
+if !(0..=32_768).contains(&value.len()) {
+return Err("CatalogText length outside contract bounds".to_owned());
+}
+Ok(())
+}
+
+pub type CatalogJson = String;
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_json(value: &str) -> Result<(), String> {
+if !(2..=1_048_576).contains(&value.len()) {
+return Err("CatalogJson length outside contract bounds".to_owned());
+}
+Ok(())
+}
+
+pub type ColorCode = String;
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_color_code(value: &str) -> Result<(), String> {
+if !(1..=1).contains(&value.len()) {
+return Err("ColorCode length outside contract bounds".to_owned());
+}
+if !value.bytes().all(|byte| b"WUBRG".contains(&byte)) {
+return Err("ColorCode invalid ASCII alphabet".to_owned());
+}
+Ok(())
+}
+
+pub type ManaValue = f64;
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_mana_value(value: &ManaValue) -> Result<(), String> {
+if !value.is_finite() || !(0.0..=1_000_000.0).contains(value) {
+return Err("ManaValue outside contract bounds".to_owned());
+}
+Ok(())
+}
+
+pub type CatalogVersion = u32;
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_version(value: &CatalogVersion) -> Result<(), String> {
+if !(1..=1).contains(value) {
+return Err("CatalogVersion outside contract bounds".to_owned());
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+
+pub enum FaceRelationship {
+#[serde(rename = "single")]
+Single,
+#[serde(rename = "split")]
+Split,
+#[serde(rename = "adventure")]
+Adventure,
+#[serde(rename = "modal")]
+Modal,
+#[serde(rename = "transform")]
+Transform,
+#[serde(rename = "meld")]
+Meld,
+#[serde(rename = "unknown")]
+Unknown,
+#[serde(rename = "unsupported")]
+Unsupported,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_face_relationship(_value: &FaceRelationship) -> Result<(), String> {
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+
+pub enum Playability {
+#[serde(rename = "not_evaluated")]
+NotEvaluated,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_playability(_value: &Playability) -> Result<(), String> {
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Characteristics {
+#[serde(deserialize_with = "required_nullable")]
+pub name: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub mana_cost: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub type_line: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub oracle_text: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub power: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub toughness: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub loyalty: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub defense: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub printed_name: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub printed_text: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub printed_type_line: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub cmc: Option<ManaValue>,
+#[serde(deserialize_with = "required_nullable")]
+pub colors: Option<Vec<CatalogText>>,
+#[serde(deserialize_with = "required_nullable")]
+pub color_indicator: Option<Vec<CatalogText>>,
+#[serde(deserialize_with = "required_nullable")]
+pub keywords: Option<Vec<CatalogText>>,
+#[serde(deserialize_with = "required_nullable")]
+pub produced_mana: Option<Vec<CatalogText>>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_characteristics(value: &Characteristics) -> Result<(), String> {
+if let Some(field) = &value.name {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.name: {e}"))?;
+}
+if let Some(field) = &value.mana_cost {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.mana_cost: {e}"))?;
+}
+if let Some(field) = &value.type_line {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.type_line: {e}"))?;
+}
+if let Some(field) = &value.oracle_text {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.oracle_text: {e}"))?;
+}
+if let Some(field) = &value.power {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.power: {e}"))?;
+}
+if let Some(field) = &value.toughness {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.toughness: {e}"))?;
+}
+if let Some(field) = &value.loyalty {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.loyalty: {e}"))?;
+}
+if let Some(field) = &value.defense {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.defense: {e}"))?;
+}
+if let Some(field) = &value.printed_name {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.printed_name: {e}"))?;
+}
+if let Some(field) = &value.printed_text {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.printed_text: {e}"))?;
+}
+if let Some(field) = &value.printed_type_line {
+validate_catalog_text(field).map_err(|e| format!("Characteristics.printed_type_line: {e}"))?;
+}
+if let Some(field) = &value.cmc {
+validate_mana_value(field).map_err(|e| format!("Characteristics.cmc: {e}"))?;
+}
+if let Some(field) = &value.colors {
+if !(0..=256).contains(&field.len()) {
+return Err("Characteristics.colors length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_text(item).map_err(|e| format!("Characteristics.colors: {e}"))?;
+}
+}
+if let Some(field) = &value.color_indicator {
+if !(0..=256).contains(&field.len()) {
+return Err("Characteristics.color_indicator length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_text(item).map_err(|e| format!("Characteristics.color_indicator: {e}"))?;
+}
+}
+if let Some(field) = &value.keywords {
+if !(0..=256).contains(&field.len()) {
+return Err("Characteristics.keywords length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_text(item).map_err(|e| format!("Characteristics.keywords: {e}"))?;
+}
+}
+if let Some(field) = &value.produced_mana {
+if !(0..=256).contains(&field.len()) {
+return Err("Characteristics.produced_mana length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_text(item).map_err(|e| format!("Characteristics.produced_mana: {e}"))?;
+}
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CatalogFace {
+pub face_index: Count,
+pub source_path: CatalogText,
+#[serde(deserialize_with = "required_nullable")]
+pub oracle_id: Option<Id>,
+pub characteristics: Characteristics,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_face(value: &CatalogFace) -> Result<(), String> {
+let field = &value.face_index;
+validate_count(field).map_err(|e| format!("CatalogFace.face_index: {e}"))?;
+let field = &value.source_path;
+validate_catalog_text(field).map_err(|e| format!("CatalogFace.source_path: {e}"))?;
+if let Some(field) = &value.oracle_id {
+validate_id(field).map_err(|e| format!("CatalogFace.oracle_id: {e}"))?;
+}
+let field = &value.characteristics;
+validate_characteristics(field).map_err(|e| format!("CatalogFace.characteristics: {e}"))?;
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CatalogSource {
+#[serde(deserialize_with = "required_nullable")]
+pub scryfall_id: Option<Id>,
+#[serde(deserialize_with = "required_nullable")]
+pub oracle_id: Option<Id>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_source(value: &CatalogSource) -> Result<(), String> {
+if let Some(field) = &value.scryfall_id {
+validate_id(field).map_err(|e| format!("CatalogSource.scryfall_id: {e}"))?;
+}
+if let Some(field) = &value.oracle_id {
+validate_id(field).map_err(|e| format!("CatalogSource.oracle_id: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RelatedCard {
+pub id: Id,
+pub component: CatalogText,
+pub name: CatalogText,
+pub type_line: CatalogText,
+pub uri: CatalogText,
+#[serde(default, skip_serializing_if = "Option::is_none")]
+pub object: Option<CatalogText>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_related_card(value: &RelatedCard) -> Result<(), String> {
+let field = &value.id;
+validate_id(field).map_err(|e| format!("RelatedCard.id: {e}"))?;
+let field = &value.component;
+validate_catalog_text(field).map_err(|e| format!("RelatedCard.component: {e}"))?;
+let field = &value.name;
+validate_catalog_text(field).map_err(|e| format!("RelatedCard.name: {e}"))?;
+let field = &value.type_line;
+validate_catalog_text(field).map_err(|e| format!("RelatedCard.type_line: {e}"))?;
+let field = &value.uri;
+validate_catalog_text(field).map_err(|e| format!("RelatedCard.uri: {e}"))?;
+if let Some(field) = &value.object {
+validate_catalog_text(field).map_err(|e| format!("RelatedCard.object: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CatalogGameplay {
+pub version: CatalogVersion,
+pub source: CatalogSource,
+#[serde(deserialize_with = "required_nullable")]
+pub layout: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub color_identity: Option<Vec<ColorCode>>,
+pub face_relationship: FaceRelationship,
+pub playability: Playability,
+pub characteristics: Characteristics,
+#[serde(deserialize_with = "required_nullable")]
+pub faces: Option<Vec<CatalogFace>>,
+#[serde(deserialize_with = "required_nullable")]
+pub related_cards: Option<Vec<RelatedCard>>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_gameplay(value: &CatalogGameplay) -> Result<(), String> {
+let field = &value.version;
+validate_catalog_version(field).map_err(|e| format!("CatalogGameplay.version: {e}"))?;
+let field = &value.source;
+validate_catalog_source(field).map_err(|e| format!("CatalogGameplay.source: {e}"))?;
+if let Some(field) = &value.layout {
+validate_catalog_text(field).map_err(|e| format!("CatalogGameplay.layout: {e}"))?;
+}
+if let Some(field) = &value.color_identity {
+if !(0..=5).contains(&field.len()) {
+return Err("CatalogGameplay.color_identity length outside contract bounds".to_owned());
+}
+for item in field {
+validate_color_code(item).map_err(|e| format!("CatalogGameplay.color_identity: {e}"))?;
+}
+}
+let field = &value.face_relationship;
+validate_face_relationship(field).map_err(|e| format!("CatalogGameplay.face_relationship: {e}"))?;
+let field = &value.playability;
+validate_playability(field).map_err(|e| format!("CatalogGameplay.playability: {e}"))?;
+let field = &value.characteristics;
+validate_characteristics(field).map_err(|e| format!("CatalogGameplay.characteristics: {e}"))?;
+if let Some(field) = &value.faces {
+if !(1..=16).contains(&field.len()) {
+return Err("CatalogGameplay.faces length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_face(item).map_err(|e| format!("CatalogGameplay.faces: {e}"))?;
+}
+}
+if let Some(field) = &value.related_cards {
+if !(0..=256).contains(&field.len()) {
+return Err("CatalogGameplay.related_cards length outside contract bounds".to_owned());
+}
+for item in field {
+validate_related_card(item).map_err(|e| format!("CatalogGameplay.related_cards: {e}"))?;
+}
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CatalogRecord {
+pub oracle_id: Id,
+pub gameplay: CatalogGameplay,
+pub printing_ids: Vec<Id>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_record(value: &CatalogRecord) -> Result<(), String> {
+let field = &value.oracle_id;
+validate_id(field).map_err(|e| format!("CatalogRecord.oracle_id: {e}"))?;
+let field = &value.gameplay;
+validate_catalog_gameplay(field).map_err(|e| format!("CatalogRecord.gameplay: {e}"))?;
+let field = &value.printing_ids;
+if !(0..=4_096).contains(&field.len()) {
+return Err("CatalogRecord.printing_ids length outside contract bounds".to_owned());
+}
+for item in field {
+validate_id(item).map_err(|e| format!("CatalogRecord.printing_ids: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CatalogEntry {
+pub oracle_id: Id,
+pub qty: Positive,
+#[serde(deserialize_with = "required_nullable")]
+pub printing_id: Option<Id>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_entry(value: &CatalogEntry) -> Result<(), String> {
+let field = &value.oracle_id;
+validate_id(field).map_err(|e| format!("CatalogEntry.oracle_id: {e}"))?;
+let field = &value.qty;
+validate_positive(field).map_err(|e| format!("CatalogEntry.qty: {e}"))?;
+if let Some(field) = &value.printing_id {
+validate_id(field).map_err(|e| format!("CatalogEntry.printing_id: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+
+pub enum DeckFormat {
+#[serde(rename = "commander")]
+Commander,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_deck_format(_value: &DeckFormat) -> Result<(), String> {
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+
+pub enum CommandZoneKind {
+#[serde(rename = "single")]
+Single,
+#[serde(rename = "partner")]
+Partner,
+#[serde(rename = "background")]
+Background,
+#[serde(rename = "doctor_companion")]
+DoctorCompanion,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_command_zone_kind(_value: &CommandZoneKind) -> Result<(), String> {
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CapturedDeck {
+pub deck_id: Id,
+pub version: Positive,
+pub data_snapshot: Id,
+pub format: DeckFormat,
+pub command_zone_kind: CommandZoneKind,
+pub computed_color_identity: Vec<ColorCode>,
+pub commanders: Vec<CatalogEntry>,
+pub cards: Vec<CatalogEntry>,
+#[serde(deserialize_with = "required_nullable")]
+pub companion: Option<CatalogEntry>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_captured_deck(value: &CapturedDeck) -> Result<(), String> {
+let field = &value.deck_id;
+validate_id(field).map_err(|e| format!("CapturedDeck.deck_id: {e}"))?;
+let field = &value.version;
+validate_positive(field).map_err(|e| format!("CapturedDeck.version: {e}"))?;
+let field = &value.data_snapshot;
+validate_id(field).map_err(|e| format!("CapturedDeck.data_snapshot: {e}"))?;
+let field = &value.format;
+validate_deck_format(field).map_err(|e| format!("CapturedDeck.format: {e}"))?;
+let field = &value.command_zone_kind;
+validate_command_zone_kind(field).map_err(|e| format!("CapturedDeck.command_zone_kind: {e}"))?;
+let field = &value.computed_color_identity;
+if !(0..=5).contains(&field.len()) {
+return Err("CapturedDeck.computed_color_identity length outside contract bounds".to_owned());
+}
+for item in field {
+validate_color_code(item).map_err(|e| format!("CapturedDeck.computed_color_identity: {e}"))?;
+}
+let field = &value.commanders;
+if !(1..=2).contains(&field.len()) {
+return Err("CapturedDeck.commanders length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_entry(item).map_err(|e| format!("CapturedDeck.commanders: {e}"))?;
+}
+let field = &value.cards;
+if !(1..=1_000).contains(&field.len()) {
+return Err("CapturedDeck.cards length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_entry(item).map_err(|e| format!("CapturedDeck.cards: {e}"))?;
+}
+if let Some(field) = &value.companion {
+validate_catalog_entry(field).map_err(|e| format!("CapturedDeck.companion: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CatalogPayload {
+pub schema_version: CatalogVersion,
+pub data_snapshot: Id,
+pub index_revision: Digest,
+pub deck: CapturedDeck,
+pub records: Vec<CatalogRecord>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_payload(value: &CatalogPayload) -> Result<(), String> {
+let field = &value.schema_version;
+validate_catalog_version(field).map_err(|e| format!("CatalogPayload.schema_version: {e}"))?;
+let field = &value.data_snapshot;
+validate_id(field).map_err(|e| format!("CatalogPayload.data_snapshot: {e}"))?;
+let field = &value.index_revision;
+validate_digest(field).map_err(|e| format!("CatalogPayload.index_revision: {e}"))?;
+let field = &value.deck;
+validate_captured_deck(field).map_err(|e| format!("CatalogPayload.deck: {e}"))?;
+let field = &value.records;
+if !(1..=1_024).contains(&field.len()) {
+return Err("CatalogPayload.records length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_record(item).map_err(|e| format!("CatalogPayload.records: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CatalogEnvelope {
+pub payload_json: CatalogJson,
+pub payload_digest: Digest,
+pub expected_index_revision: Digest,
+pub expected_deck_id: Id,
+pub expected_deck_version: Positive,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_catalog_envelope(value: &CatalogEnvelope) -> Result<(), String> {
+let field = &value.payload_json;
+validate_catalog_json(field).map_err(|e| format!("CatalogEnvelope.payload_json: {e}"))?;
+let field = &value.payload_digest;
+validate_digest(field).map_err(|e| format!("CatalogEnvelope.payload_digest: {e}"))?;
+let field = &value.expected_index_revision;
+validate_digest(field).map_err(|e| format!("CatalogEnvelope.expected_index_revision: {e}"))?;
+let field = &value.expected_deck_id;
+validate_id(field).map_err(|e| format!("CatalogEnvelope.expected_deck_id: {e}"))?;
+let field = &value.expected_deck_version;
+validate_positive(field).map_err(|e| format!("CatalogEnvelope.expected_deck_version: {e}"))?;
+Ok(())
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", content = "data", deny_unknown_fields)]
 pub enum RequestMessage {
@@ -462,6 +1059,8 @@ Run(Run),
 Decision(Decision),
 #[serde(rename = "cancel")]
 Cancel(Cancel),
+#[serde(rename = "catalog_check")]
+CatalogCheck(CatalogEnvelope),
 }
 
 /// Validate the generated wire constraints.
@@ -477,6 +1076,7 @@ RequestMessage::Admit(data) => validate_scenario(data),
 RequestMessage::Run(data) => validate_run(data),
 RequestMessage::Decision(data) => validate_decision(data),
 RequestMessage::Cancel(data) => validate_cancel(data),
+RequestMessage::CatalogCheck(data) => validate_catalog_envelope(data),
 }
 }
 
@@ -774,6 +1374,8 @@ Admitted(Admitted),
 Event(Event),
 #[serde(rename = "outcome")]
 Outcome(Outcome),
+#[serde(rename = "catalog_checked")]
+CatalogChecked(CatalogEnvelope),
 }
 
 /// Validate the generated wire constraints.
@@ -787,6 +1389,7 @@ ResponseMessage::Hello(data) | ResponseMessage::Capabilities(data) => validate_c
 ResponseMessage::Admitted(data) => validate_admitted(data),
 ResponseMessage::Event(data) => validate_event(data),
 ResponseMessage::Outcome(data) => validate_outcome(data),
+ResponseMessage::CatalogChecked(data) => validate_catalog_envelope(data),
 }
 }
 

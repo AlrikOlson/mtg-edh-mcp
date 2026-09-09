@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "source_owner": "mtg-game-engine",
-  "revision": "3893b490299f4bdfdda3c5df8a8a6b2a4d5abf7e",
-  "cargo_lock_sha256": "0f38a75c1b93bd598572c862382ed61f0023a1b610c87a65d5125d2798b74ccd",
+  "revision": "8b5e05490d25c8efb04846df38e7887e130bd691",
+  "cargo_lock_sha256": "59eb9c27a03c2fd7da0a81052c957160fda624f0406685998a250b92a52f860d",
   "core_package": "mtg-engine",
   "worker_package": "mtg-worker",
   "worker_manifest": "crates/mtg-worker/Cargo.toml",
   "rust_toolchain": "1.95.0",
   "initial_target": "aarch64-apple-darwin",
   "delivery": "canonical-local-git-or-bundle",
-  "qualification": "internal-worker-contract-only"
+  "qualification": "internal-catalog-transfer-only"
 }

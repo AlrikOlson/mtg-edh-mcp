@@ -18,7 +18,8 @@ protocol version, engine version and schema SHA-256 handshake. Its new adapter
 is not exported by the public MCP entrypoints. No existing tool changes shape
 or behavior in this delivery.
 
-The current worker supports handshake and capabilities only. Admission, run,
+The current worker supports handshake, capabilities and internal catalog integrity checks
+(see [catalog transfer](engine-catalog.md)). Admission, run,
 decision and cancellation messages decode and return typed `unsupported`;
 all four capability flags are false. Events and terminal outcomes have validated
 wire representations, but declaring a representation does not implement a game,
@@ -33,8 +34,9 @@ the designated owners, not infer legality from successful decoding.
 
 ## Reproduction and drift
 
-The [source pin](../../engine/source.json) points to canonical commit
-`3893b490299f4bdfdda3c5df8a8a6b2a4d5abf7e` and its root Cargo.lock digest.
+The original contract revision was `3893b490299f4bdfdda3c5df8a8a6b2a4d5abf7e`.
+The [source pin](../../engine/source.json) now includes the catalog transfer
+revision documented in [engine-catalog](engine-catalog.md).
 The canonical worktree was isolated from the original engine checkout. This
 revision also repairs an existing strict-Clippy warning in the CLI test
 temporary-directory helper without changing its behavior.
@@ -63,7 +65,7 @@ and pass its absolute executable path through `MTG_WORKER_BINARY`:
 MTG_WORKER_BINARY=/absolute/path/to/mtg-worker npm test -- src/engine
 ```
 
-Those three native acceptance tests are explicitly skipped when the variable is
+The original three native acceptance tests are explicitly skipped when the variable is
 absent. They were run against the real macOS arm64 worker in this iteration.
 Shared fixtures exercise 59 independently specified valid/invalid messages in
 both languages; raw fixtures cover alternate JSON integer spellings. Separate
@@ -79,7 +81,7 @@ overlap inventory and removal milestones in the source ADR still apply:
 frozen until `engine-mvp-cutover`, when routes switch and overlapping execution
 is deleted atomically. No unsupported/error path falls back to TypeScript.
 
-Catalog transfer/admission, executable decisions and observations, multiplayer,
+Physical catalog setup/admission, executable decisions and observations, multiplayer,
 supervision, cancellation races, durable jobs, replay, packaging and performance
 qualification remain downstream acceptance. This contract neither claims
 Commander simulation support nor changes the local-release gates. The installed
