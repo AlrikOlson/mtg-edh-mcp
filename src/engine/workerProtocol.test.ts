@@ -289,3 +289,193 @@ native(
     }
   },
 );
+
+native("reports every frozen source obligation without granting play support", async () => {
+  const f = await baselineCatalogFixture();
+  try {
+    const captured = captureCatalog(f.options());
+    if (!captured.ok) throw new Error(JSON.stringify(captured));
+    const { loadEngineBaseline } = await import("../evaluation/engineBaseline.js");
+    const { digestEvaluation } = await import("../evaluation/registration.js");
+    const baseline = await loadEngineBaseline();
+    const queries = f.source.records.map((r, i) =>
+      line({
+        request_id: "support-" + i,
+        message: {
+          type: "support_check",
+          data: {
+            catalog: captured.envelope,
+            oracle_id: r.oracle_id,
+            expected_implementation_version: "core-support-v1",
+            expected_implementation_digest: null,
+          },
+        },
+      }),
+    );
+    const replies = await run(Buffer.concat([line(hello), ...queries]));
+    expect(replies).toHaveLength(78);
+    let qualified = 0,
+      faceSpans = 0;
+    for (const [i, record] of f.source.records.entries()) {
+      const message = replies[i + 1]?.message;
+      if (message?.type !== "support_checked") throw new Error(JSON.stringify(message));
+      const report = message.data;
+      const required = baseline.requirements.find((r) => r.oracle_id === record.oracle_id);
+      if (!required) throw new Error("Missing frozen requirement");
+      expect(report.oracle_id).toBe(record.oracle_id);
+      expect(report.source_matches).toBe(true);
+      expect(report.supported).toBe(false);
+      expect(report.source_digest).toBe(digestEvaluation(record.gameplay));
+      expect(report.oracle_text_digest).toBe(
+        digestEvaluation(record.gameplay.characteristics.oracle_text),
+      );
+      expect(report.face_digests).toEqual(record.gameplay.faces?.map(digestEvaluation));
+      expect(report.expected_scenarios).toEqual(required.scenarios);
+      expect(report.owners).toEqual(required.owners);
+      const spans = report.requirements
+        .filter((r) => r.face_index !== null && r.start !== null)
+        .map(({ face_index, start, end }) => ({ face_index, start, end }));
+      expect(spans).toEqual(required.spans);
+      faceSpans += spans.length;
+      for (const object of baseline.generated_objects.filter((o) =>
+        o.source_cards.some((r) => r.oracle_id === record.oracle_id),
+      )) {
+        expect(
+          report.requirements.some(
+            (r) =>
+              !r.qualified &&
+              r.reason.startsWith("generated_definition_missing: " + object.name + ":"),
+          ),
+        ).toBe(true);
+      }
+      expect(
+        report.requirements.some((r) => r.id === "catalog-physical-adapter" && !r.qualified),
+      ).toBe(true);
+      for (const row of report.requirements.filter((r) => r.qualified)) {
+        qualified++;
+        expect(row.id).toBe("intrinsic-basic-mana");
+        expect(row.evidence).toBe("tests/strict_support.rs::intrinsic_basic_mana");
+        expect(["Forest", "Island", "Swamp"]).toContain(record.gameplay.characteristics.name);
+      }
+    }
+    expect(faceSpans).toBe(baseline.requirements.reduce((n, r) => n + r.spans.length, 0));
+    expect(qualified).toBe(3);
+    expect(replies[0]?.message).toMatchObject({
+      type: "hello",
+      data: { admission: false, execution: false },
+    });
+  } finally {
+    await f.close();
+  }
+});
+
+native(
+  "invalidates source evidence and recovers after support limits and forged modes",
+  async () => {
+    const f = await baselineCatalogFixture();
+    try {
+      const captured = captureCatalog(f.options());
+      if (!captured.ok) throw new Error(JSON.stringify(captured));
+      const forest = f.source.records.find((r) => r.gameplay.characteristics.name === "Forest");
+      if (!forest) throw new Error("Missing Forest");
+      const query = (catalog: typeof captured.envelope, extra: Record<string, unknown> = {}) => ({
+        request_id: "support-negative",
+        message: {
+          type: "support_check",
+          data: {
+            catalog,
+            oracle_id: forest.oracle_id,
+            expected_implementation_version: "core-support-v1",
+            expected_implementation_digest: null,
+            ...extra,
+          },
+        },
+      });
+      const mutate = (edit: (record: CatalogPayload["records"][number]) => void) => {
+        const payload = CatalogPayloadSchema.parse(JSON.parse(captured.envelope.payload_json));
+        const record = payload.records.find((r) => r.oracle_id === forest.oracle_id);
+        if (!record) throw new Error("Missing captured Forest");
+        edit(record);
+        const payload_json = JSON.stringify(payload);
+        return {
+          ...captured.envelope,
+          payload_json,
+          payload_digest: createHash("sha256").update(payload_json).digest("hex"),
+        };
+      };
+      const changed = [
+        mutate((r) => {
+          r.gameplay.characteristics.oracle_text += "\nYou may draw a card.";
+        }),
+        mutate((r) => {
+          if (r.gameplay.faces?.[0]) r.gameplay.faces[0].characteristics.oracle_text += " 🧙";
+        }),
+        mutate((r) => {
+          r.gameplay.characteristics.power = "*";
+        }),
+        mutate((r) => {
+          r.gameplay.characteristics.keywords = ["Unimplemented"];
+        }),
+        mutate((r) => {
+          r.gameplay.layout = "unknown-layout";
+        }),
+      ];
+      const over = mutate((r) => {
+        r.gameplay.characteristics.oracle_text = "x\n".repeat(2049);
+      });
+      const requests = [
+        ...changed.map((c) => query(c)),
+        query(over),
+        query(captured.envelope, { expected_implementation_version: "stale" }),
+        query(captured.envelope, {
+          expected_implementation_digest: "0".repeat(64),
+        }),
+        query(captured.envelope, { permissive: true }),
+        query(captured.envelope),
+        {
+          request_id: "forged-run",
+          message: {
+            type: "run",
+            data: {
+              admission_id: forest.oracle_id,
+              scenario_digest: "0".repeat(64),
+              trial_index: 0,
+              seed: "0000000000000000",
+            },
+          },
+        },
+      ];
+      const replies = await run(Buffer.concat([line(hello), ...requests.map(line)]));
+      expect(replies).toHaveLength(requests.length + 1);
+      for (const reply of replies.slice(1, changed.length + 1)) {
+        if (reply.message.type !== "support_checked") throw new Error(JSON.stringify(reply));
+        expect(reply.message.data.source_matches).toBe(false);
+        expect(reply.message.data.supported).toBe(false);
+        expect(
+          reply.message.data.requirements.every((r) => !r.qualified && r.evidence === null),
+        ).toBe(true);
+        expect(reply.message.data.expected_scenarios).toEqual([]);
+      }
+      for (const [offset, code] of [
+        "support_report_limit",
+        "support_version_mismatch",
+        "support_version_mismatch",
+        "malformed_frame",
+      ].entries())
+        expect(replies[changed.length + 1 + offset]?.message).toMatchObject({
+          type: "outcome",
+          data: { type: "invalid", data: { code } },
+        });
+      expect(replies.at(-2)?.message).toMatchObject({
+        type: "support_checked",
+        data: { source_matches: true, supported: false },
+      });
+      expect(replies.at(-1)?.message).toMatchObject({
+        type: "outcome",
+        data: { type: "unsupported" },
+      });
+    } finally {
+      await f.close();
+    }
+  },
+);

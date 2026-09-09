@@ -1,7 +1,7 @@
 {
 	"version": 1,
 	"constants": {
-		"PROTOCOL_VERSION": 2,
+		"PROTOCOL_VERSION": 3,
 		"ENGINE_VERSION": "0.1.0",
 		"MAX_FRAME_BYTES": 2097152
 	},
@@ -620,6 +620,121 @@
 				}
 			}
 		},
+		"SupportRequirement": {
+			"kind": "record",
+			"fields": {
+				"id": {
+					"type": "CatalogText"
+				},
+				"path": {
+					"type": "CatalogText"
+				},
+				"face_index": {
+					"type": "Count",
+					"nullable": true
+				},
+				"start": {
+					"type": "Count",
+					"nullable": true
+				},
+				"end": {
+					"type": "Count",
+					"nullable": true
+				},
+				"qualified": {
+					"type": "Flag"
+				},
+				"reason": {
+					"type": "CatalogText"
+				},
+				"implementation": {
+					"type": "CatalogText",
+					"nullable": true
+				},
+				"evidence": {
+					"type": "CatalogText",
+					"nullable": true
+				}
+			}
+		},
+		"SupportReport": {
+			"kind": "record",
+			"fields": {
+				"oracle_id": {
+					"type": "Id"
+				},
+				"source_digest": {
+					"type": "Digest"
+				},
+				"oracle_text_digest": {
+					"type": "Digest"
+				},
+				"face_digests": {
+					"type": "Digest",
+					"array": {
+						"min": 0,
+						"max": 16
+					}
+				},
+				"implementation_version": {
+					"type": "Id"
+				},
+				"implementation_digest": {
+					"type": "Digest"
+				},
+				"registry_digest": {
+					"type": "Digest"
+				},
+				"corpus_digest": {
+					"type": "Digest"
+				},
+				"source_matches": {
+					"type": "Flag"
+				},
+				"supported": {
+					"type": "Flag"
+				},
+				"owners": {
+					"type": "Id",
+					"array": {
+						"min": 0,
+						"max": 64
+					}
+				},
+				"expected_scenarios": {
+					"type": "CatalogText",
+					"array": {
+						"min": 0,
+						"max": 256
+					}
+				},
+				"requirements": {
+					"type": "SupportRequirement",
+					"array": {
+						"min": 0,
+						"max": 2048
+					}
+				}
+			}
+		},
+		"SupportCheck": {
+			"kind": "record",
+			"fields": {
+				"catalog": {
+					"type": "CatalogEnvelope"
+				},
+				"oracle_id": {
+					"type": "Id"
+				},
+				"expected_implementation_version": {
+					"type": "Id"
+				},
+				"expected_implementation_digest": {
+					"type": "Digest",
+					"nullable": true
+				}
+			}
+		},
 		"RequestMessage": {
 			"kind": "union",
 			"variants": {
@@ -629,7 +744,8 @@
 				"run": "Run",
 				"decision": "Decision",
 				"cancel": "Cancel",
-				"catalog_check": "CatalogEnvelope"
+				"catalog_check": "CatalogEnvelope",
+				"support_check": "SupportCheck"
 			}
 		},
 		"Request": {
@@ -797,7 +913,8 @@
 				"admitted": "Admitted",
 				"event": "Event",
 				"outcome": "Outcome",
-				"catalog_checked": "CatalogEnvelope"
+				"catalog_checked": "CatalogEnvelope",
+				"support_checked": "SupportReport"
 			}
 		},
 		"Response": {

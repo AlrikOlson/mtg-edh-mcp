@@ -122,3 +122,44 @@ Primary data references: [Scryfall card fields](https://github.com/scryfall/api-
 [Scryfall faces](https://github.com/scryfall/api-types/blob/main/src/objects/Card/CardFace.ts),
 [Serde field attributes](https://serde.rs/field-attrs.html).
 
+
+## Source support preflight (protocol 3)
+
+`support_check` receives a verified catalog envelope, one Oracle ID from that
+capture, expected implementation version `core-support-v1` and a nullable
+expected implementation digest. It returns generated `support_checked` data.
+A non-null digest pins the exact qualifier implementation; a stale version or
+digest rejects. Query every required identity for a complete deck report.
+This operation grants no admission ID and starts no trial. All four gameplay
+capabilities remain false, including after a report.
+
+The core `cards::support` registry is the sole qualification owner. It hashes
+complete unlowered source using sorted JSON keys (integral u32-valued numbers
+normalized), and separately hashes Oracle text and each ordered face. Exact
+printing metadata is conservatively bound too: a reprint needs requalification,
+even if its rules are unchanged. No name/keyword/partial-hook inference occurs.
+Expected scenarios and owner chunks are obligations, never passing evidence.
+
+The generated registry preserves the digest-pinned 77-card benchmark inventory,
+all Oracle paragraph spans (UTF-16), shared requirements and seven generated
+families. Runtime source dimensions and clauses receive exact paths. Three
+basic-land intrinsic mana clauses have independent core evidence; every whole
+card is currently unsupported because shared rules and the physical adapter
+are unqualified. Missing generated definitions remain explicit. Source drift
+clears clause evidence and expected-scenario applicability.
+
+The report binds source, registry, baseline, implementation version and qualified
+implementation bytes. Reproduce registry drift checking with
+`node crates/mtg-engine/support/generate.mjs <MCP-corpus-v1.json> --check`.
+The build-time generator rejects any changed frozen corpus. No catalog or
+evidence file is loaded at runtime; imported text is never executable.
+Reports are capped at 2048 requirements per card with a typed
+`support_report_limit` failure rather than silent truncation.
+
+The authoring factory remains available to existing CLI/desktop clients, but
+`classify_card` can no longer claim complete support from a lowered Card.
+The worker never calls the permissive factory or another construction validator.
+Strict physical setup and unexpected-semantics abort remain mandatory in native
+`engine-mvp-support-runtime`, blocking `engine-mvp-worker`; full corpus
+qualification remains `engine-mvp-corpus`.
+

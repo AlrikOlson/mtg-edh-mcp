@@ -1,13 +1,13 @@
 {
-  "source_revision": "8b5e05490d25c8efb04846df38e7887e130bd691",
+  "source_revision": "f82e1bf23f3705657a8ba8ad234ae512d71c18c3",
   "files": {
-    "engine/contract/README.md": "01ebd1b92b5ab9d04210998812cb883ce2020a589c8ac2dedd499703668250db",
-    "engine/contract/contract.json": "7557a7bcdbb50cb168af15e681c36f33ba99234f8b92a1e5cdc05ef9e8016398",
+    "engine/contract/README.md": "93aeca27d24b76b4f1d3a768587facc2e8e7ce1e7e3536d87b1a3e2eaa8ea3e8",
+    "engine/contract/contract.json": "a2ad875393c2afaa91de9331f0574848117758c29038d83a8fa0371424e3569e",
     "engine/contract/generate.mjs": "c9f13d92dd207ab87457217798d7f4d89f91b588f33d1178966765bbf489fa96",
     "engine/contract/generate.test.mjs": "227645af7bba1885e1a047ab285811501f6c086cf90cafbd0d69754b9662557d",
     "engine/contract/fixtures.json": "97db139f093142150878468de33180d56da19784f34402d602200fa8d87e4c7c",
     "engine/contract/catalog-fixture.json": "92e0af5b6a9597b754c7fa54e89854430bd9e4c6c0159f7c33a77edb3aad8d58",
-    "engine/contract/generated.rs": "f77fe34b3dad517c813c1706064f9c884f6940afdc28ef78d6b887357b5f4636",
-    "src/engine/protocol.generated.ts": "1e430bc036bf49566ca973e05a836da98005ac86b55cdf85353970c06a5357ce"
+    "engine/contract/generated.rs": "b7b8a7e06508e2288c8598e9ef0db139c66718951dbf95b87b08a62d7fdd86b6",
+    "src/engine/protocol.generated.ts": "24882596a65a809d6e9c550869b4ab5b801139d999a53af5c0d184fc059420b2"
   }
 }

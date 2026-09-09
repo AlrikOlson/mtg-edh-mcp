@@ -1,10 +1,10 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-pub const SCHEMA_SHA256: &str = "7557a7bcdbb50cb168af15e681c36f33ba99234f8b92a1e5cdc05ef9e8016398";
+pub const SCHEMA_SHA256: &str = "a2ad875393c2afaa91de9331f0574848117758c29038d83a8fa0371424e3569e";
 use serde::{Deserialize, Serialize};
 
 fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }
 
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 
 pub const ENGINE_VERSION: &str = "0.1.0";
 
@@ -1045,6 +1045,158 @@ Ok(())
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SupportRequirement {
+pub id: CatalogText,
+pub path: CatalogText,
+#[serde(deserialize_with = "required_nullable")]
+pub face_index: Option<Count>,
+#[serde(deserialize_with = "required_nullable")]
+pub start: Option<Count>,
+#[serde(deserialize_with = "required_nullable")]
+pub end: Option<Count>,
+pub qualified: Flag,
+pub reason: CatalogText,
+#[serde(deserialize_with = "required_nullable")]
+pub implementation: Option<CatalogText>,
+#[serde(deserialize_with = "required_nullable")]
+pub evidence: Option<CatalogText>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_support_requirement(value: &SupportRequirement) -> Result<(), String> {
+let field = &value.id;
+validate_catalog_text(field).map_err(|e| format!("SupportRequirement.id: {e}"))?;
+let field = &value.path;
+validate_catalog_text(field).map_err(|e| format!("SupportRequirement.path: {e}"))?;
+if let Some(field) = &value.face_index {
+validate_count(field).map_err(|e| format!("SupportRequirement.face_index: {e}"))?;
+}
+if let Some(field) = &value.start {
+validate_count(field).map_err(|e| format!("SupportRequirement.start: {e}"))?;
+}
+if let Some(field) = &value.end {
+validate_count(field).map_err(|e| format!("SupportRequirement.end: {e}"))?;
+}
+let field = &value.qualified;
+validate_flag(field).map_err(|e| format!("SupportRequirement.qualified: {e}"))?;
+let field = &value.reason;
+validate_catalog_text(field).map_err(|e| format!("SupportRequirement.reason: {e}"))?;
+if let Some(field) = &value.implementation {
+validate_catalog_text(field).map_err(|e| format!("SupportRequirement.implementation: {e}"))?;
+}
+if let Some(field) = &value.evidence {
+validate_catalog_text(field).map_err(|e| format!("SupportRequirement.evidence: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SupportReport {
+pub oracle_id: Id,
+pub source_digest: Digest,
+pub oracle_text_digest: Digest,
+pub face_digests: Vec<Digest>,
+pub implementation_version: Id,
+pub implementation_digest: Digest,
+pub registry_digest: Digest,
+pub corpus_digest: Digest,
+pub source_matches: Flag,
+pub supported: Flag,
+pub owners: Vec<Id>,
+pub expected_scenarios: Vec<CatalogText>,
+pub requirements: Vec<SupportRequirement>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_support_report(value: &SupportReport) -> Result<(), String> {
+let field = &value.oracle_id;
+validate_id(field).map_err(|e| format!("SupportReport.oracle_id: {e}"))?;
+let field = &value.source_digest;
+validate_digest(field).map_err(|e| format!("SupportReport.source_digest: {e}"))?;
+let field = &value.oracle_text_digest;
+validate_digest(field).map_err(|e| format!("SupportReport.oracle_text_digest: {e}"))?;
+let field = &value.face_digests;
+if !(0..=16).contains(&field.len()) {
+return Err("SupportReport.face_digests length outside contract bounds".to_owned());
+}
+for item in field {
+validate_digest(item).map_err(|e| format!("SupportReport.face_digests: {e}"))?;
+}
+let field = &value.implementation_version;
+validate_id(field).map_err(|e| format!("SupportReport.implementation_version: {e}"))?;
+let field = &value.implementation_digest;
+validate_digest(field).map_err(|e| format!("SupportReport.implementation_digest: {e}"))?;
+let field = &value.registry_digest;
+validate_digest(field).map_err(|e| format!("SupportReport.registry_digest: {e}"))?;
+let field = &value.corpus_digest;
+validate_digest(field).map_err(|e| format!("SupportReport.corpus_digest: {e}"))?;
+let field = &value.source_matches;
+validate_flag(field).map_err(|e| format!("SupportReport.source_matches: {e}"))?;
+let field = &value.supported;
+validate_flag(field).map_err(|e| format!("SupportReport.supported: {e}"))?;
+let field = &value.owners;
+if !(0..=64).contains(&field.len()) {
+return Err("SupportReport.owners length outside contract bounds".to_owned());
+}
+for item in field {
+validate_id(item).map_err(|e| format!("SupportReport.owners: {e}"))?;
+}
+let field = &value.expected_scenarios;
+if !(0..=256).contains(&field.len()) {
+return Err("SupportReport.expected_scenarios length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_text(item).map_err(|e| format!("SupportReport.expected_scenarios: {e}"))?;
+}
+let field = &value.requirements;
+if !(0..=2_048).contains(&field.len()) {
+return Err("SupportReport.requirements length outside contract bounds".to_owned());
+}
+for item in field {
+validate_support_requirement(item).map_err(|e| format!("SupportReport.requirements: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SupportCheck {
+pub catalog: CatalogEnvelope,
+pub oracle_id: Id,
+pub expected_implementation_version: Id,
+#[serde(deserialize_with = "required_nullable")]
+pub expected_implementation_digest: Option<Digest>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_support_check(value: &SupportCheck) -> Result<(), String> {
+let field = &value.catalog;
+validate_catalog_envelope(field).map_err(|e| format!("SupportCheck.catalog: {e}"))?;
+let field = &value.oracle_id;
+validate_id(field).map_err(|e| format!("SupportCheck.oracle_id: {e}"))?;
+let field = &value.expected_implementation_version;
+validate_id(field).map_err(|e| format!("SupportCheck.expected_implementation_version: {e}"))?;
+if let Some(field) = &value.expected_implementation_digest {
+validate_digest(field).map_err(|e| format!("SupportCheck.expected_implementation_digest: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", content = "data", deny_unknown_fields)]
 pub enum RequestMessage {
 #[serde(rename = "hello")]
@@ -1061,6 +1213,8 @@ Decision(Decision),
 Cancel(Cancel),
 #[serde(rename = "catalog_check")]
 CatalogCheck(CatalogEnvelope),
+#[serde(rename = "support_check")]
+SupportCheck(SupportCheck),
 }
 
 /// Validate the generated wire constraints.
@@ -1077,6 +1231,7 @@ RequestMessage::Run(data) => validate_run(data),
 RequestMessage::Decision(data) => validate_decision(data),
 RequestMessage::Cancel(data) => validate_cancel(data),
 RequestMessage::CatalogCheck(data) => validate_catalog_envelope(data),
+RequestMessage::SupportCheck(data) => validate_support_check(data),
 }
 }
 
@@ -1376,6 +1531,8 @@ Event(Event),
 Outcome(Outcome),
 #[serde(rename = "catalog_checked")]
 CatalogChecked(CatalogEnvelope),
+#[serde(rename = "support_checked")]
+SupportChecked(SupportReport),
 }
 
 /// Validate the generated wire constraints.
@@ -1390,6 +1547,7 @@ ResponseMessage::Admitted(data) => validate_admitted(data),
 ResponseMessage::Event(data) => validate_event(data),
 ResponseMessage::Outcome(data) => validate_outcome(data),
 ResponseMessage::CatalogChecked(data) => validate_catalog_envelope(data),
+ResponseMessage::SupportChecked(data) => validate_support_report(data),
 }
 }
 

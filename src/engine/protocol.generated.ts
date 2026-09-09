@@ -1,10 +1,10 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-export const SCHEMA_SHA256 = "7557a7bcdbb50cb168af15e681c36f33ba99234f8b92a1e5cdc05ef9e8016398";
+export const SCHEMA_SHA256 = "a2ad875393c2afaa91de9331f0574848117758c29038d83a8fa0371424e3569e";
 import { z } from "zod";
 
 const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export const ENGINE_VERSION = "0.1.0";
 
@@ -257,6 +257,44 @@ export const CatalogEnvelopeSchema = z.strictObject({
 });
 export type CatalogEnvelope = z.infer<typeof CatalogEnvelopeSchema>;
 
+export const SupportRequirementSchema = z.strictObject({
+"id": CatalogTextSchema,
+"path": CatalogTextSchema,
+"face_index": CountSchema.nullable(),
+"start": CountSchema.nullable(),
+"end": CountSchema.nullable(),
+"qualified": FlagSchema,
+"reason": CatalogTextSchema,
+"implementation": CatalogTextSchema.nullable(),
+"evidence": CatalogTextSchema.nullable(),
+});
+export type SupportRequirement = z.infer<typeof SupportRequirementSchema>;
+
+export const SupportReportSchema = z.strictObject({
+"oracle_id": IdSchema,
+"source_digest": DigestSchema,
+"oracle_text_digest": DigestSchema,
+"face_digests": z.array(DigestSchema).min(0).max(16),
+"implementation_version": IdSchema,
+"implementation_digest": DigestSchema,
+"registry_digest": DigestSchema,
+"corpus_digest": DigestSchema,
+"source_matches": FlagSchema,
+"supported": FlagSchema,
+"owners": z.array(IdSchema).min(0).max(64),
+"expected_scenarios": z.array(CatalogTextSchema).min(0).max(256),
+"requirements": z.array(SupportRequirementSchema).min(0).max(2048),
+});
+export type SupportReport = z.infer<typeof SupportReportSchema>;
+
+export const SupportCheckSchema = z.strictObject({
+"catalog": CatalogEnvelopeSchema,
+"oracle_id": IdSchema,
+"expected_implementation_version": IdSchema,
+"expected_implementation_digest": DigestSchema.nullable(),
+});
+export type SupportCheck = z.infer<typeof SupportCheckSchema>;
+
 export const RequestMessageSchema = z.discriminatedUnion("type", [
 z.strictObject({type: z.literal("hello"), data: HelloSchema}),
 z.strictObject({type: z.literal("capabilities"), data: EmptySchema}),
@@ -265,6 +303,7 @@ z.strictObject({type: z.literal("run"), data: RunSchema}),
 z.strictObject({type: z.literal("decision"), data: DecisionSchema}),
 z.strictObject({type: z.literal("cancel"), data: CancelSchema}),
 z.strictObject({type: z.literal("catalog_check"), data: CatalogEnvelopeSchema}),
+z.strictObject({type: z.literal("support_check"), data: SupportCheckSchema}),
 ]);
 export type RequestMessage = z.infer<typeof RequestMessageSchema>;
 
@@ -354,6 +393,7 @@ z.strictObject({type: z.literal("admitted"), data: AdmittedSchema}),
 z.strictObject({type: z.literal("event"), data: EventSchema}),
 z.strictObject({type: z.literal("outcome"), data: OutcomeSchema}),
 z.strictObject({type: z.literal("catalog_checked"), data: CatalogEnvelopeSchema}),
+z.strictObject({type: z.literal("support_checked"), data: SupportReportSchema}),
 ]);
 export type ResponseMessage = z.infer<typeof ResponseMessageSchema>;
 
