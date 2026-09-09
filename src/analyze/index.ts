@@ -22,6 +22,7 @@ export {
 } from "./mana.js";
 export {
   simulateDeck,
+  simulateManaSequence,
   classifyHand,
   type SimOptions,
   type SimResult,

@@ -705,8 +705,8 @@ readiness and initial mana are assumptions. Rejection does not prove another
 payment is impossible. It does not search, simulate opponents or external effects,
 advance turns or compute castability probabilities. `cost_policy` limits cost
 support to supplied printed/base mana costs and flags recognized unmodeled cost
-mechanics; it does not certify every casting rule. The existing `simulate_deck`
-remains an opening-shape/land-count heuristic and does not consume this model yet.
+mechanics; it does not certify every casting rule. `simulate_deck` consumes this
+model for bounded mana sequencing; its opening-hand shape labels remain heuristics.
 
 The model consumes shared canonical card faces and mechanics evidence. Its
 bounded interpretation follows [Scryfall's source-field contract](https://github.com/scryfall/api-types/blob/main/src/objects/Card/CardFields.ts)
@@ -714,6 +714,68 @@ and the [August 19, 2026 Comprehensive Rules](https://media.wizards.com/2026/dow
 for distinct mana requirements, inherent basic-land abilities, creature
 readiness and modal faces (§§107.4, 302.6, 305.6, 712). Fetching is a separate
 action with a library target; it is not direct mana output.
+
+## Replay an early-turn mana sequence
+
+Use one saved-deck scenario to inspect how a target's printed cost gets paid:
+
+```text
+simulate_deck {"deck_id":"YOUR_DECK_ID","mode":"sequence","seed":7,"max_turns":5,"on_the_play":false,"target":{"oracle_id":"TARGET_ORACLE_ID","face_index":0,"zone":"command"}}
+```
+
+`zone: "library"` requires a physical copy in hand; `zone: "command"`
+uses the saved command zone without drawing it. The outside-deck companion
+is excluded. Omit `target` to look for the first supported spell.
+`expected_version` rejects a stale deck read; `overrides` has the same
+bounded per-face assumptions as `analyze_mana_base` and never persists them.
+
+The policy plays the first eligible land in hand/face order, tries the target,
+then pays for eligible accelerants in hand order and retries. A named spell
+face is reserved from land play. Output and payment alternatives use bounded
+deterministic search. This is a feasible sequence under a declared policy;
+failure does not establish that another order could not work. A target cast
+checks its printed mana payment and stops further spells without resolving its
+effects. Commanders are cast only once, so no commander tax or recasting occurs.
+
+Inspect `sequence.turns`: each turn records draws, source plays, activations,
+fetches, explicit payments, any target cast, remaining mana and land count.
+Physical IDs distinguish copies and preserve a chosen MDFC face. The report's
+`physical_cards`, `library_order` and normalized `sequence_options` retain the
+inputs needed to reconstruct a replay using its canonical per-card models.
+`sequence.replay` independently checks the complete trace against the source
+model and a derived card-zone ledger. The public library exports
+`sequenceMana` and `replayManaSequence` for ordered physical-card scenarios;
+`simulateManaSequence` supplies the same seeded saved-deck calculation.
+
+The modeled turn contains untap, optional draw and one main phase. Mana
+persists between payments within that phase and empties at the next turn.
+Tapped lands and summoned dorks wait; supported basic-fetch effects consume a
+real basic still in the library and put it onto the battlefield tapped.
+Fetch choice uses remaining library order, which stays fixed afterward as an
+explicit scenario assumption. No stack, opponents, extra land drops, haste,
+replacement effects, cost changes or arbitrary spell effects are simulated.
+
+Bounds are 512 physical cards, 50 turns, 128 source actions per turn and
+`max_work` of 1–50,000. Reports distinguish unsupported targets and truncated
+work from success, retaining per-card quantity coverage and assumption reasons.
+A successful trace remains conditional on that coverage.
+
+The default `mode: "aggregate"` samples initial hands with the same seeded
+shuffle. It retains `keepable_rate`, `mulligan_rate` and shape buckets as
+land/role heuristics; no redraw or bottoming occurs. It derives first-spell and
+land averages from completed bounded sequences only, with explicit completed,
+truncated, unsupported and unprocessed counts and a 2,000,000-unit total work cap.
+If `sequencing.metrics_available` is false, the numeric zero averages are
+compatibility placeholders and provide no measured casting or land result.
+These conditional policy samples are not Commander win rates or optimal
+castability estimates. For compatibility, `on_the_play: true` still skips the
+first draw; use `false` for a first-turn draw. Actual Commander mulligan and
+draw policies are separate work.
+
+The turn boundaries follow the current
+[Comprehensive Rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020260819.txt)
+on mana pools, land plays, creature readiness, command-zone access and modal
+faces (§§106.4, 302.6, 305, 903.6–8 and 712).
 
 ## Find cards without filling the context
 

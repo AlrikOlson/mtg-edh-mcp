@@ -6,6 +6,15 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `simulate_deck mode:sequence` for a seeded library or commander target,
+  with paid land/rock/dork development, exact colored/colorless costs, physical
+  face choices and independently replayed per-turn actions. Replace aggregate
+  mana-value-versus-land-count casting with the same bounded model, retaining
+  unknown cards as draws and reporting completed/truncated trial counts.
+  Opening-hand keep labels remain heuristics; there are no real mulligans,
+  optimal-play or win-rate claims. Add version checks and read-only caller
+  assumptions; current and legacy clients receive equivalent JSON evidence.
+
 - Add a bounded canonical mana cost/source model to `analyze_mana_base`, with
   per-face colored/generic/colorless requirements, exclusive MDFC choices,
   output quantities and alternatives, activation costs, entry/readiness delays

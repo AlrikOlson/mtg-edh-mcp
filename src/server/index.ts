@@ -5,6 +5,13 @@
  * and connect a server programmatically. The executable bootstrap lives in
  * `main.ts` (the bin entry); this module has no side effects.
  */
+export { sequenceMana, replayManaSequence } from "../analyze/manaSequence.js";
+export type {
+  SequenceCard,
+  ManaSequenceOptions,
+  ManaSequenceResult,
+} from "../analyze/manaSequence.js";
+export { simulateManaSequence } from "../analyze/sim.js";
 export { oracleTextEvidence } from "../index/map.js";
 export {
   modelCardMana,

@@ -9,6 +9,7 @@ import { effectiveRoleTargets } from "../deck/intent.js";
 import { wholeDeckBudget } from "../analyze/budget.js";
 import { analyzeStrategy } from "../analyze/strategy.js";
 import { manaModelOverrideSchema, modelDeckMana } from "../analyze/manaModel.js";
+import { simulateManaSequence } from "../analyze/sim.js";
 import { staticSnapshotProvider, type SnapshotProvider } from "./snapshot.js";
 import { ROLES, StructuredError } from "../types/index.js";
 import { deckRoleLookup, deckRoleProvenance } from "../analyze/deckRoles.js";
@@ -471,53 +472,122 @@ function deckStatusTool(
   };
 }
 
+const sequenceTargetSchema = z
+  .object({
+    oracle_id: z.string().min(1).max(200),
+    face_index: z.number().int().min(0).max(1).optional(),
+    zone: z.enum(["library", "command"]).optional(),
+  })
+  .strict();
+
 function simulateDeckTool(store: DeckStore, index: CardIndex, session: string): ToolDefinition {
   return {
     name: "simulate_deck",
     config: {
       annotations: READS_LOCAL,
-      title: "Simulate deck (goldfish)",
+      title: "Simulate mana and opening hands",
       description:
-        "Goldfish the deck: Monte Carlo opening hands and early turns, deterministic per seed.\n" +
-        "USE: keepable/mulligan rates and opening-hand SHAPES (mulligan-guide material). NOT: combat, interaction, turn-to-win; land counts (analyze_mana_base).\n" +
+        "Sequence supported mana payments or sample seeded opening hands.\n" +
+        "USE: mode:sequence for one replayable target cast; aggregate for hand heuristics and bounded first-spell rates. NOT: real mulligans, combat, optimal play or win rates.\n" +
         "FLOW: deck_status -> simulate_deck -> analyze_mana_base.\n" +
-        "ARGS: deck_id; trials (max 100000); seed (fixed seed = identical results); on_the_play; hand_size; max_turns.\n" +
-        "RETURNS: keepable_rate, dead_on_arrival_rate, opening_land_distribution, scenarios " +
-        "(hand-shape rates from type lines + roles: textbook, land_light_mulligan, " +
-        "two_lands_no_accel_mulligan, lean_and_accelerated, explosive, top_heavy_trap, " +
-        "playable_no_accel, flood), lands-by-turn.",
+        "ARGS: deck_id; mode; target (oracle_id, face_index, zone); seed; hand_size; on_the_play (default skips T1 draw); max_turns<=50; max_work<=50000; trials<=100000; expected_version; overrides.\n" +
+        "RETURNS: sequence actions, replay, reasons and limits, or aggregate rates with completed/truncated counts; mana_model coverage, deck_version. Unknown cards remain draws; assumptions explicit.",
       inputSchema: {
-        deck_id: z.string(),
+        deck_id: z.string().min(1),
+        mode: z.enum(["aggregate", "sequence"]).optional(),
+        target: sequenceTargetSchema.optional(),
         trials: z.number().int().positive().max(100000).optional(),
         seed: z.number().int().optional(),
         on_the_play: z.boolean().optional(),
         hand_size: z.number().int().positive().max(20).optional(),
         max_turns: z.number().int().positive().max(50).optional(),
+        max_work: z.number().int().positive().max(50000).optional(),
+        expected_version: z.number().int().nonnegative().optional(),
+        overrides: z.array(manaModelOverrideSchema).max(200).optional(),
       },
     },
     handler: (args) => {
       const deckId = String(args.deck_id ?? "");
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      if (typeof args.expected_version === "number" && args.expected_version !== deck.version) {
+        return {
+          content: [{ type: "text", text: "Deck version conflict" }],
+          structuredContent: {
+            ok: false,
+            conflict: true,
+            deck_id: deckId,
+            expected_version: args.expected_version,
+            current_version: deck.version,
+          },
+        };
+      }
+      if (args.target !== undefined && args.mode !== "sequence")
+        throw new StructuredError("INVALID_QUERY", "target requires mode:sequence.");
+      if (args.mode === "sequence" && args.trials !== undefined)
+        throw new StructuredError(
+          "INVALID_QUERY",
+          "sequence mode evaluates one scenario; omit trials.",
+        );
+      const quantity =
+        deck.cards.reduce((count, entry) => count + entry.qty, 0) +
+        (args.mode === "sequence" ? deck.commanders.length : 0);
+      if (
+        deck.cards.length > 512 ||
+        quantity > 512 ||
+        deck.cards.some((entry) => !Number.isSafeInteger(entry.qty) || entry.qty < 1)
+      )
+        throw new StructuredError(
+          "INVALID_QUERY",
+          "Mana sequencing requires positive quantities and at most 512 physical cards in its scope.",
+        );
       const lookup = deckRoleLookup(deck, (id) => index.getCard(id));
-      const opts: SimOptions = {};
+      const opts: SimOptions = { identity: deck.computed_color_identity };
       if (typeof args.trials === "number") opts.trials = args.trials;
       if (typeof args.seed === "number") opts.seed = args.seed;
       if (typeof args.on_the_play === "boolean") opts.onThePlay = args.on_the_play;
       if (typeof args.hand_size === "number") opts.handSize = args.hand_size;
       if (typeof args.max_turns === "number") opts.maxTurns = args.max_turns;
+      if (typeof args.max_work === "number") opts.maxWork = args.max_work;
+      if (args.overrides !== undefined)
+        opts.overrides = z.array(manaModelOverrideSchema).max(200).parse(args.overrides);
+      if (args.mode === "sequence") {
+        const target =
+          args.target === undefined ? undefined : sequenceTargetSchema.parse(args.target);
+        const result = simulateManaSequence(deck.cards, deck.commanders, lookup, {
+          ...opts,
+          target,
+        });
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Mana sequence: ${result.sequence.status}; target cast ${result.sequence.target_cast_turn === null ? "not demonstrated" : "T" + result.sequence.target_cast_turn}. Inspect policy, coverage and replay.`,
+            },
+          ],
+          structuredContent: {
+            ok: true,
+            mode: "sequence",
+            deck_id: deckId,
+            deck_version: deck.version,
+            ...result,
+            ...deckRoleProvenance(deck),
+          },
+        };
+      }
       const result = simulateDeck(deck.cards, lookup, opts);
       return {
         content: [
           {
             type: "text",
-            text:
-              `${result.trials} trials: ${Math.round(result.keepable_rate * 100)}% keepable, ` +
-              `${Math.round(result.dead_on_arrival_rate * 100)}% dead-on-arrival, first spell ~T${result.avg_turn_to_first_spell ?? "n/a"}`,
+            text: `${result.trials} opening hands (heuristic keep labels); ${result.sequencing.completed_trials} complete mana sequences, ${result.sequencing.truncated_trials} truncated; first supported spell ~T${result.avg_turn_to_first_spell ?? "n/a"}.`,
           },
         ],
         structuredContent: {
+          ok: true,
+          mode: "aggregate",
           deck_id: deckId,
+          deck_version: deck.version,
           ...result,
           ...deckRoleProvenance(deck),
         },

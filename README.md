@@ -32,8 +32,12 @@ knowledge, durable state, and checks to make those choices reviewable.
 - **Mana sources with explicit coverage.** Per-face costs, output choices,
   activation costs and delays, with unsupported cases and caller assumptions
   reported separately. Existing source counts remain labeled heuristics.
-- **Deeper analysis when needed.** Seeded opening-hand simulations,
-  owned-card filtering, and cheaper-printing budget plans.
+- **Replayable mana sequencing.** Seeded early turns pay colored costs and
+  acceleration, respect tapped lands and dork delays, and show target-casting
+  actions with independent replay checks. Work limits and unsupported cards
+  stay explicit; opening-hand keep labels remain heuristics.
+- **Deeper analysis when needed.** Owned-card filtering and cheaper-printing
+  budget plans.
 - **Reviewable advice.** Local contextual recommendations use every commander,
   the actual library, supported interactions, role gaps and saved intent.
   Requirements, tradeoffs and uncertainty stay visible; EDHREC is optional.

@@ -1,21 +1,20 @@
 import { describe, it, expect } from "vitest";
 import type { Card, DeckCardEntry } from "../types/index.js";
 import { simulateDeck, type CardLookup } from "./index.js";
+import { manaCard } from "./manaModel.fixture.js";
 
 function card(p: Partial<Card> & { oracle_id: string; name: string }): Card {
+  const mana_cost = p.mana_cost ?? (/\bLand\b/.test(p.type_line ?? "") ? "" : `{${p.mv ?? 0}}`);
   return {
-    mana_cost: "",
-    mv: 0,
-    colors: [],
-    color_identity: [],
-    type_line: "Artifact",
-    oracle_text: "",
-    keywords: [],
-    legalities: { commander: "legal" },
-    prices: {},
-    is_commander_eligible: false,
+    ...manaCard(p.name, {
+      oracle_id: p.oracle_id,
+      type_line: p.type_line ?? "Artifact",
+      mana_cost,
+      oracle_text: p.oracle_text ?? "",
+      keywords: [...(p.keywords ?? [])],
+    }),
+    mv: p.mv ?? 0,
     roles: [],
-    printings: [],
     ...p,
   };
 }
@@ -28,7 +27,12 @@ function fixture(lands: number, spells: number): { entries: DeckCardEntry[]; loo
     const id = `l${i}`;
     cards.set(
       id,
-      card({ oracle_id: id, name: `Forest ${i}`, mv: 0, type_line: "Basic Land — Forest" }),
+      card({
+        oracle_id: id,
+        name: `Forest ${i}`,
+        mv: 0,
+        type_line: "Basic Land — Forest",
+      }),
     );
     entries.push({ oracle_id: id, qty: 1 });
   }
@@ -36,7 +40,12 @@ function fixture(lands: number, spells: number): { entries: DeckCardEntry[]; loo
     const id = `s${i}`;
     cards.set(
       id,
-      card({ oracle_id: id, name: `Bear ${i}`, mv: (i % 2) + 1, type_line: "Creature — Bear" }),
+      card({
+        oracle_id: id,
+        name: `Bear ${i}`,
+        mv: (i % 2) + 1,
+        type_line: "Creature — Bear",
+      }),
     );
     entries.push({ oracle_id: id, qty: 1 });
   }
@@ -45,6 +54,73 @@ function fixture(lands: number, spells: number): { entries: DeckCardEntry[]; loo
 }
 
 describe("simulateDeck (goldfish)", () => {
+  it("retains unknown quantities as physical draws and reports unavailable truncated metrics", () => {
+    const forest = manaCard("Forest", { type_line: "Basic Land — Forest" });
+    const report = simulateDeck(
+      [
+        { oracle_id: "Forest", qty: 1 },
+        { oracle_id: "missing", qty: 4 },
+      ],
+      (id) => (id === "Forest" ? forest : null),
+      { trials: 3, handSize: 5, maxWork: 1, maxTurns: 4 },
+    );
+    expect(report.avg_opening_lands).toBe(1);
+    expect(report.mana_model.coverage).toMatchObject({
+      total_quantity: 5,
+      unresolved_quantity: 4,
+      resolved_quantity: 1,
+    });
+    expect(report.sequencing).toMatchObject({
+      completed_trials: 0,
+      truncated_trials: 3,
+      metrics_available: false,
+    });
+    expect(report.first_spell_rate).toBe(0);
+  });
+
+  it.each([0, -1, 513, Number.POSITIVE_INFINITY])(
+    "rejects an invalid physical quantity %s before expansion",
+    (qty) => {
+      expect(() => simulateDeck([{ oracle_id: "missing", qty }], () => null)).toThrow(RangeError);
+    },
+  );
+
+  it.each([
+    { trials: 0 },
+    { trials: 100001 },
+    { maxTurns: 51 },
+    { maxWork: 50001 },
+    { handSize: 21 },
+    { seed: Number.NaN },
+  ])("enforces direct library limits %j", (options) => {
+    expect(() => simulateDeck([], () => null, options)).toThrow(RangeError);
+  });
+
+  it("does not treat abundant wrong-color lands as colored payment", () => {
+    const land = card({
+      oracle_id: "forest",
+      name: "Forest",
+      type_line: "Basic Land — Forest",
+    });
+    const spell = card({
+      oracle_id: "blue",
+      name: "Blue target",
+      mana_cost: "{U}",
+      mv: 1,
+      type_line: "Sorcery",
+    });
+    const r = simulateDeck(
+      [
+        { oracle_id: "forest", qty: 4 },
+        { oracle_id: "blue", qty: 1 },
+      ],
+      (id) => (id === "forest" ? land : spell),
+      { trials: 1, handSize: 5, maxTurns: 4 },
+    );
+    expect(r.first_spell_rate).toBe(0);
+    expect(r.avg_turn_to_first_spell).toBeNull();
+  });
+
   it("is deterministic for a fixed seed (run-twice deepEqual)", () => {
     const { entries, lookup } = fixture(38, 61); // ~99-card singleton deck
     const a = simulateDeck(entries, lookup, { trials: 500, seed: 7 });
@@ -54,7 +130,11 @@ describe("simulateDeck (goldfish)", () => {
 
   it("produces exact stats for a known fixture + seed", () => {
     const { entries, lookup } = fixture(17, 16);
-    const r = simulateDeck(entries, lookup, { trials: 200, seed: 42, maxTurns: 5 });
+    const r = simulateDeck(entries, lookup, {
+      trials: 200,
+      seed: 42,
+      maxTurns: 5,
+    });
     expect(r).toMatchObject({
       trials: 200,
       keepable_rate: 0.89,
@@ -74,8 +154,16 @@ describe("simulateDeck (goldfish)", () => {
 
   it("a different seed gives a different (still valid) result", () => {
     const { entries, lookup } = fixture(17, 16);
-    const a = simulateDeck(entries, lookup, { trials: 200, seed: 42, maxTurns: 5 });
-    const b = simulateDeck(entries, lookup, { trials: 200, seed: 99, maxTurns: 5 });
+    const a = simulateDeck(entries, lookup, {
+      trials: 200,
+      seed: 42,
+      maxTurns: 5,
+    });
+    const b = simulateDeck(entries, lookup, {
+      trials: 200,
+      seed: 99,
+      maxTurns: 5,
+    });
     expect(b).not.toEqual(a);
     for (const r of [a, b]) {
       expect(r.keepable_rate).toBeGreaterThanOrEqual(0);
@@ -86,7 +174,11 @@ describe("simulateDeck (goldfish)", () => {
 
   it("lands-by-turn is non-decreasing (≤ one land drop per turn)", () => {
     const { entries, lookup } = fixture(40, 59);
-    const r = simulateDeck(entries, lookup, { trials: 300, seed: 3, maxTurns: 8 });
+    const r = simulateDeck(entries, lookup, {
+      trials: 300,
+      seed: 3,
+      maxTurns: 8,
+    });
     for (let t = 2; t <= 8; t += 1) {
       expect(r.lands_by_turn[t]!).toBeGreaterThanOrEqual(r.lands_by_turn[t - 1]!);
       expect(r.lands_by_turn[t]! - r.lands_by_turn[t - 1]!).toBeLessThanOrEqual(1.0001);
@@ -100,7 +192,15 @@ describe("simulateDeck (goldfish)", () => {
       cards.set(id, c);
       entries.push({ oracle_id: id, qty });
     };
-    put("land", card({ oracle_id: "land", name: "Forest", type_line: "Basic Land — Forest" }), 36);
+    put(
+      "land",
+      card({
+        oracle_id: "land",
+        name: "Forest",
+        type_line: "Basic Land — Forest",
+      }),
+      36,
+    );
     // A 1mv rock: accel AND fast mana (Sol Ring-shaped), by role — the name is deliberately unhelpful.
     put(
       "rock",
@@ -115,7 +215,12 @@ describe("simulateDeck (goldfish)", () => {
     // Expensive payoffs: no accel role, mv 7.
     put(
       "bomb",
-      card({ oracle_id: "bomb", name: "Big Dragon", mv: 7, type_line: "Creature — Dragon" }),
+      card({
+        oracle_id: "bomb",
+        name: "Big Dragon",
+        mv: 7,
+        type_line: "Creature — Dragon",
+      }),
       53,
     );
     const lookup: CardLookup = (id) => cards.get(id) ?? null;
@@ -140,8 +245,14 @@ describe("simulateDeck (goldfish)", () => {
   it("a land-light deck mulligans more and is more dead-on-arrival than a balanced one", () => {
     const balanced = fixture(38, 61);
     const landLight = fixture(12, 87);
-    const b = simulateDeck(balanced.entries, balanced.lookup, { trials: 500, seed: 11 });
-    const l = simulateDeck(landLight.entries, landLight.lookup, { trials: 500, seed: 11 });
+    const b = simulateDeck(balanced.entries, balanced.lookup, {
+      trials: 500,
+      seed: 11,
+    });
+    const l = simulateDeck(landLight.entries, landLight.lookup, {
+      trials: 500,
+      seed: 11,
+    });
     expect(l.keepable_rate).toBeLessThan(b.keepable_rate);
     expect(l.dead_on_arrival_rate).toBeGreaterThan(b.dead_on_arrival_rate);
   });

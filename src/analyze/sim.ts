@@ -1,5 +1,5 @@
 /**
- * Monte Carlo goldfish simulator (spec §5D, review #8/#13) — pure + deterministic.
+ * Seeded opening-hand heuristics and bounded exact mana payment — pure + deterministic.
  *
  * Answers "how consistent is this deck's start?" by shuffling and drawing many
  * times: opening-hand keepable / mulligan / dead-on-arrival rates, average
@@ -10,14 +10,18 @@
  * byte-identical output (spec §11 determinism); advisory only.
  *
  * Scope (honest boundary): this is a MANA / CURVE goldfish — hand quality and
- * castability under a one-land-per-turn assumption. It does NOT model combat,
+ * castability under a declared bounded source-development policy. It does NOT model combat,
  * the stack, interaction, or expected damage/turn-to-win; those need a far richer
  * engine and are explicitly out of scope here.
  */
 import type { Card, DeckCardEntry } from "../types/index.js";
 import type { CardLookup } from "./stats.js";
+import { modelDeckMana, type ManaModelOptions } from "./manaModel.js";
+import { sequenceMana, type SequenceCard, type ManaSequenceOptions } from "./manaSequence.js";
 
-export interface SimOptions {
+export interface SimOptions extends ManaModelOptions {
+  /** Per-trial sequencing work cap (1..50000), within a total 2,000,000-unit cap. */
+  maxWork?: number;
   /** Number of simulated games (default 1000). */
   trials?: number;
   /** PRNG seed — same seed + deck ⇒ identical result (default 1). */
@@ -49,6 +53,20 @@ export type HandScenario =
 
 export interface SimResult {
   trials: number;
+  requested_trials: number;
+  sequencing: {
+    basis: "bounded_mana_policy";
+    completed_trials: number;
+    metrics_available: boolean;
+    unsupported_trials: number;
+    truncated_trials: number;
+    unprocessed_trials: number;
+    work: number;
+    max_total_work: number;
+    assumptions: string[];
+  };
+  hand_quality_basis: "legacy_land_and_role_heuristic";
+  mana_model: ReturnType<typeof modelDeckMana>;
   /** Fraction of opening hands with a keepable land count (2..5). */
   keepable_rate: number;
   /** 1 - keepable_rate. */
@@ -63,7 +81,7 @@ export interface SimResult {
   scenarios: Record<HandScenario, number>;
   /** Average lands in play at the end of each turn (1..maxTurns). */
   lands_by_turn: Record<number, number>;
-  /** Fraction of games that cast at least one spell within maxTurns. */
+  /** Fraction of completed bounded trials with a supported paid spell; not a win-rate estimate. */
   first_spell_rate: number;
   /** Average turn the first spell was cast, over games that cast one (null if none did). */
   avg_turn_to_first_spell: number | null;
@@ -164,22 +182,35 @@ export function simulateDeck(
   lookup: CardLookup,
   opts: SimOptions = {},
 ): SimResult {
-  const trials = opts.trials ?? 1000;
-  const seed = opts.seed ?? 1;
-  const handSize = opts.handSize ?? 7;
+  const trials = boundedInteger(opts.trials, 1000, 1, 100000, "trials");
+  const seed = boundedInteger(
+    opts.seed,
+    1,
+    -Number.MAX_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER,
+    "seed",
+  );
+  const handSize = boundedInteger(opts.handSize, 7, 1, 20, "handSize");
   const onThePlay = opts.onThePlay ?? true;
-  const maxTurns = opts.maxTurns ?? 10;
-
-  // The library = each entry's card expanded by quantity (commanders excluded —
-  // they live in the command zone, not the deck you draw from). Unknown cards
-  // are skipped (can't classify them).
-  const library: LibraryCard[] = [];
-  for (const entry of entries) {
-    const card = lookup(entry.oracle_id);
-    if (!card) continue;
-    const lib = classifyLibraryCard(card);
-    for (let i = 0; i < entry.qty; i += 1) library.push({ ...lib });
-  }
+  const maxTurns = boundedInteger(opts.maxTurns, 10, 1, 50, "maxTurns");
+  const maxWork = boundedInteger(opts.maxWork, 5000, 1, 50000, "maxWork");
+  const prepared = prepareManaLibrary(entries, lookup, opts);
+  const library = prepared.library.map((physical) => {
+    const card = lookup(physical.model?.oracle_id ?? prepared.oracleIds.get(physical.id) ?? "");
+    return {
+      ...physical,
+      shape: card
+        ? classifyLibraryCard(card)
+        : { mv: 0, isLand: false, isAccel: false, isFastMana: false },
+    };
+  });
+  const maxTotalWork = 2000000;
+  let work = 0,
+    completed = 0,
+    unsupported = 0,
+    truncated = 0,
+    processed = 0;
+  let sequenceAssumptions: string[] = [];
 
   const rng = mulberry32(seed);
   let keepable = 0;
@@ -192,11 +223,12 @@ export function simulateDeck(
   const scenarioCount = new Map<HandScenario, number>();
 
   for (let t = 0; t < trials; t += 1) {
+    if (work >= maxTotalWork) break;
     const deck = library.slice();
     shuffle(deck, rng);
 
-    const hand = deck.slice(0, handSize);
-    let drawIndex = handSize; // next card to be drawn from the top of `deck`
+    const hand = deck.slice(0, handSize).map((c) => c.shape);
+    processed += 1;
 
     const openingLands = hand.reduce((n, c) => n + (c.isLand ? 1 : 0), 0);
     openingLandSum += openingLands;
@@ -206,56 +238,155 @@ export function simulateDeck(
     const scenario = classifyHand(hand);
     scenarioCount.set(scenario, (scenarioCount.get(scenario) ?? 0) + 1);
 
-    // Play out turns: draw 1 (except turn 1 on the play), play ≤1 land/turn from
-    // hand, and note the first turn a nonland is castable (mv ≤ lands in play).
-    let landsInPlay = 0;
-    let firstSpellTurn = 0;
-    for (let turn = 1; turn <= maxTurns; turn += 1) {
-      if (!(onThePlay && turn === 1) && drawIndex < deck.length) {
-        hand.push(deck[drawIndex]!);
-        drawIndex += 1;
-      }
-      const landIdx = hand.findIndex((c) => c.isLand);
-      if (landIdx >= 0) {
-        hand.splice(landIdx, 1);
-        landsInPlay += 1;
-      }
-      landsByTurnSum[turn]! += landsInPlay;
-      if (firstSpellTurn === 0 && landsInPlay >= 1) {
-        const castable = hand.some((c) => !c.isLand && c.mv <= landsInPlay);
-        if (castable) firstSpellTurn = turn;
-      }
+    const sequence = sequenceMana(deck, [], {
+      handSize,
+      onThePlay,
+      maxTurns,
+      maxWork: Math.min(maxWork, maxTotalWork - work),
+    });
+    work += Math.max(1, sequence.work);
+    sequenceAssumptions = sequence.assumptions;
+    if (sequence.status === "truncated") {
+      truncated += 1;
+      continue;
     }
-    if (firstSpellTurn > 0) {
+    if (sequence.status === "unsupported") {
+      unsupported += 1;
+      continue;
+    }
+    completed += 1;
+    for (const turn of sequence.turns) landsByTurnSum[turn.turn]! += turn.lands_in_play;
+    if (sequence.first_spell_turn !== null) {
       firstSpellGames += 1;
-      firstSpellTurnSum += firstSpellTurn;
+      firstSpellTurnSum += sequence.first_spell_turn;
     }
   }
 
   const lands_by_turn: Record<number, number> = {};
   for (let turn = 1; turn <= maxTurns; turn += 1) {
-    lands_by_turn[turn] = round3(landsByTurnSum[turn]! / trials);
+    lands_by_turn[turn] = round3(landsByTurnSum[turn]! / Math.max(1, completed));
   }
 
   const opening_land_distribution: Record<number, number> = {};
   for (let i = 0; i <= handSize; i += 1) {
-    opening_land_distribution[i] = round3(landDistCount[i]! / trials);
+    opening_land_distribution[i] = round3(landDistCount[i]! / Math.max(1, processed));
   }
   const scenarios = Object.fromEntries(
-    SCENARIOS.map((s) => [s, round3((scenarioCount.get(s) ?? 0) / trials)]),
+    SCENARIOS.map((s) => [s, round3((scenarioCount.get(s) ?? 0) / Math.max(1, processed))]),
   ) as Record<HandScenario, number>;
 
   return {
-    trials,
-    keepable_rate: round3(keepable / trials),
-    mulligan_rate: round3(1 - keepable / trials),
-    dead_on_arrival_rate: round3(doa / trials),
-    avg_opening_lands: round3(openingLandSum / trials),
+    trials: processed,
+    requested_trials: trials,
+    sequencing: {
+      basis: "bounded_mana_policy",
+      completed_trials: completed,
+      metrics_available: completed > 0,
+      unsupported_trials: unsupported,
+      truncated_trials: truncated,
+      unprocessed_trials: trials - processed,
+      work,
+      max_total_work: maxTotalWork,
+      assumptions: [
+        ...sequenceAssumptions,
+        "Casting and land averages use completed sequencing trials only; truncation and unsupported trials are excluded, never a success or proof of failure. If metrics_available is false, numeric zero fields are compatibility placeholders, not measurements.",
+        "Opening-hand rates use processed initial hands. Keep/mulligan labels are land/role heuristics; no redraw or bottoming is performed.",
+      ],
+    },
+    hand_quality_basis: "legacy_land_and_role_heuristic",
+    mana_model: prepared.manaModel,
+    keepable_rate: round3(keepable / Math.max(1, processed)),
+    mulligan_rate: round3(processed ? 1 - keepable / processed : 0),
+    dead_on_arrival_rate: round3(doa / Math.max(1, processed)),
+    avg_opening_lands: round3(openingLandSum / Math.max(1, processed)),
     opening_land_distribution,
     scenarios,
     lands_by_turn,
-    first_spell_rate: round3(firstSpellGames / trials),
+    first_spell_rate: round3(firstSpellGames / Math.max(1, completed)),
     avg_turn_to_first_spell:
       firstSpellGames > 0 ? round3(firstSpellTurnSum / firstSpellGames) : null,
+  };
+}
+
+function boundedInteger(
+  value: number | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+  name: string,
+): number {
+  const resolved = value ?? fallback;
+  if (!Number.isSafeInteger(resolved) || resolved < min || resolved > max)
+    throw new RangeError(`${name} must be an integer in ${min}..${max}.`);
+  return resolved;
+}
+
+/** Quantity checks precede model construction and physical expansion. Unknown cards stay in the library. */
+export function prepareManaLibrary(
+  entries: readonly DeckCardEntry[],
+  lookup: CardLookup,
+  options: ManaModelOptions = {},
+  prefix = "library",
+) {
+  if (
+    entries.length > 512 ||
+    entries.some((e) => !Number.isSafeInteger(e.qty) || e.qty < 1) ||
+    entries.reduce((n, e) => n + e.qty, 0) > 512
+  )
+    throw new RangeError("Mana sequencing supports at most 512 positive-quantity physical cards.");
+  const manaModel = modelDeckMana(entries, lookup, options);
+  const library: SequenceCard[] = [];
+  const oracleIds = new Map<string, string>();
+  for (const [rowIndex, row] of manaModel.cards.entries()) {
+    for (let copy = 0; copy < row.qty; copy += 1) {
+      const id = `${prefix}:${rowIndex}:${copy}`;
+      library.push({ id, model: row.model });
+      oracleIds.set(id, row.oracle_id);
+    }
+  }
+  return { library, manaModel, oracleIds };
+}
+
+/** One seeded scenario with replay evidence, separate from aggregate opening-hand heuristics. */
+export function simulateManaSequence(
+  entries: readonly DeckCardEntry[],
+  commanders: readonly string[],
+  lookup: CardLookup,
+  options: ManaSequenceOptions & ManaModelOptions & { seed?: number } = {},
+) {
+  const prepared = prepareManaLibrary(entries, lookup, options);
+  const command = prepareManaLibrary(
+    commanders.map((oracle_id) => ({ oracle_id, qty: 1 })),
+    lookup,
+    options,
+    "command",
+  );
+  const seed = boundedInteger(
+    options.seed,
+    1,
+    -Number.MAX_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER,
+    "seed",
+  );
+  const library = prepared.library.slice();
+  shuffle(library, mulberry32(seed));
+  const sequenceOptions: ManaSequenceOptions = {
+    handSize: options.handSize ?? 7,
+    maxTurns: options.maxTurns ?? 10,
+    onThePlay: options.onThePlay ?? true,
+    maxWork: options.maxWork ?? 5000,
+    ...(options.target ? { target: options.target } : {}),
+  };
+  return {
+    seed,
+    library_order: library.map((card) => card.id),
+    physical_cards: [...prepared.oracleIds, ...command.oracleIds].map(([id, oracle_id]) => ({
+      id,
+      oracle_id,
+    })),
+    sequence_options: sequenceOptions,
+    sequence: sequenceMana(library, command.library, sequenceOptions),
+    mana_model: prepared.manaModel,
+    command_zone_mana_model: command.manaModel,
   };
 }
