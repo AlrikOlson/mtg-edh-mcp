@@ -1,0 +1,189 @@
+{
+  "version": "engine-source-baseline-v1",
+  "measured_at": "2026-09-09",
+  "status": "known-failures-not-release-qualified",
+  "mission": "docs/ENGINE-CHARTER.md",
+  "native_chunk": "engine-mvp-baseline",
+  "mcp": {
+    "commit": "065150592fa30b1a062438c436ffed41b40bd40f",
+    "node": "24.14.0",
+    "checks": {
+      "typecheck": "passed",
+      "tests": {
+        "passed": 1425,
+        "skipped": 1,
+        "files": 119
+      },
+      "lint_and_format": "passed"
+    },
+    "note": "Measured before adding this baseline fixture; subsequent checks belong to its atomic commit and native ship record."
+  },
+  "engine": {
+    "commit": "b2d90180ab3f30a95eae5e8b5a99948686131fa8",
+    "cargo_lock_git_object": "3ef48a966e0b6f44b5508e202f4c03831a7bba57",
+    "original_source": "/Users/alrik/Code/mtg-game-engine",
+    "isolated_worktree": "/tmp/mtg-engine-mvp-baseline-20260909-qFp4lr/source",
+    "isolation": {
+      "method": "git worktree add --detach <isolated_worktree> b2d90180ab3f30a95eae5e8b5a99948686131fa8",
+      "clean_before": true,
+      "clean_after": true,
+      "original_status_unchanged": true,
+      "exclusions": "All pre-existing tracked modifications and untracked files in the original engine checkout were excluded; no production source or lockfile was copied or changed."
+    },
+    "toolchain": {
+      "rustc": "1.95.0 (59807616e 2026-04-14)",
+      "cargo": "1.95.0 (f2d3ce0bd 2026-03-21)",
+      "rustfmt": "rustfmt 1.9.0-stable (59807616e1 2026-04-14)",
+      "clippy": "clippy 0.1.95 (59807616e1 2026-04-14)",
+      "host": "aarch64-apple-darwin"
+    },
+    "environment": {
+      "CARGO_TARGET_DIR": "/tmp/mtg-engine-mvp-baseline-20260909-qFp4lr/target",
+      "CARGO_BUILD_JOBS": "4",
+      "dependency_cache": "already populated; offline locked commands",
+      "target_directory": "new isolated build directory"
+    },
+    "host": {
+      "cpu": "Apple M5 Max",
+      "logical_cpus": 18,
+      "memory_bytes": 51539607552,
+      "os": "macOS 26.5.2",
+      "os_build": "25F84"
+    },
+    "checks": [
+      {
+        "argv": ["cargo", "check", "--locked", "--offline", "-p", "mtg-engine"],
+        "started_at": "2026-09-09T18:10:09.416353+00:00",
+        "finished_at": "2026-09-09T18:10:20.685012+00:00",
+        "duration_seconds": 11.269,
+        "exit_code": 0,
+        "log": "/tmp/mtg-engine-mvp-baseline-20260909-qFp4lr/06-cargo-check.log"
+      },
+      {
+        "argv": ["cargo", "test", "--locked", "--offline", "-p", "mtg-engine", "--lib", "--tests"],
+        "started_at": "2026-09-09T18:10:20.686724+00:00",
+        "finished_at": "2026-09-09T18:10:43.572567+00:00",
+        "duration_seconds": 22.872,
+        "exit_code": 0,
+        "log": "/tmp/mtg-engine-mvp-baseline-20260909-qFp4lr/07-cargo-test.log"
+      },
+      {
+        "argv": ["cargo", "check", "--locked", "--offline", "-p", "mtg-cli"],
+        "started_at": "2026-09-09T18:11:26.699692+00:00",
+        "finished_at": "2026-09-09T18:11:40.404799+00:00",
+        "duration_seconds": 13.705,
+        "exit_code": 0,
+        "log": "/tmp/mtg-engine-mvp-baseline-20260909-qFp4lr/10-cargo-cli-check.log"
+      },
+      {
+        "argv": ["cargo", "test", "--locked", "--offline", "-p", "mtg-engine", "--doc"],
+        "started_at": "2026-09-09T18:11:40.405564+00:00",
+        "finished_at": "2026-09-09T18:11:43.750767+00:00",
+        "duration_seconds": 3.345,
+        "exit_code": 101,
+        "log": "/tmp/mtg-engine-mvp-baseline-20260909-qFp4lr/11-doc-tests.log"
+      },
+      {
+        "argv": ["cargo", "fmt", "-p", "mtg-engine", "--", "--check"],
+        "started_at": "2026-09-09T18:13:01.392638+00:00",
+        "finished_at": "2026-09-09T18:13:01.660875+00:00",
+        "duration_seconds": 0.268,
+        "exit_code": 0,
+        "log": "/tmp/mtg-engine-mvp-baseline-20260909-qFp4lr/16-engine-fmt.log"
+      },
+      {
+        "argv": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "--offline",
+          "--no-default-features",
+          "-p",
+          "mtg-engine",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "started_at": "2026-09-09T18:13:01.661480+00:00",
+        "finished_at": "2026-09-09T18:13:10.996111+00:00",
+        "duration_seconds": 9.335,
+        "exit_code": 101,
+        "log": "/tmp/mtg-engine-mvp-baseline-20260909-qFp4lr/17-engine-clippy.log"
+      }
+    ],
+    "tests": {
+      "unit": 1136,
+      "integration": 139,
+      "integration_targets": 25,
+      "passed": 1275,
+      "failed": 0,
+      "ignored": 2,
+      "ignored_tests": [
+        "rollout::tests::rollout_throughput: ad-hoc release throughput benchmark",
+        "clone_benchmark: ad-hoc release clone benchmark"
+      ]
+    },
+    "documentation_tests": {
+      "passed": 102,
+      "failed": 5,
+      "ignored": 0,
+      "failures": [
+        {
+          "example": "crates/mtg-engine/src/events/trigger.rs - events::trigger::TriggeredAbility (line 248)",
+          "diagnostic": "error[E0603]: module `trigger` is private"
+        },
+        {
+          "example": "crates/mtg-engine/src/events/trigger.rs - events::trigger::TriggerCondition (line 30)",
+          "diagnostic": "error[E0433]: cannot find type `CardFilter` in this scope"
+        },
+        {
+          "example": "crates/mtg-engine/src/events/event_bus.rs - events::event_bus::EventBus (line 84)",
+          "diagnostic": "error[E0603]: module `trigger` is private"
+        },
+        {
+          "example": "crates/mtg-engine/src/counters/counter_map.rs - counters::counter_map::CounterMap (line 21)",
+          "diagnostic": "error[E0603]: module `game_event` is private"
+        },
+        {
+          "example": "crates/mtg-engine/src/resolution/mod.rs - resolution::resolve_top (line 84)",
+          "diagnostic": "Runtime panic: InsufficientMana"
+        }
+      ]
+    },
+    "strict_clippy": {
+      "passed": false,
+      "duration_seconds": 9.335,
+      "exit_code": 101,
+      "diagnostic": "clippy::unnecessary_sort_by promoted to error by -D warnings",
+      "source": "crates/mtg-engine/src/turn/search_agent.rs:132",
+      "scope": "--all-targets --no-default-features",
+      "limit": "Compilation stopped on the reported lint; this does not prove no other lints remain."
+    },
+    "limits": [
+      "One local macOS ARM64 run; wall times include compilation and are not engine simulation throughput measurements.",
+      "Offline dependency cache was already populated; build artifacts were isolated in a new target directory.",
+      "No production source, Cargo.lock, original dirty files or untracked files were changed.",
+      "Desktop/Tauri, release-mode and ignored benchmarks were not run.",
+      "Unit/integration tests and scoped fmt pass, but doctests and strict clippy fail; the complete scoped release gate is not green."
+    ]
+  },
+  "release_blockers": [
+    {
+      "owner": "engine-mvp-source",
+      "requirement": "Resolve all five documentation-test failures and all strict Clippy failures in the canonical source, then run the complete scoped engine check/test/doc/fmt/clippy gates before pinning the integrated release source."
+    },
+    {
+      "owner": "engine-mvp-source",
+      "requirement": "Record the canonical integration location and preserve source history/licensing. Port or move existing implementations once; do not establish a second rules engine."
+    },
+    {
+      "owner": "engine-mvp-catalog",
+      "requirement": "Capture the seven generated token definitions and pin applicable rules/keyword evidence; related token references alone do not certify runtime semantics."
+    },
+    {
+      "owner": "engine-mvp-release",
+      "requirement": "Run the preregistered corpus, replay, resource, install and performance qualification; the existing test count is not Commander or card-corpus coverage."
+    }
+  ]
+}
