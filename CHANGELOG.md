@@ -6,6 +6,12 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `card_mechanics` (45 tools total): read-time extraction of a declared
+  catalog of triggers, costs, effects and permissions with exact Oracle
+  evidence spans, subject and condition, explicit/inferred provenance and
+  extractor version; unmodeled and uncertain text is reported, never guessed.
+  Shared role evidence overlays deck corrections; legality is never evaluated.
+  A 164-case annotated corpus with a pinned holdout gates precision at 0.95.
 - Accept the advertised `ci` color-identity query alias. Real host traces exposed
   repeated failures on `ci<=r`; regression tests now execute the server's own
   recovery examples against the index.

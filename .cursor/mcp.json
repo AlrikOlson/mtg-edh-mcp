@@ -1,11 +1,7 @@
 {
   "mcpServers": {
     "ministr": {
-      "args": [
-        "serve",
-        "--transport",
-        "stdio"
-      ],
+      "args": ["serve", "--transport", "stdio"],
       "command": "ministr"
     }
   }

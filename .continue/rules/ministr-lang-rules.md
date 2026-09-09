@@ -13,4 +13,3 @@ Auto-generated rules based on detected project languages.
 - Export types alongside values; prefer named exports over default exports
 - Use `zod` or similar for runtime validation at API boundaries
 - Place tests next to source files (`foo.test.ts`) or in `__tests__/`
-

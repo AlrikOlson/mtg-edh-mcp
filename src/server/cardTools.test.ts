@@ -122,10 +122,11 @@ afterEach(async () => {
 });
 
 describe("card tools registration", () => {
-  it("registers the four card tools + collection tools + data tools + ping", async () => {
+  it("registers the four card tools + card_mechanics + collection tools + data tools + ping", async () => {
     const names = (await client.listTools()).tools.map((t) => t.name).sort();
     expect(names).toEqual([
       "card_get",
+      "card_mechanics",
       "card_printings",
       "card_resolve_name",
       "card_search",

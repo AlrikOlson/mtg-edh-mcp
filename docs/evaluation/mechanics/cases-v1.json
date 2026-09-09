@@ -1,0 +1,4218 @@
+{
+  "version": "mechanics-v1",
+  "subject_conventions": {
+    "controller": "The card's controller's resources or action, including imperative spell text (\"Draw a card\").",
+    "opponent": "An opponent's resources or action (\"each opponent\", \"each other player\", \"an opponent casts\").",
+    "each_player": "All players symmetrically (\"each player\").",
+    "target_player": "A targeted player.",
+    "any_player": "No player restriction is stated (\"whenever a creature dies\", \"any target\", \"target creature\").",
+    "self": "The card itself (\"When ~ enters\", \"Sacrifice ~\", \"{T}\").",
+    "unknown": "A player determined only at resolution (\"its controller\", \"that player\")."
+  },
+  "sources": {
+    "authorship": "Cases and annotations authored for this project on 2026-09-08 from a reading of each text, using the conventions above; annotations were written before scoring and independently of extractor output.",
+    "text_provenance": "Oracle-style texts follow printed Commander-legal cards as remembered by the author and were not fetched from a live Scryfall snapshot; a few cases are synthetic minimal-pair texts and carry names that are not printed cards. Exact wording may differ from current Oracle text.",
+    "annotation_protocol": "expect: assertions that must be produced (pattern, subject, condition, optional face). reject: assertions that count as false positives anywhere. complete: every produced supported annotation must match an expectation. expect_unmodeled / expect_uncertain: at least one span with that status must be reported.",
+    "holdout_policy": "Holdout cases are frozen: the test pins the sha256 of the holdout subset. Extractor changes may be motivated only by calibration failures; a changed holdout digest must be justified in review as an annotation correction, never as tuning.",
+    "limitations": [
+      "Precision is measured on the extractor's own supported catalog; unsupported behavior is reported, not scored as correct.",
+      "Synthetic minimal pairs test contrasts the extractor must respect and are labeled by non-printed names.",
+      "Texts are not a live Oracle corpus; production behavior on current Scryfall wording may differ.",
+      "No rules interpretation, playability or synergy quality is claimed by any annotation."
+    ]
+  },
+  "cases": [
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "sol-ring",
+      "name": "Sol Ring",
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add {C}{C}.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "llanowar-elves",
+      "name": "Llanowar Elves",
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "{T}: Add {G}.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.sacrifice"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "ashnods-altar",
+      "name": "Ashnod's Altar",
+      "type_line": "Artifact",
+      "oracle_text": "Sacrifice a creature: Add {C}{C}.",
+      "expect": [
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "notes": "Sacrifice outlet: the sacrifice is a cost, not a payoff."
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "cost.sacrifice_permanent"
+        },
+        {
+          "pattern": "cost.sacrifice_self"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "mayhem-devil",
+      "name": "Mayhem Devil",
+      "type_line": "Creature — Devil",
+      "oracle_text": "Whenever a player sacrifices a permanent, Mayhem Devil deals 1 damage to any target.",
+      "expect": [
+        {
+          "pattern": "trigger.sacrifice",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ],
+      "notes": "Sacrifice payoff: no cost is paid."
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "target_player"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "blood-artist",
+      "name": "Blood Artist",
+      "type_line": "Creature — Vampire",
+      "oracle_text": "Whenever Blood Artist or another creature dies, target player loses 1 life and you gain 1 life.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "target_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "zulaport-cutthroat",
+      "name": "Zulaport Cutthroat",
+      "type_line": "Creature — Human Rogue Ally",
+      "oracle_text": "Whenever Zulaport Cutthroat or another creature you control dies, each opponent loses 1 life and you gain 1 life.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.sacrifice"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "viscera-seer",
+      "name": "Viscera Seer",
+      "type_line": "Creature — Vampire Wizard",
+      "oracle_text": "Sacrifice a creature: Scry 1.",
+      "expect": [
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.scry",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "cost.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "mind-stone",
+      "name": "Mind Stone",
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice Mind Stone: Draw a card.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.sacrifice_self",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Equip"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "skullclamp",
+      "name": "Skullclamp",
+      "type_line": "Artifact — Equipment",
+      "oracle_text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "rhystic-study",
+      "name": "Rhystic Study",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "guttersnipe",
+      "name": "Guttersnipe",
+      "type_line": "Creature — Goblin Shaman",
+      "oracle_text": "Whenever you cast an instant or sorcery spell, Guttersnipe deals 2 damage to each opponent.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "opponent",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Haste", "Prowess"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "monastery-swiftspear",
+      "name": "Monastery Swiftspear",
+      "type_line": "Creature — Human Monk",
+      "oracle_text": "Haste\nProwess",
+      "expect": [],
+      "expect_unmodeled": true,
+      "notes": "Keyword lines carry no modeled mechanic."
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "young-pyromancer",
+      "name": "Young Pyromancer",
+      "type_line": "Creature — Human Shaman",
+      "oracle_text": "Whenever you cast an instant or sorcery spell, create a 1/1 red Elemental creature token.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Landfall", "Trample"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "rampaging-baloths",
+      "name": "Rampaging Baloths",
+      "type_line": "Creature — Beast",
+      "oracle_text": "Trample\nLandfall — Whenever a land you control enters, you may create a 4/4 green Beast creature token.",
+      "expect": [
+        {
+          "pattern": "trigger.landfall",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Landfall"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "lotus-cobra",
+      "name": "Lotus Cobra",
+      "type_line": "Creature — Snake",
+      "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color.",
+      "expect": [
+        {
+          "pattern": "trigger.landfall",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Landfall", "Investigate"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "tireless-tracker",
+      "name": "Tireless Tracker",
+      "type_line": "Creature — Human Scout",
+      "oracle_text": "Landfall — Whenever a land you control enters, investigate.\nWhenever you sacrifice a Clue, put a +1/+1 counter on Tireless Tracker.",
+      "expect": [
+        {
+          "pattern": "trigger.landfall",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "trigger.sacrifice",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "phyrexian-arena",
+      "name": "Phyrexian Arena",
+      "type_line": "Enchantment",
+      "oracle_text": "At the beginning of your upkeep, you draw a card and you lose 1 life.",
+      "expect": [
+        {
+          "pattern": "trigger.upkeep",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "soul-warden",
+      "name": "Soul Warden",
+      "type_line": "Creature — Human Cleric",
+      "oracle_text": "Whenever another creature enters, you gain 1 life.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "ajanis-pridemate",
+      "name": "Ajani's Pridemate",
+      "type_line": "Creature — Cat Soldier",
+      "oracle_text": "Whenever you gain life, put a +1/+1 counter on Ajani's Pridemate.",
+      "expect": [
+        {
+          "pattern": "trigger.lifegain",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Flying"],
+      "reject": [
+        {
+          "pattern": "trigger.draw",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "consecrated-sphinx",
+      "name": "Consecrated Sphinx",
+      "type_line": "Creature — Sphinx",
+      "oracle_text": "Flying\nWhenever an opponent draws a card, you may draw two cards.",
+      "expect": [
+        {
+          "pattern": "trigger.draw",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "lilianas-caress",
+      "name": "Liliana's Caress",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent discards a card, that player loses 2 life.",
+      "expect": [
+        {
+          "pattern": "trigger.discard",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "controller"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "opponent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "syphon-mind",
+      "name": "Syphon Mind",
+      "type_line": "Sorcery",
+      "oracle_text": "Each other player discards a card. You draw a card for each card discarded this way.",
+      "expect": [
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Flashback"],
+      "reject": [
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "opponent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "faithless-looting",
+      "name": "Faithless Looting",
+      "type_line": "Sorcery",
+      "oracle_text": "Draw two cards, then discard two cards.\nFlashback {2}{R}",
+      "expect": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "wrath-of-god",
+      "name": "Wrath of God",
+      "type_line": "Sorcery",
+      "oracle_text": "Destroy all creatures. They can't be regenerated.",
+      "expect": [
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "swords-to-plowshares",
+      "name": "Swords to Plowshares",
+      "type_line": "Instant",
+      "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
+      "expect": [
+        {
+          "pattern": "effect.exile",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "counterspell",
+      "name": "Counterspell",
+      "type_line": "Instant",
+      "oracle_text": "Counter target spell.",
+      "expect": [
+        {
+          "pattern": "effect.counter_spell",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "cultivate",
+      "name": "Cultivate",
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
+      "expect": [
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "demonic-tutor",
+      "name": "Demonic Tutor",
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a card, put that card into your hand, then shuffle.",
+      "expect": [
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "reanimate",
+      "name": "Reanimate",
+      "type_line": "Sorcery",
+      "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to its mana value.",
+      "expect": [
+        {
+          "pattern": "effect.return_from_graveyard",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "eternal-witness",
+      "name": "Eternal Witness",
+      "type_line": "Creature — Human Shaman",
+      "oracle_text": "When Eternal Witness enters, you may return target card from your graveyard to your hand.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.return_from_graveyard",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.exile_from_graveyard",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "bojuka-bog",
+      "name": "Bojuka Bog",
+      "type_line": "Land",
+      "oracle_text": "Bojuka Bog enters tapped.\nWhen Bojuka Bog enters, exile target player's graveyard.\n{T}: Add {B}.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.exile_from_graveyard",
+          "subject": "target_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.exile"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "rest-in-peace",
+      "name": "Rest in Peace",
+      "type_line": "Enchantment",
+      "oracle_text": "When Rest in Peace enters, exile all graveyards.\nIf a card or token would be put into a graveyard from anywhere, exile it instead.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.exile_from_graveyard",
+          "subject": "each_player",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "doom-blade",
+      "name": "Doom Blade",
+      "type_line": "Instant",
+      "oracle_text": "Destroy target nonblack creature.",
+      "expect": [
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "anguished-unmaking",
+      "name": "Anguished Unmaking",
+      "type_line": "Instant",
+      "oracle_text": "Exile target nonland permanent. You lose 3 life.",
+      "expect": [
+        {
+          "pattern": "effect.exile",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "lightning-bolt",
+      "name": "Lightning Bolt",
+      "type_line": "Instant",
+      "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+      "expect": [
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "toxic-deluge",
+      "name": "Toxic Deluge",
+      "type_line": "Sorcery",
+      "oracle_text": "As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.",
+      "expect": [
+        {
+          "pattern": "cost.pay_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true,
+      "notes": "Additional casting cost is a cost, not an effect."
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "controller"
+        },
+        {
+          "pattern": "cost.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "grave-pact",
+      "name": "Grave Pact",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature you control dies, each other player sacrifices a creature.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "opponent",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Flash"],
+      "reject": [
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "dictate-of-erebos",
+      "name": "Dictate of Erebos",
+      "type_line": "Enchantment",
+      "oracle_text": "Flash\nWhenever a creature you control dies, each opponent sacrifices a creature.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "opponent",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "controller"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "opponent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "fleshbag-marauder",
+      "name": "Fleshbag Marauder",
+      "type_line": "Creature — Zombie Warrior",
+      "oracle_text": "When Fleshbag Marauder enters, each player sacrifices a creature.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "each_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.create_token",
+          "subject": "opponent"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "smothering-tithe",
+      "name": "Smothering Tithe",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent draws a card, that player may pay {2}. If they don't, you create a Treasure token.",
+      "expect": [
+        {
+          "pattern": "trigger.draw",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.create_token"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "anointed-procession",
+      "name": "Anointed Procession",
+      "type_line": "Enchantment",
+      "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
+      "expect": [],
+      "expect_unmodeled": true,
+      "notes": "Replacement effect; no token creation is asserted."
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "cathars-crusade",
+      "name": "Cathars' Crusade",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature enters the battlefield under your control, put a +1/+1 counter on each creature you control.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "cost.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "sakura-tribe-elder",
+      "name": "Sakura-Tribe Elder",
+      "type_line": "Creature — Snake Shaman",
+      "oracle_text": "Sacrifice Sakura-Tribe Elder: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+      "expect": [
+        {
+          "pattern": "cost.sacrifice_self",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "burnished-hart",
+      "name": "Burnished Hart",
+      "type_line": "Artifact Creature — Elk",
+      "oracle_text": "{3}, Sacrifice Burnished Hart: Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+      "expect": [
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.sacrifice_self",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "solemn-simulacrum",
+      "name": "Solemn Simulacrum",
+      "type_line": "Artifact Creature — Golem",
+      "oracle_text": "When Solemn Simulacrum enters, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.\nWhen Solemn Simulacrum dies, you may draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "trigger.dies",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "krenko-mob-boss",
+      "name": "Krenko, Mob Boss",
+      "type_line": "Legendary Creature — Goblin Warrior",
+      "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Landfall"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "avenger-of-zendikar",
+      "name": "Avenger of Zendikar",
+      "type_line": "Creature — Elemental",
+      "oracle_text": "When Avenger of Zendikar enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "trigger.landfall",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Vigilance"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "sun-titan",
+      "name": "Sun Titan",
+      "type_line": "Creature — Giant",
+      "oracle_text": "Vigilance\nWhenever Sun Titan enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.return_from_graveyard",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Flying", "Deathtouch", "Lifelink"],
+      "reject": [
+        {
+          "pattern": "effect.gain_life"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "vampire-nighthawk",
+      "name": "Vampire Nighthawk",
+      "type_line": "Creature — Vampire Shaman",
+      "oracle_text": "Flying, deathtouch, lifelink",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "exsanguinate",
+      "name": "Exsanguinate",
+      "type_line": "Sorcery",
+      "oracle_text": "Each opponent loses X life. You gain life equal to the life lost this way.",
+      "expect": [
+        {
+          "pattern": "effect.lose_life",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "gray-merchant",
+      "name": "Gray Merchant of Asphodel",
+      "type_line": "Creature — Zombie",
+      "oracle_text": "When Gray Merchant of Asphodel enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "senseis-divining-top",
+      "name": "Sensei's Divining Top",
+      "type_line": "Artifact",
+      "oracle_text": "{1}: Look at the top three cards of your library, then put them back in any order.\n{T}: Draw a card, then put Sensei's Divining Top on top of its owner's library.",
+      "expect": [
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "aetherflux-reservoir",
+      "name": "Aetherflux Reservoir",
+      "type_line": "Artifact",
+      "oracle_text": "Whenever you cast a spell, you gain 1 life for each spell you've cast before it this turn.\nPay 50 life: Aetherflux Reservoir deals 50 damage to any target.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.pay_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Defender"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "wall-of-omens",
+      "name": "Wall of Omens",
+      "type_line": "Creature — Wall",
+      "oracle_text": "Defender\nWhen Wall of Omens enters, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Flying", "Evoke"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "mulldrifter",
+      "name": "Mulldrifter",
+      "type_line": "Creature — Elemental",
+      "oracle_text": "Flying\nWhen Mulldrifter enters, draw two cards.\nEvoke {2}{U}",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "terramorphic-expanse",
+      "name": "Terramorphic Expanse",
+      "type_line": "Land",
+      "oracle_text": "{T}, Sacrifice Terramorphic Expanse: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.sacrifice_self",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "beast-within",
+      "name": "Beast Within",
+      "type_line": "Instant",
+      "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Beast creature token.",
+      "expect": [
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "entomb",
+      "name": "Entomb",
+      "type_line": "Instant",
+      "oracle_text": "Search your library for a card, put that card into your graveyard, then shuffle.",
+      "expect": [
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "village-rites",
+      "name": "Village Rites",
+      "type_line": "Instant",
+      "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nDraw two cards.",
+      "expect": [
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "deadly-dispute",
+      "name": "Deadly Dispute",
+      "type_line": "Instant",
+      "oracle_text": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards and create a Treasure token.",
+      "expect": [
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "bitterblossom",
+      "name": "Bitterblossom",
+      "type_line": "Kindred Enchantment — Faerie",
+      "oracle_text": "At the beginning of your upkeep, you lose 1 life and create a 1/1 black Faerie Rogue creature token with flying.",
+      "expect": [
+        {
+          "pattern": "trigger.upkeep",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": false,
+      "split": "calibration",
+      "id": "howling-mine",
+      "name": "Howling Mine",
+      "type_line": "Artifact",
+      "oracle_text": "At the beginning of each player's draw step, if Howling Mine is untapped, that player draws an additional card.",
+      "expect": [
+        {
+          "pattern": "trigger.draw_step",
+          "subject": "each_player",
+          "condition": "conditional"
+        }
+      ],
+      "expect_unmodeled": true,
+      "notes": "The extra-draw wording is outside the catalog; recall gap accepted."
+    },
+    {
+      "keywords": ["Cumulative upkeep"],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "mystic-remora",
+      "name": "Mystic Remora",
+      "type_line": "Enchantment",
+      "oracle_text": "Cumulative upkeep {1}\nWhenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "kambal",
+      "name": "Kambal, Consul of Allocation",
+      "type_line": "Legendary Creature — Human Advisor",
+      "oracle_text": "Whenever an opponent casts a noncreature spell, that player loses 2 life and you gain 2 life.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "unknown",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "esper-sentinel",
+      "name": "Esper Sentinel",
+      "type_line": "Artifact Creature — Human Soldier",
+      "oracle_text": "Whenever an opponent casts their first noncreature spell each turn, draw a card unless that player pays {X}, where X is Esper Sentinel's power.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.sacrifice"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "goblin-bombardment",
+      "name": "Goblin Bombardment",
+      "type_line": "Enchantment",
+      "oracle_text": "Sacrifice a creature: Goblin Bombardment deals 1 damage to any target.",
+      "expect": [
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "woe-strider",
+      "name": "Woe Strider",
+      "type_line": "Creature — Horror",
+      "oracle_text": "When Woe Strider enters, create a 0/1 white Goat creature token.\nSacrifice another creature: Scry 1.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.scry",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "cost.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "pitiless-plunderer",
+      "name": "Pitiless Plunderer",
+      "type_line": "Creature — Human Pirate",
+      "oracle_text": "Whenever another creature you control dies, create a Treasure token.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "midnight-reaper",
+      "name": "Midnight Reaper",
+      "type_line": "Creature — Zombie Knight",
+      "oracle_text": "Whenever a nontoken creature you control dies, Midnight Reaper deals 1 damage to you and you draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "beast-whisperer",
+      "name": "Beast Whisperer",
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "Whenever you cast a creature spell, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "impact-tremors",
+      "name": "Impact Tremors",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature enters the battlefield under your control, Impact Tremors deals 1 damage to each opponent.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "opponent",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "cost.pay_life"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "hallowed-fountain",
+      "name": "Hallowed Fountain",
+      "type_line": "Land — Plains Island",
+      "oracle_text": "As Hallowed Fountain enters, you may pay 2 life. If you don't, it enters tapped.\n{T}: Add {W} or {U}.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "command-tower",
+      "name": "Command Tower",
+      "type_line": "Land",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "reliquary-tower",
+      "name": "Reliquary Tower",
+      "type_line": "Land",
+      "oracle_text": "You have no maximum hand size.\n{T}: Add {C}.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.attacks"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "ghostly-prison",
+      "name": "Ghostly Prison",
+      "type_line": "Enchantment",
+      "oracle_text": "Creatures can't attack you or planeswalkers you control unless their controller pays {2} for each of those creatures.",
+      "expect": [],
+      "expect_unmodeled": true,
+      "notes": "Static restriction, not an attack trigger."
+    },
+    {
+      "keywords": ["Extort"],
+      "reject": [
+        {
+          "pattern": "trigger.enters_battlefield"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "blind-obedience",
+      "name": "Blind Obedience",
+      "type_line": "Enchantment",
+      "oracle_text": "Extort\nArtifacts and creatures your opponents control enter tapped.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "mentor-of-the-meek",
+      "name": "Mentor of the Meek",
+      "type_line": "Creature — Human Soldier",
+      "oracle_text": "Whenever another creature with power 2 or less enters the battlefield under your control, you may pay {1}. If you do, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "windfall",
+      "name": "Windfall",
+      "type_line": "Sorcery",
+      "oracle_text": "Each player discards their hand, then draws cards equal to the greatest number of cards a player discarded this way.",
+      "expect": [
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "each_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "each_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "dark-ritual",
+      "name": "Dark Ritual",
+      "type_line": "Instant",
+      "oracle_text": "Add {B}{B}{B}.",
+      "expect": [
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "natures-lore",
+      "name": "Nature's Lore",
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+      "expect": [
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "kolaghans-command",
+      "name": "Kolaghan's Command",
+      "type_line": "Instant",
+      "oracle_text": "Choose two —\n• Return target creature card from your graveyard to your hand.\n• Target player discards a card.\n• Destroy target artifact.\n• Kolaghan's Command deals 2 damage to any target.",
+      "expect": [
+        {
+          "pattern": "effect.return_from_graveyard",
+          "subject": "controller",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "target_player",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "any_player",
+          "condition": "conditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "elspeth-suns-champion",
+      "name": "Elspeth, Sun's Champion",
+      "type_line": "Legendary Planeswalker — Elspeth",
+      "oracle_text": "+1: Create three 1/1 white Soldier creature tokens.\n−3: Destroy all creatures with power 4 or greater.\n−7: You get an emblem with \"Creatures you control get +2/+2 and have flying.\"",
+      "expect": [
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_uncertain": true,
+      "notes": "Loyalty costs are outside the cost catalog and are reported as uncertain."
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "fabled-passage",
+      "name": "Fabled Passage",
+      "type_line": "Land",
+      "oracle_text": "{T}, Sacrifice Fabled Passage: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.sacrifice_self",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Haste"],
+      "reject": [],
+      "complete": false,
+      "split": "calibration",
+      "id": "hellrider",
+      "name": "Hellrider",
+      "type_line": "Creature — Devil",
+      "oracle_text": "Haste\nWhenever a creature you control attacks, Hellrider deals 1 damage to the player or planeswalker it's attacking.",
+      "expect": [
+        {
+          "pattern": "trigger.attacks",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "fecundity",
+      "name": "Fecundity",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature dies, that creature's controller may draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "sanguine-bond",
+      "name": "Sanguine Bond",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever you gain life, target opponent loses that much life.",
+      "expect": [
+        {
+          "pattern": "trigger.lifegain",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "opponent",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "walking-ballista",
+      "name": "Walking Ballista",
+      "type_line": "Artifact Creature — Construct",
+      "oracle_text": "Walking Ballista enters with X +1/+1 counters on it.\n{4}: Put a +1/+1 counter on Walking Ballista.\nRemove a +1/+1 counter from Walking Ballista: It deals 1 damage to any target.",
+      "expect": [
+        {
+          "pattern": "effect.enters_with_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.remove_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "nights-whisper",
+      "name": "Night's Whisper",
+      "type_line": "Sorcery",
+      "oracle_text": "You draw two cards and you lose 2 life.",
+      "expect": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "conditional-token-payoff",
+      "name": "Token Mourner",
+      "type_line": "Creature — Spirit",
+      "oracle_text": "Whenever a creature you control dies, if it was a token, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "controller",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "notes": "Intervening-if makes the whole ability conditional."
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "unconditional-token-payoff",
+      "name": "Token Watcher",
+      "type_line": "Creature — Spirit",
+      "oracle_text": "Whenever a creature you control dies, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "sorcery-speed-outlet",
+      "name": "Patient Forge",
+      "type_line": "Artifact",
+      "oracle_text": "{2}, {T}: Create a 1/1 colorless Servo artifact creature token. Activate only as a sorcery.",
+      "expect": [
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "notes": "A timing restriction sentence conditions the whole ability, costs included (same convention as the holdout twin)."
+    },
+    {
+      "keywords": ["Enchant creature"],
+      "reject": [
+        {
+          "pattern": "trigger.deals_damage"
+        },
+        {
+          "pattern": "effect.gain_life"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "granted-trigger-aura",
+      "name": "Spirit Link Charm",
+      "type_line": "Enchantment — Aura",
+      "oracle_text": "Enchant creature\nEnchanted creature has \"Whenever this creature deals damage, you gain that much life.\"",
+      "expect": [],
+      "expect_uncertain": true,
+      "notes": "Granted ability text belongs to the enchanted creature."
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "calibration",
+      "id": "unknown-trigger-event",
+      "name": "Dice Gambler",
+      "type_line": "Creature — Goblin",
+      "oracle_text": "Whenever you roll a die, draw a card.",
+      "expect": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_uncertain": true,
+      "notes": "Dice rolling is not a recognized trigger event."
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.discard",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "calibration",
+      "id": "opponent-discard-trigger-bearer",
+      "name": "Raven's Crime Watcher",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent discards a land card, you draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.discard",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.create_token"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "parallel-lives",
+      "name": "Parallel Lives",
+      "type_line": "Enchantment",
+      "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.create_token"
+        },
+        {
+          "pattern": "effect.put_counters"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "doubling-season",
+      "name": "Doubling Season",
+      "type_line": "Enchantment",
+      "oracle_text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.put_counters"
+        },
+        {
+          "pattern": "trigger.counters_placed"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "hardened-scales",
+      "name": "Hardened Scales",
+      "type_line": "Enchantment",
+      "oracle_text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.sacrifice"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "phyrexian-altar",
+      "name": "Phyrexian Altar",
+      "type_line": "Artifact",
+      "oracle_text": "Sacrifice a creature: Add one mana of any color.",
+      "expect": [
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "carrion-feeder",
+      "name": "Carrion Feeder",
+      "type_line": "Creature — Zombie",
+      "oracle_text": "Carrion Feeder can't block.\nWhenever a creature dies, you may put a +1/+1 counter on Carrion Feeder.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Flying"],
+      "reject": [
+        {
+          "pattern": "cost.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "korvold",
+      "name": "Korvold, Fae-Cursed King",
+      "type_line": "Legendary Creature — Dragon Noble",
+      "oracle_text": "Flying\nWhenever Korvold, Fae-Cursed King enters or attacks, sacrifice another permanent.\nWhenever you sacrifice a permanent, put a +1/+1 counter on Korvold and draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "trigger.sacrifice",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Deathtouch"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "prosper",
+      "name": "Prosper, Tome-Bound",
+      "type_line": "Legendary Creature — Tiefling Warlock",
+      "oracle_text": "Deathtouch\nMystic Arcanum — At the beginning of your end step, exile the top card of your library. Until end of turn, you may play that card.\nWhenever you play a card from exile, create a Treasure token.",
+      "expect": [
+        {
+          "pattern": "trigger.end_step",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.exile",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true,
+      "expect_uncertain": true
+    },
+    {
+      "keywords": ["Morph"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "grim-haruspex",
+      "name": "Grim Haruspex",
+      "type_line": "Creature — Human Wizard",
+      "oracle_text": "Morph {B}\nWhenever another nontoken creature you control dies, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Flying"],
+      "reject": [
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "butcher-of-malakir",
+      "name": "Butcher of Malakir",
+      "type_line": "Creature — Vampire Warrior",
+      "oracle_text": "Flying\nWhenever Butcher of Malakir or another creature you control dies, each opponent sacrifices a creature.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "opponent",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "reassembling-skeleton",
+      "name": "Reassembling Skeleton",
+      "type_line": "Creature — Skeleton Warrior",
+      "oracle_text": "{1}{B}: Return Reassembling Skeleton from your graveyard to the battlefield tapped.",
+      "expect": [
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.return_from_graveyard",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Landfall"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "bloodghast",
+      "name": "Bloodghast",
+      "type_line": "Creature — Vampire Spirit",
+      "oracle_text": "Bloodghast can't block.\nBloodghast has haste as long as an opponent has 10 or less life.\nLandfall — Whenever a land you control enters, you may return Bloodghast from your graveyard to the battlefield.",
+      "expect": [
+        {
+          "pattern": "trigger.landfall",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.return_from_graveyard",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "gravecrawler",
+      "name": "Gravecrawler",
+      "type_line": "Creature — Zombie",
+      "oracle_text": "Gravecrawler can't block.\nYou may cast Gravecrawler from your graveyard as long as you control a Zombie.",
+      "expect": [
+        {
+          "pattern": "permission.cast_from_graveyard",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.draw",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "minds-eye",
+      "name": "Mind's Eye",
+      "type_line": "Artifact",
+      "oracle_text": "Whenever an opponent draws a card, you may pay {1}. If you do, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.draw",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "ancient-tomb",
+      "name": "Ancient Tomb",
+      "type_line": "Land",
+      "oracle_text": "{T}: Add {C}{C}. Ancient Tomb deals 2 damage to you.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "city-of-brass",
+      "name": "City of Brass",
+      "type_line": "Land",
+      "oracle_text": "Whenever City of Brass becomes tapped, it deals 1 damage to you.\n{T}: Add one mana of any color.",
+      "expect": [
+        {
+          "pattern": "trigger.becomes_tapped",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Equip"],
+      "reject": [
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "sword-of-feast-and-famine",
+      "name": "Sword of Feast and Famine",
+      "type_line": "Artifact — Equipment",
+      "oracle_text": "Equipped creature gets +2/+2 and has protection from black and from green.\nWhenever equipped creature deals combat damage to a player, that player discards a card and you untap all lands you control.\nEquip {2}",
+      "expect": [
+        {
+          "pattern": "trigger.combat_damage_player",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Deathtouch"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "ohran-frostfang",
+      "name": "Ohran Frostfang",
+      "type_line": "Snow Creature — Snake",
+      "oracle_text": "Deathtouch\nAttacking creatures you control have deathtouch.\nWhenever a creature you control deals combat damage to a player, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.combat_damage_player",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "coastal-piracy",
+      "name": "Coastal Piracy",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature you control deals combat damage to an opponent, you may draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.combat_damage_player",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "edric",
+      "name": "Edric, Spymaster of Trest",
+      "type_line": "Legendary Creature — Elf Rogue",
+      "oracle_text": "Whenever a creature deals combat damage to one of your opponents, its controller may draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.combat_damage_player",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Indestructible"],
+      "reject": [
+        {
+          "pattern": "effect.gain_life"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "heliod-sun-crowned",
+      "name": "Heliod, Sun-Crowned",
+      "type_line": "Legendary Enchantment Creature — God",
+      "oracle_text": "Indestructible\nAs long as your devotion to white is less than five, Heliod isn't a creature.\nWhenever you gain life, put a +1/+1 counter on target creature or enchantment you control.\n{1}{W}: Another target creature gains lifelink until end of turn.",
+      "expect": [
+        {
+          "pattern": "trigger.lifegain",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "souls-attendant",
+      "name": "Soul's Attendant",
+      "type_line": "Creature — Human Cleric",
+      "oracle_text": "Whenever another creature enters, you may gain 1 life.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "well-of-lost-dreams",
+      "name": "Well of Lost Dreams",
+      "type_line": "Artifact",
+      "oracle_text": "Whenever you gain life, you may pay {X}, where X is less than or equal to the amount of life you gained. If you do, draw X cards.",
+      "expect": [
+        {
+          "pattern": "trigger.lifegain",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "exquisite-blood",
+      "name": "Exquisite Blood",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent loses life, you gain that much life.",
+      "expect": [
+        {
+          "pattern": "trigger.lose_life",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.gain_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.discard",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "waste-not",
+      "name": "Waste Not",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever an opponent discards a creature card, create a 2/2 black Zombie creature token.\nWhenever an opponent discards a land card, add {B}{B}.\nWhenever an opponent discards a noncreature, nonland card, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.discard",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.put_counters"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "winding-constrictor",
+      "name": "Winding Constrictor",
+      "type_line": "Creature — Snake",
+      "oracle_text": "If one or more counters would be put on an artifact or creature you control, that many plus one of each of those kinds of counters are put on it instead.\nIf you would get one or more counters, you get that many plus one of each of those kinds of counters instead.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Landfall", "Proliferate"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "evolution-sage",
+      "name": "Evolution Sage",
+      "type_line": "Creature — Elf Druid",
+      "oracle_text": "Landfall — Whenever a land you control enters, proliferate.",
+      "expect": [
+        {
+          "pattern": "trigger.landfall",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.proliferate",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Proliferate"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "karns-bastion",
+      "name": "Karn's Bastion",
+      "type_line": "Land",
+      "oracle_text": "{T}: Add {C}.\n{4}, {T}: Proliferate.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.proliferate",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "hangarback-walker",
+      "name": "Hangarback Walker",
+      "type_line": "Artifact Creature — Construct",
+      "oracle_text": "Hangarback Walker enters with X +1/+1 counters on it.\nWhen Hangarback Walker dies, create a 1/1 colorless Thopter artifact creature token with flying for each +1/+1 counter on Hangarback Walker.\n{1}, {T}: Put a +1/+1 counter on Hangarback Walker.",
+      "expect": [
+        {
+          "pattern": "effect.enters_with_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "trigger.dies",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Cycling"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "reconnaissance-mission",
+      "name": "Reconnaissance Mission",
+      "type_line": "Enchantment",
+      "oracle_text": "Whenever a creature you control deals combat damage to a player, you may draw a card.\nCycling {2}",
+      "expect": [
+        {
+          "pattern": "trigger.combat_damage_player",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": false,
+      "split": "holdout",
+      "id": "syr-konrad",
+      "name": "Syr Konrad, the Grim",
+      "type_line": "Legendary Creature — Human Knight",
+      "oracle_text": "Whenever another creature dies, or a creature card is put into a graveyard from anywhere other than the battlefield, or a creature card leaves your graveyard, Syr Konrad, the Grim deals 1 damage to each opponent.\n{1}{B}: Each player mills a card.",
+      "expect": [
+        {
+          "pattern": "trigger.dies",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.mill",
+          "subject": "each_player",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_uncertain": true,
+      "notes": "Only the first event of the compound trigger is asserted; the remaining events are reported as uncertain."
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "stitchers-supplier",
+      "name": "Stitcher's Supplier",
+      "type_line": "Creature — Zombie",
+      "oracle_text": "When Stitcher's Supplier enters or dies, mill three cards.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.mill",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "satyr-wayfinder",
+      "name": "Satyr Wayfinder",
+      "type_line": "Creature — Satyr",
+      "oracle_text": "When Satyr Wayfinder enters, mill four cards. You may put a land card from among them into your hand.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.mill",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "cost.sacrifice_permanent"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "victimize",
+      "name": "Victimize",
+      "type_line": "Sorcery",
+      "oracle_text": "Choose two target creature cards in your graveyard. Sacrifice a creature. If you do, return the chosen cards to the battlefield tapped.",
+      "expect": [
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "talrand",
+      "name": "Talrand, Sky Summoner",
+      "type_line": "Legendary Creature — Merfolk Wizard",
+      "oracle_text": "Whenever you cast an instant or sorcery spell, create a 2/2 blue Drake creature token with flying.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Magecraft"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "archmage-emeritus",
+      "name": "Archmage Emeritus",
+      "type_line": "Creature — Human Wizard",
+      "oracle_text": "Magecraft — Whenever you cast or copy an instant or sorcery spell, draw a card.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Magecraft"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "storm-kiln-artist",
+      "name": "Storm-Kiln Artist",
+      "type_line": "Creature — Dwarf Shaman",
+      "oracle_text": "Storm-Kiln Artist gets +1/+0 for each artifact you control.\nMagecraft — Whenever you cast or copy an instant or sorcery spell, create a Treasure token.",
+      "expect": [
+        {
+          "pattern": "trigger.cast_spell",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Forestwalk"],
+      "reject": [
+        {
+          "pattern": "effect.create_token"
+        },
+        {
+          "pattern": "trigger.token_created"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "chatterfang",
+      "name": "Chatterfang, Squirrel General",
+      "type_line": "Legendary Creature — Squirrel Warrior",
+      "oracle_text": "Forestwalk\nIf one or more tokens would be created under your control, those tokens plus that many 1/1 green Squirrel creature tokens are created instead.\n{B}, Sacrifice X Squirrels: Target creature gets +X/-X until end of turn.",
+      "expect": [
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "chasm-skulker",
+      "name": "Chasm Skulker",
+      "type_line": "Creature — Squid Horror",
+      "oracle_text": "Whenever you draw a card, put a +1/+1 counter on Chasm Skulker.\nWhen Chasm Skulker dies, create X 1/1 blue Squid creature tokens with islandwalk, where X is the number of +1/+1 counters on Chasm Skulker.",
+      "expect": [
+        {
+          "pattern": "trigger.draw",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.put_counters",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "trigger.dies",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Converge"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "painful-truths",
+      "name": "Painful Truths",
+      "type_line": "Sorcery",
+      "oracle_text": "Converge — You draw X cards and you lose X life, where X is the number of colors of mana spent to cast this spell.",
+      "expect": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "sign-in-blood",
+      "name": "Sign in Blood",
+      "type_line": "Sorcery",
+      "oracle_text": "Target player draws two cards and loses 2 life.",
+      "expect": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "target_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "target_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "read-the-bones",
+      "name": "Read the Bones",
+      "type_line": "Sorcery",
+      "oracle_text": "Scry 2, then draw two cards. You lose 2 life.",
+      "expect": [
+        {
+          "pattern": "effect.scry",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller"
+        },
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "wheel-of-fortune",
+      "name": "Wheel of Fortune",
+      "type_line": "Sorcery",
+      "oracle_text": "Each player discards their hand, then draws seven cards.",
+      "expect": [
+        {
+          "pattern": "effect.discard_cards",
+          "subject": "each_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "each_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": false,
+      "split": "holdout",
+      "id": "hunters-insight",
+      "name": "Hunter's Insight",
+      "type_line": "Instant",
+      "oracle_text": "Choose target creature you control. Whenever that creature deals combat damage to a player or planeswalker this turn, you draw that many cards.",
+      "expect": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.exile",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "farewell",
+      "name": "Farewell",
+      "type_line": "Sorcery",
+      "oracle_text": "Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all graveyards.",
+      "expect": [
+        {
+          "pattern": "effect.exile",
+          "subject": "any_player",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.exile_from_graveyard",
+          "subject": "each_player",
+          "condition": "conditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "rakdos-charm",
+      "name": "Rakdos Charm",
+      "type_line": "Instant",
+      "oracle_text": "Choose one —\n• Exile target player's graveyard.\n• Destroy target artifact.\n• Each creature deals 1 damage to its controller.",
+      "expect": [
+        {
+          "pattern": "effect.exile_from_graveyard",
+          "subject": "target_player",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "unknown",
+          "condition": "conditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life",
+          "subject": "opponent"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "feed-the-swarm",
+      "name": "Feed the Swarm",
+      "type_line": "Sorcery",
+      "oracle_text": "Destroy target creature or enchantment an opponent controls. You lose life equal to that permanent's mana value.",
+      "expect": [
+        {
+          "pattern": "effect.destroy",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Overload"],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "vandalblast",
+      "name": "Vandalblast",
+      "type_line": "Sorcery",
+      "oracle_text": "Destroy target artifact you don't control.\nOverload {4}{R}",
+      "expect": [
+        {
+          "pattern": "effect.destroy",
+          "subject": "opponent",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "austere-command",
+      "name": "Austere Command",
+      "type_line": "Sorcery",
+      "oracle_text": "Choose two —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures with mana value 3 or less.\n• Destroy all creatures with mana value 4 or greater.",
+      "expect": [
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "conditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "path-to-exile",
+      "name": "Path to Exile",
+      "type_line": "Instant",
+      "oracle_text": "Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+      "expect": [
+        {
+          "pattern": "effect.exile",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.search_library",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "generous-gift",
+      "name": "Generous Gift",
+      "type_line": "Instant",
+      "oracle_text": "Destroy target permanent. Its controller creates a 3/3 green Elephant creature token.",
+      "expect": [
+        {
+          "pattern": "effect.destroy",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.return_from_graveyard"
+        },
+        {
+          "pattern": "effect.put_counters"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "chaos-warp",
+      "name": "Chaos Warp",
+      "type_line": "Instant",
+      "oracle_text": "The owner of target permanent shuffles it into their library, then reveals the top card of their library. If it's a permanent card, they put it onto the battlefield.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Overload"],
+      "reject": [
+        {
+          "pattern": "effect.return_from_graveyard"
+        },
+        {
+          "pattern": "cost.return_to_hand"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "cyclonic-rift",
+      "name": "Cyclonic Rift",
+      "type_line": "Instant",
+      "oracle_text": "Return target nonland permanent you don't control to its owner's hand.\nOverload {6}{U}",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "permission.cast_from_graveyard"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "fierce-guardianship",
+      "name": "Fierce Guardianship",
+      "type_line": "Instant",
+      "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.",
+      "expect": [
+        {
+          "pattern": "effect.counter_spell",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "swan-song",
+      "name": "Swan Song",
+      "type_line": "Instant",
+      "oracle_text": "Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.",
+      "expect": [
+        {
+          "pattern": "effect.counter_spell",
+          "subject": "any_player",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "unknown",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "dockside-extortionist",
+      "name": "Dockside Extortionist",
+      "type_line": "Creature — Goblin Pirate",
+      "oracle_text": "When Dockside Extortionist enters, create X Treasure tokens, where X is the number of artifacts and enchantments your opponents control.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.create_token",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.lose_life"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "prismatic-vista",
+      "name": "Prismatic Vista",
+      "type_line": "Land",
+      "oracle_text": "{T}, Pay 1 life, Sacrifice Prismatic Vista: Search your library for a basic land card, put it onto the battlefield, then shuffle.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.pay_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.sacrifice_self",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "arcane-signet",
+      "name": "Arcane Signet",
+      "type_line": "Artifact",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "three-visits",
+      "name": "Three Visits",
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+      "expect": [
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.attacks"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "propaganda",
+      "name": "Propaganda",
+      "type_line": "Enchantment",
+      "oracle_text": "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Indestructible"],
+      "reject": [
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "purphoros",
+      "name": "Purphoros, God of the Forge",
+      "type_line": "Legendary Enchantment Creature — God",
+      "oracle_text": "Indestructible\nAs long as your devotion to red is less than five, Purphoros isn't a creature.\nWhenever another creature enters the battlefield under your control, Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control get +1/+0 until end of turn.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "opponent",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "cost.mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "trigger.dies"
+        },
+        {
+          "pattern": "effect.gain_life"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "teysa-karlov",
+      "name": "Teysa Karlov",
+      "type_line": "Legendary Creature — Human Advisor",
+      "oracle_text": "If a creature dying causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\nCreature tokens you control have vigilance and lifelink.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.return_from_graveyard"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "cryptic-command",
+      "name": "Cryptic Command",
+      "type_line": "Instant",
+      "oracle_text": "Choose two —\n• Counter target spell.\n• Return target permanent to its owner's hand.\n• Tap all creatures your opponents control.\n• Draw a card.",
+      "expect": [
+        {
+          "pattern": "effect.counter_spell",
+          "subject": "any_player",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "cost.pay_life"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "bala-ged-recovery",
+      "name": "Bala Ged Recovery // Bala Ged Sanctuary",
+      "card_faces": [
+        {
+          "name": "Bala Ged Recovery",
+          "type_line": "Sorcery",
+          "oracle_text": "Return target card from your graveyard to your hand."
+        },
+        {
+          "name": "Bala Ged Sanctuary",
+          "type_line": "Land",
+          "oracle_text": "As Bala Ged Sanctuary enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {G}."
+        }
+      ],
+      "expect": [
+        {
+          "pattern": "effect.return_from_graveyard",
+          "subject": "controller",
+          "condition": "unconditional",
+          "face": 0
+        },
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional",
+          "face": 1
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional",
+          "face": 1
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.discard_cards"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "valakut-awakening",
+      "name": "Valakut Awakening // Valakut Stoneforge",
+      "card_faces": [
+        {
+          "name": "Valakut Awakening",
+          "type_line": "Instant",
+          "oracle_text": "Put any number of cards from your hand on the bottom of your library, then draw that many cards plus one."
+        },
+        {
+          "name": "Valakut Stoneforge",
+          "type_line": "Land",
+          "oracle_text": "Valakut Stoneforge enters tapped.\n{T}: Add {R}."
+        }
+      ],
+      "expect": [
+        {
+          "pattern": "effect.draw_cards",
+          "subject": "controller",
+          "condition": "unconditional",
+          "face": 0
+        },
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "unconditional",
+          "face": 1
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional",
+          "face": 1
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [],
+      "complete": true,
+      "split": "holdout",
+      "id": "grim-tutor",
+      "name": "Grim Tutor",
+      "type_line": "Sorcery",
+      "oracle_text": "Search your library for a card, put that card into your hand, then shuffle. You lose 3 life.",
+      "expect": [
+        {
+          "pattern": "effect.search_library",
+          "subject": "controller",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.lose_life",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": ["Flash", "Amass"],
+      "reject": [],
+      "complete": false,
+      "split": "holdout",
+      "id": "orcish-bowmasters",
+      "name": "Orcish Bowmasters",
+      "type_line": "Creature — Orc Archer",
+      "oracle_text": "Flash\nWhenever Orcish Bowmasters enters and whenever an opponent draws a card except the first one they draw in each of their draw steps, Orcish Bowmasters deals 1 damage to any target. Then amass Orcs 1.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.deal_damage",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": ["Lifelink"],
+      "reject": [
+        {
+          "pattern": "effect.gain_life"
+        },
+        {
+          "pattern": "trigger.lifegain"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "lifegain-static-negative",
+      "name": "Serra Ascendant",
+      "type_line": "Creature — Human Monk",
+      "oracle_text": "Lifelink\nAs long as you have 30 or more life, Serra Ascendant gets +5/+5 and has flying.",
+      "expect": [],
+      "expect_unmodeled": true
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "cost.sacrifice_permanent"
+        },
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "controller"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "opponent-sacrifice-cost-negative",
+      "name": "Innocent Blood",
+      "type_line": "Sorcery",
+      "oracle_text": "Each player sacrifices a creature.",
+      "expect": [
+        {
+          "pattern": "effect.sacrifice_permanent",
+          "subject": "each_player",
+          "condition": "unconditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "unconditional"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "conditional-cost-outlet",
+      "name": "Ashnod's Careful Altar",
+      "type_line": "Artifact",
+      "oracle_text": "{T}, Sacrifice a creature: Add {C}{C}. Activate only during your turn.",
+      "expect": [
+        {
+          "pattern": "cost.tap",
+          "subject": "self",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "cost.sacrifice_permanent",
+          "subject": "controller",
+          "condition": "conditional"
+        },
+        {
+          "pattern": "effect.add_mana",
+          "subject": "controller",
+          "condition": "conditional"
+        }
+      ]
+    },
+    {
+      "keywords": [],
+      "reject": [
+        {
+          "pattern": "effect.counter_spell",
+          "subject": "any_player",
+          "condition": "unconditional"
+        }
+      ],
+      "complete": true,
+      "split": "holdout",
+      "id": "unless-payment",
+      "name": "Frilled Mystic Watch",
+      "type_line": "Creature — Elf Lizard Wizard",
+      "oracle_text": "When Frilled Mystic Watch enters, counter target spell unless its controller pays {2}.",
+      "expect": [
+        {
+          "pattern": "trigger.enters_battlefield",
+          "subject": "self",
+          "condition": "unconditional"
+        },
+        {
+          "pattern": "effect.counter_spell",
+          "subject": "any_player",
+          "condition": "conditional"
+        }
+      ]
+    }
+  ]
+}

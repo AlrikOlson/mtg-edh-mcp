@@ -16,7 +16,7 @@ import type {
   Legalities,
   Prices,
 } from "../types/index.js";
-import { classifyRoles } from "../analyze/index.js";
+import { classifyRoles } from "../analyze/roles.js";
 import type {
   ScryfallCardFace,
   ScryfallCardRaw,

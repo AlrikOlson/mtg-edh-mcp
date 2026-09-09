@@ -35,3 +35,4 @@ export {
   type ReprintSaving,
   type CostDriver,
 } from "./budget.js";
+export { extractMechanics, SUPPORTED_MECHANIC_PATTERNS } from "./mechanics.js";

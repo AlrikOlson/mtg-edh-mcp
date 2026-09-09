@@ -164,6 +164,40 @@ analyses still count library entries only, including each entry's quantity.
 A correction for a removed card stays with the deck for later re-addition;
 reset it by Oracle ID if its card data is no longer resolvable.
 
+## Inspect card mechanics with evidence
+
+`card_mechanics` reads the stored Oracle text of each face and returns only
+the mechanics in its declared catalog: triggers, activation costs, effects and
+standing permissions across sacrifice, tokens, counters, draw/discard,
+graveyard, spellcasting, combat, lifegain and landfall.
+
+```text
+card_mechanics {"cards":["Mayhem Devil","Ashnod's Altar"]}
+card_mechanics {"cards":"Korvold, Fae-Cursed King","deck_id":"DECK_ID","include_unmodeled":false}
+```
+
+Every annotation names its `pattern_id` (for example `cost.sacrifice_permanent`
+versus `trigger.sacrifice`), the ability it belongs to, the `subject` whose
+resources it concerns (`controller`, `opponent`, `each_player`,
+`target_player`, `any_player`, `self`, `unknown`), a `condition`
+(`unconditional`, or `conditional` with the supporting clause), an `optional`
+flag for "you may", `explicit` or `inferred` provenance, the extractor
+version, and an exact `evidence` span into the source Oracle field. Use the
+span to quote the text back rather than paraphrasing it.
+
+Text the extractor does not model is returned in `unmodeled` with a status of
+`unmodeled` (outside the catalog) or `uncertain` (granted ability text,
+unrecognized trigger events or cost elements, extra events of a compound
+trigger). `coverage` counts abilities and sentences so you can tell a fully
+modeled card from a partially read one. Treat an empty `annotations` list as
+"nothing supported was found", never as "this card does nothing".
+
+`roles` carries the same `inferred_roles`, `effective_roles` and
+`role_source` fields as `deck_set_roles`; pass `deck_id` to overlay that
+deck's corrections. The tool never changes roles, card data or legality, and
+`legality` is always `not_evaluated`. Measured precision on the annotated
+corpus is documented in `docs/evaluation/mechanics/README.md`.
+
 ## Find cards without filling the context
 
 `card_search` returns lean card references. Use `card_get` to inspect the
