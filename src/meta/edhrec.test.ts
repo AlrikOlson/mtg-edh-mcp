@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { CacheStore, EdhrecClient, slugify, parseProfile, parseThemes } from "./index.js";
 import { StructuredError } from "../types/index.js";
+import { edhrecMetrics } from "./edhrec.js";
 
 const FIXTURE = {
   container: {
@@ -49,6 +50,151 @@ describe("parseProfile / parseThemes", () => {
     expect(parseProfile({}).cards).toEqual([]);
     expect(parseThemes(null)).toEqual([]);
     expect(parseProfile({ container: { json_dict: { cardlists: "nope" } } }).cards).toEqual([]);
+  });
+
+  it("normalizes current deck counts while preserving raw metric provenance and scale", async () => {
+    const client = new EdhrecClient(new CacheStore({ now: () => 1000 }), {
+      fetchJson: async () => ({
+        container: {
+          json_dict: {
+            cardlists: [
+              {
+                header: "Test",
+                cardviews: [
+                  {
+                    name: "Wizard's Staff",
+                    num_decks: 96,
+                    potential_decks: 703,
+                    synergy: -0.125,
+                    lift: -1.5,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    });
+    const profile = await client.profileWithSource("Talrand, Sky Summoner");
+    const card = profile.cards[0]!;
+    expect(card).toMatchObject({
+      inclusion: 96,
+      inclusion_provider_field: "num_decks",
+      num_decks: 96,
+      potential_decks: 703,
+      synergy: -0.125,
+      lift: -1.5,
+    });
+    expect(edhrecMetrics(card, profile.source)).toEqual([
+      {
+        name: "inclusion",
+        provider_field: "num_decks",
+        value: 96,
+        scale: "deck_count",
+        source: profile.source,
+      },
+      {
+        name: "potential_decks",
+        provider_field: "potential_decks",
+        value: 703,
+        scale: "deck_count",
+        source: profile.source,
+      },
+      {
+        name: "synergy",
+        provider_field: "synergy",
+        value: -0.125,
+        scale: "proportion_difference",
+        source: profile.source,
+      },
+      {
+        name: "lift",
+        provider_field: "lift",
+        value: -1.5,
+        scale: "unknown",
+        source: profile.source,
+      },
+    ]);
+  });
+
+  it("retains legacy inclusion priority and both raw counts when provider fields disagree", async () => {
+    const client = new EdhrecClient(new CacheStore(), {
+      fetchJson: async () => ({
+        container: {
+          json_dict: {
+            cardlists: [
+              {
+                cardviews: [
+                  {
+                    name: "Sol Ring",
+                    inclusion: 900,
+                    num_decks: 800,
+                    synergy: 0,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    });
+    const profile = await client.profileWithSource("Talrand, Sky Summoner");
+    const card = profile.cards[0]!;
+    expect(card.inclusion).toBe(900);
+    expect(edhrecMetrics(card, profile.source)).toEqual([
+      {
+        name: "inclusion",
+        provider_field: "inclusion",
+        value: 900,
+        scale: "deck_count",
+        source: profile.source,
+      },
+      {
+        name: "inclusion",
+        provider_field: "num_decks",
+        value: 800,
+        scale: "deck_count",
+        source: profile.source,
+      },
+      {
+        name: "synergy",
+        provider_field: "synergy",
+        value: 0,
+        scale: "proportion_difference",
+        source: profile.source,
+      },
+    ]);
+  });
+
+  it("rejects malformed metrics without replacing missing evidence with measured zero", async () => {
+    const client = new EdhrecClient(new CacheStore(), {
+      fetchJson: async () => ({
+        container: {
+          json_dict: {
+            cardlists: [
+              {
+                cardviews: [
+                  {
+                    name: "Missing",
+                    inclusion: -1,
+                    num_decks: 1.5,
+                    potential_decks: Infinity,
+                    synergy: "0.2",
+                    lift: NaN,
+                  },
+                  { name: "Zero", num_decks: 0, potential_decks: 0, synergy: 0, lift: 0 },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    });
+    const profile = await client.profileWithSource("Talrand, Sky Summoner");
+    expect(edhrecMetrics(profile.cards[0]!, profile.source)).toEqual([]);
+    expect(edhrecMetrics(profile.cards[1]!, profile.source).map((metric) => metric.value)).toEqual([
+      0, 0, 0, 0,
+    ]);
   });
 });
 

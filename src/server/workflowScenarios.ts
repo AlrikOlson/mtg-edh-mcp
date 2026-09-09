@@ -521,7 +521,11 @@ export async function runWorkflowScenarios(): Promise<WorkflowRun[]> {
         });
         assert.equal(set.ok, true);
         const beforeOutage = await getDeck(journey, deckId);
-        const unavailable = await journey.call("meta_recommend", { deck_id: deckId }, true);
+        const unavailable = await journey.call(
+          "meta_recommend",
+          { deck_id: deckId, rank: "synergy" },
+          true,
+        );
         assert.equal(unavailable.code, "UPSTREAM_UNAVAILABLE");
         assert.deepEqual(await getDeck(journey, deckId), beforeOutage);
         const local = await journey.call("card_search", {
@@ -534,6 +538,7 @@ export async function runWorkflowScenarios(): Promise<WorkflowRun[]> {
         const recovered = await legalHundred(journey, deckId);
         const retried = await journey.call("meta_recommend", {
           deck_id: deckId,
+          rank: "synergy",
         });
         assert(objects(retried.suggestions).some((card) => card.oracle_id === "wf-matron"));
         assert.deepEqual(await getDeck(journey, deckId), recovered);

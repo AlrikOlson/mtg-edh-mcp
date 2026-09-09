@@ -1,0 +1,3546 @@
+{
+  "format_version": 1,
+  "workflow_version": "1",
+  "fixture_sha256": "03331d7d05efc68ff6a7fe1941bbf3757baf472cd91bf68945f31de0c1fd401f",
+  "mode": "scripted_protocol",
+  "transport": "SDK InMemoryTransport (no stdio/HTTP framing)",
+  "model": null,
+  "token_counts": null,
+  "agent_task_success": null,
+  "measurement": {
+    "response_bytes": "UTF-8 JSON.stringify of parsed SDK tool results, including text fallback; excludes JSON-RPC framing",
+    "elapsed_ms": "Sum of observed tool-call wall time; excludes fixture/index setup; no timing threshold",
+    "invalid_calls": "Calls with invalid input errors or partially rejected/unresolved input batches; expected recovery inputs are included"
+  },
+  "workflows": [
+    {
+      "id": "budget-build",
+      "prompt": "Build a legal 100-card Krenko deck for at most $100, using my owned Sol Ring and Goblin Matron.",
+      "calls": [
+        {
+          "name": "collection_set",
+          "arguments": {
+            "cards": ["Sol Ring", "Goblin Matron"]
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "collection set to 2 card(s)"
+              },
+              {
+                "type": "text",
+                "text": "{\"owned_count\":2,\"total\":2,\"owned\":[\"wf-sol\",\"wf-matron\"],\"cards\":[{\"oracle_id\":\"wf-sol\",\"name\":\"Sol Ring\"},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\"}],\"unresolved\":[],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "owned_count": 2,
+              "total": 2,
+              "owned": ["wf-sol", "wf-matron"],
+              "cards": [
+                {
+                  "oracle_id": "wf-sol",
+                  "name": "Sol Ring"
+                },
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron"
+                }
+              ],
+              "unresolved": [],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 1.50566699999996,
+          "expected_error": false
+        },
+        {
+          "name": "card_search",
+          "arguments": {
+            "query": "id<=r",
+            "owned_only": true
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "2 of 2 cards"
+              },
+              {
+                "type": "text",
+                "text": "{\"total\":2,\"returned\":2,\"next_cursor\":null,\"results\":[{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"mv\":3,\"ci\":[\"R\"],\"type\":\"Creature — Goblin\"},{\"oracle_id\":\"wf-sol\",\"name\":\"Sol Ring\",\"mv\":1,\"ci\":[\"C\"],\"type\":\"Artifact\"}],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "total": 2,
+              "returned": 2,
+              "next_cursor": null,
+              "results": [
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron",
+                  "mv": 3,
+                  "ci": ["R"],
+                  "type": "Creature — Goblin"
+                },
+                {
+                  "oracle_id": "wf-sol",
+                  "name": "Sol Ring",
+                  "mv": 1,
+                  "ci": ["C"],
+                  "type": "Artifact"
+                }
+              ],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.8197920000000067,
+          "expected_error": false
+        },
+        {
+          "name": "deck_create",
+          "arguments": {
+            "name": "Synthetic $100 Goblins",
+            "commanders": "Krenko, Mob Boss"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "created deck budget-build-deck-1 — 1/100 cards, 0 lands, R, 1 violation(s), v1"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"budget-build-deck-1\",\"deck\":{\"deck_id\":\"budget-build-deck-1\",\"name\":\"Synthetic $100 Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[],\"computed_color_identity\":[\"R\"],\"version\":1,\"data_snapshot\":\"2026-09-08\"},\"vitals\":{\"card_count\":1,\"land_count\":0,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":1},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "budget-build-deck-1",
+              "deck": {
+                "deck_id": "budget-build-deck-1",
+                "name": "Synthetic $100 Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [],
+                "computed_color_identity": ["R"],
+                "version": 1,
+                "data_snapshot": "2026-09-08"
+              },
+              "vitals": {
+                "card_count": 1,
+                "land_count": 0,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 1
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.6477080000000228,
+          "expected_error": false
+        },
+        {
+          "name": "deck_set_commander",
+          "arguments": {
+            "deck_id": "budget-build-deck-1",
+            "commanders": "Krenko, Mob Boss"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "set 1 commander(s) on budget-build-deck-1 — 1/100 cards, 0 lands, R, 1 violation(s), v2"
+              },
+              {
+                "type": "text",
+                "text": "{\"ok\":true,\"deck_id\":\"budget-build-deck-1\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"computed_color_identity\":[\"R\"],\"version\":2,\"vitals\":{\"card_count\":1,\"land_count\":0,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":2},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "ok": true,
+              "deck_id": "budget-build-deck-1",
+              "commanders": ["wf-krenko"],
+              "command_zone_kind": "single",
+              "computed_color_identity": ["R"],
+              "version": 2,
+              "vitals": {
+                "card_count": 1,
+                "land_count": 0,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 2
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.38804199999998445,
+          "expected_error": false
+        },
+        {
+          "name": "deck_add",
+          "arguments": {
+            "deck_id": "budget-build-deck-1",
+            "cards": [
+              "Sol Ring",
+              "Goblin Matron",
+              "Skirk Prospector",
+              {
+                "card": "Mountain",
+                "qty": 96
+              }
+            ]
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "4 add verdict(s) for budget-build-deck-1 — 100/100 cards, 96 lands, R, legal, v3"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"budget-build-deck-1\",\"version\":3,\"verdicts\":[{\"oracle_id\":\"wf-sol\",\"name\":\"Sol Ring\",\"status\":\"ok\"},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"status\":\"ok\"},{\"oracle_id\":\"wf-prospector\",\"name\":\"Skirk Prospector\",\"status\":\"ok\"},{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"status\":\"ok\"}],\"failed\":[],\"vitals\":{\"card_count\":100,\"land_count\":96,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":true,\"violation_count\":0,\"version\":3},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "budget-build-deck-1",
+              "version": 3,
+              "verdicts": [
+                {
+                  "oracle_id": "wf-sol",
+                  "name": "Sol Ring",
+                  "status": "ok"
+                },
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron",
+                  "status": "ok"
+                },
+                {
+                  "oracle_id": "wf-prospector",
+                  "name": "Skirk Prospector",
+                  "status": "ok"
+                },
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "status": "ok"
+                }
+              ],
+              "failed": [],
+              "vitals": {
+                "card_count": 100,
+                "land_count": 96,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": true,
+                "violation_count": 0,
+                "version": 3
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.8100830000000201,
+          "expected_error": false
+        },
+        {
+          "name": "validate_deck",
+          "arguments": {
+            "deck_id": "budget-build-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "0 error(s), 0 warning(s)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"budget-build-deck-1\",\"ok\":true,\"violations\":[],\"errors\":[],\"warnings\":[],\"error_count\":0,\"warning_count\":0,\"exemptions\":[{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":96,\"reason\":\"basic_land\"}],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "budget-build-deck-1",
+              "ok": true,
+              "violations": [],
+              "errors": [],
+              "warnings": [],
+              "error_count": 0,
+              "warning_count": 0,
+              "exemptions": [
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "qty": 96,
+                  "reason": "basic_land"
+                }
+              ],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.27466699999996536,
+          "expected_error": false
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "budget-build-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Synthetic $100 Goblins (v3)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"budget-build-deck-1\",\"name\":\"Synthetic $100 Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-sol\",\"qty\":1,\"name\":\"Sol Ring\"},{\"oracle_id\":\"wf-matron\",\"qty\":1,\"name\":\"Goblin Matron\"},{\"oracle_id\":\"wf-prospector\",\"qty\":1,\"name\":\"Skirk Prospector\"},{\"oracle_id\":\"wf-mountain\",\"qty\":96,\"name\":\"Mountain\"}],\"computed_color_identity\":[\"R\"],\"version\":3,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "budget-build-deck-1",
+                "name": "Synthetic $100 Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-sol",
+                    "qty": 1,
+                    "name": "Sol Ring"
+                  },
+                  {
+                    "oracle_id": "wf-matron",
+                    "qty": 1,
+                    "name": "Goblin Matron"
+                  },
+                  {
+                    "oracle_id": "wf-prospector",
+                    "qty": 1,
+                    "name": "Skirk Prospector"
+                  },
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 96,
+                    "name": "Mountain"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 3,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.212333000000001,
+          "expected_error": false
+        },
+        {
+          "name": "budget_plan",
+          "arguments": {
+            "deck_id": "budget-build-deck-1",
+            "target_usd": 100,
+            "use_collection": true
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "full-deck estimated value USD 92.85, cheapest-printing estimate USD 92.85 (library 90.35, command zone 2.5); companion 0 separate; estimated new spending USD 12.35 (collection membership covers all copies); price freshness unknown; excludes fees, tax and shipping; full-deck estimated gap 0"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"budget-build-deck-1\",\"version\":3,\"default_total_usd\":90.35,\"min_buy_usd\":90.35,\"reprint_savings_usd\":0,\"reprint_suggestions\":[],\"cost_drivers\":[{\"oracle_id\":\"wf-sol\",\"name\":\"Sol Ring\",\"qty\":1,\"cheapest_usd\":80,\"contribution\":80,\"roles\":[\"ramp\",\"mana_rock\"]},{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":96,\"cheapest_usd\":0.1,\"contribution\":9.6,\"roles\":[\"land\"]},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"qty\":1,\"cheapest_usd\":0.5,\"contribution\":0.5,\"roles\":[\"utility\"]},{\"oracle_id\":\"wf-prospector\",\"name\":\"Skirk Prospector\",\"qty\":1,\"cheapest_usd\":0.25,\"contribution\":0.25,\"roles\":[\"ramp\",\"mana_dork\"]}],\"target_usd\":100,\"over_min_buy_by_usd\":0,\"acquire_usd\":9.85,\"owned_value_usd\":80.5,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":9035,\"min_buy\":9035,\"acquire\":985},\"coverage\":{\"complete\":true,\"requested_quantity\":99,\"resolved_quantity\":99,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":97,\"missing_quantity\":0,\"excluded_quantity\":2}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":99},\"target_met\":true,\"acquire_target_met\":true,\"ownership_basis\":\"oracle_id_membership_all_copies\",\"price_scope\":\"library\",\"library\":{\"default_total_usd\":90.35,\"min_buy_usd\":90.35,\"acquire_usd\":9.85,\"owned_value_usd\":80.5,\"target_usd\":100,\"target_met\":true,\"acquire_target_met\":true,\"over_min_buy_by_usd\":0,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":9035,\"min_buy\":9035,\"acquire\":985},\"coverage\":{\"complete\":true,\"requested_quantity\":99,\"resolved_quantity\":99,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":97,\"missing_quantity\":0,\"excluded_quantity\":2}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":99},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"command_zone\":{\"default_total_usd\":2.5,\"min_buy_usd\":2.5,\"acquire_usd\":2.5,\"owned_value_usd\":0,\"target_usd\":100,\"target_met\":true,\"acquire_target_met\":true,\"over_min_buy_by_usd\":0,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":250,\"min_buy\":250,\"acquire\":250},\"coverage\":{\"complete\":true,\"requested_quantity\":1,\"resolved_quantity\":1,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":1},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"full_deck\":{\"default_total_usd\":92.85,\"min_buy_usd\":92.85,\"reprint_savings_usd\":0,\"reprint_suggestions\":[],\"cost_drivers\":[{\"oracle_id\":\"wf-sol\",\"name\":\"Sol Ring\",\"qty\":1,\"cheapest_usd\":80,\"contribution\":80,\"roles\":[\"ramp\",\"mana_rock\"]},{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":96,\"cheapest_usd\":0.1,\"contribution\":9.6,\"roles\":[\"land\"]},{\"oracle_id\":\"wf-krenko\",\"name\":\"Krenko, Mob Boss\",\"qty\":1,\"cheapest_usd\":2.5,\"contribution\":2.5,\"roles\":[\"utility\"]},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"qty\":1,\"cheapest_usd\":0.5,\"contribution\":0.5,\"roles\":[\"utility\"]},{\"oracle_id\":\"wf-prospector\",\"name\":\"Skirk Prospector\",\"qty\":1,\"cheapest_usd\":0.25,\"contribution\":0.25,\"roles\":[\"ramp\",\"mana_dork\"]}],\"target_usd\":100,\"over_min_buy_by_usd\":0,\"acquire_usd\":12.35,\"owned_value_usd\":80.5,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":9285,\"min_buy\":9285,\"acquire\":1235},\"coverage\":{\"complete\":true,\"requested_quantity\":100,\"resolved_quantity\":100,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":100,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":100,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":98,\"missing_quantity\":0,\"excluded_quantity\":2}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":100},\"target_met\":true,\"acquire_target_met\":true,\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"companion\":{\"default_total_usd\":0,\"min_buy_usd\":0,\"acquire_usd\":0,\"owned_value_usd\":0,\"target_usd\":100,\"target_met\":true,\"acquire_target_met\":true,\"over_min_buy_by_usd\":0,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":0,\"min_buy\":0,\"acquire\":0},\"coverage\":{\"complete\":true,\"requested_quantity\":0,\"resolved_quantity\":0,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":0},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"scope\":{\"library_quantity\":99,\"command_zone_quantity\":1,\"full_deck_quantity\":100,\"companion_quantity\":0,\"companion_included\":false,\"auxiliary_zones\":\"not_represented\",\"duplicate_commanders\":[],\"command_library_overlap\":[]},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "budget-build-deck-1",
+              "version": 3,
+              "default_total_usd": 90.35,
+              "min_buy_usd": 90.35,
+              "reprint_savings_usd": 0,
+              "reprint_suggestions": [],
+              "cost_drivers": [
+                {
+                  "oracle_id": "wf-sol",
+                  "name": "Sol Ring",
+                  "qty": 1,
+                  "cheapest_usd": 80,
+                  "contribution": 80,
+                  "roles": ["ramp", "mana_rock"]
+                },
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "qty": 96,
+                  "cheapest_usd": 0.1,
+                  "contribution": 9.6,
+                  "roles": ["land"]
+                },
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron",
+                  "qty": 1,
+                  "cheapest_usd": 0.5,
+                  "contribution": 0.5,
+                  "roles": ["utility"]
+                },
+                {
+                  "oracle_id": "wf-prospector",
+                  "name": "Skirk Prospector",
+                  "qty": 1,
+                  "cheapest_usd": 0.25,
+                  "contribution": 0.25,
+                  "roles": ["ramp", "mana_dork"]
+                }
+              ],
+              "target_usd": 100,
+              "over_min_buy_by_usd": 0,
+              "acquire_usd": 9.85,
+              "owned_value_usd": 80.5,
+              "over_acquire_by_usd": 0,
+              "minor_units": {
+                "default_total": 9035,
+                "min_buy": 9035,
+                "acquire": 985
+              },
+              "coverage": {
+                "complete": true,
+                "requested_quantity": 99,
+                "resolved_quantity": 99,
+                "unresolved": [],
+                "missing_prices": [],
+                "default_total": {
+                  "complete": true,
+                  "priced_quantity": 99,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 0
+                },
+                "min_buy": {
+                  "complete": true,
+                  "priced_quantity": 99,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 0
+                },
+                "acquire": {
+                  "complete": true,
+                  "priced_quantity": 97,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 2
+                }
+              },
+              "pricing": {
+                "currency": "USD",
+                "source": "scryfall",
+                "basis": "local_index",
+                "data_snapshot": "2026-09-08",
+                "price_timestamp": null
+              },
+              "freshness": {
+                "status": "unknown",
+                "price_timestamp": null,
+                "max_age_ms": 86400000,
+                "stale_quantity": 0,
+                "unknown_quantity": 99
+              },
+              "target_met": true,
+              "acquire_target_met": true,
+              "ownership_basis": "oracle_id_membership_all_copies",
+              "price_scope": "library",
+              "library": {
+                "default_total_usd": 90.35,
+                "min_buy_usd": 90.35,
+                "acquire_usd": 9.85,
+                "owned_value_usd": 80.5,
+                "target_usd": 100,
+                "target_met": true,
+                "acquire_target_met": true,
+                "over_min_buy_by_usd": 0,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 9035,
+                  "min_buy": 9035,
+                  "acquire": 985
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 99,
+                  "resolved_quantity": 99,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 99,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 99,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 97,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 2
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 99
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "command_zone": {
+                "default_total_usd": 2.5,
+                "min_buy_usd": 2.5,
+                "acquire_usd": 2.5,
+                "owned_value_usd": 0,
+                "target_usd": 100,
+                "target_met": true,
+                "acquire_target_met": true,
+                "over_min_buy_by_usd": 0,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 250,
+                  "min_buy": 250,
+                  "acquire": 250
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 1,
+                  "resolved_quantity": 1,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 1
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "full_deck": {
+                "default_total_usd": 92.85,
+                "min_buy_usd": 92.85,
+                "reprint_savings_usd": 0,
+                "reprint_suggestions": [],
+                "cost_drivers": [
+                  {
+                    "oracle_id": "wf-sol",
+                    "name": "Sol Ring",
+                    "qty": 1,
+                    "cheapest_usd": 80,
+                    "contribution": 80,
+                    "roles": ["ramp", "mana_rock"]
+                  },
+                  {
+                    "oracle_id": "wf-mountain",
+                    "name": "Mountain",
+                    "qty": 96,
+                    "cheapest_usd": 0.1,
+                    "contribution": 9.6,
+                    "roles": ["land"]
+                  },
+                  {
+                    "oracle_id": "wf-krenko",
+                    "name": "Krenko, Mob Boss",
+                    "qty": 1,
+                    "cheapest_usd": 2.5,
+                    "contribution": 2.5,
+                    "roles": ["utility"]
+                  },
+                  {
+                    "oracle_id": "wf-matron",
+                    "name": "Goblin Matron",
+                    "qty": 1,
+                    "cheapest_usd": 0.5,
+                    "contribution": 0.5,
+                    "roles": ["utility"]
+                  },
+                  {
+                    "oracle_id": "wf-prospector",
+                    "name": "Skirk Prospector",
+                    "qty": 1,
+                    "cheapest_usd": 0.25,
+                    "contribution": 0.25,
+                    "roles": ["ramp", "mana_dork"]
+                  }
+                ],
+                "target_usd": 100,
+                "over_min_buy_by_usd": 0,
+                "acquire_usd": 12.35,
+                "owned_value_usd": 80.5,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 9285,
+                  "min_buy": 9285,
+                  "acquire": 1235
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 100,
+                  "resolved_quantity": 100,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 100,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 100,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 98,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 2
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 100
+                },
+                "target_met": true,
+                "acquire_target_met": true,
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "companion": {
+                "default_total_usd": 0,
+                "min_buy_usd": 0,
+                "acquire_usd": 0,
+                "owned_value_usd": 0,
+                "target_usd": 100,
+                "target_met": true,
+                "acquire_target_met": true,
+                "over_min_buy_by_usd": 0,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 0,
+                  "min_buy": 0,
+                  "acquire": 0
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 0,
+                  "resolved_quantity": 0,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 0
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "scope": {
+                "library_quantity": 99,
+                "command_zone_quantity": 1,
+                "full_deck_quantity": 100,
+                "companion_quantity": 0,
+                "companion_included": false,
+                "auxiliary_zones": "not_represented",
+                "duplicate_commanders": [],
+                "command_library_overlap": []
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.7200839999999857,
+          "expected_error": false
+        },
+        {
+          "name": "deck_export",
+          "arguments": {
+            "deck_id": "budget-build-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 Sol Ring\n1 Goblin Matron\n1 Skirk Prospector\n96 Mountain"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"budget-build-deck-1\",\"format\":\"text\",\"text\":\"1 Sol Ring\\n1 Goblin Matron\\n1 Skirk Prospector\\n96 Mountain\",\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "budget-build-deck-1",
+              "format": "text",
+              "text": "1 Sol Ring\n1 Goblin Matron\n1 Skirk Prospector\n96 Mountain",
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.23945800000001327,
+          "expected_error": false
+        }
+      ],
+      "invariants": [
+        "legal_100_cards_including_commander",
+        "full_100_card_price_including_commander_at_most_100_usd",
+        "owned_cards_reduce_acquisition_cost",
+        "export_contains_99_card_library_with_separate_commander"
+      ],
+      "protocol_version": "2025-11-25",
+      "server_info": {
+        "name": "mtg-edh-mcp",
+        "version": "0.3.0"
+      },
+      "metrics": {
+        "tool_calls": 9,
+        "invalid_calls": 0,
+        "partial_failure_calls": 0,
+        "tool_errors": 0,
+        "rpc_errors": 0,
+        "expected_errors": 0,
+        "response_bytes": 20635,
+        "elapsed_ms": 5.617833999999959
+      }
+    },
+    {
+      "id": "import-tune",
+      "prompt": "Import my Krenko list, replace the expensive mana rock, and show the exact change and export.",
+      "calls": [
+        {
+          "name": "deck_create",
+          "arguments": {
+            "name": "Imported Goblins",
+            "commanders": "Krenko, Mob Boss"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "created deck import-tune-deck-1 — 1/100 cards, 0 lands, R, 1 violation(s), v1"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"import-tune-deck-1\",\"deck\":{\"deck_id\":\"import-tune-deck-1\",\"name\":\"Imported Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[],\"computed_color_identity\":[\"R\"],\"version\":1,\"data_snapshot\":\"2026-09-08\"},\"vitals\":{\"card_count\":1,\"land_count\":0,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":1},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "import-tune-deck-1",
+              "deck": {
+                "deck_id": "import-tune-deck-1",
+                "name": "Imported Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [],
+                "computed_color_identity": ["R"],
+                "version": 1,
+                "data_snapshot": "2026-09-08"
+              },
+              "vitals": {
+                "card_count": 1,
+                "land_count": 0,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 1
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.3452500000000214,
+          "expected_error": false
+        },
+        {
+          "name": "deck_import",
+          "arguments": {
+            "deck_id": "import-tune-deck-1",
+            "text": "1 Sol Ring\n1 Goblin Matron\n97 Mountain"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "imported 3 cards into import-tune-deck-1; 0 unresolved — 100/100 cards, 97 lands, R, legal, v2"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"import-tune-deck-1\",\"resolved_count\":3,\"unresolved\":[],\"vitals\":{\"card_count\":100,\"land_count\":97,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":true,\"violation_count\":0,\"version\":2},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "import-tune-deck-1",
+              "resolved_count": 3,
+              "unresolved": [],
+              "vitals": {
+                "card_count": 100,
+                "land_count": 97,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": true,
+                "violation_count": 0,
+                "version": 2
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.5423749999999927,
+          "expected_error": false
+        },
+        {
+          "name": "deck_snapshot",
+          "arguments": {
+            "deck_id": "import-tune-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "snapshot import-tune-snapshot-1 of import-tune-deck-1 (v2)"
+              },
+              {
+                "type": "text",
+                "text": "{\"snapshot_id\":\"import-tune-snapshot-1\",\"version\":2,\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "snapshot_id": "import-tune-snapshot-1",
+              "version": 2,
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.17650000000003274,
+          "expected_error": false
+        },
+        {
+          "name": "deck_status",
+          "arguments": {
+            "deck_id": "import-tune-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Imported Goblins — 100/100 cards, 97 lands, R, legal, v2\ncurve avg 0.04 (nonland 2); mana under-supported: none\ngaps: ramp 1/8, card_draw 0/8, spot_removal 0/5, board_wipe 0/2, protection 0/2; full-deck estimated value USD 92.7, cheapest-printing estimate USD 92.7 (library 90.2, command zone 2.5); companion 0 separate; price freshness unknown; excludes fees, tax and shipping"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"import-tune-deck-1\",\"name\":\"Imported Goblins\",\"version\":2,\"vitals\":{\"card_count\":100,\"land_count\":97,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":true,\"violation_count\":0,\"version\":2},\"legality\":{\"ok\":true,\"errors\":[],\"error_count\":0,\"warning_count\":0},\"curve\":{\"buckets\":{\"0\":97,\"1\":1,\"3\":1},\"avg_mv\":0.04,\"avg_mv_nonland\":2},\"mana\":{\"sources_by_color\":{\"W\":0,\"U\":0,\"B\":0,\"R\":97,\"G\":0},\"under_supported\":[]},\"roles\":{\"gaps\":[{\"role\":\"ramp\",\"have\":1,\"want_min\":8,\"want_max\":12,\"status\":\"under\"},{\"role\":\"card_draw\",\"have\":0,\"want_min\":8,\"want_max\":12,\"status\":\"under\"},{\"role\":\"spot_removal\",\"have\":0,\"want_min\":5,\"want_max\":10,\"status\":\"under\"},{\"role\":\"board_wipe\",\"have\":0,\"want_min\":2,\"want_max\":4,\"status\":\"under\"},{\"role\":\"protection\",\"have\":0,\"want_min\":2,\"want_max\":8,\"status\":\"under\"}]},\"price\":{\"total_usd\":90.2,\"min_buy_usd\":90.2,\"price_scope\":\"library\",\"library\":{\"default_total_usd\":90.2,\"min_buy_usd\":90.2,\"acquire_usd\":null,\"owned_value_usd\":null,\"target_usd\":null,\"target_met\":null,\"acquire_target_met\":null,\"over_min_buy_by_usd\":null,\"over_acquire_by_usd\":null,\"minor_units\":{\"default_total\":9020,\"min_buy\":9020,\"acquire\":null},\"coverage\":{\"complete\":true,\"requested_quantity\":99,\"resolved_quantity\":99,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":null},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":99},\"ownership_basis\":null},\"command_zone\":{\"default_total_usd\":2.5,\"min_buy_usd\":2.5,\"acquire_usd\":null,\"owned_value_usd\":null,\"target_usd\":null,\"target_met\":null,\"acquire_target_met\":null,\"over_min_buy_by_usd\":null,\"over_acquire_by_usd\":null,\"minor_units\":{\"default_total\":250,\"min_buy\":250,\"acquire\":null},\"coverage\":{\"complete\":true,\"requested_quantity\":1,\"resolved_quantity\":1,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":null},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":1},\"ownership_basis\":null},\"full_deck\":{\"default_total_usd\":92.7,\"min_buy_usd\":92.7,\"acquire_usd\":null,\"owned_value_usd\":null,\"target_usd\":null,\"target_met\":null,\"acquire_target_met\":null,\"over_min_buy_by_usd\":null,\"over_acquire_by_usd\":null,\"minor_units\":{\"default_total\":9270,\"min_buy\":9270,\"acquire\":null},\"coverage\":{\"complete\":true,\"requested_quantity\":100,\"resolved_quantity\":100,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":100,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":100,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":null},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":100},\"ownership_basis\":null},\"companion\":{\"default_total_usd\":0,\"min_buy_usd\":0,\"acquire_usd\":null,\"owned_value_usd\":null,\"target_usd\":null,\"target_met\":null,\"acquire_target_met\":null,\"over_min_buy_by_usd\":null,\"over_acquire_by_usd\":null,\"minor_units\":{\"default_total\":0,\"min_buy\":0,\"acquire\":null},\"coverage\":{\"complete\":true,\"requested_quantity\":0,\"resolved_quantity\":0,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":null},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":0},\"ownership_basis\":null},\"scope\":{\"library_quantity\":99,\"command_zone_quantity\":1,\"full_deck_quantity\":100,\"companion_quantity\":0,\"companion_included\":false,\"auxiliary_zones\":\"not_represented\",\"duplicate_commanders\":[],\"command_library_overlap\":[]}},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "import-tune-deck-1",
+              "name": "Imported Goblins",
+              "version": 2,
+              "vitals": {
+                "card_count": 100,
+                "land_count": 97,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": true,
+                "violation_count": 0,
+                "version": 2
+              },
+              "legality": {
+                "ok": true,
+                "errors": [],
+                "error_count": 0,
+                "warning_count": 0
+              },
+              "curve": {
+                "buckets": {
+                  "0": 97,
+                  "1": 1,
+                  "3": 1
+                },
+                "avg_mv": 0.04,
+                "avg_mv_nonland": 2
+              },
+              "mana": {
+                "sources_by_color": {
+                  "W": 0,
+                  "U": 0,
+                  "B": 0,
+                  "R": 97,
+                  "G": 0
+                },
+                "under_supported": []
+              },
+              "roles": {
+                "gaps": [
+                  {
+                    "role": "ramp",
+                    "have": 1,
+                    "want_min": 8,
+                    "want_max": 12,
+                    "status": "under"
+                  },
+                  {
+                    "role": "card_draw",
+                    "have": 0,
+                    "want_min": 8,
+                    "want_max": 12,
+                    "status": "under"
+                  },
+                  {
+                    "role": "spot_removal",
+                    "have": 0,
+                    "want_min": 5,
+                    "want_max": 10,
+                    "status": "under"
+                  },
+                  {
+                    "role": "board_wipe",
+                    "have": 0,
+                    "want_min": 2,
+                    "want_max": 4,
+                    "status": "under"
+                  },
+                  {
+                    "role": "protection",
+                    "have": 0,
+                    "want_min": 2,
+                    "want_max": 8,
+                    "status": "under"
+                  }
+                ]
+              },
+              "price": {
+                "total_usd": 90.2,
+                "min_buy_usd": 90.2,
+                "price_scope": "library",
+                "library": {
+                  "default_total_usd": 90.2,
+                  "min_buy_usd": 90.2,
+                  "acquire_usd": null,
+                  "owned_value_usd": null,
+                  "target_usd": null,
+                  "target_met": null,
+                  "acquire_target_met": null,
+                  "over_min_buy_by_usd": null,
+                  "over_acquire_by_usd": null,
+                  "minor_units": {
+                    "default_total": 9020,
+                    "min_buy": 9020,
+                    "acquire": null
+                  },
+                  "coverage": {
+                    "complete": true,
+                    "requested_quantity": 99,
+                    "resolved_quantity": 99,
+                    "unresolved": [],
+                    "missing_prices": [],
+                    "default_total": {
+                      "complete": true,
+                      "priced_quantity": 99,
+                      "missing_quantity": 0,
+                      "excluded_quantity": 0
+                    },
+                    "min_buy": {
+                      "complete": true,
+                      "priced_quantity": 99,
+                      "missing_quantity": 0,
+                      "excluded_quantity": 0
+                    },
+                    "acquire": null
+                  },
+                  "pricing": {
+                    "currency": "USD",
+                    "source": "scryfall",
+                    "basis": "local_index",
+                    "data_snapshot": "2026-09-08",
+                    "price_timestamp": null
+                  },
+                  "freshness": {
+                    "status": "unknown",
+                    "price_timestamp": null,
+                    "max_age_ms": 86400000,
+                    "stale_quantity": 0,
+                    "unknown_quantity": 99
+                  },
+                  "ownership_basis": null
+                },
+                "command_zone": {
+                  "default_total_usd": 2.5,
+                  "min_buy_usd": 2.5,
+                  "acquire_usd": null,
+                  "owned_value_usd": null,
+                  "target_usd": null,
+                  "target_met": null,
+                  "acquire_target_met": null,
+                  "over_min_buy_by_usd": null,
+                  "over_acquire_by_usd": null,
+                  "minor_units": {
+                    "default_total": 250,
+                    "min_buy": 250,
+                    "acquire": null
+                  },
+                  "coverage": {
+                    "complete": true,
+                    "requested_quantity": 1,
+                    "resolved_quantity": 1,
+                    "unresolved": [],
+                    "missing_prices": [],
+                    "default_total": {
+                      "complete": true,
+                      "priced_quantity": 1,
+                      "missing_quantity": 0,
+                      "excluded_quantity": 0
+                    },
+                    "min_buy": {
+                      "complete": true,
+                      "priced_quantity": 1,
+                      "missing_quantity": 0,
+                      "excluded_quantity": 0
+                    },
+                    "acquire": null
+                  },
+                  "pricing": {
+                    "currency": "USD",
+                    "source": "scryfall",
+                    "basis": "local_index",
+                    "data_snapshot": "2026-09-08",
+                    "price_timestamp": null
+                  },
+                  "freshness": {
+                    "status": "unknown",
+                    "price_timestamp": null,
+                    "max_age_ms": 86400000,
+                    "stale_quantity": 0,
+                    "unknown_quantity": 1
+                  },
+                  "ownership_basis": null
+                },
+                "full_deck": {
+                  "default_total_usd": 92.7,
+                  "min_buy_usd": 92.7,
+                  "acquire_usd": null,
+                  "owned_value_usd": null,
+                  "target_usd": null,
+                  "target_met": null,
+                  "acquire_target_met": null,
+                  "over_min_buy_by_usd": null,
+                  "over_acquire_by_usd": null,
+                  "minor_units": {
+                    "default_total": 9270,
+                    "min_buy": 9270,
+                    "acquire": null
+                  },
+                  "coverage": {
+                    "complete": true,
+                    "requested_quantity": 100,
+                    "resolved_quantity": 100,
+                    "unresolved": [],
+                    "missing_prices": [],
+                    "default_total": {
+                      "complete": true,
+                      "priced_quantity": 100,
+                      "missing_quantity": 0,
+                      "excluded_quantity": 0
+                    },
+                    "min_buy": {
+                      "complete": true,
+                      "priced_quantity": 100,
+                      "missing_quantity": 0,
+                      "excluded_quantity": 0
+                    },
+                    "acquire": null
+                  },
+                  "pricing": {
+                    "currency": "USD",
+                    "source": "scryfall",
+                    "basis": "local_index",
+                    "data_snapshot": "2026-09-08",
+                    "price_timestamp": null
+                  },
+                  "freshness": {
+                    "status": "unknown",
+                    "price_timestamp": null,
+                    "max_age_ms": 86400000,
+                    "stale_quantity": 0,
+                    "unknown_quantity": 100
+                  },
+                  "ownership_basis": null
+                },
+                "companion": {
+                  "default_total_usd": 0,
+                  "min_buy_usd": 0,
+                  "acquire_usd": null,
+                  "owned_value_usd": null,
+                  "target_usd": null,
+                  "target_met": null,
+                  "acquire_target_met": null,
+                  "over_min_buy_by_usd": null,
+                  "over_acquire_by_usd": null,
+                  "minor_units": {
+                    "default_total": 0,
+                    "min_buy": 0,
+                    "acquire": null
+                  },
+                  "coverage": {
+                    "complete": true,
+                    "requested_quantity": 0,
+                    "resolved_quantity": 0,
+                    "unresolved": [],
+                    "missing_prices": [],
+                    "default_total": {
+                      "complete": true,
+                      "priced_quantity": 0,
+                      "missing_quantity": 0,
+                      "excluded_quantity": 0
+                    },
+                    "min_buy": {
+                      "complete": true,
+                      "priced_quantity": 0,
+                      "missing_quantity": 0,
+                      "excluded_quantity": 0
+                    },
+                    "acquire": null
+                  },
+                  "pricing": {
+                    "currency": "USD",
+                    "source": "scryfall",
+                    "basis": "local_index",
+                    "data_snapshot": "2026-09-08",
+                    "price_timestamp": null
+                  },
+                  "freshness": {
+                    "status": "unknown",
+                    "price_timestamp": null,
+                    "max_age_ms": 86400000,
+                    "stale_quantity": 0,
+                    "unknown_quantity": 0
+                  },
+                  "ownership_basis": null
+                },
+                "scope": {
+                  "library_quantity": 99,
+                  "command_zone_quantity": 1,
+                  "full_deck_quantity": 100,
+                  "companion_quantity": 0,
+                  "companion_included": false,
+                  "auxiliary_zones": "not_represented",
+                  "duplicate_commanders": [],
+                  "command_library_overlap": []
+                }
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.8702089999999885,
+          "expected_error": false
+        },
+        {
+          "name": "card_search",
+          "arguments": {
+            "query": "id<=r t:artifact o:add usd<=2",
+            "order": "price"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 of 1 cards"
+              },
+              {
+                "type": "text",
+                "text": "{\"total\":1,\"returned\":1,\"next_cursor\":null,\"results\":[{\"oracle_id\":\"wf-arcane\",\"name\":\"Arcane Signet\",\"mv\":2,\"ci\":[\"C\"],\"type\":\"Artifact\"}],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "total": 1,
+              "returned": 1,
+              "next_cursor": null,
+              "results": [
+                {
+                  "oracle_id": "wf-arcane",
+                  "name": "Arcane Signet",
+                  "mv": 2,
+                  "ci": ["C"],
+                  "type": "Artifact"
+                }
+              ],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.37791600000002745,
+          "expected_error": false
+        },
+        {
+          "name": "deck_remove",
+          "arguments": {
+            "deck_id": "import-tune-deck-1",
+            "cards": "Sol Ring"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "removed from import-tune-deck-1 — 99/100 cards, 97 lands, R, 1 violation(s), v3"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"import-tune-deck-1\",\"version\":3,\"failed\":[],\"vitals\":{\"card_count\":99,\"land_count\":97,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":3},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "import-tune-deck-1",
+              "version": 3,
+              "failed": [],
+              "vitals": {
+                "card_count": 99,
+                "land_count": 97,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 3
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.30179199999997763,
+          "expected_error": false
+        },
+        {
+          "name": "deck_add",
+          "arguments": {
+            "deck_id": "import-tune-deck-1",
+            "cards": "wf-arcane"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 add verdict(s) for import-tune-deck-1 — 100/100 cards, 97 lands, R, legal, v4"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"import-tune-deck-1\",\"version\":4,\"verdicts\":[{\"oracle_id\":\"wf-arcane\",\"name\":\"Arcane Signet\",\"status\":\"ok\"}],\"failed\":[],\"vitals\":{\"card_count\":100,\"land_count\":97,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":true,\"violation_count\":0,\"version\":4},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "import-tune-deck-1",
+              "version": 4,
+              "verdicts": [
+                {
+                  "oracle_id": "wf-arcane",
+                  "name": "Arcane Signet",
+                  "status": "ok"
+                }
+              ],
+              "failed": [],
+              "vitals": {
+                "card_count": 100,
+                "land_count": 97,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": true,
+                "violation_count": 0,
+                "version": 4
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.3432080000000042,
+          "expected_error": false
+        },
+        {
+          "name": "validate_deck",
+          "arguments": {
+            "deck_id": "import-tune-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "0 error(s), 0 warning(s)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"import-tune-deck-1\",\"ok\":true,\"violations\":[],\"errors\":[],\"warnings\":[],\"error_count\":0,\"warning_count\":0,\"exemptions\":[{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":97,\"reason\":\"basic_land\"}],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "import-tune-deck-1",
+              "ok": true,
+              "violations": [],
+              "errors": [],
+              "warnings": [],
+              "error_count": 0,
+              "warning_count": 0,
+              "exemptions": [
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "qty": 97,
+                  "reason": "basic_land"
+                }
+              ],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.16304200000001856,
+          "expected_error": false
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "import-tune-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Imported Goblins (v4)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"import-tune-deck-1\",\"name\":\"Imported Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-matron\",\"qty\":1,\"name\":\"Goblin Matron\"},{\"oracle_id\":\"wf-mountain\",\"qty\":97,\"name\":\"Mountain\"},{\"oracle_id\":\"wf-arcane\",\"qty\":1,\"name\":\"Arcane Signet\"}],\"computed_color_identity\":[\"R\"],\"version\":4,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "import-tune-deck-1",
+                "name": "Imported Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-matron",
+                    "qty": 1,
+                    "name": "Goblin Matron"
+                  },
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 97,
+                    "name": "Mountain"
+                  },
+                  {
+                    "oracle_id": "wf-arcane",
+                    "qty": 1,
+                    "name": "Arcane Signet"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 4,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.12704100000001972,
+          "expected_error": false
+        },
+        {
+          "name": "deck_diff",
+          "arguments": {
+            "deck_id": "import-tune-deck-1",
+            "snapshot_id": "import-tune-snapshot-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "+1 -1 ~0 cards"
+              },
+              {
+                "type": "text",
+                "text": "{\"diff\":{\"cards\":{\"added\":[{\"oracle_id\":\"wf-arcane\",\"qty\":1}],\"removed\":[{\"oracle_id\":\"wf-sol\",\"qty\":1}],\"changed\":[]},\"metadata\":{\"version\":{\"from\":2,\"to\":4}}},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "diff": {
+                "cards": {
+                  "added": [
+                    {
+                      "oracle_id": "wf-arcane",
+                      "qty": 1
+                    }
+                  ],
+                  "removed": [
+                    {
+                      "oracle_id": "wf-sol",
+                      "qty": 1
+                    }
+                  ],
+                  "changed": []
+                },
+                "metadata": {
+                  "version": {
+                    "from": 2,
+                    "to": 4
+                  }
+                }
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.21370899999999438,
+          "expected_error": false
+        },
+        {
+          "name": "deck_export",
+          "arguments": {
+            "deck_id": "import-tune-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 Goblin Matron\n97 Mountain\n1 Arcane Signet"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"import-tune-deck-1\",\"format\":\"text\",\"text\":\"1 Goblin Matron\\n97 Mountain\\n1 Arcane Signet\",\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "import-tune-deck-1",
+              "format": "text",
+              "text": "1 Goblin Matron\n97 Mountain\n1 Arcane Signet",
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.12387500000005502,
+          "expected_error": false
+        }
+      ],
+      "invariants": [
+        "legal_100_cards_including_commander",
+        "import_resolves_every_line",
+        "snapshot_diff_exactly_matches_explicit_swap",
+        "export_reflects_tuned_library"
+      ],
+      "protocol_version": "2025-11-25",
+      "server_info": {
+        "name": "mtg-edh-mcp",
+        "version": "0.3.0"
+      },
+      "metrics": {
+        "tool_calls": 11,
+        "invalid_calls": 0,
+        "partial_failure_calls": 0,
+        "tool_errors": 0,
+        "rpc_errors": 0,
+        "expected_errors": 0,
+        "response_bytes": 17133,
+        "elapsed_ms": 3.5849170000001322
+      }
+    },
+    {
+      "id": "acquisition-reduction",
+      "prompt": "Reduce the cost to acquire this Krenko deck while retaining my owned Goblin Matron and a legal 100 cards.",
+      "calls": [
+        {
+          "name": "deck_create",
+          "arguments": {
+            "name": "Acquire Goblins",
+            "commanders": "Krenko, Mob Boss"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "created deck acquisition-reduction-deck-1 — 1/100 cards, 0 lands, R, 1 violation(s), v1"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"acquisition-reduction-deck-1\",\"deck\":{\"deck_id\":\"acquisition-reduction-deck-1\",\"name\":\"Acquire Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[],\"computed_color_identity\":[\"R\"],\"version\":1,\"data_snapshot\":\"2026-09-08\"},\"vitals\":{\"card_count\":1,\"land_count\":0,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":1},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "acquisition-reduction-deck-1",
+              "deck": {
+                "deck_id": "acquisition-reduction-deck-1",
+                "name": "Acquire Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [],
+                "computed_color_identity": ["R"],
+                "version": 1,
+                "data_snapshot": "2026-09-08"
+              },
+              "vitals": {
+                "card_count": 1,
+                "land_count": 0,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 1
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.2410419999999931,
+          "expected_error": false
+        },
+        {
+          "name": "deck_import",
+          "arguments": {
+            "deck_id": "acquisition-reduction-deck-1",
+            "text": "1 Sol Ring\n1 Goblin Matron\n97 Mountain"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "imported 3 cards into acquisition-reduction-deck-1; 0 unresolved — 100/100 cards, 97 lands, R, legal, v2"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"acquisition-reduction-deck-1\",\"resolved_count\":3,\"unresolved\":[],\"vitals\":{\"card_count\":100,\"land_count\":97,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":true,\"violation_count\":0,\"version\":2},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "acquisition-reduction-deck-1",
+              "resolved_count": 3,
+              "unresolved": [],
+              "vitals": {
+                "card_count": 100,
+                "land_count": 97,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": true,
+                "violation_count": 0,
+                "version": 2
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.2629999999999768,
+          "expected_error": false
+        },
+        {
+          "name": "collection_set",
+          "arguments": {
+            "cards": ["Goblin Matron"]
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "collection set to 1 card(s)"
+              },
+              {
+                "type": "text",
+                "text": "{\"owned_count\":1,\"total\":1,\"owned\":[\"wf-matron\"],\"cards\":[{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\"}],\"unresolved\":[],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "owned_count": 1,
+              "total": 1,
+              "owned": ["wf-matron"],
+              "cards": [
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron"
+                }
+              ],
+              "unresolved": [],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.14179200000000947,
+          "expected_error": false
+        },
+        {
+          "name": "budget_plan",
+          "arguments": {
+            "deck_id": "acquisition-reduction-deck-1",
+            "target_usd": 20,
+            "use_collection": true
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "full-deck estimated value USD 92.7, cheapest-printing estimate USD 92.7 (library 90.2, command zone 2.5); companion 0 separate; estimated new spending USD 92.2 (collection membership covers all copies); price freshness unknown; excludes fees, tax and shipping; full-deck estimated gap 72.7"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"acquisition-reduction-deck-1\",\"version\":2,\"default_total_usd\":90.2,\"min_buy_usd\":90.2,\"reprint_savings_usd\":0,\"reprint_suggestions\":[],\"cost_drivers\":[{\"oracle_id\":\"wf-sol\",\"name\":\"Sol Ring\",\"qty\":1,\"cheapest_usd\":80,\"contribution\":80,\"roles\":[\"ramp\",\"mana_rock\"]},{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":97,\"cheapest_usd\":0.1,\"contribution\":9.7,\"roles\":[\"land\"]},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"qty\":1,\"cheapest_usd\":0.5,\"contribution\":0.5,\"roles\":[\"utility\"]}],\"target_usd\":20,\"over_min_buy_by_usd\":70.2,\"acquire_usd\":89.7,\"owned_value_usd\":0.5,\"over_acquire_by_usd\":69.7,\"minor_units\":{\"default_total\":9020,\"min_buy\":9020,\"acquire\":8970},\"coverage\":{\"complete\":true,\"requested_quantity\":99,\"resolved_quantity\":99,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":98,\"missing_quantity\":0,\"excluded_quantity\":1}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":99},\"target_met\":false,\"acquire_target_met\":false,\"ownership_basis\":\"oracle_id_membership_all_copies\",\"price_scope\":\"library\",\"library\":{\"default_total_usd\":90.2,\"min_buy_usd\":90.2,\"acquire_usd\":89.7,\"owned_value_usd\":0.5,\"target_usd\":20,\"target_met\":false,\"acquire_target_met\":false,\"over_min_buy_by_usd\":70.2,\"over_acquire_by_usd\":69.7,\"minor_units\":{\"default_total\":9020,\"min_buy\":9020,\"acquire\":8970},\"coverage\":{\"complete\":true,\"requested_quantity\":99,\"resolved_quantity\":99,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":98,\"missing_quantity\":0,\"excluded_quantity\":1}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":99},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"command_zone\":{\"default_total_usd\":2.5,\"min_buy_usd\":2.5,\"acquire_usd\":2.5,\"owned_value_usd\":0,\"target_usd\":20,\"target_met\":true,\"acquire_target_met\":true,\"over_min_buy_by_usd\":0,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":250,\"min_buy\":250,\"acquire\":250},\"coverage\":{\"complete\":true,\"requested_quantity\":1,\"resolved_quantity\":1,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":1},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"full_deck\":{\"default_total_usd\":92.7,\"min_buy_usd\":92.7,\"reprint_savings_usd\":0,\"reprint_suggestions\":[],\"cost_drivers\":[{\"oracle_id\":\"wf-sol\",\"name\":\"Sol Ring\",\"qty\":1,\"cheapest_usd\":80,\"contribution\":80,\"roles\":[\"ramp\",\"mana_rock\"]},{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":97,\"cheapest_usd\":0.1,\"contribution\":9.7,\"roles\":[\"land\"]},{\"oracle_id\":\"wf-krenko\",\"name\":\"Krenko, Mob Boss\",\"qty\":1,\"cheapest_usd\":2.5,\"contribution\":2.5,\"roles\":[\"utility\"]},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"qty\":1,\"cheapest_usd\":0.5,\"contribution\":0.5,\"roles\":[\"utility\"]}],\"target_usd\":20,\"over_min_buy_by_usd\":72.7,\"acquire_usd\":92.2,\"owned_value_usd\":0.5,\"over_acquire_by_usd\":72.2,\"minor_units\":{\"default_total\":9270,\"min_buy\":9270,\"acquire\":9220},\"coverage\":{\"complete\":true,\"requested_quantity\":100,\"resolved_quantity\":100,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":100,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":100,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":1}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":100},\"target_met\":false,\"acquire_target_met\":false,\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"companion\":{\"default_total_usd\":0,\"min_buy_usd\":0,\"acquire_usd\":0,\"owned_value_usd\":0,\"target_usd\":20,\"target_met\":true,\"acquire_target_met\":true,\"over_min_buy_by_usd\":0,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":0,\"min_buy\":0,\"acquire\":0},\"coverage\":{\"complete\":true,\"requested_quantity\":0,\"resolved_quantity\":0,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":0},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"scope\":{\"library_quantity\":99,\"command_zone_quantity\":1,\"full_deck_quantity\":100,\"companion_quantity\":0,\"companion_included\":false,\"auxiliary_zones\":\"not_represented\",\"duplicate_commanders\":[],\"command_library_overlap\":[]},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "acquisition-reduction-deck-1",
+              "version": 2,
+              "default_total_usd": 90.2,
+              "min_buy_usd": 90.2,
+              "reprint_savings_usd": 0,
+              "reprint_suggestions": [],
+              "cost_drivers": [
+                {
+                  "oracle_id": "wf-sol",
+                  "name": "Sol Ring",
+                  "qty": 1,
+                  "cheapest_usd": 80,
+                  "contribution": 80,
+                  "roles": ["ramp", "mana_rock"]
+                },
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "qty": 97,
+                  "cheapest_usd": 0.1,
+                  "contribution": 9.7,
+                  "roles": ["land"]
+                },
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron",
+                  "qty": 1,
+                  "cheapest_usd": 0.5,
+                  "contribution": 0.5,
+                  "roles": ["utility"]
+                }
+              ],
+              "target_usd": 20,
+              "over_min_buy_by_usd": 70.2,
+              "acquire_usd": 89.7,
+              "owned_value_usd": 0.5,
+              "over_acquire_by_usd": 69.7,
+              "minor_units": {
+                "default_total": 9020,
+                "min_buy": 9020,
+                "acquire": 8970
+              },
+              "coverage": {
+                "complete": true,
+                "requested_quantity": 99,
+                "resolved_quantity": 99,
+                "unresolved": [],
+                "missing_prices": [],
+                "default_total": {
+                  "complete": true,
+                  "priced_quantity": 99,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 0
+                },
+                "min_buy": {
+                  "complete": true,
+                  "priced_quantity": 99,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 0
+                },
+                "acquire": {
+                  "complete": true,
+                  "priced_quantity": 98,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 1
+                }
+              },
+              "pricing": {
+                "currency": "USD",
+                "source": "scryfall",
+                "basis": "local_index",
+                "data_snapshot": "2026-09-08",
+                "price_timestamp": null
+              },
+              "freshness": {
+                "status": "unknown",
+                "price_timestamp": null,
+                "max_age_ms": 86400000,
+                "stale_quantity": 0,
+                "unknown_quantity": 99
+              },
+              "target_met": false,
+              "acquire_target_met": false,
+              "ownership_basis": "oracle_id_membership_all_copies",
+              "price_scope": "library",
+              "library": {
+                "default_total_usd": 90.2,
+                "min_buy_usd": 90.2,
+                "acquire_usd": 89.7,
+                "owned_value_usd": 0.5,
+                "target_usd": 20,
+                "target_met": false,
+                "acquire_target_met": false,
+                "over_min_buy_by_usd": 70.2,
+                "over_acquire_by_usd": 69.7,
+                "minor_units": {
+                  "default_total": 9020,
+                  "min_buy": 9020,
+                  "acquire": 8970
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 99,
+                  "resolved_quantity": 99,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 99,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 99,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 98,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 1
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 99
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "command_zone": {
+                "default_total_usd": 2.5,
+                "min_buy_usd": 2.5,
+                "acquire_usd": 2.5,
+                "owned_value_usd": 0,
+                "target_usd": 20,
+                "target_met": true,
+                "acquire_target_met": true,
+                "over_min_buy_by_usd": 0,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 250,
+                  "min_buy": 250,
+                  "acquire": 250
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 1,
+                  "resolved_quantity": 1,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 1
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "full_deck": {
+                "default_total_usd": 92.7,
+                "min_buy_usd": 92.7,
+                "reprint_savings_usd": 0,
+                "reprint_suggestions": [],
+                "cost_drivers": [
+                  {
+                    "oracle_id": "wf-sol",
+                    "name": "Sol Ring",
+                    "qty": 1,
+                    "cheapest_usd": 80,
+                    "contribution": 80,
+                    "roles": ["ramp", "mana_rock"]
+                  },
+                  {
+                    "oracle_id": "wf-mountain",
+                    "name": "Mountain",
+                    "qty": 97,
+                    "cheapest_usd": 0.1,
+                    "contribution": 9.7,
+                    "roles": ["land"]
+                  },
+                  {
+                    "oracle_id": "wf-krenko",
+                    "name": "Krenko, Mob Boss",
+                    "qty": 1,
+                    "cheapest_usd": 2.5,
+                    "contribution": 2.5,
+                    "roles": ["utility"]
+                  },
+                  {
+                    "oracle_id": "wf-matron",
+                    "name": "Goblin Matron",
+                    "qty": 1,
+                    "cheapest_usd": 0.5,
+                    "contribution": 0.5,
+                    "roles": ["utility"]
+                  }
+                ],
+                "target_usd": 20,
+                "over_min_buy_by_usd": 72.7,
+                "acquire_usd": 92.2,
+                "owned_value_usd": 0.5,
+                "over_acquire_by_usd": 72.2,
+                "minor_units": {
+                  "default_total": 9270,
+                  "min_buy": 9270,
+                  "acquire": 9220
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 100,
+                  "resolved_quantity": 100,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 100,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 100,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 99,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 1
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 100
+                },
+                "target_met": false,
+                "acquire_target_met": false,
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "companion": {
+                "default_total_usd": 0,
+                "min_buy_usd": 0,
+                "acquire_usd": 0,
+                "owned_value_usd": 0,
+                "target_usd": 20,
+                "target_met": true,
+                "acquire_target_met": true,
+                "over_min_buy_by_usd": 0,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 0,
+                  "min_buy": 0,
+                  "acquire": 0
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 0,
+                  "resolved_quantity": 0,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 0
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "scope": {
+                "library_quantity": 99,
+                "command_zone_quantity": 1,
+                "full_deck_quantity": 100,
+                "companion_quantity": 0,
+                "companion_included": false,
+                "auxiliary_zones": "not_represented",
+                "duplicate_commanders": [],
+                "command_library_overlap": []
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.29420799999996916,
+          "expected_error": false
+        },
+        {
+          "name": "card_search",
+          "arguments": {
+            "query": "id<=r t:artifact o:add usd<=2",
+            "order": "price"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 of 1 cards"
+              },
+              {
+                "type": "text",
+                "text": "{\"total\":1,\"returned\":1,\"next_cursor\":null,\"results\":[{\"oracle_id\":\"wf-arcane\",\"name\":\"Arcane Signet\",\"mv\":2,\"ci\":[\"C\"],\"type\":\"Artifact\"}],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "total": 1,
+              "returned": 1,
+              "next_cursor": null,
+              "results": [
+                {
+                  "oracle_id": "wf-arcane",
+                  "name": "Arcane Signet",
+                  "mv": 2,
+                  "ci": ["C"],
+                  "type": "Artifact"
+                }
+              ],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.2622920000000022,
+          "expected_error": false
+        },
+        {
+          "name": "deck_remove",
+          "arguments": {
+            "deck_id": "acquisition-reduction-deck-1",
+            "cards": "Sol Ring"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "removed from acquisition-reduction-deck-1 — 99/100 cards, 97 lands, R, 1 violation(s), v3"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"acquisition-reduction-deck-1\",\"version\":3,\"failed\":[],\"vitals\":{\"card_count\":99,\"land_count\":97,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":3},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "acquisition-reduction-deck-1",
+              "version": 3,
+              "failed": [],
+              "vitals": {
+                "card_count": 99,
+                "land_count": 97,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 3
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.2406660000000329,
+          "expected_error": false
+        },
+        {
+          "name": "deck_add",
+          "arguments": {
+            "deck_id": "acquisition-reduction-deck-1",
+            "cards": "wf-arcane"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 add verdict(s) for acquisition-reduction-deck-1 — 100/100 cards, 97 lands, R, legal, v4"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"acquisition-reduction-deck-1\",\"version\":4,\"verdicts\":[{\"oracle_id\":\"wf-arcane\",\"name\":\"Arcane Signet\",\"status\":\"ok\"}],\"failed\":[],\"vitals\":{\"card_count\":100,\"land_count\":97,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":true,\"violation_count\":0,\"version\":4},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "acquisition-reduction-deck-1",
+              "version": 4,
+              "verdicts": [
+                {
+                  "oracle_id": "wf-arcane",
+                  "name": "Arcane Signet",
+                  "status": "ok"
+                }
+              ],
+              "failed": [],
+              "vitals": {
+                "card_count": 100,
+                "land_count": 97,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": true,
+                "violation_count": 0,
+                "version": 4
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 1.6786670000000186,
+          "expected_error": false
+        },
+        {
+          "name": "budget_plan",
+          "arguments": {
+            "deck_id": "acquisition-reduction-deck-1",
+            "target_usd": 20,
+            "use_collection": true
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "full-deck estimated value USD 13.7, cheapest-printing estimate USD 13.7 (library 11.2, command zone 2.5); companion 0 separate; estimated new spending USD 13.2 (collection membership covers all copies); price freshness unknown; excludes fees, tax and shipping; full-deck estimated gap 0"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"acquisition-reduction-deck-1\",\"version\":4,\"default_total_usd\":11.2,\"min_buy_usd\":11.2,\"reprint_savings_usd\":0,\"reprint_suggestions\":[],\"cost_drivers\":[{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":97,\"cheapest_usd\":0.1,\"contribution\":9.7,\"roles\":[\"land\"]},{\"oracle_id\":\"wf-arcane\",\"name\":\"Arcane Signet\",\"qty\":1,\"cheapest_usd\":1,\"contribution\":1,\"roles\":[\"ramp\",\"mana_rock\",\"fixing\"]},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"qty\":1,\"cheapest_usd\":0.5,\"contribution\":0.5,\"roles\":[\"utility\"]}],\"target_usd\":20,\"over_min_buy_by_usd\":0,\"acquire_usd\":10.7,\"owned_value_usd\":0.5,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":1120,\"min_buy\":1120,\"acquire\":1070},\"coverage\":{\"complete\":true,\"requested_quantity\":99,\"resolved_quantity\":99,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":98,\"missing_quantity\":0,\"excluded_quantity\":1}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":99},\"target_met\":true,\"acquire_target_met\":true,\"ownership_basis\":\"oracle_id_membership_all_copies\",\"price_scope\":\"library\",\"library\":{\"default_total_usd\":11.2,\"min_buy_usd\":11.2,\"acquire_usd\":10.7,\"owned_value_usd\":0.5,\"target_usd\":20,\"target_met\":true,\"acquire_target_met\":true,\"over_min_buy_by_usd\":0,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":1120,\"min_buy\":1120,\"acquire\":1070},\"coverage\":{\"complete\":true,\"requested_quantity\":99,\"resolved_quantity\":99,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":98,\"missing_quantity\":0,\"excluded_quantity\":1}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":99},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"command_zone\":{\"default_total_usd\":2.5,\"min_buy_usd\":2.5,\"acquire_usd\":2.5,\"owned_value_usd\":0,\"target_usd\":20,\"target_met\":true,\"acquire_target_met\":true,\"over_min_buy_by_usd\":0,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":250,\"min_buy\":250,\"acquire\":250},\"coverage\":{\"complete\":true,\"requested_quantity\":1,\"resolved_quantity\":1,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":1,\"missing_quantity\":0,\"excluded_quantity\":0}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":1},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"full_deck\":{\"default_total_usd\":13.7,\"min_buy_usd\":13.7,\"reprint_savings_usd\":0,\"reprint_suggestions\":[],\"cost_drivers\":[{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":97,\"cheapest_usd\":0.1,\"contribution\":9.7,\"roles\":[\"land\"]},{\"oracle_id\":\"wf-krenko\",\"name\":\"Krenko, Mob Boss\",\"qty\":1,\"cheapest_usd\":2.5,\"contribution\":2.5,\"roles\":[\"utility\"]},{\"oracle_id\":\"wf-arcane\",\"name\":\"Arcane Signet\",\"qty\":1,\"cheapest_usd\":1,\"contribution\":1,\"roles\":[\"ramp\",\"mana_rock\",\"fixing\"]},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"qty\":1,\"cheapest_usd\":0.5,\"contribution\":0.5,\"roles\":[\"utility\"]}],\"target_usd\":20,\"over_min_buy_by_usd\":0,\"acquire_usd\":13.2,\"owned_value_usd\":0.5,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":1370,\"min_buy\":1370,\"acquire\":1320},\"coverage\":{\"complete\":true,\"requested_quantity\":100,\"resolved_quantity\":100,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":100,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":100,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":99,\"missing_quantity\":0,\"excluded_quantity\":1}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":100},\"target_met\":true,\"acquire_target_met\":true,\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"companion\":{\"default_total_usd\":0,\"min_buy_usd\":0,\"acquire_usd\":0,\"owned_value_usd\":0,\"target_usd\":20,\"target_met\":true,\"acquire_target_met\":true,\"over_min_buy_by_usd\":0,\"over_acquire_by_usd\":0,\"minor_units\":{\"default_total\":0,\"min_buy\":0,\"acquire\":0},\"coverage\":{\"complete\":true,\"requested_quantity\":0,\"resolved_quantity\":0,\"unresolved\":[],\"missing_prices\":[],\"default_total\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0},\"min_buy\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0},\"acquire\":{\"complete\":true,\"priced_quantity\":0,\"missing_quantity\":0,\"excluded_quantity\":0}},\"pricing\":{\"currency\":\"USD\",\"source\":\"scryfall\",\"basis\":\"local_index\",\"data_snapshot\":\"2026-09-08\",\"price_timestamp\":null},\"freshness\":{\"status\":\"unknown\",\"price_timestamp\":null,\"max_age_ms\":86400000,\"stale_quantity\":0,\"unknown_quantity\":0},\"ownership_basis\":\"oracle_id_membership_all_copies\"},\"scope\":{\"library_quantity\":99,\"command_zone_quantity\":1,\"full_deck_quantity\":100,\"companion_quantity\":0,\"companion_included\":false,\"auxiliary_zones\":\"not_represented\",\"duplicate_commanders\":[],\"command_library_overlap\":[]},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "acquisition-reduction-deck-1",
+              "version": 4,
+              "default_total_usd": 11.2,
+              "min_buy_usd": 11.2,
+              "reprint_savings_usd": 0,
+              "reprint_suggestions": [],
+              "cost_drivers": [
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "qty": 97,
+                  "cheapest_usd": 0.1,
+                  "contribution": 9.7,
+                  "roles": ["land"]
+                },
+                {
+                  "oracle_id": "wf-arcane",
+                  "name": "Arcane Signet",
+                  "qty": 1,
+                  "cheapest_usd": 1,
+                  "contribution": 1,
+                  "roles": ["ramp", "mana_rock", "fixing"]
+                },
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron",
+                  "qty": 1,
+                  "cheapest_usd": 0.5,
+                  "contribution": 0.5,
+                  "roles": ["utility"]
+                }
+              ],
+              "target_usd": 20,
+              "over_min_buy_by_usd": 0,
+              "acquire_usd": 10.7,
+              "owned_value_usd": 0.5,
+              "over_acquire_by_usd": 0,
+              "minor_units": {
+                "default_total": 1120,
+                "min_buy": 1120,
+                "acquire": 1070
+              },
+              "coverage": {
+                "complete": true,
+                "requested_quantity": 99,
+                "resolved_quantity": 99,
+                "unresolved": [],
+                "missing_prices": [],
+                "default_total": {
+                  "complete": true,
+                  "priced_quantity": 99,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 0
+                },
+                "min_buy": {
+                  "complete": true,
+                  "priced_quantity": 99,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 0
+                },
+                "acquire": {
+                  "complete": true,
+                  "priced_quantity": 98,
+                  "missing_quantity": 0,
+                  "excluded_quantity": 1
+                }
+              },
+              "pricing": {
+                "currency": "USD",
+                "source": "scryfall",
+                "basis": "local_index",
+                "data_snapshot": "2026-09-08",
+                "price_timestamp": null
+              },
+              "freshness": {
+                "status": "unknown",
+                "price_timestamp": null,
+                "max_age_ms": 86400000,
+                "stale_quantity": 0,
+                "unknown_quantity": 99
+              },
+              "target_met": true,
+              "acquire_target_met": true,
+              "ownership_basis": "oracle_id_membership_all_copies",
+              "price_scope": "library",
+              "library": {
+                "default_total_usd": 11.2,
+                "min_buy_usd": 11.2,
+                "acquire_usd": 10.7,
+                "owned_value_usd": 0.5,
+                "target_usd": 20,
+                "target_met": true,
+                "acquire_target_met": true,
+                "over_min_buy_by_usd": 0,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 1120,
+                  "min_buy": 1120,
+                  "acquire": 1070
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 99,
+                  "resolved_quantity": 99,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 99,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 99,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 98,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 1
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 99
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "command_zone": {
+                "default_total_usd": 2.5,
+                "min_buy_usd": 2.5,
+                "acquire_usd": 2.5,
+                "owned_value_usd": 0,
+                "target_usd": 20,
+                "target_met": true,
+                "acquire_target_met": true,
+                "over_min_buy_by_usd": 0,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 250,
+                  "min_buy": 250,
+                  "acquire": 250
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 1,
+                  "resolved_quantity": 1,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 1,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 1
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "full_deck": {
+                "default_total_usd": 13.7,
+                "min_buy_usd": 13.7,
+                "reprint_savings_usd": 0,
+                "reprint_suggestions": [],
+                "cost_drivers": [
+                  {
+                    "oracle_id": "wf-mountain",
+                    "name": "Mountain",
+                    "qty": 97,
+                    "cheapest_usd": 0.1,
+                    "contribution": 9.7,
+                    "roles": ["land"]
+                  },
+                  {
+                    "oracle_id": "wf-krenko",
+                    "name": "Krenko, Mob Boss",
+                    "qty": 1,
+                    "cheapest_usd": 2.5,
+                    "contribution": 2.5,
+                    "roles": ["utility"]
+                  },
+                  {
+                    "oracle_id": "wf-arcane",
+                    "name": "Arcane Signet",
+                    "qty": 1,
+                    "cheapest_usd": 1,
+                    "contribution": 1,
+                    "roles": ["ramp", "mana_rock", "fixing"]
+                  },
+                  {
+                    "oracle_id": "wf-matron",
+                    "name": "Goblin Matron",
+                    "qty": 1,
+                    "cheapest_usd": 0.5,
+                    "contribution": 0.5,
+                    "roles": ["utility"]
+                  }
+                ],
+                "target_usd": 20,
+                "over_min_buy_by_usd": 0,
+                "acquire_usd": 13.2,
+                "owned_value_usd": 0.5,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 1370,
+                  "min_buy": 1370,
+                  "acquire": 1320
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 100,
+                  "resolved_quantity": 100,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 100,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 100,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 99,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 1
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 100
+                },
+                "target_met": true,
+                "acquire_target_met": true,
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "companion": {
+                "default_total_usd": 0,
+                "min_buy_usd": 0,
+                "acquire_usd": 0,
+                "owned_value_usd": 0,
+                "target_usd": 20,
+                "target_met": true,
+                "acquire_target_met": true,
+                "over_min_buy_by_usd": 0,
+                "over_acquire_by_usd": 0,
+                "minor_units": {
+                  "default_total": 0,
+                  "min_buy": 0,
+                  "acquire": 0
+                },
+                "coverage": {
+                  "complete": true,
+                  "requested_quantity": 0,
+                  "resolved_quantity": 0,
+                  "unresolved": [],
+                  "missing_prices": [],
+                  "default_total": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "min_buy": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  },
+                  "acquire": {
+                    "complete": true,
+                    "priced_quantity": 0,
+                    "missing_quantity": 0,
+                    "excluded_quantity": 0
+                  }
+                },
+                "pricing": {
+                  "currency": "USD",
+                  "source": "scryfall",
+                  "basis": "local_index",
+                  "data_snapshot": "2026-09-08",
+                  "price_timestamp": null
+                },
+                "freshness": {
+                  "status": "unknown",
+                  "price_timestamp": null,
+                  "max_age_ms": 86400000,
+                  "stale_quantity": 0,
+                  "unknown_quantity": 0
+                },
+                "ownership_basis": "oracle_id_membership_all_copies"
+              },
+              "scope": {
+                "library_quantity": 99,
+                "command_zone_quantity": 1,
+                "full_deck_quantity": 100,
+                "companion_quantity": 0,
+                "companion_included": false,
+                "auxiliary_zones": "not_represented",
+                "duplicate_commanders": [],
+                "command_library_overlap": []
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.31970799999999144,
+          "expected_error": false
+        },
+        {
+          "name": "validate_deck",
+          "arguments": {
+            "deck_id": "acquisition-reduction-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "0 error(s), 0 warning(s)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"acquisition-reduction-deck-1\",\"ok\":true,\"violations\":[],\"errors\":[],\"warnings\":[],\"error_count\":0,\"warning_count\":0,\"exemptions\":[{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":97,\"reason\":\"basic_land\"}],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "acquisition-reduction-deck-1",
+              "ok": true,
+              "violations": [],
+              "errors": [],
+              "warnings": [],
+              "error_count": 0,
+              "warning_count": 0,
+              "exemptions": [
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "qty": 97,
+                  "reason": "basic_land"
+                }
+              ],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.17395799999997053,
+          "expected_error": false
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "acquisition-reduction-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Acquire Goblins (v4)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"acquisition-reduction-deck-1\",\"name\":\"Acquire Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-matron\",\"qty\":1,\"name\":\"Goblin Matron\"},{\"oracle_id\":\"wf-mountain\",\"qty\":97,\"name\":\"Mountain\"},{\"oracle_id\":\"wf-arcane\",\"qty\":1,\"name\":\"Arcane Signet\"}],\"computed_color_identity\":[\"R\"],\"version\":4,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "acquisition-reduction-deck-1",
+                "name": "Acquire Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-matron",
+                    "qty": 1,
+                    "name": "Goblin Matron"
+                  },
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 97,
+                    "name": "Mountain"
+                  },
+                  {
+                    "oracle_id": "wf-arcane",
+                    "qty": 1,
+                    "name": "Arcane Signet"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 4,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.10841699999997445,
+          "expected_error": false
+        }
+      ],
+      "invariants": [
+        "legal_100_cards_including_commander",
+        "owned_aware_acquisition_cost_reduced_by_79_usd",
+        "owned_card_retained_without_changing_collection"
+      ],
+      "protocol_version": "2025-11-25",
+      "server_info": {
+        "name": "mtg-edh-mcp",
+        "version": "0.3.0"
+      },
+      "metrics": {
+        "tool_calls": 10,
+        "invalid_calls": 0,
+        "partial_failure_calls": 0,
+        "tool_errors": 0,
+        "rpc_errors": 0,
+        "expected_errors": 0,
+        "response_bytes": 32651,
+        "elapsed_ms": 3.7237499999999386
+      }
+    },
+    {
+      "id": "error-recovery",
+      "prompt": "Use Krenko as commander; recover from an ambiguous name and unavailable EDHREC using local cards, then retry recommendations.",
+      "calls": [
+        {
+          "name": "deck_create",
+          "arguments": {
+            "name": "Recovery Goblins",
+            "commanders": "Krenko, Mob Boss"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "created deck error-recovery-deck-1 — 1/100 cards, 0 lands, R, 1 violation(s), v1"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"error-recovery-deck-1\",\"deck\":{\"deck_id\":\"error-recovery-deck-1\",\"name\":\"Recovery Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[],\"computed_color_identity\":[\"R\"],\"version\":1,\"data_snapshot\":\"2026-09-08\"},\"vitals\":{\"card_count\":1,\"land_count\":0,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":1},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "error-recovery-deck-1",
+              "deck": {
+                "deck_id": "error-recovery-deck-1",
+                "name": "Recovery Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [],
+                "computed_color_identity": ["R"],
+                "version": 1,
+                "data_snapshot": "2026-09-08"
+              },
+              "vitals": {
+                "card_count": 1,
+                "land_count": 0,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 1
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.21050000000002456,
+          "expected_error": false
+        },
+        {
+          "name": "deck_add",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1",
+            "cards": {
+              "card": "Mountain",
+              "qty": 98
+            }
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 add verdict(s) for error-recovery-deck-1 — 99/100 cards, 98 lands, R, 1 violation(s), v2"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"error-recovery-deck-1\",\"version\":2,\"verdicts\":[{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"status\":\"ok\"}],\"failed\":[],\"vitals\":{\"card_count\":99,\"land_count\":98,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":2},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "error-recovery-deck-1",
+              "version": 2,
+              "verdicts": [
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "status": "ok"
+                }
+              ],
+              "failed": [],
+              "vitals": {
+                "card_count": 99,
+                "land_count": 98,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 2
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.20316600000001017,
+          "expected_error": false
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Recovery Goblins (v2)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"error-recovery-deck-1\",\"name\":\"Recovery Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-mountain\",\"qty\":98,\"name\":\"Mountain\"}],\"computed_color_identity\":[\"R\"],\"version\":2,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "error-recovery-deck-1",
+                "name": "Recovery Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 98,
+                    "name": "Mountain"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 2,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.0852090000000203,
+          "expected_error": false
+        },
+        {
+          "name": "deck_set_commander",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1",
+            "commanders": "Krenko"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"code\":\"AMBIGUOUS_NAME\",\"message\":\"'Krenko' matched 2 cards\",\"details\":{\"candidates\":[{\"oracle_id\":\"wf-krenko\",\"name\":\"Krenko, Mob Boss\",\"mv\":4,\"ci\":[\"R\"],\"type\":\"Legendary Creature — Goblin Warrior\"},{\"oracle_id\":\"wf-kingpin\",\"name\":\"Krenko, Tin Street Kingpin\",\"mv\":3,\"ci\":[\"R\"],\"type\":\"Legendary Creature — Goblin\"}]}}"
+              },
+              {
+                "type": "text",
+                "text": "{\"code\":\"AMBIGUOUS_NAME\",\"message\":\"'Krenko' matched 2 cards\",\"details\":{\"candidates\":[{\"oracle_id\":\"wf-krenko\",\"name\":\"Krenko, Mob Boss\",\"mv\":4,\"ci\":[\"R\"],\"type\":\"Legendary Creature — Goblin Warrior\"},{\"oracle_id\":\"wf-kingpin\",\"name\":\"Krenko, Tin Street Kingpin\",\"mv\":3,\"ci\":[\"R\"],\"type\":\"Legendary Creature — Goblin\"}]},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "code": "AMBIGUOUS_NAME",
+              "message": "'Krenko' matched 2 cards",
+              "details": {
+                "candidates": [
+                  {
+                    "oracle_id": "wf-krenko",
+                    "name": "Krenko, Mob Boss",
+                    "mv": 4,
+                    "ci": ["R"],
+                    "type": "Legendary Creature — Goblin Warrior"
+                  },
+                  {
+                    "oracle_id": "wf-kingpin",
+                    "name": "Krenko, Tin Street Kingpin",
+                    "mv": 3,
+                    "ci": ["R"],
+                    "type": "Legendary Creature — Goblin"
+                  }
+                ]
+              },
+              "data_snapshot": "2026-09-08"
+            },
+            "isError": true
+          },
+          "elapsed_ms": 0.2801249999999982,
+          "expected_error": true
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Recovery Goblins (v2)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"error-recovery-deck-1\",\"name\":\"Recovery Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-mountain\",\"qty\":98,\"name\":\"Mountain\"}],\"computed_color_identity\":[\"R\"],\"version\":2,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "error-recovery-deck-1",
+                "name": "Recovery Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 98,
+                    "name": "Mountain"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 2,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.07875000000001364,
+          "expected_error": false
+        },
+        {
+          "name": "card_resolve_name",
+          "arguments": {
+            "name": "Krenko, Mob Boss",
+            "exact": true
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Krenko, Mob Boss"
+              },
+              {
+                "type": "text",
+                "text": "{\"oracle_id\":\"wf-krenko\",\"card\":{\"oracle_id\":\"wf-krenko\",\"name\":\"Krenko, Mob Boss\",\"mv\":4,\"ci\":[\"R\"],\"type\":\"Legendary Creature — Goblin Warrior\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "oracle_id": "wf-krenko",
+              "card": {
+                "oracle_id": "wf-krenko",
+                "name": "Krenko, Mob Boss",
+                "mv": 4,
+                "ci": ["R"],
+                "type": "Legendary Creature — Goblin Warrior"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.12291699999997263,
+          "expected_error": false
+        },
+        {
+          "name": "deck_set_commander",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1",
+            "commanders": "wf-krenko"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "set 1 commander(s) on error-recovery-deck-1 — 99/100 cards, 98 lands, R, 1 violation(s), v3"
+              },
+              {
+                "type": "text",
+                "text": "{\"ok\":true,\"deck_id\":\"error-recovery-deck-1\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"computed_color_identity\":[\"R\"],\"version\":3,\"vitals\":{\"card_count\":99,\"land_count\":98,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":false,\"violation_count\":1,\"version\":3},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "ok": true,
+              "deck_id": "error-recovery-deck-1",
+              "commanders": ["wf-krenko"],
+              "command_zone_kind": "single",
+              "computed_color_identity": ["R"],
+              "version": 3,
+              "vitals": {
+                "card_count": 99,
+                "land_count": 98,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": false,
+                "violation_count": 1,
+                "version": 3
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.165958000000046,
+          "expected_error": false
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Recovery Goblins (v3)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"error-recovery-deck-1\",\"name\":\"Recovery Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-mountain\",\"qty\":98,\"name\":\"Mountain\"}],\"computed_color_identity\":[\"R\"],\"version\":3,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "error-recovery-deck-1",
+                "name": "Recovery Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 98,
+                    "name": "Mountain"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 3,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.07095800000001873,
+          "expected_error": false
+        },
+        {
+          "name": "meta_recommend",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1",
+            "rank": "synergy"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"code\":\"UPSTREAM_UNAVAILABLE\",\"message\":\"cache miss and upstream failed for 'edhrec:commander:krenko-mob-boss'\",\"details\":{\"reason\":\"Synthetic EDHREC outage\"}}"
+              },
+              {
+                "type": "text",
+                "text": "{\"code\":\"UPSTREAM_UNAVAILABLE\",\"message\":\"cache miss and upstream failed for 'edhrec:commander:krenko-mob-boss'\",\"details\":{\"reason\":\"Synthetic EDHREC outage\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "code": "UPSTREAM_UNAVAILABLE",
+              "message": "cache miss and upstream failed for 'edhrec:commander:krenko-mob-boss'",
+              "details": {
+                "reason": "Synthetic EDHREC outage"
+              },
+              "data_snapshot": "2026-09-08"
+            },
+            "isError": true
+          },
+          "elapsed_ms": 0.40262500000000045,
+          "expected_error": true
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Recovery Goblins (v3)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"error-recovery-deck-1\",\"name\":\"Recovery Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-mountain\",\"qty\":98,\"name\":\"Mountain\"}],\"computed_color_identity\":[\"R\"],\"version\":3,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "error-recovery-deck-1",
+                "name": "Recovery Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 98,
+                    "name": "Mountain"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 3,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.0756659999999556,
+          "expected_error": false
+        },
+        {
+          "name": "card_search",
+          "arguments": {
+            "query": "id<=r t:goblin usd<=1",
+            "order": "price"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "3 of 3 cards"
+              },
+              {
+                "type": "text",
+                "text": "{\"total\":3,\"returned\":3,\"next_cursor\":null,\"results\":[{\"oracle_id\":\"wf-prospector\",\"name\":\"Skirk Prospector\",\"mv\":1,\"ci\":[\"R\"],\"type\":\"Creature — Goblin\"},{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"mv\":3,\"ci\":[\"R\"],\"type\":\"Creature — Goblin\"},{\"oracle_id\":\"wf-kingpin\",\"name\":\"Krenko, Tin Street Kingpin\",\"mv\":3,\"ci\":[\"R\"],\"type\":\"Legendary Creature — Goblin\"}],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "total": 3,
+              "returned": 3,
+              "next_cursor": null,
+              "results": [
+                {
+                  "oracle_id": "wf-prospector",
+                  "name": "Skirk Prospector",
+                  "mv": 1,
+                  "ci": ["R"],
+                  "type": "Creature — Goblin"
+                },
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron",
+                  "mv": 3,
+                  "ci": ["R"],
+                  "type": "Creature — Goblin"
+                },
+                {
+                  "oracle_id": "wf-kingpin",
+                  "name": "Krenko, Tin Street Kingpin",
+                  "mv": 3,
+                  "ci": ["R"],
+                  "type": "Legendary Creature — Goblin"
+                }
+              ],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.19395800000000918,
+          "expected_error": false
+        },
+        {
+          "name": "deck_add",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1",
+            "cards": "wf-prospector"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 add verdict(s) for error-recovery-deck-1 — 100/100 cards, 98 lands, R, legal, v4"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"error-recovery-deck-1\",\"version\":4,\"verdicts\":[{\"oracle_id\":\"wf-prospector\",\"name\":\"Skirk Prospector\",\"status\":\"ok\"}],\"failed\":[],\"vitals\":{\"card_count\":100,\"land_count\":98,\"color_identity\":[\"R\"],\"commander_count\":1,\"legal\":true,\"violation_count\":0,\"version\":4},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "error-recovery-deck-1",
+              "version": 4,
+              "verdicts": [
+                {
+                  "oracle_id": "wf-prospector",
+                  "name": "Skirk Prospector",
+                  "status": "ok"
+                }
+              ],
+              "failed": [],
+              "vitals": {
+                "card_count": 100,
+                "land_count": 98,
+                "color_identity": ["R"],
+                "commander_count": 1,
+                "legal": true,
+                "violation_count": 0,
+                "version": 4
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.19566599999996015,
+          "expected_error": false
+        },
+        {
+          "name": "validate_deck",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "0 error(s), 0 warning(s)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"error-recovery-deck-1\",\"ok\":true,\"violations\":[],\"errors\":[],\"warnings\":[],\"error_count\":0,\"warning_count\":0,\"exemptions\":[{\"oracle_id\":\"wf-mountain\",\"name\":\"Mountain\",\"qty\":98,\"reason\":\"basic_land\"}],\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "error-recovery-deck-1",
+              "ok": true,
+              "violations": [],
+              "errors": [],
+              "warnings": [],
+              "error_count": 0,
+              "warning_count": 0,
+              "exemptions": [
+                {
+                  "oracle_id": "wf-mountain",
+                  "name": "Mountain",
+                  "qty": 98,
+                  "reason": "basic_land"
+                }
+              ],
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.13945800000004738,
+          "expected_error": false
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Recovery Goblins (v4)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"error-recovery-deck-1\",\"name\":\"Recovery Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-mountain\",\"qty\":98,\"name\":\"Mountain\"},{\"oracle_id\":\"wf-prospector\",\"qty\":1,\"name\":\"Skirk Prospector\"}],\"computed_color_identity\":[\"R\"],\"version\":4,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "error-recovery-deck-1",
+                "name": "Recovery Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 98,
+                    "name": "Mountain"
+                  },
+                  {
+                    "oracle_id": "wf-prospector",
+                    "qty": 1,
+                    "name": "Skirk Prospector"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 4,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.08762500000000273,
+          "expected_error": false
+        },
+        {
+          "name": "meta_recommend",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1",
+            "rank": "synergy"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "1 synergy-ranked suggestion(s) for Krenko, Mob Boss (0 unresolved)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck_id\":\"error-recovery-deck-1\",\"deck_version\":4,\"commander\":\"Krenko, Mob Boss\",\"rank\":\"synergy\",\"suggestions\":[{\"oracle_id\":\"wf-matron\",\"name\":\"Goblin Matron\",\"synergy\":0.5,\"inclusion\":75,\"category\":\"Creatures\",\"rationale\":\"EDHREC synergy 0.5; Creatures. In the deck's color identity and not already present.\",\"evidence\":{\"inferred_roles\":[\"utility\"],\"effective_roles\":[\"utility\"],\"role_source\":\"classifier\",\"mana_value\":3,\"synergy\":0.5,\"inclusion\":75,\"category\":\"Creatures\",\"prospective_constraints\":{\"accepted\":true,\"reason\":null,\"uncertainty\":[],\"policy_findings\":[],\"companion_violations\":[]}},\"provider_metrics\":[{\"name\":\"inclusion\",\"provider_field\":\"inclusion\",\"value\":75,\"scale\":\"deck_count\",\"source\":{\"name\":\"EDHREC\",\"url\":\"https://json.edhrec.com/pages/commanders/krenko-mob-boss.json\",\"fetched_at\":\"1970-01-01T00:00:01.000Z\",\"age_ms\":0,\"ttl_ms\":604800000,\"status\":\"fresh\",\"refresh_failed\":false}},{\"name\":\"synergy\",\"provider_field\":\"synergy\",\"value\":0.5,\"scale\":\"proportion_difference\",\"source\":{\"name\":\"EDHREC\",\"url\":\"https://json.edhrec.com/pages/commanders/krenko-mob-boss.json\",\"fetched_at\":\"1970-01-01T00:00:01.000Z\",\"age_ms\":0,\"ttl_ms\":604800000,\"status\":\"fresh\",\"refresh_failed\":false}}],\"uncertainty\":[\"EDHREC reflects submitted deck popularity, not measured performance in this deck.\",\"Role labels are advisory; overlapping roles do not establish functional equivalence.\",\"Prices are local index estimates with unknown update time; ownership, availability and shipping are not accounted for.\",\"The primary commander's profile does not evaluate partner combinations or full deck legality; validate after changes.\"],\"tradeoffs\":{\"cards_added\":1,\"mana_value_added\":3,\"roles_added\":[\"utility\"],\"requires_cut\":true},\"budget_impact\":{\"currency\":\"USD\",\"qty\":1,\"delta_min_buy_usd\":0.5,\"price_basis\":\"local_index_usd_floor\",\"ownership_adjusted\":false,\"price_fetched_at\":null}}],\"unresolved\":[],\"source\":{\"name\":\"EDHREC\",\"url\":\"https://json.edhrec.com/pages/commanders/krenko-mob-boss.json\",\"fetched_at\":\"1970-01-01T00:00:01.000Z\",\"age_ms\":0,\"ttl_ms\":604800000,\"status\":\"fresh\",\"refresh_failed\":false},\"exclusions\":[],\"constraints\":{\"mode\":\"one_card_addition\",\"full_deck_validation\":\"not_performed\"},\"budget\":{\"scope\":\"library_only\",\"ownership_adjusted\":false,\"price_basis\":\"local_index_usd_floor\",\"price_fetched_at\":null,\"unpriced_copies\":0,\"unresolved_copies\":0,\"complete\":true},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck_id": "error-recovery-deck-1",
+              "deck_version": 4,
+              "commander": "Krenko, Mob Boss",
+              "rank": "synergy",
+              "suggestions": [
+                {
+                  "oracle_id": "wf-matron",
+                  "name": "Goblin Matron",
+                  "synergy": 0.5,
+                  "inclusion": 75,
+                  "category": "Creatures",
+                  "rationale": "EDHREC synergy 0.5; Creatures. In the deck's color identity and not already present.",
+                  "evidence": {
+                    "inferred_roles": ["utility"],
+                    "effective_roles": ["utility"],
+                    "role_source": "classifier",
+                    "mana_value": 3,
+                    "synergy": 0.5,
+                    "inclusion": 75,
+                    "category": "Creatures",
+                    "prospective_constraints": {
+                      "accepted": true,
+                      "reason": null,
+                      "uncertainty": [],
+                      "policy_findings": [],
+                      "companion_violations": []
+                    }
+                  },
+                  "provider_metrics": [
+                    {
+                      "name": "inclusion",
+                      "provider_field": "inclusion",
+                      "value": 75,
+                      "scale": "deck_count",
+                      "source": {
+                        "name": "EDHREC",
+                        "url": "https://json.edhrec.com/pages/commanders/krenko-mob-boss.json",
+                        "fetched_at": "1970-01-01T00:00:01.000Z",
+                        "age_ms": 0,
+                        "ttl_ms": 604800000,
+                        "status": "fresh",
+                        "refresh_failed": false
+                      }
+                    },
+                    {
+                      "name": "synergy",
+                      "provider_field": "synergy",
+                      "value": 0.5,
+                      "scale": "proportion_difference",
+                      "source": {
+                        "name": "EDHREC",
+                        "url": "https://json.edhrec.com/pages/commanders/krenko-mob-boss.json",
+                        "fetched_at": "1970-01-01T00:00:01.000Z",
+                        "age_ms": 0,
+                        "ttl_ms": 604800000,
+                        "status": "fresh",
+                        "refresh_failed": false
+                      }
+                    }
+                  ],
+                  "uncertainty": [
+                    "EDHREC reflects submitted deck popularity, not measured performance in this deck.",
+                    "Role labels are advisory; overlapping roles do not establish functional equivalence.",
+                    "Prices are local index estimates with unknown update time; ownership, availability and shipping are not accounted for.",
+                    "The primary commander's profile does not evaluate partner combinations or full deck legality; validate after changes."
+                  ],
+                  "tradeoffs": {
+                    "cards_added": 1,
+                    "mana_value_added": 3,
+                    "roles_added": ["utility"],
+                    "requires_cut": true
+                  },
+                  "budget_impact": {
+                    "currency": "USD",
+                    "qty": 1,
+                    "delta_min_buy_usd": 0.5,
+                    "price_basis": "local_index_usd_floor",
+                    "ownership_adjusted": false,
+                    "price_fetched_at": null
+                  }
+                }
+              ],
+              "unresolved": [],
+              "source": {
+                "name": "EDHREC",
+                "url": "https://json.edhrec.com/pages/commanders/krenko-mob-boss.json",
+                "fetched_at": "1970-01-01T00:00:01.000Z",
+                "age_ms": 0,
+                "ttl_ms": 604800000,
+                "status": "fresh",
+                "refresh_failed": false
+              },
+              "exclusions": [],
+              "constraints": {
+                "mode": "one_card_addition",
+                "full_deck_validation": "not_performed"
+              },
+              "budget": {
+                "scope": "library_only",
+                "ownership_adjusted": false,
+                "price_basis": "local_index_usd_floor",
+                "price_fetched_at": null,
+                "unpriced_copies": 0,
+                "unresolved_copies": 0,
+                "complete": true
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 1.7015830000000278,
+          "expected_error": false
+        },
+        {
+          "name": "deck_get",
+          "arguments": {
+            "deck_id": "error-recovery-deck-1"
+          },
+          "result": {
+            "_meta": {
+              "data_snapshot": "2026-09-08"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Recovery Goblins (v4)"
+              },
+              {
+                "type": "text",
+                "text": "{\"deck\":{\"deck_id\":\"error-recovery-deck-1\",\"name\":\"Recovery Goblins\",\"format\":\"commander\",\"commanders\":[\"wf-krenko\"],\"command_zone_kind\":\"single\",\"cards\":[{\"oracle_id\":\"wf-mountain\",\"qty\":98,\"name\":\"Mountain\"},{\"oracle_id\":\"wf-prospector\",\"qty\":1,\"name\":\"Skirk Prospector\"}],\"computed_color_identity\":[\"R\"],\"version\":4,\"data_snapshot\":\"2026-09-08\"},\"data_snapshot\":\"2026-09-08\"}"
+              }
+            ],
+            "structuredContent": {
+              "deck": {
+                "deck_id": "error-recovery-deck-1",
+                "name": "Recovery Goblins",
+                "format": "commander",
+                "commanders": ["wf-krenko"],
+                "command_zone_kind": "single",
+                "cards": [
+                  {
+                    "oracle_id": "wf-mountain",
+                    "qty": 98,
+                    "name": "Mountain"
+                  },
+                  {
+                    "oracle_id": "wf-prospector",
+                    "qty": 1,
+                    "name": "Skirk Prospector"
+                  }
+                ],
+                "computed_color_identity": ["R"],
+                "version": 4,
+                "data_snapshot": "2026-09-08"
+              },
+              "data_snapshot": "2026-09-08"
+            }
+          },
+          "elapsed_ms": 0.12883300000004283,
+          "expected_error": false
+        }
+      ],
+      "invariants": [
+        "legal_100_cards_including_commander",
+        "failed_calls_preserve_deck_card_contents",
+        "ambiguous_name_corrected_explicitly",
+        "local_fallback_completes_deck_during_upstream_outage",
+        "upstream_retry_returns_grounded_suggestions_without_mutation"
+      ],
+      "protocol_version": "2025-11-25",
+      "server_info": {
+        "name": "mtg-edh-mcp",
+        "version": "0.3.0"
+      },
+      "metrics": {
+        "tool_calls": 16,
+        "invalid_calls": 1,
+        "partial_failure_calls": 0,
+        "tool_errors": 2,
+        "rpc_errors": 0,
+        "expected_errors": 2,
+        "response_bytes": 18379,
+        "elapsed_ms": 4.14299700000015
+      }
+    }
+  ],
+  "captured_at": "2026-09-09T07:35:37.744Z",
+  "provenance": {
+    "checkout_commit": "ababe3778585e11ecf7aeb13b0056b39a20c2e65",
+    "checkout_dirty": true,
+    "production_source_sha256": "b04e31eb92e3c339c9768bba9251f6a6a2cc21fdd42b8537a2faea3ebe28a673",
+    "package_version": "0.3.0",
+    "sdk_package": "@modelcontextprotocol/server",
+    "sdk_version": "2.0.0",
+    "node": "v24.14.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "lockfile_sha256": "81a517c1f5e38a8f50840989f53b1d74f5b37deb3546e93928d71e7caf91b055"
+  }
+}

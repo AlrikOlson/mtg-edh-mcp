@@ -21,10 +21,17 @@ export type FetchJson = (url: string) => Promise<unknown>;
 export interface EdhrecCard {
   name: string;
   category: string;
-  /** Number of decks (EDHREC "inclusion"), when present. */
+  /** Number of decks: legacy inclusion, falling back to current num_decks. */
   inclusion?: number;
+  /** Present when inclusion is a compatibility alias for the current provider field. */
+  inclusion_provider_field?: "num_decks";
+  /** Raw provider deck count and eligible population, when present. */
+  num_decks?: number;
+  potential_decks?: number;
   /** Synergy score (can be negative), when present. */
   synergy?: number;
+  /** Raw lift value. Provider versions may use different scales; do not infer one. */
+  lift?: number;
 }
 
 export interface CommanderProfile {
@@ -34,6 +41,44 @@ export interface CommanderProfile {
 
 export interface SourcedCommanderProfile extends CommanderProfile {
   source: CacheFreshness & { name: "EDHREC"; url: string };
+}
+
+export interface EdhrecMetric {
+  name: "inclusion" | "potential_decks" | "synergy" | "lift";
+  provider_field: "inclusion" | "num_decks" | "potential_decks" | "synergy" | "lift";
+  value: number;
+  scale: "deck_count" | "proportion_difference" | "unknown";
+  source: SourcedCommanderProfile["source"];
+}
+
+/** Report observed provider metrics independently of local deck-fit evidence.
+ * Missing values are omitted, never measured zero; raw and log lift are not
+ * interchangeable, so its scale stays unknown until the source specifies it. */
+export function edhrecMetrics(
+  card: EdhrecCard,
+  source: SourcedCommanderProfile["source"],
+): EdhrecMetric[] {
+  const metrics: EdhrecMetric[] = [];
+  const add = (
+    name: EdhrecMetric["name"],
+    provider_field: EdhrecMetric["provider_field"],
+    value: number | undefined,
+    scale: EdhrecMetric["scale"],
+  ): void => {
+    if (value !== undefined) metrics.push({ name, provider_field, value, scale, source });
+  };
+  add(
+    "inclusion",
+    card.inclusion_provider_field ?? "inclusion",
+    asCount(card.inclusion),
+    "deck_count",
+  );
+  if (card.inclusion_provider_field !== "num_decks")
+    add("inclusion", "num_decks", asCount(card.num_decks), "deck_count");
+  add("potential_decks", "potential_decks", asCount(card.potential_decks), "deck_count");
+  add("synergy", "synergy", asNumber(card.synergy), "proportion_difference");
+  add("lift", "lift", asNumber(card.lift), "unknown");
+  return metrics;
 }
 
 /** EDHREC commander slug, e.g. "Atraxa, Praetors' Voice" -> "atraxa-praetors-voice". */
@@ -54,6 +99,10 @@ function asArray(v: unknown): unknown[] {
 function asNumber(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
+function asCount(v: unknown): number | undefined {
+  const value = asNumber(v);
+  return value !== undefined && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
 
 /** Parse a commander page JSON into its card lists (by category) + themes. */
 export function parseProfile(json: unknown): CommanderProfile {
@@ -66,11 +115,19 @@ export function parseProfile(json: unknown): CommanderProfile {
     for (const cvRaw of asArray(list.cardviews)) {
       const cv = asRecord(cvRaw);
       if (typeof cv.name !== "string") continue;
+      const inclusion = asCount(cv.inclusion);
+      const numDecks = asCount(cv.num_decks);
       cards.push({
         name: cv.name,
         category,
-        inclusion: asNumber(cv.inclusion),
+        inclusion: inclusion ?? numDecks,
+        ...(inclusion === undefined && numDecks !== undefined
+          ? { inclusion_provider_field: "num_decks" as const }
+          : {}),
+        num_decks: numDecks,
+        potential_decks: asCount(cv.potential_decks),
         synergy: asNumber(cv.synergy),
+        lift: asNumber(cv.lift),
       });
     }
   }

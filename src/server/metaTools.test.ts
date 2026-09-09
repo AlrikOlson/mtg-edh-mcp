@@ -213,10 +213,10 @@ describe("EDHREC meta tools", () => {
     expect(lr.total_cards).toBe(4);
   });
 
-  it("meta_recommend (default synergy rank) filters identity, excludes in-deck, reports unresolved", async () => {
+  it("meta_recommend (explicit legacy synergy rank) filters identity, excludes in-deck, reports unresolved", async () => {
     const res = await client.callTool({
       name: "meta_recommend",
-      arguments: { deck_id: "deck-1" },
+      arguments: { deck_id: "deck-1", rank: "synergy" },
     });
     const r = res.structuredContent as {
       rank: string;
@@ -503,7 +503,7 @@ describe("explainable deck advice", () => {
       (
         await client.callTool({
           name: "meta_recommend",
-          arguments: { deck_id: "deck-1" },
+          arguments: { deck_id: "deck-1", rank: "synergy" },
         })
       ).structuredContent,
     ).toMatchObject({ suggestions: [] });
@@ -536,7 +536,7 @@ describe("explainable deck advice", () => {
     };
     const request = {
       name: "meta_recommend",
-      arguments: { deck_id: "deck-1" },
+      arguments: { deck_id: "deck-1", rank: "synergy" },
     };
     const first = (await client.callTool(request)).structuredContent as {
       suggestions: Array<{

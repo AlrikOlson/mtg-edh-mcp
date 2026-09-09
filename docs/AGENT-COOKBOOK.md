@@ -501,9 +501,36 @@ remains an advisory earliness proxy. Use `validate_deck` after edits.
 
 ## Read the reasons behind advice
 
-`meta_recommend` explains each addition with inferred or corrected roles,
-EDHREC synergy/inclusion evidence, tradeoffs, and the local one-copy price
-impact. Compare those roles with the gaps returned by `deck_status`.
+`meta_recommend {deck_id}` defaults to local contextual ranking with no provider
+request. It scans the installed card pool (within `scan_limit`) and considers
+every commander, actual library support, missing roles, redundant support,
+curve and saved intent. `theme` adds a supported annotation-match preference;
+`oracle_query` narrows the pool or provides a fallback for unfamiliar strategies.
+Read each suggestion's evidence, unmet requirements, tradeoffs and uncertainty;
+no score establishes win rate, executable sequencing or objective power.
+Full-pool ranking can take several seconds. A smaller `scan_limit` reduces work
+but may miss stronger cards later in the scan; inspect `coverage.scan_truncated`
+and avoid comparing scores across different scan coverage.
+
+Use `expected_version` to tie advice to a reviewed deck version. No recommendation
+changes the deck; a deck change during optional enrichment returns a conflict.
+Prospective one-card additions check identity, legality and declared hard/policy
+constraints. When several protected cards are missing, a recommendation may
+reduce that deficit while reporting the remaining requirements as failed; this
+is construction progress, not full compliance. Complete decks still require a
+compatible cut; unknown policy or companion coverage cannot certify a legal
+finished plan.
+
+`provider: "edhrec"` adds observations for each commander separately and tolerates
+provider failures without changing local scores. Each metric preserves its
+`provider_field`, `value`, `scale` and `source`: current `num_decks` and legacy
+`inclusion` are counts, commander `synergy` is a proportion difference, and raw
+`lift` has an explicitly unknown scale. Missing metrics are absent observations,
+not zero. These separate profiles do not model a partner combination.
+Explicit `rank: "synergy"` or `"inclusion"` keeps the legacy primary-commander
+profile modes; `min_inclusion` applies only there. Those modes still require
+EDHREC and do not provide the contextual analysis.
+
 `meta_budget_swaps` explains both the outgoing
 cut and its proposed replacement: matching roles, roles lost or gained, mana
 value changes, and savings for the proposed quantity. These calls suggest

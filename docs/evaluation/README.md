@@ -70,10 +70,40 @@ and prompt identity, domain invariants, text fallback and snapshot agreement,
 and recomputes the stored metrics from the retained calls. Deterministic
 ceilings for tool calls, invalid calls, partial failures, and tool/RPC errors
 remain the actual v0.2.0 observations. Expected recovery errors must still
-occur. Result-byte ceilings use the reviewed whole-deck observation below; no
+occur. Result-byte ceilings use the reviewed recommendation observation below; no
 arbitrary multiplier or timing threshold is applied. All retained traces have
 the same fixture, prompts, and domain invariants, and their metrics are
 recomputed during replay.
+
+### Contextual recommendation observation
+
+[contextual-recommendations-v1.json](contextual-recommendations-v1.json) retains the
+2026-09-09 scripted observation for the contextual recommendation implementation,
+with SDK 2.0.0, Node 24.14.0, and source/lockfile digests from the dirty checkout.
+All earlier captures remain unchanged. Fixture version, fixture hash, prompts,
+domain invariants, call counts and error counts match the earlier observations.
+
+| Workflow                    | Whole-deck result bytes | Recommendation result bytes | Change |
+| --------------------------- | ----------------------: | --------------------------: | -----: |
+| Budget and collection build |                  20,635 |                      20,635 |      0 |
+| Import and tune             |                  17,133 |                      17,133 |      0 |
+| Acquisition cost reduction  |                  32,651 |                      32,651 |      0 |
+| Error recovery              |                  16,587 |                      18,379 | +1,792 |
+
+Review of every parsed call result found exactly one changed response: the
+successful `meta_recommend` retry grows from 3,497 to 5,289 bytes. It retains the
+same suggestion and prior fields, and adds deck version, prospective constraint
+findings, typed provider metrics with their scales and source freshness, exclusions,
+and the one-card-addition scope. The increase includes required JSON text fallback.
+These exact observed totals are the new byte ceilings, with no added margin;
+original behavior ceilings remain in force.
+
+The two recovery requests now explicitly select `rank: "synergy"` to retain their
+original EDHREC outage/retry behavior. Omitted rank now selects local contextual
+recommendations, which is exercised by the separate recommendation tool tests.
+This retained recovery trace measures the compatible provider path and its richer
+metadata; it does not measure the contextual default's quality, model behavior,
+token use, or live provider reliability.
 
 ### Whole-deck budget observation
 
@@ -95,8 +125,9 @@ The added bytes are explicit library/command-zone/whole-deck/companion totals,
 per-field price coverage, unresolved quantities, timestamp and freshness evidence,
 integer cents, and membership acquisition assumptions, plus required JSON text
 fallback. Zone summaries omit recommendation lists; general statistics omit them
-entirely. The reviewed whole-deck observation supplies the new byte ceilings;
-call counts, invalid calls and errors still use the original limits.
+entirely. This observation supplied the whole-deck byte ceilings, subsequently
+extended only for the recommendation response documented above; call counts,
+invalid calls and errors still use the original limits.
 
 The budget fixture now directly reports full value $92.85 and membership-based
 new spending $12.35, including its $2.50 commander. Acquisition reduction reports

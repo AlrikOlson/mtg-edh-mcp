@@ -333,6 +333,122 @@ function modeledRequirement(a: Annotation): boolean {
   );
 }
 
+/** Candidate-only comparison reuses the graph's exact predicates and cached deck
+ * annotations. It does not rebuild the deck graph for each installed card. */
+export function candidateStrategySupport(
+  card: Card,
+  graph: ReturnType<typeof analyzeStrategy>,
+  lookup: CardLookup,
+  mechanics = extractMechanics(card),
+) {
+  const links: StrategyEdge[] = [];
+  const providers = new Map<number, Set<string>>();
+  let linkCount = 0;
+  const compare = (
+    source: Card,
+    sourceAnnotations: readonly Annotation[],
+    target: Card,
+    targetAnnotations: readonly Annotation[],
+  ) => {
+    for (const [ai, a] of sourceAnnotations
+      .slice(0, STRATEGY_LIMITS.annotations_per_card)
+      .entries())
+      for (const [bi, b] of targetAnnotations
+        .slice(0, STRATEGY_LIMITS.annotations_per_card)
+        .entries()) {
+        const kind = matches(source, a, target, b);
+        if (!kind) continue;
+        linkCount += 1;
+        if (target.oracle_id === card.oracle_id) {
+          const ids = providers.get(bi) ?? new Set<string>();
+          ids.add(source.oracle_id);
+          providers.set(bi, ids);
+        }
+        if (links.length < 64)
+          links.push({
+            id: `${source.oracle_id}:${ai}>${target.oracle_id}:${bi}:${kind}`,
+            kind,
+            source: source.oracle_id,
+            target: target.oracle_id,
+            source_annotation: ai,
+            target_annotation: bi,
+            evidence: { source: a, target: b },
+            status: "candidate_support",
+            requirements: supportRequirements(a, b, kind, source.oracle_id === target.oracle_id),
+          });
+      }
+  };
+  for (const node of graph.nodes) {
+    const existing = lookup(node.oracle_id);
+    if (!existing) continue;
+    compare(card, mechanics.annotations, existing, node.mechanics.annotations);
+    compare(existing, node.mechanics.annotations, card, mechanics.annotations);
+  }
+  compare(card, mechanics.annotations, card, mechanics.annotations);
+  const complete =
+    graph.coverage.provider_search_complete &&
+    mechanics.annotations.length <= STRATEGY_LIMITS.annotations_per_card;
+  const requirements = mechanics.annotations
+    .slice(0, STRATEGY_LIMITS.annotations_per_card)
+    .flatMap((annotation, index) => {
+      if (!isRequirement(annotation)) return [];
+      const ids = [...(providers.get(index) ?? [])];
+      return [
+        {
+          annotation,
+          provider_ids: ids,
+          status: ids.some((id) => id !== card.oracle_id)
+            ? ("supported_by_deck" as const)
+            : ids.length
+              ? ("self_support_only" as const)
+              : !modeledRequirement(annotation)
+                ? ("not_modeled" as const)
+                : complete
+                  ? ("missing_local_support" as const)
+                  : ("unknown_incomplete" as const),
+        },
+      ];
+    });
+  return {
+    links,
+    link_count: linkCount,
+    links_truncated: links.length < linkCount,
+    requirements,
+    provider_search_complete: complete,
+  };
+}
+
+function isRequirement(annotation: Annotation): boolean {
+  return (
+    annotation.category === "cost" ||
+    annotation.category === "trigger" ||
+    ["return_from_graveyard", "exile_from_graveyard", "cast_from_graveyard"].includes(
+      annotation.kind,
+    )
+  );
+}
+
+function supportRequirements(
+  a: Annotation,
+  b: Annotation,
+  kind: EdgeKind,
+  self: boolean,
+): string[] {
+  const requirements = sourceRequirements(a);
+  requirements.push(
+    "The target ability's complete event, filters, thresholds and conditions still apply.",
+  );
+  if (b.condition.kind === "conditional")
+    requirements.push(`Target condition: ${b.condition.text ?? "unknown"}`);
+  if (self)
+    requirements.push("Same-card abilities are dependent uses, not independent redundancy.");
+  if (kind === "death_trigger")
+    requirements.push(
+      "The sacrificed creature must actually enter a graveyard; replacement effects may prevent dying.",
+    );
+  return requirements;
+}
+
 export function analyzeStrategy(deck: Deck, lookup: CardLookup) {
   const inventory = new Map<string, { quantity: number; zone: "command" | "library" }>();
   for (const id of deck.commanders) inventory.set(id, { quantity: 1, zone: "command" });
@@ -414,20 +530,12 @@ export function analyzeStrategy(deck: Deck, lookup: CardLookup) {
             motif.edge_ids.push(id);
           themeMatches.set(kind, motif);
           if (edges.length >= STRATEGY_LIMITS.edges) continue;
-          const requirements = sourceRequirements(a);
-          requirements.push(
-            "The target ability's complete event, filters, thresholds and conditions still apply.",
+          const requirements = supportRequirements(
+            a,
+            b,
+            kind,
+            source.oracle_id === target.oracle_id,
           );
-          if (b.condition.kind === "conditional")
-            requirements.push(`Target condition: ${b.condition.text ?? "unknown"}`);
-          if (source.oracle_id === target.oracle_id)
-            requirements.push(
-              "Same-card abilities are dependent uses, not independent redundancy.",
-            );
-          if (kind === "death_trigger")
-            requirements.push(
-              "The sacrificed creature must actually enter a graveyard; replacement effects may prevent dying.",
-            );
           edges.push({
             id,
             kind,
@@ -446,14 +554,7 @@ export function analyzeStrategy(deck: Deck, lookup: CardLookup) {
     for (const [index, annotation] of node.mechanics.annotations
       .slice(0, STRATEGY_LIMITS.annotations_per_card)
       .entries()) {
-      if (!(
-        annotation.category === "cost" ||
-        annotation.category === "trigger" ||
-        ["return_from_graveyard", "exile_from_graveyard", "cast_from_graveyard"].includes(
-          annotation.kind,
-        )
-      ))
-        continue;
+      if (!isRequirement(annotation)) continue;
       const providers = [...(providersByDependency.get(`${node.oracle_id}:${index}`) ?? [])];
       const independent = providers.filter((id) => id !== node.oracle_id);
       const quantity = nodes

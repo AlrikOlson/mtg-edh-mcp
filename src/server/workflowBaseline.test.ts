@@ -13,6 +13,7 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 const baselinePath = resolve(root, "docs/evaluation/v0.2.0-baseline.json");
 const advicePath = resolve(root, "docs/evaluation/v0.3.0-advice.json");
 const budgetPath = resolve(root, "docs/evaluation/whole-deck-budget-v2.json");
+const recommendationPath = resolve(root, "docs/evaluation/contextual-recommendations-v1.json");
 const count = z.number().nonnegative().finite();
 const metricsSchema = z.object({
   tool_calls: count,
@@ -137,7 +138,7 @@ async function captureProvenance() {
   };
 }
 
-it("replays offline workflows within original behavior limits and reviewed whole-deck budget byte limits", async () => {
+it("replays offline workflows within original behavior limits and reviewed recommendation byte limits", async () => {
   const network = vi.fn(() => {
     throw new Error("Network is forbidden in workflow replay");
   });
@@ -183,6 +184,14 @@ it("replays offline workflows within original behavior limits and reviewed whole
   const baseline = baselineSchema.parse(JSON.parse(await readFile(baselinePath, "utf8")));
   const advice = baselineSchema.parse(JSON.parse(await readFile(advicePath, "utf8")));
   const budget = baselineSchema.parse(JSON.parse(await readFile(budgetPath, "utf8")));
+  const recommendation = baselineSchema.parse(
+    JSON.parse(await readFile(recommendationPath, "utf8")),
+  );
+  expect(recommendation.workflow_version).toBe(baseline.workflow_version);
+  expect(recommendation.fixture_sha256).toBe(baseline.fixture_sha256);
+  expect(recommendation.workflows.map((run) => run.id)).toEqual(
+    baseline.workflows.map((run) => run.id),
+  );
   expect(budget.workflow_version).toBe(baseline.workflow_version);
   expect(budget.fixture_sha256).toBe(baseline.fixture_sha256);
   expect(budget.workflows.map((run) => run.id)).toEqual(baseline.workflows.map((run) => run.id));
@@ -198,8 +207,9 @@ it("replays offline workflows within original behavior limits and reviewed whole
     if (!previous) throw new Error(`Missing baseline for ${current.id}`);
     expect(current.prompt).toBe(previous.prompt);
     expect(current.invariants).toEqual(previous.invariants);
-    // Behavior limits remain the v0.2.0 observations. Complete price coverage adds bytes;
-    // only the byte ceiling uses the reviewed whole-deck trace; prior traces remain intact.
+    // Behavior limits remain the v0.2.0 observations. The separately retained
+    // recommendation trace adds constraint/metric provenance to one legacy response;
+    // only the byte ceiling changes, by the measured amount, with no extra margin.
     for (const key of [
       "tool_calls",
       "invalid_calls",
@@ -221,8 +231,14 @@ it("replays offline workflows within original behavior limits and reviewed whole
     expect(budgetObserved.prompt).toBe(previous.prompt);
     expect(budgetObserved.invariants).toEqual(previous.invariants);
     expect(summarizeCalls(budgetObserved.calls)).toEqual(budgetObserved.metrics);
+    const recommendationObserved = recommendation.workflows.find((run) => run.id === current.id);
+    if (!recommendationObserved)
+      throw new Error(`Missing recommendation observation for ${current.id}`);
+    expect(recommendationObserved.prompt).toBe(previous.prompt);
+    expect(recommendationObserved.invariants).toEqual(previous.invariants);
+    expect(summarizeCalls(recommendationObserved.calls)).toEqual(recommendationObserved.metrics);
     expect(current.metrics.response_bytes, `${current.id}: response_bytes`).toBeLessThanOrEqual(
-      budgetObserved.metrics.response_bytes,
+      recommendationObserved.metrics.response_bytes,
     );
     expect(current.metrics.expected_errors).toBe(previous.metrics.expected_errors);
     expect(summarizeCalls(previous.calls)).toEqual(previous.metrics);

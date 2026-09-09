@@ -1,16 +1,18 @@
 /**
  * EDHREC enrichment and policy tools (spec §5E): six
  * non-overlapping tools — meta_commander_profile (the raw profile),
- * meta_recommend (cards to ADD, ranked by synergy or inclusion),
+ * meta_recommend (local contextual additions, optional profile ranks),
  * meta_budget_swaps (cheaper REPLACEMENTS), meta_combos (Spellbook),
  * meta_classify_bracket (power estimate), meta_check_policy (declared constraints).
- * All deck-grounded suggestions flow
+ * Legacy provider suggestions flow
  * through one shared profile-filter pipeline: resolve profile names to
  * oracle_ids, filter to the deck's color identity, exclude cards already in
  * the deck, report unresolved names. Each reads live data via injected
  * clients (cached + degrading through the CacheStore).
  */
 import { z } from "zod";
+import { createRecommendationAdditionChecker } from "../analyze/recommendations.js";
+import { contextualRecommendation, recommendationConflict } from "./recommendationTools.js";
 import { StructuredError } from "../types/index.js";
 import type { Card, CardRef, Deck, Role } from "../types/index.js";
 import type { CardIndex } from "../index/index.js";
@@ -19,7 +21,7 @@ import { cheapestUsd } from "../analyze/index.js";
 import { wholeDeckBudget, type BudgetPlan } from "../analyze/budget.js";
 import { cheapestUsdCents } from "../analyze/pricing.js";
 import { effectiveRoles, roleEvidence } from "../analyze/deckRoles.js";
-import type { EdhrecCard, SourcedCommanderProfile } from "../meta/edhrec.js";
+import { edhrecMetrics, type EdhrecCard, type SourcedCommanderProfile } from "../meta/edhrec.js";
 import type {
   EdhrecClient,
   SpellbookClient,
@@ -134,6 +136,7 @@ interface ProfileCandidate {
   category: string;
   /** Lean ref (type line for land filtering, ci already checked). */
   ref: CardRef;
+  provider_card: EdhrecCard;
 }
 
 function adviceEvidence(
@@ -228,12 +231,7 @@ function profileCandidates(
   deck: Deck,
   index: CardIndex,
   profile: {
-    cards: Array<{
-      name: string;
-      synergy?: number;
-      inclusion?: number;
-      category: string;
-    }>;
+    cards: EdhrecCard[];
   },
   options: { excludeLands?: boolean } = {},
 ): { candidates: ProfileCandidate[]; unresolved: Record<string, unknown>[] } {
@@ -264,6 +262,7 @@ function profileCandidates(
       inclusion: card.inclusion ?? null,
       category: card.category,
       ref,
+      provider_card: card,
     });
   }
   return { candidates, unresolved };
@@ -302,7 +301,10 @@ function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
         structuredContent: {
           commander,
           ...profile,
-          cards: profile.cards.slice(0, limit),
+          cards: profile.cards.slice(0, limit).map((card) => ({
+            ...card,
+            metrics: edhrecMetrics(card, profile.source),
+          })),
           total_cards: profile.cards.length,
         },
       };
@@ -322,16 +324,21 @@ function metaRecommendTool(
     name: "meta_recommend",
     config: {
       annotations: READS_LIVE,
-      title: "Recommend cards (EDHREC)",
+      title: "Recommend cards for this deck",
       description:
-        "Suggest additions from the commander's EDHREC profile.\n" +
-        "USE: synergy for fit; inclusion for popular missing cards. NOT: cuts/replacements (meta_budget_swaps); offline gaps (deck_status).\n" +
+        "Rank additions by supported contributions to this deck and intent.\n" +
+        "USE: local advice by default; provider:edhrec adds metrics. NOT: cuts/replacements (meta_budget_swaps) or verified wins.\n" +
         "FLOW: deck_status -> meta_recommend -> deck_add -> validate_deck.\n" +
-        "ARGS: deck_id; rank synergy|inclusion; min_inclusion; exclude_lands; limit (25, max 100).\n" +
-        "RETURNS: suggestions[] with rationale, role/synergy evidence, uncertainty, tradeoffs and budget_impact; unresolved[]; source/freshness. In-identity, absent cards; local price floors, not performance guarantees.",
+        "ARGS: deck_id; expected_version; rank contextual|synergy|inclusion; provider none|edhrec; theme, oracle_query, scan_limit (contextual); min_inclusion (legacy ranks); exclude_lands; limit<=100.\n" +
+        "RETURNS: suggestions[] with local score, interactions/requirements, tradeoffs and uncertainty; exclusions/coverage; deck_version; distinct provider metrics/source/freshness. Explicit synergy/inclusion use the legacy primary-commander profile.",
       inputSchema: {
         deck_id: z.string(),
-        rank: z.enum(["synergy", "inclusion"]).optional(),
+        rank: z.enum(["contextual", "synergy", "inclusion"]).optional(),
+        provider: z.enum(["none", "edhrec"]).optional(),
+        expected_version: z.number().int().nonnegative().optional(),
+        theme: z.string().trim().min(1).max(200).optional(),
+        oracle_query: z.string().trim().min(1).max(2000).optional(),
+        scan_limit: z.number().int().min(1).max(100000).optional(),
         min_inclusion: z.number().nonnegative().optional(),
         exclude_lands: z.boolean().optional(),
         limit: z.number().int().positive().max(100).optional(),
@@ -339,19 +346,73 @@ function metaRecommendTool(
     },
     handler: async (args) => {
       const deckId = String(args.deck_id ?? "");
-      const rank = args.rank === "inclusion" ? "inclusion" : "synergy";
+      const rank = args.rank === "inclusion" || args.rank === "synergy" ? args.rank : "contextual";
       const minInclusion = typeof args.min_inclusion === "number" ? args.min_inclusion : 0;
       const limit = typeof args.limit === "number" ? args.limit : RECOMMEND_LIMIT;
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
+      const conflict = recommendationConflict(deck, args.expected_version);
+      if (conflict) return conflict;
+      if (rank === "contextual") {
+        if (args.min_inclusion !== undefined)
+          throw new StructuredError(
+            "INVALID_QUERY",
+            "min_inclusion requires an explicit synergy or inclusion rank.",
+          );
+        return contextualRecommendation(
+          deck,
+          index,
+          store,
+          session,
+          edhrec,
+          {
+            limit,
+            exclude_lands: args.exclude_lands === true,
+            ...(typeof args.theme === "string" ? { theme: args.theme } : {}),
+            ...(typeof args.oracle_query === "string" ? { oracle_query: args.oracle_query } : {}),
+            ...(typeof args.scan_limit === "number" ? { scan_limit: args.scan_limit } : {}),
+          },
+          args.provider === "edhrec",
+        );
+      }
+      if (args.provider === "none")
+        throw new StructuredError(
+          "INVALID_QUERY",
+          "Legacy synergy/inclusion ranks require EDHREC; use contextual for local advice.",
+        );
+      if (
+        args.theme !== undefined ||
+        args.oracle_query !== undefined ||
+        args.scan_limit !== undefined
+      )
+        throw new StructuredError(
+          "INVALID_QUERY",
+          "theme, oracle_query and scan_limit require contextual rank.",
+        );
       const commanderCard = requireCommander(deck, index, deckId);
 
       const profile = await edhrec.profileWithSource(commanderCard.name);
+      const current = store.get(deckId, session);
+      if (!current)
+        throw new StructuredError("DECK_NOT_FOUND", "Deck was removed during recommendation");
+      const changed = recommendationConflict(current, deck.version);
+      if (changed) return changed;
       const { candidates, unresolved } = profileCandidates(deck, index, profile, {
         excludeLands: args.exclude_lands === true,
       });
 
+      const checkAddition = createRecommendationAdditionChecker(index, deck);
+      const additionChecks = new Map<string, ReturnType<typeof checkAddition>>();
+      const exclusions: Array<{ oracle_id: string; reason: string | null }> = [];
       const pool = candidates
+        .filter((c) => {
+          const card = index.getCard(c.oracle_id);
+          if (!card) return false;
+          const check = checkAddition(card);
+          additionChecks.set(c.oracle_id, check);
+          if (!check.accepted) exclusions.push({ oracle_id: c.oracle_id, reason: check.reason });
+          return check.accepted;
+        })
         .filter((c) => (c.inclusion ?? 0) >= minInclusion)
         .sort((a, b) => {
           const av = a[rank];
@@ -367,7 +428,10 @@ function metaRecommendTool(
           return [];
         }
         const price = cheapestUsd(card);
-        const evidence = adviceEvidence(card, deck, c);
+        const evidence = {
+          ...adviceEvidence(card, deck, c),
+          prospective_constraints: additionChecks.get(c.oracle_id),
+        };
         return [
           {
             oracle_id: c.oracle_id,
@@ -378,8 +442,10 @@ function metaRecommendTool(
             category: c.category,
             rationale: `EDHREC ${rank} ${c[rank] ?? "unavailable"}; ${c.category}. In the deck's color identity and not already present.`,
             evidence,
+            provider_metrics: edhrecMetrics(c.provider_card, profile.source),
             uncertainty: [
               ...adviceUncertainty(profile),
+              ...(additionChecks.get(c.oracle_id)?.uncertainty ?? []),
               ...(c.synergy === null || c.inclusion === null
                 ? ["Some EDHREC metrics are unavailable; null evidence is not a measured zero."]
                 : []),
@@ -413,11 +479,17 @@ function metaRecommendTool(
         ],
         structuredContent: {
           deck_id: deckId,
+          deck_version: deck.version,
           commander: commanderCard.name,
           rank,
           suggestions,
           unresolved,
           source: profile.source,
+          exclusions,
+          constraints: {
+            mode: "one_card_addition",
+            full_deck_validation: "not_performed",
+          },
           budget: libraryBudget(deck, index).coverage,
         },
       };

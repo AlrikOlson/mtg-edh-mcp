@@ -6,6 +6,15 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Make `meta_recommend` default to local contextual ranking over the bounded
+  installed pool: all commanders, library interactions, role deficits, curve and
+  saved intent influence suggestions. Prospective constraints, unmet requirements,
+  opportunity costs and coverage remain explicit. Optional EDHREC enrichment
+  preserves per-commander metric names, raw scales and freshness without changing
+  local scores; current `num_decks` payloads and legacy inclusion are both handled.
+  Explicit synergy/inclusion ranks preserve provider browsing. Read-version checks
+  and modern/legacy MCP tests cover the changed default.
+
 - Add `analyze_strategy` (52 tools total) for offline analysis of the actual
   command zone and library. Evidence-linked candidate support, resource
   dependencies, bottlenecks, redundancy, recovery, possible package conflicts

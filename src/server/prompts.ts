@@ -53,7 +53,7 @@ const buildCommanderDeck: PromptDefinition = {
       `Build a legal 100-card Commander deck around ${args.commander}${theme}.\n\n` +
       "Recipe:\n" +
       `1. deck_create {name} then deck_set_commander {commanders: "${args.commander}"} — by name; the response's computed_color_identity scopes everything after.\n` +
-      "2. meta_recommend {rank: 'synergy'} for what fits, and rank: 'inclusion' for staples; suggestions carry oracle_ids ready to add.\n" +
+      "2. meta_recommend for local contributions to the actual deck and saved intent; optional provider: 'edhrec' adds separate population metrics. Review interactions, requirements and tradeoffs before adding suggestion oracle_ids.\n" +
       "3. deck_add in batches of 10-20 card NAMES (mixing recommendation ids is fine); read verdicts[] for per-card legality and failed[] for typos.\n" +
       "4. deck_status after each batch — one offline call for count/100, legality, curve, mana coverage, and role gaps; steer the next batch at whatever it flags.\n" +
       "5. Mana pass: analyze_mana_base for under-supported colors, then card_search (t:land plus identity filters) and deck_add basics with {card, qty}.\n" +
@@ -78,7 +78,7 @@ const tuneDeck: PromptDefinition = {
       `Tune deck ${args.deck_id}.\n\n` +
       "Recipe:\n" +
       `1. deck_status {deck_id: "${args.deck_id}"} — vitals, legality, curve, mana coverage, and below-band role gaps in one call.\n` +
-      "2. For each role gap: meta_recommend rank: 'synergy' (fits) and rank: 'inclusion' (staples), or card_search by role-shaped queries.\n" +
+      "2. For each role gap: meta_recommend for local contextual candidates and tradeoffs, or card_search by role-shaped queries. Explicit rank: 'inclusion' browses EDHREC popularity.\n" +
       "3. Swap: deck_remove the weakest card in the role, deck_add the replacement (names are fine); the vitals on each response track where you stand.\n" +
       "4. deck_status again; repeat until no gaps and legality is clean.\n" +
       "5. meta_classify_bracket for the power-level read after tuning.\n\n" +

@@ -134,8 +134,18 @@ const compare = (a: DiscoveryResult, b: DiscoveryResult): number =>
     .join("\0")
     .localeCompare(b.cards.map((c) => c.oracle_id).join("\0"));
 
+/** Internal reuse of the bounded card scan; public discovery keeps its retrieval semantics. */
+export interface DiscoveryScorer {
+  score(card: Card): { score: number; exclusion?: string };
+}
+
 /** Reads one synchronous index generation; no remote clients or mutable deck operations. */
-export function discover(index: CardIndex, input: DiscoveryRequest, deck?: Deck) {
+export function discover(
+  index: CardIndex,
+  input: DiscoveryRequest,
+  deck?: Deck,
+  contextual?: DiscoveryScorer,
+) {
   const request = DiscoveryRequestSchema.parse(input);
   if (request.mode === "commanders" && (request.commanders || request.command_zone_kind))
     throw new StructuredError(
@@ -253,7 +263,7 @@ export function discover(index: CardIndex, input: DiscoveryRequest, deck?: Deck)
   let cursor: string | undefined;
   let scanTruncated = false;
   const pairCandidates: Candidate[] = [];
-  if (interpretation.status !== "needs_query") {
+  if (interpretation.status !== "needs_query" || contextual) {
     do {
       const page = index.evaluate(
         { ...ALL, clauses: [] },
@@ -320,8 +330,10 @@ export function discover(index: CardIndex, input: DiscoveryRequest, deck?: Deck)
         const annotations =
           report?.annotations.filter((a) => requestedPatterns.has(a.pattern_id)) ?? [];
         const queryMatch = queryIds?.has(card.oracle_id) ?? true;
-        const score =
-          queryMatch && (!requestedPatterns.size || annotations.length > 0)
+        const contextualScore = queryMatch ? contextual?.score(card) : undefined;
+        const score = contextualScore
+          ? contextualScore.score
+          : queryMatch && (!requestedPatterns.size || annotations.length > 0)
             ? new Set(annotations.map((a) => a.pattern_id)).size * 10 + (query ? 1 : 0)
             : 0;
         const matches: Match[] = queryMatch
@@ -339,7 +351,11 @@ export function discover(index: CardIndex, input: DiscoveryRequest, deck?: Deck)
           score,
           evidence_truncated: annotations.length > 8,
         };
-        if (!score) exclude(card, queryMatch ? "no_supported_match" : "query");
+        if (!score)
+          exclude(
+            card,
+            contextualScore?.exclusion ?? (queryMatch ? "no_supported_match" : "query"),
+          );
         if (request.mode === "cards") {
           if (score) add([candidate], null);
         } else {

@@ -21,8 +21,9 @@ knowledge, durable state, and checks to make those choices reviewable.
   legality, curve, mana coverage, role gaps, and estimated price.
 - **Deeper analysis when needed.** Seeded opening-hand simulations, mana-source
   analysis, owned-card filtering, and cheaper-printing budget plans.
-- **Reviewable advice.** EDHREC additions and budget-swap cuts explain role and
-  synergy evidence, lost roles, price impact, uncertainty, and source freshness.
+- **Reviewable advice.** Local contextual recommendations use every commander,
+  the actual library, supported interactions, role gaps and saved intent.
+  Requirements, tradeoffs and uncertainty stay visible; EDHREC is optional.
 - **Correctable role labels.** Save per-deck role overrides, including custom
   combo pieces and payoffs; reset restores inferred roles without changing legality.
 - **Combo prerequisites.** Preserve Spellbook quantities, zones, commander and
@@ -157,8 +158,10 @@ version, and reuse unchanged indexes. See [refresh recovery and disk cleanup](./
 
 - **Scryfall** supplies card data and printing prices through bulk exports.
   `data_snapshot` identifies the card-data vintage in structured tool results.
-- **EDHREC** supplies commander profiles and recommendations through an
-  unofficial endpoint, which may change or become unavailable.
+- **EDHREC** supplies optional commander observations through an unofficial
+  endpoint. `meta_recommend` defaults to local contextual ranking without a
+  request to EDHREC; `provider: "edhrec"` adds separate metrics and tolerates
+  outages. Explicit `rank: "synergy"` or `"inclusion"` retains profile browsing.
 - **Commander Spellbook** receives commander and main-deck card names for
   combo lookup, including during bracket classification and applicable playgroup checks.
 - **Game Changers** come from the local Scryfall snapshot, with a live Scryfall

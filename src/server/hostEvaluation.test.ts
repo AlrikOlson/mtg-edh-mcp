@@ -110,13 +110,20 @@ describe("model-host fixture transport and independent grading", () => {
     }
     const temporary = "budget-build-deck-2";
     await run.call("validate_deck", { deck_id: temporary });
-    await run.call("budget_plan", { deck_id: temporary, target_usd: 100, use_collection: true });
+    await run.call("budget_plan", {
+      deck_id: temporary,
+      target_usd: 100,
+      use_collection: true,
+    });
     await run.call("deck_export", { deck_id: temporary });
     await run.call("deck_delete", { deck_id: temporary });
     const { state, events } = await run.receipt();
     const grade = gradeHostEvaluation("budget-build", state, events);
     expect(grade.checks).toContainEqual(
-      expect.objectContaining({ id: "legal_100_cards_including_commander", passed: true }),
+      expect.objectContaining({
+        id: "legal_100_cards_including_commander",
+        passed: true,
+      }),
     );
     for (const id of ["validation_observed", "collection_budget_observed", "export_observed"])
       expect(grade.checks).toContainEqual(expect.objectContaining({ id, passed: false }));
@@ -139,7 +146,10 @@ describe("model-host fixture transport and independent grading", () => {
     const run = await connect("budget-build");
     await run.client.listTools();
     await run.call("collection_set", { cards: ["Sol Ring", "Goblin Matron"] });
-    await run.call("deck_create", { name: "Host budget", commanders: "Krenko, Mob Boss" });
+    await run.call("deck_create", {
+      name: "Host budget",
+      commanders: "Krenko, Mob Boss",
+    });
     await run.call("deck_add", {
       deck_id: "budget-build-deck-1",
       cards: ["Sol Ring", "Goblin Matron", "Skirk Prospector", { card: "Mountain", qty: 96 }],
@@ -173,33 +183,61 @@ describe("model-host fixture transport and independent grading", () => {
     expect(gradeHostEvaluation("import-tune", state, events).passed).toBe(false);
 
     // A valid intermediate deck cannot stand in for requested final-state checks.
-    await run.call("deck_rename", { deck_id: "budget-build-deck-1", name: "Changed after checks" });
+    await run.call("deck_rename", {
+      deck_id: "budget-build-deck-1",
+      name: "Changed after checks",
+    });
     const changed = await run.receipt();
     const staleGrade = gradeHostEvaluation("budget-build", changed.state, changed.events);
     for (const id of ["validation_observed", "collection_budget_observed", "export_observed"])
       expect(staleGrade.checks).toContainEqual(expect.objectContaining({ id, passed: false }));
-    await run.call("deck_remove", { deck_id: "budget-build-deck-1", cards: "Skirk Prospector" });
-    await run.call("deck_add", { deck_id: "budget-build-deck-1", cards: "Arcane Signet" });
+    await run.call("deck_remove", {
+      deck_id: "budget-build-deck-1",
+      cards: "Skirk Prospector",
+    });
+    await run.call("deck_add", {
+      deck_id: "budget-build-deck-1",
+      cards: "Arcane Signet",
+    });
     const substituted = await run.receipt();
     expect(
       gradeHostEvaluation("budget-build", substituted.state, substituted.events).checks,
-    ).toContainEqual(expect.objectContaining({ id: "requested_prospector_used", passed: false }));
+    ).toContainEqual(
+      expect.objectContaining({
+        id: "requested_prospector_used",
+        passed: false,
+      }),
+    );
   }, 30_000);
 
   it("injects the cold outage, retains failures, and detects mutation hidden behind an error", async () => {
     const run = await connect("error-recovery");
     const deckId = "error-recovery-deck-1";
-    await run.call("deck_create", { name: "Recovery", commanders: "Krenko, Mob Boss" });
-    await run.call("deck_add", { deck_id: deckId, cards: { card: "Mountain", qty: 98 } });
+    await run.call("deck_create", {
+      name: "Recovery",
+      commanders: "Krenko, Mob Boss",
+    });
+    await run.call("deck_add", {
+      deck_id: deckId,
+      cards: { card: "Mountain", qty: 98 },
+    });
     expect(
-      await run.call("deck_set_commander", { deck_id: deckId, commanders: "Krenko" }),
+      await run.call("deck_set_commander", {
+        deck_id: deckId,
+        commanders: "Krenko",
+      }),
     ).toMatchObject({ isError: true });
-    await run.call("deck_set_commander", { deck_id: deckId, commanders: "Krenko, Mob Boss" });
-    expect(await run.call("meta_recommend", { deck_id: deckId })).toMatchObject({ isError: true });
+    await run.call("deck_set_commander", {
+      deck_id: deckId,
+      commanders: "Krenko, Mob Boss",
+    });
+    expect(await run.call("meta_recommend", { deck_id: deckId, rank: "synergy" })).toMatchObject({
+      isError: true,
+    });
     await run.call("card_search", { query: "id<=r t:goblin usd<=1" });
     await run.call("deck_add", { deck_id: deckId, cards: "Skirk Prospector" });
     await run.call("validate_deck", { deck_id: deckId });
-    await run.call("meta_recommend", { deck_id: deckId });
+    await run.call("meta_recommend", { deck_id: deckId, rank: "synergy" });
     const { state, events } = await run.receipt();
     expect(state.edhrec_requests).toBe(2);
     expect(gradeHostEvaluation("error-recovery", state, events).passed).toBe(true);
@@ -213,7 +251,10 @@ describe("model-host fixture transport and independent grading", () => {
     assert(failedDeck);
     failedDeck.name = "Unacknowledged change";
     expect(gradeHostEvaluation("error-recovery", state, forged).checks).toContainEqual(
-      expect.objectContaining({ id: "failed_calls_preserve_state", passed: false }),
+      expect.objectContaining({
+        id: "failed_calls_preserve_state",
+        passed: false,
+      }),
     );
     const mutatingAdvice = structuredClone(events);
     const retry = mutatingAdvice
@@ -228,10 +269,16 @@ describe("model-host fixture transport and independent grading", () => {
     assert(adviceDeck);
     adviceDeck.name = "Advice secretly changed this deck";
     expect(gradeHostEvaluation("error-recovery", state, mutatingAdvice).checks).toContainEqual(
-      expect.objectContaining({ id: "successful_recommendations_preserve_state", passed: false }),
+      expect.objectContaining({
+        id: "successful_recommendations_preserve_state",
+        passed: false,
+      }),
     );
 
-    await run.call("deck_remove", { deck_id: deckId, cards: "Skirk Prospector" });
+    await run.call("deck_remove", {
+      deck_id: deckId,
+      cards: "Skirk Prospector",
+    });
     await run.call("deck_add", { deck_id: deckId, cards: "Goblin Matron" });
     const wrongFallback = await run.receipt();
     expect(
@@ -245,23 +292,40 @@ describe("model-host fixture transport and independent grading", () => {
       const run = await connect(scenario);
       const deckId = `${scenario}-deck-1`;
       if (scenario === "acquisition-reduction")
-        await run.call("deck_create", { name: "Import", commanders: "Krenko, Mob Boss" });
+        await run.call("deck_create", {
+          name: "Import",
+          commanders: "Krenko, Mob Boss",
+        });
       await run.call("deck_import", {
         ...(scenario === "import-tune" ? { name: "Imported new deck" } : { deck_id: deckId }),
         text: "1 Sol Ring\n1 Goblin Matron\n97 Mountain",
       });
       if (scenario === "import-tune")
-        await run.call("deck_set_commander", { deck_id: deckId, commanders: "Krenko, Mob Boss" });
+        await run.call("deck_set_commander", {
+          deck_id: deckId,
+          commanders: "Krenko, Mob Boss",
+        });
       if (scenario === "import-tune") await run.call("deck_snapshot", { deck_id: deckId });
       if (scenario === "acquisition-reduction")
         await run.call("collection_set", { cards: ["Goblin Matron"] });
-      await run.call("budget_plan", { deck_id: deckId, target_usd: 20, use_collection: true });
+      await run.call("budget_plan", {
+        deck_id: deckId,
+        target_usd: 20,
+        use_collection: true,
+      });
       await run.call("deck_remove", { deck_id: deckId, cards: "Sol Ring" });
       await run.call("deck_add", { deck_id: deckId, cards: "Arcane Signet" });
       await run.call("validate_deck", { deck_id: deckId });
-      await run.call("budget_plan", { deck_id: deckId, target_usd: 20, use_collection: true });
+      await run.call("budget_plan", {
+        deck_id: deckId,
+        target_usd: 20,
+        use_collection: true,
+      });
       if (scenario === "import-tune")
-        await run.call("deck_diff", { deck_id: deckId, snapshot_id: `${scenario}-snapshot-1` });
+        await run.call("deck_diff", {
+          deck_id: deckId,
+          snapshot_id: `${scenario}-snapshot-1`,
+        });
       await run.call("deck_export", { deck_id: deckId });
       const { state, events } = await run.receipt();
       expect(gradeHostEvaluation(scenario, state, events).passed).toBe(true);
