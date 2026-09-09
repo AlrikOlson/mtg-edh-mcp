@@ -8,7 +8,7 @@ Incorporate the existing `mtg-game-engine` into `mtg-edh-mcp` as the single cano
 
 This mission and the prohibition on duplicate production behavior are standing requirements for every agent and harness. Only an explicit user change can replace the mission or waive these constraints. Implementation decisions can evolve through evidence-backed architecture decisions; do not quietly weaken release acceptance to make a chunk pass.
 
-The native Magistr roadmap is authoritative for scope, dependencies and status. This charter defines durable ownership and release invariants; it is not a second roadmap. Superseded native plans retain their evidence and links. Completing the roadmap reset does not complete the standing integration goal.
+The native Magistr roadmap is authoritative for scope, dependencies and status. This charter defines durable ownership and release invariants; it is not a second roadmap. Superseded native plans retain their evidence and links. The `/goal` task is limited to rebuilding and finalizing this roadmap. Implementation and release work happen separately, outside `/goal`; the long-term integration mission remains the roadmap's destination.
 
 ## Ownership
 
