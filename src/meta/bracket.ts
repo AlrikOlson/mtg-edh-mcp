@@ -18,15 +18,14 @@
  * are reported as pushers only, never moved up a tier. cEDH (5) is a meta/intent
  * judgment we don't auto-assign — the ceiling here is 4.
  *
- * Honest scope: the official tiers also separate 2/3/4 by two-card combos and
- * chained extra turns (Upgraded forbids EARLY two-card combos; Core forbids them
- * entirely). Those are NOT modeled here — they need Spellbook combo data plus an
- * "earliness" heuristic — so a deck with an early combo but few Game Changers may
- * read one tier low. Tracked as a backlog chunk.
+ * Combo inputs must pass bounded deck/configuration checks. Printed mana value
+ * remains an advisory earliness proxy, never a turn or execution prediction.
+ * Provider lookup status and non-exhaustive coverage accompany every estimate.
  */
 import type { Card, Deck } from "../types/index.js";
 import { USER_AGENT } from "../types/index.js";
-import type { CacheStore } from "./cache.js";
+import type { CacheStore, CacheFreshness } from "./cache.js";
+import type { ComboResults } from "./spellbook.js";
 import type { FetchJson } from "./edhrec.js";
 
 /** Game Changers lists change with set releases; cache for a week. */
@@ -53,6 +52,9 @@ export interface BracketPushers {
  */
 export interface BracketCombo {
   pieces: readonly string[];
+  /** Null is unknown; undefined preserves the legacy pure-caller proxy. */
+  mana_value_needed?: number | null;
+  uses_nondefault_face?: boolean;
 }
 
 /**
@@ -64,11 +66,26 @@ export const EARLY_COMBO_MV = 5;
 /** This many extra-turn cards is treated as a chain (Upgraded forbids chaining). */
 export const EXTRA_TURN_CHAIN = 2;
 
+export interface BracketComboEvidence {
+  status: "available" | "unavailable" | "not_checked";
+  freshness: CacheFreshness | null;
+  coverage: ComboResults["coverage"] | null;
+  candidate_count: number;
+  supported_count: number;
+  unknown_count: number;
+  rejected_count: number;
+  unresolved_oracle_ids: string[];
+  error: { code: string; message: string } | null;
+  absence_confirmed: false;
+}
+
 export interface BracketResult {
   /** 1 Exhibition · 2 Core · 3 Upgraded · 4 Optimized · 5 cEDH. */
   bracket: number;
   pushers: BracketPushers;
   rationale: string;
+  provisional: true;
+  combo_evidence: BracketComboEvidence;
 }
 
 function isMassLandDenial(card: Card): boolean {
@@ -100,6 +117,18 @@ export function classifyBracket(
   lookup: CardLookup,
   gameChangers: ReadonlySet<string>,
   combos: readonly BracketCombo[] = [],
+  comboEvidence: BracketComboEvidence = {
+    status: "not_checked",
+    freshness: null,
+    coverage: null,
+    candidate_count: 0,
+    supported_count: 0,
+    unknown_count: 0,
+    rejected_count: 0,
+    unresolved_oracle_ids: [],
+    error: null,
+    absence_confirmed: false,
+  },
 ): BracketResult {
   const pushers: BracketPushers = {
     game_changers: [],
@@ -123,7 +152,8 @@ export function classifyBracket(
   }
 
   // Two-card combos (the official "two-card infinite combo" the tiers gate on).
-  // A combo whose pieces' combined mana value is low assembles early.
+  // Printed mana is only a proxy; supplied unknown/high mana or alternate faces
+  // prevent the early promotion. It never establishes execution timing.
   const twoCard = combos.filter((c) => c.pieces.length === 2);
   let earlyCombo = false;
   for (const c of twoCard) {
@@ -131,7 +161,13 @@ export function classifyBracket(
     const [first, second] = cards;
     if (first && second) {
       pushers.combos.push(`${first.name} + ${second.name}`);
-      if (first.mv + second.mv <= EARLY_COMBO_MV) earlyCombo = true;
+      if (
+        first.mv + second.mv <= EARLY_COMBO_MV &&
+        c.mana_value_needed !== null &&
+        (c.mana_value_needed ?? 0) <= EARLY_COMBO_MV &&
+        !c.uses_nondefault_face
+      )
+        earlyCombo = true;
     }
   }
   const extraTurnChain = pushers.extra_turns.length >= EXTRA_TURN_CHAIN;
@@ -140,17 +176,28 @@ export function classifyBracket(
   const base = gc >= 4 || pushers.mld.length > 0 ? 4 : gc >= 1 ? 3 : 2;
   // Combos/extra-turns only RAISE the floor, never lower the GC/MLD verdict.
   let comboFloor = 0;
-  if (twoCard.length > 0) comboFloor = 3; // a two-card combo can't be Core (bracket 2)
+  if (pushers.combos.length > 0) comboFloor = 3; // a two-card combo can't be Core (bracket 2)
   if (earlyCombo || extraTurnChain) comboFloor = 4; // early combo / extra-turn chain → Optimized
   const bracket = Math.max(base, comboFloor);
 
   const rationale =
     `${gc} Game Changer(s), ${pushers.fast_mana.length} fast-mana, ${pushers.tutors.length} tutor(s), ` +
-    `${pushers.mld.length} mass-land-denial, ${pushers.combos.length} two-card combo(s), ` +
-    `${pushers.extra_turns.length} extra-turn card(s). Tiers: Core=0 GC & no combo, ` +
+    `${pushers.mld.length} mass-land-denial, ${pushers.combos.length} supported two-card combo candidate(s), ` +
+    `${pushers.extra_turns.length} extra-turn card(s). Heuristic tiers: Core=0 GC, ` +
     `Upgraded=1–3 GC or a late two-card combo, Optimized=4+ GC / mass land denial / early combo / ` +
     `extra-turn chain (tutors don't gate). cEDH (5) is a meta/intent call and is not auto-assigned.`;
-  return { bracket, pushers, rationale };
+  return {
+    bracket,
+    pushers,
+    provisional: true,
+    combo_evidence: comboEvidence,
+    rationale:
+      rationale +
+      ` Combo evidence: ${comboEvidence.status}` +
+      ` (${comboEvidence.freshness?.status ?? "no observation"}; ${comboEvidence.coverage?.status ?? "unknown"} coverage); ` +
+      `${comboEvidence.unknown_count} candidate(s) have unknown applicability. Combo absence is not established. ` +
+      "Mana value is an earliness proxy; setup and execution are unknown.",
+  };
 }
 
 /** Defensive parse of a Game Changers payload into a name set. */
@@ -221,7 +268,10 @@ export class GameChangersClient {
     for (let i = 0; url && i < MAX_PAGES; i += 1) {
       const page: unknown = await this.fetchJson(url);
       pages.push(page);
-      const { has_more, next_page } = (page ?? {}) as { has_more?: unknown; next_page?: unknown };
+      const { has_more, next_page } = (page ?? {}) as {
+        has_more?: unknown;
+        next_page?: unknown;
+      };
       url = has_more === true && typeof next_page === "string" ? next_page : undefined;
     }
     return pages;

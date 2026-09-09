@@ -26,41 +26,95 @@ import type {
   BracketCombo,
 } from "../meta/index.js";
 import { classifyBracket } from "../meta/index.js";
+import type { BracketComboEvidence } from "../meta/bracket.js";
+import { evaluateCombo, spellbookDeckQuery } from "../meta/comboApplicability.js";
 
-/**
- * Resolve a deck's reachable two-card Commander Spellbook combos to bracket
- * combos (oracle_id pieces), for classifyBracket. Degrades to [] when Spellbook
- * is unavailable — the bracket still computes from Game Changers / MLD / extra
- * turns. The live fetch stays here (the tool layer); classifyBracket stays pure.
- */
+/** Query one captured deck version, preserving canonical quantities and coverage. */
+async function deckComboEvidence(deck: Deck, index: CardIndex, spellbook: SpellbookClient) {
+  const query = spellbookDeckQuery(deck, index);
+  const results = await spellbook.findMyCombos(query.commanders, query.cards);
+  const all = [
+    ...results.included,
+    ...results.includedByChangingCommanders,
+    ...results.almostIncluded,
+    ...results.almostIncludedByAddingColors,
+    ...results.almostIncludedByChangingCommanders,
+    ...results.almostIncludedByAddingColorsAndChangingCommanders,
+  ].map((combo) => ({
+    ...combo,
+    applicability: evaluateCombo(combo, deck, index),
+  }));
+  return { results, all, unresolved_oracle_ids: query.unresolved_oracle_ids };
+}
+
+/** Keep provider failures and incomplete applicability visible to bracket consumers. */
 async function deckTwoCardCombos(
   deck: Deck,
   index: CardIndex,
   spellbook: SpellbookClient,
-): Promise<BracketCombo[]> {
+): Promise<{ combos: BracketCombo[]; evidence: BracketComboEvidence }> {
+  // Query construction failures are programming errors, not provider outages.
+  const query = spellbookDeckQuery(deck, index);
+  const evidence: BracketComboEvidence = {
+    status: "unavailable",
+    freshness: null,
+    coverage: null,
+    candidate_count: 0,
+    supported_count: 0,
+    unknown_count: 0,
+    rejected_count: 0,
+    unresolved_oracle_ids: query.unresolved_oracle_ids,
+    error: null,
+    absence_confirmed: false,
+  };
   try {
-    const named = [...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]
-      .map((id) => ({ id, name: index.getCard(id)?.name }))
-      .filter((x): x is { id: string; name: string } => typeof x.name === "string");
-    const idByName = new Map(named.map((x) => [x.name, x.id]));
-    const commanderNames = deck.commanders
-      .map((id) => index.getCard(id)?.name)
-      .filter((n): n is string => typeof n === "string");
-    const results = await spellbook.findMyCombos(
-      commanderNames,
-      named.map((x) => x.name),
-    );
-    const out: BracketCombo[] = [];
-    for (const combo of results.included) {
-      if (combo.pieces.length !== 2) continue;
-      const pieces = combo.pieces
-        .map((n) => idByName.get(n))
-        .filter((x): x is string => typeof x === "string");
-      if (pieces.length === 2) out.push({ pieces });
+    const observation = await deckComboEvidence(deck, index, spellbook);
+    evidence.status = "available";
+    evidence.freshness = observation.results.freshness;
+    evidence.coverage = observation.results.coverage;
+    evidence.candidate_count = observation.all.length;
+    const combos: BracketCombo[] = [];
+    for (const combo of observation.all) {
+      const applicability = combo.applicability;
+      if (applicability.deck_configuration === "unsatisfied") {
+        evidence.rejected_count++;
+        continue;
+      }
+      const knownOutcome = combo.produces.some((name) =>
+        /\binfinite\b|\bwin the game\b/i.test(name),
+      );
+      if (applicability.deck_configuration === "unknown" || !knownOutcome) {
+        evidence.unknown_count++;
+        continue;
+      }
+      const count = combo.uses.reduce((total, ingredient) => total + (ingredient.quantity ?? 0), 0);
+      if (count !== 2) {
+        evidence.rejected_count++;
+        continue;
+      }
+      const pieces = applicability.ingredients
+        .flatMap((ingredient) =>
+          ingredient.oracle_id === null
+            ? []
+            : Array.from({ length: ingredient.required_quantity ?? 0 }, () => ingredient.oracle_id),
+        )
+        .filter((id): id is string => id !== null);
+      if (pieces.length !== 2) {
+        evidence.unknown_count++;
+        continue;
+      }
+      combos.push({
+        pieces,
+        mana_value_needed: combo.mana_value_needed,
+        uses_nondefault_face: combo.uses.some((ingredient) => ingredient.used_face !== null),
+      });
+      evidence.supported_count++;
     }
-    return out;
-  } catch {
-    return [];
+    return { combos, evidence };
+  } catch (error) {
+    if (!(error instanceof StructuredError) || error.code !== "UPSTREAM_UNAVAILABLE") throw error;
+    evidence.error = { code: error.code, message: error.message };
+    return { combos: [], evidence };
   }
 }
 import { READS_LIVE } from "./registry.js";
@@ -172,7 +226,12 @@ function profileCandidates(
   deck: Deck,
   index: CardIndex,
   profile: {
-    cards: Array<{ name: string; synergy?: number; inclusion?: number; category: string }>;
+    cards: Array<{
+      name: string;
+      synergy?: number;
+      inclusion?: number;
+      category: string;
+    }>;
   },
   options: { excludeLands?: boolean } = {},
 ): { candidates: ProfileCandidate[]; unresolved: Record<string, unknown>[] } {
@@ -233,7 +292,10 @@ function metaCommanderProfileTool(edhrec: EdhrecClient): ToolDefinition {
       const profile = await edhrec.profileWithSource(commander);
       return {
         content: [
-          { type: "text", text: `${profile.cards.length} cards, ${profile.themes.length} themes` },
+          {
+            type: "text",
+            text: `${profile.cards.length} cards, ${profile.themes.length} themes`,
+          },
         ],
         structuredContent: {
           commander,
@@ -433,9 +495,15 @@ function metaBudgetSwapsTool(
         metrics: EdhrecCard | undefined;
       }> = [];
       const lookup = (id: string) => index.getCard(id);
-      const budgetOptions = { targetUsd: target ?? undefined, dataSnapshot: snapshot() };
+      const budgetOptions = {
+        targetUsd: target ?? undefined,
+        dataSnapshot: snapshot(),
+      };
       const budget = wholeDeckBudget(deck, lookup, budgetOptions);
-      let projectedDeck = { ...deck, cards: deck.cards.map((entry) => ({ ...entry })) };
+      let projectedDeck = {
+        ...deck,
+        cards: deck.cards.map((entry) => ({ ...entry })),
+      };
       let projectedBudget = budget;
       for (const e of deck.cards) {
         const full = index.getCard(e.oracle_id);
@@ -581,11 +649,11 @@ function metaCombosTool(
       annotations: READS_LIVE,
       title: "Combos (Commander Spellbook)",
       description:
-        "Find combos reachable from the deck via Commander Spellbook.\n" +
-        "USE: what the deck can assemble (pieces, result, steps). NOT: bracket impact (meta_classify_bracket counts combos itself).\n" +
+        "Find provider combo candidates and check their deck prerequisites.\n" +
+        "USE: quantities, commander/face requirements and setup evidence. NOT: execution proof; bracket impact (meta_classify_bracket).\n" +
         "FLOW: deck_status -> meta_combos -> deck_add.\n" +
-        "ARGS: deck_id; include_almost:true for one-card-away combos; limit (default 20).\n" +
-        "RETURNS: combos[] (with source + confidence), included_count, almost_count (exact totals).",
+        "ARGS: deck_id; include_almost:true adds missing-copy/color candidates; limit (20, max 200). Commander-change candidates included by default.\n" +
+        "RETURNS: combos with applicability, provider links/prerequisites; category_counts, freshness, coverage, deck_version. Legacy included_count/almost_count count their provider buckets on this page; execution always unknown.",
       inputSchema: {
         deck_id: z.string(),
         include_almost: z.boolean().optional(),
@@ -597,31 +665,44 @@ function metaCombosTool(
       const limit = typeof args.limit === "number" ? args.limit : 20;
       const deck = store.get(deckId, session);
       if (!deck) throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${deckId}'`);
-
-      const commanderNames = deck.commanders
-        .map((id) => index.getCard(id)?.name)
-        .filter((n): n is string => typeof n === "string");
-      const cardNames = deck.cards
-        .map((e) => index.getCard(e.oracle_id)?.name)
-        .filter((n): n is string => typeof n === "string");
-
-      const results = await spellbook.findMyCombos(commanderNames, cardNames);
-      const combos = [
-        ...results.included,
-        ...(args.include_almost === true ? results.almostIncluded : []),
-      ].slice(0, limit);
+      const { results, all, unresolved_oracle_ids } = await deckComboEvidence(
+        deck,
+        index,
+        spellbook,
+      );
+      const selected = all.filter(
+        (combo) => args.include_almost === true || combo.provider_category.startsWith("included"),
+      );
+      const combos = selected.slice(0, limit);
+      const category_counts = {
+        included: results.included.length,
+        included_by_changing_commanders: results.includedByChangingCommanders.length,
+        almost_included: results.almostIncluded.length,
+        almost_included_by_adding_colors: results.almostIncludedByAddingColors.length,
+        almost_included_by_changing_commanders: results.almostIncludedByChangingCommanders.length,
+        almost_included_by_adding_colors_and_changing_commanders:
+          results.almostIncludedByAddingColorsAndChangingCommanders.length,
+      };
       return {
         content: [
           {
             type: "text",
-            text: `${results.included.length} included, ${results.almostIncluded.length} almost`,
+            text: `${combos.length} provider candidate(s); ${results.freshness.status} observation, ${results.coverage.status} response coverage. Inventory inclusion does not establish execution; no known matches does not establish combo absence.`,
           },
         ],
         structuredContent: {
           deck_id: deckId,
+          deck_version: deck.version,
           combos,
           included_count: results.included.length,
           almost_count: results.almostIncluded.length,
+          category_counts,
+          freshness: results.freshness,
+          coverage: results.coverage,
+          unresolved_oracle_ids,
+          returned_count: combos.length,
+          matching_count: selected.length,
+          truncated: combos.length < selected.length,
         },
       };
     },
@@ -641,11 +722,11 @@ function metaClassifyBracketTool(
       annotations: READS_LIVE,
       title: "Classify bracket",
       description:
-        "Classify the deck into the official Commander brackets (1 Exhibition … 5 cEDH).\n" +
+        "Estimate a Commander bracket with explicit combo evidence and uncertainty.\n" +
         "USE: power-level conversations and pod matching. NOT: legality (validate_deck); offline stats (deck_status).\n" +
         "FLOW: deck_status -> meta_classify_bracket -> deck_remove.\n" +
         "ARGS: deck_id.\n" +
-        "RETURNS: bracket, rationale, pushers (Game Changers, fast mana, tutors, mass land denial, two-card combos, extra turns). Game Changers come from the local index snapshot (live-list fallback for old indexes) + Spellbook (degrades gracefully); cEDH (5) never auto-assigned.",
+        "RETURNS: bracket, rationale, pushers, provisional, combo_evidence (status/freshness/coverage/errors). Checks quantities and commander prerequisites; unknown setup and provider failures never prove absence. Game Changers use local snapshot with live fallback; cEDH (5) never auto-assigned.",
       inputSchema: { deck_id: z.string() },
     },
     handler: async (args) => {
@@ -655,11 +736,20 @@ function metaClassifyBracketTool(
       // Prefer the snapshot-versioned local list (offline, provenance-stamped);
       // fall back to the live client only for indexes built before the column.
       const set = index.gameChangerNames() ?? (await gameChangers.list());
-      const combos = await deckTwoCardCombos(deck, index, spellbook);
-      const result = classifyBracket(deck, (id) => index.getCard(id), set, combos);
+      const { combos, evidence } = await deckTwoCardCombos(deck, index, spellbook);
+      const result = classifyBracket(deck, (id) => index.getCard(id), set, combos, evidence);
       return {
-        content: [{ type: "text", text: `bracket ${result.bracket}: ${result.rationale}` }],
-        structuredContent: { deck_id: deckId, ...result },
+        content: [
+          {
+            type: "text",
+            text: `bracket ${result.bracket}: ${result.rationale}`,
+          },
+        ],
+        structuredContent: {
+          deck_id: deckId,
+          deck_version: deck.version,
+          ...result,
+        },
       };
     },
   };

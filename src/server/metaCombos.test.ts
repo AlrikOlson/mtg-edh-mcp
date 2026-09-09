@@ -8,6 +8,10 @@ import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
 import { CacheStore, SpellbookClient } from "../meta/index.js";
+import {
+  SPELLBOOK_RESPONSE_FIXTURE,
+  SPELLBOOK_VARIANT_FIXTURE,
+} from "../meta/spellbook.fixture.js";
 import { createServer } from "./createServer.js";
 import { staticSnapshotProvider } from "./snapshot.js";
 
@@ -63,6 +67,8 @@ let root: string;
 let index: CardIndex;
 let deckStore: DeckStore;
 let client: Client;
+let response: unknown;
+let requests: Array<{ url: string; init?: RequestInit }>;
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(tmpdir(), "mtg-combos-"));
@@ -73,9 +79,14 @@ beforeEach(async () => {
   await store.publish("v1");
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   deckStore = new DeckStore({ newId: () => "deck-1" });
+  response = RESPONSE;
+  requests = [];
 
   const spellbook = new SpellbookClient(new CacheStore({ now: () => 1000 }), {
-    fetchJson: async () => RESPONSE,
+    fetchJson: async (url, init) => {
+      requests.push({ url, init });
+      return response;
+    },
   });
   const server = createServer({
     index,
@@ -105,6 +116,127 @@ afterEach(async () => {
 });
 
 describe("meta_combos tool", () => {
+  it("sends deck quantities once and keeps commanders out of the main request", async () => {
+    deckStore.update("deck-1", (deck) => ({
+      ...deck,
+      cards: [
+        { oracle_id: "o-sol", qty: 3 },
+        { oracle_id: "o-talrand", qty: 1 },
+        { oracle_id: "unresolved", qty: 2 },
+      ],
+    }));
+    const result = await client.callTool({
+      name: "meta_combos",
+      arguments: { deck_id: "deck-1" },
+    });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.init?.method).toBe("POST");
+    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
+      commanders: [{ card: "Talrand, Sky Summoner", quantity: 1 }],
+      main: [{ card: "Sol Ring", quantity: 3 }],
+    });
+    expect(result.structuredContent).toMatchObject({
+      deck_version: deckStore.get("deck-1")?.version,
+      unresolved_oracle_ids: ["unresolved"],
+    });
+  });
+
+  it("retains execution evidence without turning a provider match into executability", async () => {
+    response = SPELLBOOK_RESPONSE_FIXTURE;
+    const result = await client.callTool({
+      name: "meta_combos",
+      arguments: { deck_id: "deck-1" },
+    });
+    expect(result.structuredContent).toMatchObject({
+      coverage: { status: "complete", provider_non_exhaustive: true },
+      freshness: { status: "fresh", refresh_failed: false },
+      combos: [
+        {
+          id: SPELLBOOK_VARIANT_FIXTURE.id,
+          provider_category: "included",
+          mana_needed: "{2}{U}",
+          mana_value_needed: 3,
+          easy_prerequisites: "You control a creature.",
+          notable_prerequisites: "Your life total is at least 5.",
+          notes: "Each iteration requires an available target.",
+          uses: [
+            { quantity: 2, used_face: 2, must_be_commander: true, zone_locations: ["B", "G"] },
+          ],
+          requires: [{ quantity: 1, template: { name: "A creature that can sacrifice itself" } }],
+          outputs: [{ quantity: 1, feature: { name: "Infinite mana", uncountable: true } }],
+          applicability: {
+            listed_pieces_present: "unknown",
+            deck_configuration: "unknown",
+            setup_prerequisites: "unknown",
+            executable_now: "unknown",
+          },
+        },
+      ],
+    });
+    expect(result.content).toContainEqual({
+      type: "text",
+      text: JSON.stringify(result.structuredContent),
+    });
+  });
+
+  it("keeps all six provider categories and exact counts despite result limits", async () => {
+    response = {
+      ...SPELLBOOK_RESPONSE_FIXTURE,
+      count: 6,
+      results: Object.fromEntries(
+        [
+          "included",
+          "includedByChangingCommanders",
+          "almostIncluded",
+          "almostIncludedByAddingColors",
+          "almostIncludedByChangingCommanders",
+          "almostIncludedByAddingColorsAndChangingCommanders",
+        ].map((category) => [category, [{ ...SPELLBOOK_VARIANT_FIXTURE, id: category }]]),
+      ),
+    };
+    const result = await client.callTool({ name: "meta_combos", arguments: { deck_id: "deck-1" } });
+    expect(result.structuredContent).toMatchObject({
+      included_count: 1,
+      almost_count: 1,
+      category_counts: {
+        included: 1,
+        included_by_changing_commanders: 1,
+        almost_included: 1,
+        almost_included_by_adding_colors: 1,
+        almost_included_by_changing_commanders: 1,
+        almost_included_by_adding_colors_and_changing_commanders: 1,
+      },
+      combos: [{ id: "included" }, { id: "includedByChangingCommanders" }],
+    });
+    const limited = await client.callTool({
+      name: "meta_combos",
+      arguments: { deck_id: "deck-1", include_almost: true, limit: 3 },
+    });
+    expect(limited.structuredContent).toMatchObject({
+      included_count: 1,
+      almost_count: 1,
+      combos: [
+        { id: "included" },
+        { id: "includedByChangingCommanders" },
+        { id: "almostIncluded" },
+      ],
+    });
+    const all = await client.callTool({
+      name: "meta_combos",
+      arguments: { deck_id: "deck-1", include_almost: true },
+    });
+    expect(all.structuredContent).toMatchObject({
+      combos: [
+        { id: "included" },
+        { id: "includedByChangingCommanders" },
+        { id: "almostIncluded" },
+        { id: "almostIncludedByAddingColors" },
+        { id: "almostIncludedByChangingCommanders" },
+        { id: "almostIncludedByAddingColorsAndChangingCommanders" },
+      ],
+    });
+  });
+
   it("is registered", async () => {
     const names = (await client.listTools()).tools.map((t) => t.name);
     expect(names).toContain("meta_combos");

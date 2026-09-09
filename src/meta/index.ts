@@ -19,6 +19,13 @@ export {
   SPELLBOOK_TTL_MS,
   type Combo,
   type ComboResults,
+  type SpellbookCardEntry,
+  type ComboProviderCategory,
+  type ComboIngredient,
+  type ComboCardIngredient,
+  type ComboTemplateIngredient,
+  type ComboOutput,
+  SPELLBOOK_FIND_MY_COMBOS_URL,
   type SpellbookClientOptions,
 } from "./spellbook.js";
 export {
@@ -32,6 +39,15 @@ export {
   type BracketResult,
   type BracketPushers,
   type BracketCombo,
+  type BracketComboEvidence,
   type GameChangersClientOptions,
   type CardLookup,
 } from "./bracket.js";
+export {
+  evaluateCombo,
+  spellbookDeckQuery,
+  type ComboApplicability,
+  type IngredientApplicability,
+  type ComboCardResolver,
+  type RequirementStatus,
+} from "./comboApplicability.js";

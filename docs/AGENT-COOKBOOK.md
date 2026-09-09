@@ -318,6 +318,43 @@ does not mean an empty search result.
 `meta_classify_bracket` may do so too. EDHREC-backed tools query an unofficial
 service. Use local tools when the user wants to keep deck contents local.
 
+## Inspect combo prerequisites
+
+`meta_combos {"deck_id":"DECK_ID","include_almost":true,"limit":20}` returns
+provider candidates with the saved `deck_version`. Read each candidate's
+`applicability` before recommending changes:
+
+- `listed_pieces_present` checks required quantities against canonical cards.
+- `deck_configuration` checks quantities, designated commanders and supplied
+  face indices. A commander-required card in the library fails this check.
+  Templates, missing evidence and prerequisite prose can leave it unknown.
+- `setup_prerequisites` and `executable_now` remain unknown. A deck list cannot
+  establish current zones, untapped state, mana, timing or successful execution.
+
+The `uses`, `requires` and `outputs` records retain quantities and provider
+evidence; `mana_needed`, prerequisites and `steps` retain setup instructions.
+`used_face` is the provider's one-based face index; resolved applicability
+links it to the canonical zero-based face and source path. Null and
+`missing_fields` expose unavailable evidence. Follow `url` to the variant.
+
+`provider_category` preserves Spellbook's inventory classification. The default
+also includes candidates needing a commander change; `include_almost` adds
+missing-copy and color-change categories. Those labels do not validate the
+deck's color identity or prove that a template is satisfied. The provider's
+[find-my-combos implementation](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/spellbook/views/find_my_combos.py)
+and [variant serializer](https://github.com/SpaceCowMedia/commander-spellbook-backend/blob/master/backend/spellbook/serializers/variant_serializer.py)
+define these source fields.
+
+Counts describe received provider buckets before the local result limit.
+Check `coverage`, `truncated`, `unresolved_oracle_ids` and `freshness`; complete
+response coverage still comes from a non-exhaustive catalog. Failed or malformed
+refreshes serve marked stale evidence when cached; cold failures report
+`UPSTREAM_UNAVAILABLE`. An empty list never establishes combo absence.
+`meta_classify_bracket` exposes the same limits through `combo_evidence` and
+`provisional`. Its supported candidates require two physical copies and an
+explicit infinite/win outcome; unparsed prerequisites stay unknown. Mana value
+remains an advisory earliness proxy. Use `validate_deck` after edits.
+
 ## Read the reasons behind advice
 
 `meta_recommend` explains each addition with inferred or corrected roles,

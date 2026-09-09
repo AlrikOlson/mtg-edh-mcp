@@ -48,7 +48,20 @@ describe.each(sources)("$name deadline and recovery", ({ payload, create }) => {
     now = 2;
     controller = new AbortController();
     controller.abort(new DOMException("Request timed out", "TimeoutError"));
-    expect(await call()).toEqual(first);
+    const fallback = await call();
+    expect(fallback).toEqual(
+      "freshness" in first
+        ? {
+            ...first,
+            freshness: {
+              ...first.freshness,
+              age_ms: 2,
+              status: "stale",
+              refresh_failed: true,
+            },
+          }
+        : first,
+    );
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(timeout.mock.calls).toEqual([[30_000], [30_000]]);
   });

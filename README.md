@@ -25,8 +25,10 @@ knowledge, durable state, and checks to make those choices reviewable.
   synergy evidence, lost roles, price impact, uncertainty, and source freshness.
 - **Correctable role labels.** Save per-deck role overrides, including custom
   combo pieces and payoffs; reset restores inferred roles without changing legality.
-- **Optional community context.** Commander Spellbook combos and an advisory
-  Commander bracket classification.
+- **Combo prerequisites.** Preserve Spellbook quantities, zones, commander and
+  face requirements, templates, mana and steps. Separate card inclusion from
+  checked deck prerequisites; execution stays unknown. Advisory bracket estimates
+  expose provider failures, stale observations and incomplete combo coverage.
 - **Verbatim rules evidence.** Exact Comprehensive Rules lookup, bounded keyword
   search and per-card rulings from a versioned local corpus with release dates,
   digests and staleness; unknown rule numbers are reported, never guessed.

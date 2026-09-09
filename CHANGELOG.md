@@ -6,6 +6,17 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Preserve Commander Spellbook variant status, quantities, starting zones/state,
+  commander/face requirements, templates, mana, prerequisites, steps and outputs
+  with provider links and explicit missingness. `meta_combos` reports all six
+  provider categories, bounded deck applicability, freshness and coverage;
+  inventory inclusion never proves execution. Requests preserve saved quantities
+  and do not duplicate commanders in the library. Malformed refreshes retain
+  stale usable results; cold failures return `UPSTREAM_UNAVAILABLE`. Bracket
+  estimates report unresolved/failed combo evidence, only use supported static
+  candidates and remain provisional; mana or face uncertainty cannot silently
+  become an early-combo claim.
+
 - Add `rules_lookup`, `rules_search`, `rules_refresh` and `card_rulings` (49
   tools total): exact Comprehensive Rules and glossary lookup, bounded keyword
   search and per-card rulings answered verbatim from a versioned local corpus.

@@ -176,8 +176,18 @@ describe("classifyBracket combos + extra turns (P11)", () => {
     mv: 1,
     type_line: "Instant",
   });
-  const bigA = card({ oracle_id: "ba", name: "Heavy Piece A", mv: 4, type_line: "Creature" });
-  const bigB = card({ oracle_id: "bb", name: "Heavy Piece B", mv: 5, type_line: "Creature" });
+  const bigA = card({
+    oracle_id: "ba",
+    name: "Heavy Piece A",
+    mv: 4,
+    type_line: "Creature",
+  });
+  const bigB = card({
+    oracle_id: "bb",
+    name: "Heavy Piece B",
+    mv: 5,
+    type_line: "Creature",
+  });
   const warp1 = card({
     oracle_id: "tw1",
     name: "Time Warp",
@@ -230,6 +240,29 @@ describe("classifyBracket combos + extra turns (P11)", () => {
     expect(r.bracket).toBe(2);
   });
 
+  it("does not infer early assembly when supplied mana or face evidence cannot support it", () => {
+    for (const combo of [
+      { pieces: ["ora", "con"], mana_value_needed: 8 },
+      { pieces: ["ora", "con"], mana_value_needed: null },
+      {
+        pieces: ["ora", "con"],
+        mana_value_needed: 0,
+        uses_nondefault_face: true,
+      },
+    ]) {
+      expect(classifyBracket(mk(["ora", "con"]), look, noGc, [combo]).bracket).toBe(3);
+    }
+  });
+
+  it("does not describe unchecked combo evidence as absence", () => {
+    const result = classifyBracket(mk(["ba"]), look, noGc);
+    expect(result).toMatchObject({
+      provisional: true,
+      combo_evidence: { status: "not_checked", absence_confirmed: false },
+    });
+    expect(result.rationale).toContain("absence is not established");
+  });
+
   it("no combos passed → back-compatible, no combo pushers", () => {
     const r = classifyBracket(mk(["ba"]), look, noGc);
     expect(r.bracket).toBe(2);
@@ -272,7 +305,11 @@ describe("GameChangersClient", () => {
               next_page: "https://api.scryfall.com/cards/search?page=2",
               data: [{ name: "Ad Nauseam" }, { name: "Ancient Tomb" }],
             }
-          : { object: "list", has_more: false, data: [{ name: "Aura Shards" }] };
+          : {
+              object: "list",
+              has_more: false,
+              data: [{ name: "Aura Shards" }],
+            };
       },
     });
 
@@ -288,6 +325,8 @@ describe("GameChangersClient", () => {
         throw new Error("offline");
       },
     });
-    await expect(client.list()).rejects.toMatchObject({ code: "UPSTREAM_UNAVAILABLE" });
+    await expect(client.list()).rejects.toMatchObject({
+      code: "UPSTREAM_UNAVAILABLE",
+    });
   });
 });
