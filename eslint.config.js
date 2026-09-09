@@ -13,6 +13,12 @@ export default tseslint.config(
       ".workbench/**",
     ],
   },
+  {
+    files: ["engine/contract/*.mjs"],
+    languageOptions: {
+      globals: { URL: "readonly", structuredClone: "readonly" },
+    },
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   // Keep formatting concerns to Prettier; disable conflicting stylistic rules.

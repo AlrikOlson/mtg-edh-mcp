@@ -26,3 +26,8 @@ AGENTS.md
 commander-deckbuilder-mcp-spec.md
 ROADMAP.md
 .playwright-mcp/
+
+# Exact canonical worker derivatives; engine-contract.mjs checks bytes and drift.
+engine/contract
+src/engine/protocol.generated.ts
+

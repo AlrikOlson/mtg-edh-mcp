@@ -1,0 +1,451 @@
+{
+	"version": 1,
+	"constants": {
+		"PROTOCOL_VERSION": 1,
+		"ENGINE_VERSION": "0.1.0",
+		"MAX_FRAME_BYTES": 65536
+	},
+	"types": {
+		"Id": {
+			"kind": "string",
+			"min": 1,
+			"max": 128,
+			"alphabet": "id"
+		},
+		"Digest": {
+			"kind": "string",
+			"min": 64,
+			"max": 64,
+			"alphabet": "hex"
+		},
+		"Seed": {
+			"kind": "string",
+			"min": 16,
+			"max": 16,
+			"alphabet": "hex"
+		},
+		"Text": {
+			"kind": "string",
+			"min": 1,
+			"max": 1024,
+			"alphabet": "text"
+		},
+		"Count": {
+			"kind": "integer",
+			"min": 0,
+			"max": 4294967295
+		},
+		"Positive": {
+			"kind": "integer",
+			"min": 1,
+			"max": 4294967295
+		},
+		"Seat": {
+			"kind": "integer",
+			"min": 0,
+			"max": 3
+		},
+		"FrameLimit": {
+			"kind": "integer",
+			"min": 1,
+			"max": 65536
+		},
+		"Flag": {
+			"kind": "boolean"
+		},
+		"Empty": {
+			"kind": "record",
+			"fields": {}
+		},
+		"Hello": {
+			"kind": "record",
+			"fields": {
+				"protocol_version": {
+					"type": "Count"
+				},
+				"engine_version": {
+					"type": "Id"
+				},
+				"schema_sha256": {
+					"type": "Digest"
+				}
+			}
+		},
+		"Capabilities": {
+			"kind": "record",
+			"fields": {
+				"protocol_version": {
+					"type": "Count"
+				},
+				"engine_version": {
+					"type": "Id"
+				},
+				"schema_sha256": {
+					"type": "Digest"
+				},
+				"max_frame_bytes": {
+					"type": "FrameLimit"
+				},
+				"admission": {
+					"type": "Flag"
+				},
+				"execution": {
+					"type": "Flag"
+				},
+				"decisions": {
+					"type": "Flag"
+				},
+				"cancellation": {
+					"type": "Flag"
+				}
+			}
+		},
+		"Policy": {
+			"kind": "record",
+			"fields": {
+				"id": {
+					"type": "Id"
+				},
+				"version": {
+					"type": "Id"
+				},
+				"observation_version": {
+					"type": "Id"
+				},
+				"search_nodes": {
+					"type": "Positive"
+				}
+			}
+		},
+		"CardInstance": {
+			"kind": "record",
+			"fields": {
+				"physical_id": {
+					"type": "Id"
+				},
+				"oracle_id": {
+					"type": "Id"
+				}
+			}
+		},
+		"SeatInput": {
+			"kind": "record",
+			"fields": {
+				"seat": {
+					"type": "Seat"
+				},
+				"deck_digest": {
+					"type": "Digest"
+				},
+				"policy": {
+					"type": "Policy"
+				},
+				"commanders": {
+					"type": "Id",
+					"array": {
+						"min": 1,
+						"max": 2
+					}
+				},
+				"cards": {
+					"type": "CardInstance",
+					"array": {
+						"min": 1,
+						"max": 1000
+					}
+				}
+			}
+		},
+		"Limits": {
+			"kind": "record",
+			"fields": {
+				"trials": {
+					"type": "Positive"
+				},
+				"concurrency": {
+					"type": "Positive"
+				},
+				"max_turns": {
+					"type": "Positive"
+				},
+				"max_actions": {
+					"type": "Positive"
+				},
+				"max_actions_per_turn": {
+					"type": "Positive"
+				},
+				"max_elapsed_ms": {
+					"type": "Positive"
+				},
+				"max_memory_bytes": {
+					"type": "Positive"
+				},
+				"max_output_bytes": {
+					"type": "Positive"
+				}
+			}
+		},
+		"Scenario": {
+			"kind": "record",
+			"fields": {
+				"scenario_id": {
+					"type": "Id"
+				},
+				"engine_version": {
+					"type": "Id"
+				},
+				"snapshot_digest": {
+					"type": "Digest"
+				},
+				"rules_digest": {
+					"type": "Digest"
+				},
+				"seats": {
+					"type": "SeatInput",
+					"array": {
+						"min": 4,
+						"max": 4
+					}
+				},
+				"seed": {
+					"type": "Seed"
+				},
+				"limits": {
+					"type": "Limits"
+				}
+			}
+		},
+		"Run": {
+			"kind": "record",
+			"fields": {
+				"admission_id": {
+					"type": "Id"
+				},
+				"scenario_digest": {
+					"type": "Digest"
+				},
+				"trial_index": {
+					"type": "Count"
+				},
+				"seed": {
+					"type": "Seed"
+				}
+			}
+		},
+		"Decision": {
+			"kind": "record",
+			"fields": {
+				"decision_id": {
+					"type": "Id"
+				},
+				"seat": {
+					"type": "Seat"
+				},
+				"state_hash": {
+					"type": "Digest"
+				},
+				"option_id": {
+					"type": "Id"
+				}
+			}
+		},
+		"Cancel": {
+			"kind": "record",
+			"fields": {
+				"run_request_id": {
+					"type": "Id"
+				}
+			}
+		},
+		"RequestMessage": {
+			"kind": "union",
+			"variants": {
+				"hello": "Hello",
+				"capabilities": "Empty",
+				"admit": "Scenario",
+				"run": "Run",
+				"decision": "Decision",
+				"cancel": "Cancel"
+			}
+		},
+		"Request": {
+			"kind": "record",
+			"fields": {
+				"request_id": {
+					"type": "Id"
+				},
+				"message": {
+					"type": "RequestMessage"
+				}
+			}
+		},
+		"Diagnostic": {
+			"kind": "record",
+			"fields": {
+				"code": {
+					"type": "Id"
+				},
+				"message": {
+					"type": "Text"
+				},
+				"oracle_id": {
+					"type": "Id",
+					"optional": true
+				},
+				"physical_id": {
+					"type": "Id",
+					"optional": true
+				},
+				"behavior_id": {
+					"type": "Id",
+					"optional": true
+				}
+			}
+		},
+		"Unsupported": {
+			"kind": "record",
+			"fields": {
+				"diagnostics": {
+					"type": "Diagnostic",
+					"array": {
+						"min": 1,
+						"max": 256
+					}
+				}
+			}
+		},
+		"Completed": {
+			"kind": "record",
+			"fields": {
+				"winner_seats": {
+					"type": "Seat",
+					"array": {
+						"min": 0,
+						"max": 4
+					}
+				},
+				"final_state_hash": {
+					"type": "Digest"
+				}
+			}
+		},
+		"Truncated": {
+			"kind": "record",
+			"fields": {
+				"reason": {
+					"type": "Text"
+				},
+				"turns": {
+					"type": "Count"
+				},
+				"actions": {
+					"type": "Count"
+				}
+			}
+		},
+		"Outcome": {
+			"kind": "union",
+			"variants": {
+				"completed": "Completed",
+				"unsupported": "Unsupported",
+				"invalid": "Diagnostic",
+				"truncated": "Truncated",
+				"cancelled": "Empty",
+				"engine_error": "Diagnostic"
+			}
+		},
+		"Admitted": {
+			"kind": "record",
+			"fields": {
+				"admission_id": {
+					"type": "Id"
+				},
+				"scenario_digest": {
+					"type": "Digest"
+				}
+			}
+		},
+		"Progress": {
+			"kind": "record",
+			"fields": {
+				"trial_index": {
+					"type": "Count"
+				},
+				"turns": {
+					"type": "Count"
+				},
+				"actions": {
+					"type": "Count"
+				}
+			}
+		},
+		"DecisionRequest": {
+			"kind": "record",
+			"fields": {
+				"decision_id": {
+					"type": "Id"
+				},
+				"seat": {
+					"type": "Seat"
+				},
+				"state_hash": {
+					"type": "Digest"
+				},
+				"observation_digest": {
+					"type": "Digest"
+				},
+				"options": {
+					"type": "Id",
+					"array": {
+						"min": 1,
+						"max": 1024
+					}
+				}
+			}
+		},
+		"EventData": {
+			"kind": "union",
+			"variants": {
+				"progress": "Progress",
+				"decision": "DecisionRequest",
+				"outcome": "Outcome"
+			}
+		},
+		"Event": {
+			"kind": "record",
+			"fields": {
+				"event_id": {
+					"type": "Id"
+				},
+				"sequence": {
+					"type": "Count"
+				},
+				"data": {
+					"type": "EventData"
+				}
+			}
+		},
+		"ResponseMessage": {
+			"kind": "union",
+			"variants": {
+				"hello": "Capabilities",
+				"capabilities": "Capabilities",
+				"admitted": "Admitted",
+				"event": "Event",
+				"outcome": "Outcome"
+			}
+		},
+		"Response": {
+			"kind": "record",
+			"fields": {
+				"request_id": {
+					"type": "Id",
+					"optional": true
+				},
+				"message": {
+					"type": "ResponseMessage"
+				}
+			}
+		}
+	}
+}
