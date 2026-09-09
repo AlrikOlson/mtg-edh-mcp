@@ -1,8 +1,14 @@
 {
   "mcpServers": {
-    "ministr": {
-      "args": ["serve", "--transport", "stdio"],
-      "command": "ministr"
+    "workbench-mcp": {
+      "command": "magistr",
+      "args": ["mcp-launch", "workbench-mcp", "."],
+      "type": "stdio"
+    },
+    "magistr": {
+      "command": "magistr",
+      "args": ["mcp-launch", "magistr", "."],
+      "type": "stdio"
     }
   }
 }

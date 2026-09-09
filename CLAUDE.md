@@ -1,5 +1,9 @@
 # mtg-edh-mcp
 
+## Standing engine mission
+
+Read [docs/ENGINE-CHARTER.md](docs/ENGINE-CHARTER.md) before planning or changing this project. It defines the standing integration goal, canonical ownership, no-duplication rule, migration requirements and MVP release gates. Every unit must record an architecture/reuse review and verify that it preserves one production owner per decision. The native roadmap holds the execution plan; preserve its history and existing user work.
+
 ## Quick Start
 
 ```bash

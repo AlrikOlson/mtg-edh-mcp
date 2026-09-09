@@ -1,0 +1,11 @@
+---
+description: Project workflow and canonical engine architecture
+alwaysApply: true
+---
+
+# Project workflow
+
+Read [AGENTS.md](../../AGENTS.md) for the canonical project instructions and [the engine charter](../../docs/ENGINE-CHARTER.md) for the standing mission and architecture constraints.
+
+Use Magistr for native planning, execution records and gates, and workbench-mcp for workspace exploration and content operations. Follow [Workbench routing](../../.agents/skills/workbench-routing/SKILL.md); keep shared policy in those canonical files.
+
