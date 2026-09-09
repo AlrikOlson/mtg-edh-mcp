@@ -69,4 +69,58 @@ describe("deck persistence validation", () => {
     );
     expect(() => parseDeckStoreDump(JSON.parse(invalid))).toThrow();
   });
+
+  it("preserves legacy dumps without receipt fields and round-trips committed receipts", () => {
+    const legacy = { decks: [], snapshots: [] };
+    expect(parseDeckStoreDump(legacy)).toEqual(legacy);
+    expect(parseDeckStoreDump(legacy)).not.toHaveProperty("plan_receipts");
+    const store = new DeckStore({ newId: () => "existing", newSnapshotId: () => "before" });
+    const deck = store.create({ name: "Before" }, "alice");
+    const input = {
+      plan_id: "persisted-plan",
+      request_hash: "hash",
+      deck_id: deck.deck_id,
+      expected_version: deck.version,
+      desired: { ...deck, name: "After" },
+    };
+    const committed = store.commitPlan(input, "alice");
+    const parsed = parseDeckStoreDump(JSON.parse(JSON.stringify(store.dump())));
+    expect(parsed.plan_receipts).toEqual([["alice\0persisted-plan", committed.receipt]]);
+    const restored = new DeckStore();
+    restored.hydrate(parsed);
+    expect(restored.commitPlan(input, "alice")).toEqual({ ...committed, replayed: true });
+    expect(restored.getSnapshot(deck.deck_id, "before", "alice")?.deck).toEqual(deck);
+  });
+
+  it("rejects receipt identity mismatches, duplicate keys, invalid payloads and unknown fields", () => {
+    const store = new DeckStore({ newId: () => "allocated" });
+    const desired = new DeckStore().create({ name: "Preview" });
+    store.commitPlan({ plan_id: "plan", request_hash: "hash", desired }, "alice");
+    const dump = store.dump();
+    const entry = dump.plan_receipts?.[0];
+    if (!entry) throw new Error("missing receipt");
+    for (const key of ["alice\0wrong", "\0plan", "alice\0extra\0plan"]) {
+      expect(() => parseDeckStoreDump({ ...dump, plan_receipts: [[key, entry[1]]] })).toThrow(
+        /receipt key/,
+      );
+    }
+    expect(() => parseDeckStoreDump({ ...dump, plan_receipts: [entry, entry] })).toThrow(
+      /duplicate plan receipt/,
+    );
+    for (const patch of [
+      { plan_id: "" },
+      { plan_id: "bad\0plan" },
+      { request_hash: "" },
+      { snapshot_id: "" },
+      { deck: { ...entry[1].deck, version: 0 } },
+      { unknown: true },
+    ]) {
+      expect(() =>
+        parseDeckStoreDump({
+          ...dump,
+          plan_receipts: [[entry[0], { ...entry[1], ...patch }]],
+        }),
+      ).toThrow();
+    }
+  });
 });

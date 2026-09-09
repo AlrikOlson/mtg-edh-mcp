@@ -20,6 +20,9 @@ knowledge, durable state, and checks to make those choices reviewable.
 - **Build goals before card choices.** `construction_spec` normalizes empty,
   theme, commander, partial-list or saved-deck requests. Budget choices, hard
   constraints, preferences and unresolved requirements stay explicit.
+- **Complete changes you can review.** `deck_plan_preview` checks a full new or
+  revised deck without saving it. `deck_plan_apply` saves a valid plan in one
+  transaction, snapshots an existing deck, and makes exact retries safe.
 - **Useful answers in one call.** `deck_status` brings together the count,
   legality, curve, mana coverage, role gaps, and estimated price.
 - **Deeper analysis when needed.** Seeded opening-hand simulations, mana-source
@@ -110,7 +113,7 @@ see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
 
 ## What the server exposes
 
-With a card index loaded, the server exposes **53 tools**, **3 workflow
+With a card index loaded, the server exposes **55 tools**, **3 workflow
 prompts**, and addressable card, deck, and collection resources. Tool schemas
 and descriptions are available through MCP `tools/list`.
 
@@ -119,7 +122,7 @@ and descriptions are available through MCP `tools/list`.
 | Data                 | `ping`, `data_status`, `data_ingest`                                                                                                                                                                |
 | Cards                | `card_search`, `card_discover`, `card_get`, `card_resolve_name`, `card_printings`, `card_mechanics`                                                                                                 |
 | Collection           | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                                                                            |
-| Construction         | `construction_spec`                                                                                                                                                                                 |
+| Construction         | `construction_spec`, `deck_plan_preview`, `deck_plan_apply`                                                                                                                                         |
 | Decks                | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_set_roles`, `deck_get_intent`, `deck_set_intent`, `deck_add`, `deck_remove` |
 | History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                                                                          |
 | Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                                                                              |

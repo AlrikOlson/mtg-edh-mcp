@@ -12,6 +12,7 @@ import { VersionedStore } from "../ingest/store.js";
 import { BulkClient } from "../ingest/scryfall.js";
 import { refreshSnapshot } from "../index/refresh.js";
 import { PRINCIPAL_HEADER } from "./http.js";
+import { UserDataStore } from "../storage/userData.js";
 
 interface Message {
   type: string;
@@ -32,6 +33,13 @@ const children: Driver[] = [];
 const clients: Client[] = [];
 const require = createRequire(import.meta.url);
 const oracle = [
+  {
+    oracle_id: "o-captain",
+    name: "Plan Captain",
+    type_line: "Legendary Creature — Human",
+    oracle_text: "",
+    cmc: 2,
+  },
   {
     oracle_id: "o-sol",
     name: "Sol Ring",
@@ -243,6 +251,237 @@ async function kill(driver: Driver): Promise<void> {
   expect(driver.child.kill("SIGKILL")).toBe(true);
   expect(await driver.exited).toEqual({ code: null, signal: "SIGKILL" });
 }
+
+function persistedDeckDump() {
+  const data = new UserDataStore(root);
+  try {
+    return data.deckStore.dump();
+  } finally {
+    data.close();
+  }
+}
+
+function deckPlanInput(name = "Planned deck", includeSol = false): Record<string, unknown> {
+  return {
+    name,
+    request: {
+      commanders: ["Plan Captain"],
+      command_zone_kind: "single",
+      budget: { mode: "unbounded" },
+      cards: [
+        { oracle_id: "Island", qty: includeSol ? 98 : 99 },
+        ...(includeSol ? [{ oracle_id: "Sol Ring", qty: 1 }] : []),
+      ],
+    },
+  };
+}
+
+describe("atomic deck plans across real MCP processes", () => {
+  it("previews without writes and creates only once across concurrent apply and SIGKILL retry", async () => {
+    const first = start();
+    const second = start();
+    const [a, b] = await Promise.all([connect(first), connect(second)]);
+    const beforePreview = persistedDeckDump();
+    const preview = await call(a, "deck_plan_preview", {
+      input: deckPlanInput(),
+    });
+    expect(preview).toMatchObject({ ok: true, validation: { valid: true } });
+    expect(persistedDeckDump()).toEqual(beforePreview);
+    expect(await call(a, "deck_list")).toMatchObject({ total: 0 });
+    const applied = await Promise.all(
+      [a, b].map((client) => call(client, "deck_plan_apply", { plan: preview.plan })),
+    );
+    expect(applied.filter((result) => result.replayed === false)).toHaveLength(1);
+    expect(applied.filter((result) => result.replayed === true)).toHaveLength(1);
+    expect(applied[0]?.deck).toEqual(applied[1]?.deck);
+    const saved = applied[0];
+    if (!saved) throw new Error("Missing applied plan");
+    expect(saved).toMatchObject({
+      version: 1,
+      deck: {
+        version: 1,
+        commanders: ["o-captain"],
+        cards: [{ oracle_id: "o-island", qty: 99 }],
+      },
+    });
+    await Promise.all([kill(first), kill(second)]);
+    const reader = start();
+    const ready = await reader.waitFor("ready");
+    const alice = await connect(reader, "alice", ready.port);
+    const bob = await connect(reader, "bob", ready.port);
+    expect(await call(alice, "deck_plan_apply", { plan: preview.plan })).toMatchObject({
+      ok: true,
+      replayed: true,
+      deck: saved.deck,
+    });
+    expect(await call(alice, "deck_list")).toMatchObject({ total: 1 });
+    expect(
+      await bob.callTool({
+        name: "deck_plan_apply",
+        arguments: { plan: preview.plan },
+      }),
+    ).toMatchObject({ isError: true });
+    expect(await call(bob, "deck_list")).toMatchObject({ total: 0 });
+    // A separately previewed identical deck is an intentional new creation.
+    const another = await call(alice, "deck_plan_preview", {
+      input: deckPlanInput(),
+    });
+    const next = await call(alice, "deck_plan_apply", { plan: another.plan });
+    expect(next.deck_id).not.toEqual(saved.deck_id);
+    expect(await call(alice, "deck_list")).toMatchObject({ total: 2 });
+  }, 30_000);
+
+  it("admits one competing plan at a version and restores the complete pre-change state", async () => {
+    const first = start();
+    const second = start();
+    const [a, b] = await Promise.all([connect(first), connect(second)]);
+    const seed = await call(a, "deck_plan_preview", { input: deckPlanInput() });
+    const initial = await call(a, "deck_plan_apply", { plan: seed.plan });
+    const deckId = id(initial);
+    await call(a, "deck_set_roles", {
+      deck_id: deckId,
+      card: "Island",
+      roles: ["utility"],
+    });
+    const intent = await call(a, "deck_set_intent", {
+      expected_version: 2,
+      deck_id: deckId,
+      action: "set",
+      intent: {
+        schema_version: 1,
+        hard: { locked_cards: [{ oracle_id: "o-island", qty: 98 }] },
+      },
+    });
+    const before = await call(a, "deck_get", { deck_id: deckId });
+    const previews = await Promise.all(
+      [a, b].map((client, n) =>
+        call(client, "deck_plan_preview", {
+          deck_id: deckId,
+          expected_version: intent.version,
+          input: deckPlanInput("Winner " + n, true),
+        }),
+      ),
+    );
+    const responses = await Promise.all(
+      [a, b].map((client, n) =>
+        client.callTool({
+          name: "deck_plan_apply",
+          arguments: { plan: previews[n]?.plan },
+        }),
+      ),
+    );
+    const bodies: Record<string, unknown>[] = responses.map((response) => {
+      const body = response.structuredContent;
+      if (!body || typeof body !== "object" || Array.isArray(body))
+        throw new Error("Missing plan response");
+      return { ...body };
+    });
+    const winners = bodies.filter((body) => body?.ok === true);
+    expect(winners).toHaveLength(1);
+    expect(bodies.filter((body) => body?.conflict === true)).toHaveLength(1);
+    const winner = winners[0];
+    if (!winner || typeof winner.snapshot_id !== "string")
+      throw new Error("Missing pre-change snapshot");
+    expect(winner).toMatchObject({ version: Number(intent.version) + 1 });
+    expect(await call(a, "deck_get", { deck_id: deckId })).toEqual(
+      await call(b, "deck_get", { deck_id: deckId }),
+    );
+    const snapshotId = winner.snapshot_id;
+    await Promise.all([kill(first), kill(second)]);
+    const restarted = await connect(start());
+    const restored = await call(restarted, "deck_restore", {
+      deck_id: deckId,
+      snapshot_id: snapshotId,
+    });
+    if (!before.deck || typeof before.deck !== "object") throw new Error("Missing baseline");
+    expect((await call(restarted, "deck_get", { deck_id: deckId })).deck).toEqual({
+      ...before.deck,
+      version: Number(intent.version) + 2,
+    });
+    const restoredRead = (await call(restarted, "deck_get", { deck_id: deckId })).deck;
+    expect(restored).toMatchObject({
+      deck: { version: Number(intent.version) + 2 },
+    });
+    const winningIndex = bodies.findIndex((body) => body?.ok === true);
+    expect(
+      await call(restarted, "deck_plan_apply", {
+        plan: previews[winningIndex]?.plan,
+      }),
+    ).toMatchObject({ replayed: true, deck: winner.deck });
+    // A historical retry must not reapply over the explicit restore.
+    expect((await call(restarted, "deck_get", { deck_id: deckId })).deck).toEqual(restoredRead);
+  }, 30_000);
+
+  it.each(["new", "existing"])(
+    "rolls back %s plan, snapshot and receipt on injected commit failure then retries after restart",
+    async (kind) => {
+      const writer = start("fixture");
+      const client = await connect(writer);
+      let deckId: string | undefined;
+      let expectedVersion: unknown;
+      if (kind === "existing") {
+        const seed = await call(client, "deck_plan_preview", {
+          input: deckPlanInput(),
+        });
+        const created = await call(client, "deck_plan_apply", {
+          plan: seed.plan,
+        });
+        deckId = id(created);
+        expectedVersion = created.version;
+      }
+      const before = await call(client, "deck_list");
+      const beforeDump = persistedDeckDump();
+      const baseline = deckId ? await call(client, "deck_get", { deck_id: deckId }) : undefined;
+      const preview = await call(client, "deck_plan_preview", {
+        input: deckPlanInput("Retry final state", true),
+        ...(deckId ? { deck_id: deckId, expected_version: expectedVersion } : {}),
+      });
+      writer.child.send({ type: "fail-next-commit" });
+      await writer.waitFor("armed");
+      expect(
+        await client.callTool({
+          name: "deck_plan_apply",
+          arguments: { plan: preview.plan },
+        }),
+      ).toMatchObject({
+        isError: true,
+        structuredContent: { code: "STORAGE_ERROR" },
+      });
+      expect(await call(client, "deck_list")).toEqual(before);
+      expect(persistedDeckDump()).toEqual(beforeDump);
+      if (deckId) expect(await call(client, "deck_get", { deck_id: deckId })).toEqual(baseline);
+      await kill(writer);
+      const restarted = await connect(start("fixture"));
+      const applied = await call(restarted, "deck_plan_apply", {
+        plan: preview.plan,
+      });
+      expect(applied).toMatchObject({
+        ok: true,
+        replayed: false,
+        version: kind === "new" ? 1 : 2,
+      });
+      expect(await call(restarted, "deck_list")).toMatchObject({ total: 1 });
+      const retry = await call(restarted, "deck_plan_apply", {
+        plan: preview.plan,
+      });
+      expect(retry).toMatchObject({ replayed: true, deck: applied.deck });
+      if (deckId) {
+        const restored = await call(restarted, "deck_restore", {
+          deck_id: deckId,
+          snapshot_id: applied.snapshot_id,
+        });
+        if (!baseline?.deck || typeof baseline.deck !== "object")
+          throw new Error("Missing baseline");
+        expect(restored).toMatchObject({ deck: { version: 3 } });
+        expect((await call(restarted, "deck_get", { deck_id: deckId })).deck).toEqual({
+          ...baseline.deck,
+          version: 3,
+        });
+      }
+    },
+    30_000,
+  );
+});
 
 describe("durable user state across real MCP processes", () => {
   it("keeps independent deck and collection writes from two live CLI processes after restart", async () => {

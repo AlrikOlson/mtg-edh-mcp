@@ -125,6 +125,69 @@ completed deck, a card search, or proof that a feasible 100-card solution exists
 Use `card_discover` or `card_search` for candidates, then normal deck mutations
 and `validate_deck`, `meta_check_policy` and budget checks to evaluate the result.
 
+## Preview and apply a complete deck
+
+Use `deck_plan_preview` when you have selected the entire final library. It
+supports new builds, completing a partial list, imports and revisions with the
+same contract. Here is a deliberately simple complete list for trying the flow;
+choose an appropriate full library for an actual deck:
+
+```text
+deck_plan_preview {
+  "input":{
+    "name":"Marwyn complete-list example",
+    "request":{
+      "commanders":["Marwyn, the Nurturer"],
+      "command_zone_kind":"single",
+      "cards":[{"oracle_id":"Forest","qty":99}],
+      "budget":{"mode":"unbounded"}
+    }
+  }
+}
+```
+
+`input.request.cards` is required and replaces the whole library. Quantities
+are additive for repeated references and normalized to Oracle IDs; commanders
+are separate and a companion remains outside the 100. A saved source additionally
+requires `deck_id` and its current `expected_version` at the top level.
+Omitted commanders, companion, name, intent and role overrides inherit the saved
+choices. Use `companion:null` to remove a companion. Saved hard intent cannot be
+weakened inside a plan; change it explicitly through `deck_set_intent` first.
+
+Review `desired`, `diff` and `validation`. The portable `plan` also carries
+this review evidence, the request, and expected deck/data bindings. No deck,
+snapshot, receipt or inventory allocation is saved by preview. Invalid or
+unsupported proposals return `PLAN_INVALID` with diagnostics and remain
+unapplied. Budget omission remains a choice; select a cap, preferred target or
+explicit unbounded budget. Hard caps include commanders and optionally the
+companion, and unknown prices block a cap. Hard counts, exclusions, protected
+quantities and edit bounds must hold for the complete result. Unproved companion
+conditions, hard prose, policy or role requirements remain blocked. Preferred
+requirements retain advisory findings.
+
+After reviewing the result, call `deck_plan_apply` with
+`{"plan": <the exact returned plan object>}`. Apply rechecks complete legality,
+hard constraints, source version and the served card-data revision. Changing
+card data on the same date also invalidates an unapplied plan. A stale plan
+requires a fresh preview; application never searches for substitutions.
+
+A successful new build starts at version 1. Revising a saved deck increments
+its version once and returns `snapshot_id`; `deck_restore` restores all
+supported pre-change deck state with a new version. The deck, snapshot and
+receipt commit together. Repeat the identical apply after a connection failure:
+`replayed:true` returns the original receipt without another mutation, even
+after restart, subsequent editing, restoration or deletion. The returned deck
+on a replay is historical; use `deck_get` for current state. Preview again for
+an intentionally separate new deck. Receipts remain in durable user state.
+
+The plan digest checks payload consistency; it is not an authorization token.
+The MCP mutation call remains the explicit application step. Session binding
+and store ownership prevent accidental cross-session use. Inventory revisions
+are reserved for future allocation support: a non-null binding is rejected.
+Plan data revisions are lazily hashed from the served SQLite image and cached;
+the first plan after opening or changing that image has a one-time cost
+proportional to index size.
+
 ## Build and iterate
 
 These are illustrative tool calls, not a JSON file. Replace `DECK_ID` with

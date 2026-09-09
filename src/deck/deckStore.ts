@@ -52,6 +52,22 @@ export interface DeckSnapshot {
   deck: Deck;
 }
 
+/** Durable outcome retained for idempotent plan retries, even after later deck deletion. */
+export interface DeckPlanReceipt {
+  plan_id: string;
+  request_hash: string;
+  deck: Deck;
+  snapshot_id?: string;
+}
+
+export interface CommitDeckPlanInput {
+  plan_id: string;
+  request_hash: string;
+  desired: Deck;
+  deck_id?: string;
+  expected_version?: number;
+}
+
 /**
  * Serialized store contents (release-deck-persistence). Map keys embed the
  * sessionId, so a dump/hydrate round-trip preserves per-principal isolation.
@@ -59,11 +75,14 @@ export interface DeckSnapshot {
 export interface DeckStoreDump {
   decks: Array<[string, Deck]>;
   snapshots: Array<[string, DeckSnapshot]>;
+  /** Optional for legacy dumps created before deck change plans. */
+  plan_receipts?: Array<[string, DeckPlanReceipt]>;
 }
 
 export class DeckStore {
   private decks = new Map<string, Deck>();
   private snapshots = new Map<string, DeckSnapshot>();
+  private planReceipts = new Map<string, DeckPlanReceipt>();
   private readonly listeners = new Set<DeckChangeListener>();
   private readonly dirtyListeners = new Set<() => void>();
   private readonly newId: () => string;
@@ -137,10 +156,15 @@ export class DeckStore {
   private replace(dump: DeckStoreDump): void {
     this.decks = new Map(structuredClone(dump.decks));
     this.snapshots = new Map(structuredClone(dump.snapshots));
+    this.planReceipts = new Map(structuredClone(dump.plan_receipts ?? []));
   }
 
   private copyDump(): DeckStoreDump {
-    return structuredClone({ decks: [...this.decks], snapshots: [...this.snapshots] });
+    return structuredClone({
+      decks: [...this.decks],
+      snapshots: [...this.snapshots],
+      ...(this.planReceipts.size > 0 ? { plan_receipts: [...this.planReceipts] } : {}),
+    });
   }
 
   /** Subscribe to committed create/delete/update/snapshot changes. */
@@ -174,6 +198,87 @@ export class DeckStore {
   onChange(listener: DeckChangeListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  private validatePlanIdentifier(value: string, field: string): void {
+    if (typeof value !== "string" || value.length === 0 || value.includes("\0")) {
+      throw new StructuredError("INVALID_QUERY", `${field} must be nonempty and contain no NUL`);
+    }
+  }
+
+  getPlanReceipt(planId: string, sessionId: string = DEFAULT_SESSION): DeckPlanReceipt | undefined {
+    this.validatePlanIdentifier(sessionId, "sessionId");
+    this.validatePlanIdentifier(planId, "plan_id");
+    this.refresh();
+    return structuredClone(this.planReceipts.get(this.key(sessionId, planId)));
+  }
+
+  /**
+   * Commit an already validated complete plan under the shared durable lock.
+   * Receipt lookup precedes deck/version checks, so a retry returns the original
+   * outcome after later edits or deletion. No receipt is recorded on failure.
+   */
+  commitPlan(
+    input: CommitDeckPlanInput,
+    sessionId: string = DEFAULT_SESSION,
+  ): { receipt: DeckPlanReceipt; replayed: boolean } {
+    return this.transaction(() => {
+      const previous = this.getPlanReceipt(input.plan_id, sessionId);
+      this.validatePlanIdentifier(input.request_hash, "request_hash");
+      if (previous) {
+        if (previous.request_hash !== input.request_hash) {
+          throw new StructuredError(
+            "INVALID_QUERY",
+            `plan '${input.plan_id}' was already committed with a different request`,
+          );
+        }
+        return { receipt: previous, replayed: true };
+      }
+
+      let deck: Deck;
+      let snapshotId: string | undefined;
+      if (input.deck_id !== undefined) {
+        this.validatePlanIdentifier(input.deck_id, "deck_id");
+        const current = this.get(input.deck_id, sessionId);
+        if (!current) {
+          throw new StructuredError("DECK_NOT_FOUND", `unknown deck '${input.deck_id}'`);
+        }
+        if (
+          !Number.isSafeInteger(input.expected_version) ||
+          input.expected_version !== current.version
+        ) {
+          throw new StructuredError(
+            "INVALID_QUERY",
+            `expected_version must match deck '${input.deck_id}' version ${current.version}`,
+          );
+        }
+        snapshotId = this.snapshot(input.deck_id, sessionId).snapshot_id;
+        deck = this.update(input.deck_id, () => structuredClone(input.desired), sessionId);
+      } else {
+        if (input.expected_version !== undefined) {
+          throw new StructuredError(
+            "INVALID_QUERY",
+            "expected_version is only valid for existing decks",
+          );
+        }
+        const deckId = this.newId();
+        this.validatePlanIdentifier(deckId, "allocated deck_id");
+        const key = this.key(sessionId, deckId);
+        if (this.decks.has(key)) throw new Error(`duplicate deck id '${deckId}'`);
+        deck = { ...structuredClone(input.desired), deck_id: deckId, version: 1 };
+        this.decks.set(key, structuredClone(deck));
+        this.dirty = true;
+      }
+      const receipt: DeckPlanReceipt = {
+        plan_id: input.plan_id,
+        request_hash: input.request_hash,
+        deck: structuredClone(deck),
+        ...(snapshotId !== undefined ? { snapshot_id: snapshotId } : {}),
+      };
+      this.planReceipts.set(this.key(sessionId, input.plan_id), structuredClone(receipt));
+      this.dirty = true;
+      return { receipt, replayed: false };
+    });
   }
 
   create(input: CreateDeckInput, sessionId: string = DEFAULT_SESSION): Deck {

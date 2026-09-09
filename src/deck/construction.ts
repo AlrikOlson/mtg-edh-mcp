@@ -22,7 +22,7 @@ import {
 import { budgetPlan } from "../analyze/budget.js";
 import { compilePlaygroupPolicy } from "../meta/playgroupPolicy.js";
 
-const copyLimit = (card: Card): number | null => {
+export const copyLimit = (card: Card): number | null => {
   // The shared allowlist includes bounded-copy exceptions; preserve their actual limits here.
   const bounded = /up to (\w+) cards named/i.exec(card.oracle_text)?.[1];
   const numbers: Record<string, number> = {
@@ -292,9 +292,16 @@ export function normalizeConstruction(
         "Dependency and requirement IDs must be unique.",
       );
     seenRequirementIds.add(dependency.id);
-    dependency.requires_cards = dependency.requires_cards?.map((ref, j) =>
-      resolve(ref, `${path}/requires_cards/${j}`),
-    );
+    dependency.requires_cards = dependency.requires_cards?.map((ref, j) => {
+      const target: ConstructionDiagnostic[] = dependency.strength === "hard" ? diagnostics : [];
+      const id = resolve(ref, `${path}/requires_cards/${j}`, target);
+      if (target !== diagnostics)
+        for (const diagnostic of target) {
+          diagnostics.push({ ...diagnostic, severity: "advisory" });
+          relaxations.push({ path: diagnostic.path, reason: diagnostic.message });
+        }
+      return id;
+    });
     if (dependency.strength === "hard")
       for (const id of dependency.requires_cards ?? [])
         mandatory.set(id, Math.max(mandatory.get(id) ?? 0, 1));

@@ -6,6 +6,14 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `deck_plan_preview` and `deck_plan_apply` (55 tools total) for complete
+  new decks and full revisions. Preview returns exact desired inventory, complete
+  zone and metadata diffs, legality and constraint evidence without saving.
+  Apply revalidates deck and exact card-data revisions, then writes the deck,
+  pre-change snapshot and durable retry receipt atomically. Exact retries return
+  the original receipt after restart, later edits or deletion. Unsupported hard
+  constraints and inventory-revision guarantees remain explicit blockers.
+
 - Add `construction_spec` (53 tools total), a read-only versioned specification
   for empty, theme, commander, partial-list and saved-deck requests. It reuses
   saved intent, distinguishes hard constraints from preferences and explicit

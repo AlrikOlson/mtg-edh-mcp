@@ -7,6 +7,7 @@
  * full-Card lookups and name search.
  */
 import { lstat, open } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import type { Card, CardRef, Color, Prices, Printing, RefColorIdentity } from "../types/index.js";
 import type { QueryNode } from "../query/index.js";
@@ -232,6 +233,7 @@ export async function buildIndex(options: BuildIndexOptions): Promise<BuildIndex
 
 interface CardIndexState {
   db: Db;
+  revisionCache?: { dataVersion: unknown; digest: string };
   getCardStmt: Database.Statement<[string]>;
   getPrintingsStmt: Database.Statement<[string]>;
   searchStmt: Database.Statement<[string, number]>;
@@ -242,6 +244,34 @@ interface CardIndexState {
 
 export class CardIndex {
   private constructor(private state: CardIndexState) {}
+
+  /** Pin one SQLite read snapshot across synchronous plan validation and its digest. */
+  withRead<T>(operation: () => T): T {
+    if (this.state.db.inTransaction) return operation();
+    return this.state.db.transaction(() => {
+      // A deferred BEGIN alone does not establish a read snapshot.
+      this.state.countStmt.get();
+      const result = operation();
+      if (result instanceof Promise) throw new Error("CardIndex reads must be synchronous");
+      return result;
+    })();
+  }
+
+  /** Exact served image identity, including same-day refreshes and printing changes.
+   * Computed lazily only for plans; reuse until this connection observes a commit.
+   */
+  revision(): string {
+    return this.withRead(() => {
+      const dataVersion = this.state.db.pragma("data_version", {
+        simple: true,
+      });
+      const cached = this.state.revisionCache;
+      if (cached && cached.dataVersion === dataVersion) return cached.digest;
+      const digest = createHash("sha256").update(this.state.db.serialize()).digest("hex");
+      this.state.revisionCache = { dataVersion, digest };
+      return digest;
+    });
+  }
 
   /** Register functions + prepare all statements against `db`. */
   private static prepare(db: Db): CardIndexState {

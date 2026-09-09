@@ -39,6 +39,7 @@ import { READS_LOCAL, mutates } from "./registry.js";
 import type { ToolDefinition } from "./registry.js";
 import { roleEvidence } from "../analyze/deckRoles.js";
 import { makeDeckIntentTools } from "./deckIntentTools.js";
+import { makeDeckPlanTools } from "./deckPlanTools.js";
 
 /** Project a deck's card entries for output (lean names, or full cards on expand). */
 function projectDeck(
@@ -1028,6 +1029,7 @@ export function makeDeckTools(
     deckCreateTool(store, session, index, snapshot),
     deckGetTool(store, session, index),
     ...makeDeckIntentTools(store, session, index),
+    ...makeDeckPlanTools(store, session, index, snapshot),
     deckListTool(store, session, index),
     deckRenameTool(store, session, index),
     deckSetRolesTool(store, session, index),

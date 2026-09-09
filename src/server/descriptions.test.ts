@@ -39,7 +39,7 @@ const ORACLE = [
   },
 ];
 
-const EXPECTED_TOOL_COUNT = 53;
+const EXPECTED_TOOL_COUNT = 55;
 const MAX_DESCRIPTION_CHARS = 700;
 
 const TEMPLATE =
@@ -66,6 +66,7 @@ const READ_ONLY_TOOLS = [
   "collection_get",
   "deck_get",
   "deck_get_intent",
+  "deck_plan_preview",
   "deck_list",
   "deck_diff",
   "deck_export",

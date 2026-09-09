@@ -51,7 +51,12 @@ const ORACLE = [
         type_line: "Creature — Goblin",
         oracle_text: "Haste.",
       },
-      { name: "Frontier Land", mana_cost: "", type_line: "Land", oracle_text: "{T}: Add {R}." },
+      {
+        name: "Frontier Land",
+        mana_cost: "",
+        type_line: "Land",
+        oracle_text: "{T}: Add {R}.",
+      },
     ],
   },
 ];
@@ -117,11 +122,65 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
+describe("card index plan revision", () => {
+  it("is stable across independent handles and restart, changes on data writes and reopen", async () => {
+    const other = CardIndex.open(dbPath);
+    const writer = new Database(dbPath);
+    try {
+      const original = index.revision();
+      expect(index.revision()).toBe(original);
+      expect(other.revision()).toBe(original);
+      writer
+        .prepare("UPDATE printings SET prices = ? WHERE oracle_id = ?")
+        .run('{"usd":"9.99"}', "o-sol");
+      const changed = index.revision();
+      expect(changed).not.toBe(original);
+      expect(other.revision()).toBe(changed);
+      other.close();
+      const restarted = CardIndex.open(dbPath);
+      try {
+        expect(restarted.revision()).toBe(changed);
+      } finally {
+        restarted.close();
+      }
+      const candidate = await buildIndex({
+        store,
+        dbName: "plan-candidate.sqlite",
+      });
+      index.reopen(candidate.dbPath);
+      expect(index.revision()).not.toBe(changed);
+    } finally {
+      other.close();
+      writer.close();
+    }
+  });
+
+  it("holds consistent card data across validation even when another connection commits", () => {
+    const writer = new Database(dbPath);
+    try {
+      index.withRead(() => {
+        const before = index.getCard("o-sol");
+        const revision = index.revision();
+        writer
+          .prepare("UPDATE printings SET prices = ? WHERE oracle_id = ?")
+          .run('{"usd":"8.88"}', "o-sol");
+        expect(index.getCard("o-sol")).toEqual(before);
+        expect(index.revision()).toBe(revision);
+      });
+      expect(index.getCard("o-sol")?.printings?.[0]?.prices.usd).toBe("8.88");
+    } finally {
+      writer.close();
+    }
+  });
+});
+
 describe("buildIndex immutable candidates", () => {
   it("rejects an existing index without replacing its inode or changing active readers", async () => {
     const before = await readFile(dbPath);
     const inode = (await stat(dbPath)).ino;
-    await expect(buildIndex({ store })).rejects.toMatchObject({ code: "EEXIST" });
+    await expect(buildIndex({ store })).rejects.toMatchObject({
+      code: "EEXIST",
+    });
     expect((await stat(dbPath)).ino).toBe(inode);
     expect(await readFile(dbPath)).toEqual(before);
     expect(index.getCard("o-sol")?.name).toBe("Sol Ring");

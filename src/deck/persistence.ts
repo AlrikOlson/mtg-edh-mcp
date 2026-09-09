@@ -35,10 +35,19 @@ const deckSchema = z
 const snapshotSchema = z
   .object({ snapshot_id: identifier, version: z.number().int().positive(), deck: deckSchema })
   .strict();
+const planReceiptSchema = z
+  .object({
+    plan_id: identifier,
+    request_hash: identifier,
+    deck: deckSchema,
+    snapshot_id: identifier.optional(),
+  })
+  .strict();
 const dumpSchema = z
   .object({
     decks: z.array(z.tuple([z.string(), deckSchema])),
     snapshots: z.array(z.tuple([z.string(), snapshotSchema])),
+    plan_receipts: z.array(z.tuple([z.string(), planReceiptSchema])).optional(),
   })
   .strict();
 
@@ -64,6 +73,14 @@ export function parseDeckStoreDump(value: unknown): DeckStoreDump {
     )
       throw new Error(`invalid snapshot key or version '${key}'`);
     if (keys.has(key)) throw new Error(`duplicate snapshot key '${key}'`);
+    keys.add(key);
+  }
+  keys.clear();
+  for (const [key, receipt] of dump.plan_receipts ?? []) {
+    const parts = key.split("\0");
+    if (parts.length !== 2 || !parts[0] || parts[1] !== receipt.plan_id)
+      throw new Error(`invalid plan receipt key '${key}'`);
+    if (keys.has(key)) throw new Error(`duplicate plan receipt key '${key}'`);
     keys.add(key);
   }
   return dump;
