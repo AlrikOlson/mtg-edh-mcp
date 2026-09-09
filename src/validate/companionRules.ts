@@ -206,3 +206,15 @@ export function validateCompanion(deck: Deck, lookup: CardLookup): Violation[] {
   }
   return rule.check(starting, deck);
 }
+
+/**
+ * Predicate availability, not proof of complete rules coverage. Callers must
+ * also ensure starting-card characteristics are represented faithfully.
+ */
+export function companionRuleCoverage(card: Card): "supported" | "heuristic" | "unmodeled" {
+  if (!Object.hasOwn(COMPANION_RULES, card.name)) return "unmodeled";
+  // Printed subtypes miss changeling; activated-ability detection is heuristic.
+  if (card.name === "Kaheera, the Orphanguard" || card.name === "Zirda, the Dawnwaker")
+    return "heuristic";
+  return "supported";
+}

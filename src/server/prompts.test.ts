@@ -34,7 +34,7 @@ const ORACLE = [
 const EXPECTED_PROMPTS = ["build_commander_deck", "fit_budget", "tune_deck"];
 
 const TOOL_TOKEN =
-  /\b(?:ping|budget_plan|simulate_deck|(?:card|deck|meta|analyze|validate|collection|data)_[a-z_]+)\b/g;
+  /\b(?:ping|construction_spec|budget_plan|simulate_deck|(?:card|deck|meta|analyze|validate|collection|data)_[a-z_]+)\b/g;
 
 /** Tokens that match the tool-name shape but are FIELD names, not tools. */
 const NON_TOOL_TOKENS = new Set(["deck_id", "card_count", "data_snapshot"]);
@@ -83,8 +83,8 @@ describe("workflow prompts (ergo-prompts)", () => {
     expect(listed.prompts.map((p) => p.name).sort()).toEqual(EXPECTED_PROMPTS);
     const build = listed.prompts.find((p) => p.name === "build_commander_deck");
     const argNames = (build?.arguments ?? []).map((a) => a.name).sort();
-    expect(argNames).toEqual(["budget_usd", "commander", "theme"]);
-    expect(build?.arguments?.find((a) => a.name === "commander")?.required).toBe(true);
+    expect(argNames).toEqual(["budget_usd", "commander", "deck_id", "theme"]);
+    expect(build?.arguments?.find((a) => a.name === "commander")?.required).toBeFalsy();
     expect(build?.arguments?.find((a) => a.name === "theme")?.required).toBeFalsy();
   });
 
@@ -100,6 +100,22 @@ describe("workflow prompts (ergo-prompts)", () => {
       budget_usd: "150",
     });
     expect(budgeted).toContain("Budget pass (target $150)");
+  });
+
+  it("normalizes saved drafts and preserves invalid or absent budget choices", async () => {
+    const partial = await promptText("build_commander_deck", {
+      deck_id: "draft-42",
+      theme: "lifegain",
+    });
+    expect(partial).toContain(
+      'construction_spec {"deck_id":"draft-42","request":{"theme":"lifegain"}}',
+    );
+    expect(partial).toContain("preserve protected cards and edit bounds");
+    const invalid = await promptText("build_commander_deck", {
+      budget_usd: "NaN",
+    });
+    expect(invalid).toContain("Budget input is invalid");
+    expect(invalid).not.toContain("Budget pass");
   });
 
   it("tune_deck and fit_budget interpolate their ids and targets", async () => {

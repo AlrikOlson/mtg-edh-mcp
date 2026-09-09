@@ -304,6 +304,17 @@ describe("first card-data activation", () => {
         const names = (await mcp.listTools()).tools.map((tool) => tool.name);
         expect(names).toContain("card_get");
         expect(names).toContain("validate_deck");
+        expect(names).toContain("construction_spec");
+        expect(
+          (await mcp.callTool({ name: "construction_spec", arguments: {} })).structuredContent,
+        ).toMatchObject({
+          status: "needs_choices",
+          data_snapshot: day,
+          specification: {
+            command_zone: null,
+            budget: { mode: "unspecified" },
+          },
+        });
         expect(new Set(names).size).toBe(names.length);
         expect(
           (await mcp.callTool({ name: "data_status", arguments: {} })).structuredContent,

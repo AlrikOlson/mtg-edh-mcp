@@ -6,6 +6,15 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add `construction_spec` (53 tools total), a read-only versioned specification
+  for empty, theme, commander, partial-list and saved-deck requests. It reuses
+  saved intent, distinguishes hard constraints from preferences and explicit
+  unbounded budgets from targets and caps, preserves command-zone alternatives
+  and outside-deck companion accounting, and returns actionable choices,
+  conflicts and unresolved requirements. It does not search, mutate decks or
+  prove feasibility. `build_commander_deck` now accepts an optional commander
+  and an existing `deck_id`.
+
 - Make `meta_recommend` default to local contextual ranking over the bounded
   installed pool: all commanders, library interactions, role deficits, curve and
   saved intent influence suggestions. Prospective constraints, unmet requirements,

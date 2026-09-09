@@ -119,7 +119,7 @@ function stdioTransport(): StdioClientTransport {
 
 async function verifyCatalogAndResults(client: Client): Promise<void> {
   const { tools } = await client.listTools();
-  expect(tools).toHaveLength(52);
+  expect(tools).toHaveLength(53);
   expect(tools.find((tool) => tool.name === "deck_set_roles")?.annotations).toMatchObject({
     readOnlyHint: false,
     openWorldHint: false,

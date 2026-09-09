@@ -136,6 +136,7 @@ describe("card tools registration", () => {
       "collection_clear",
       "collection_get",
       "collection_set",
+      "construction_spec",
       "data_ingest",
       "data_status",
       "ping",

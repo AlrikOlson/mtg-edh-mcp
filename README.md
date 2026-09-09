@@ -17,6 +17,9 @@ knowledge, durable state, and checks to make those choices reviewable.
   search, a Scryfall-style query language, Oracle text, and printing prices.
 - **A deck you can iterate on.** Batch additions by card name, per-card legality
   feedback, persistent decks, snapshots, diffs, and restores.
+- **Build goals before card choices.** `construction_spec` normalizes empty,
+  theme, commander, partial-list or saved-deck requests. Budget choices, hard
+  constraints, preferences and unresolved requirements stay explicit.
 - **Useful answers in one call.** `deck_status` brings together the count,
   legality, curve, mana coverage, role gaps, and estimated price.
 - **Deeper analysis when needed.** Seeded opening-hand simulations, mana-source
@@ -107,7 +110,7 @@ see [protocol compatibility](./docs/INSTALL.md#protocol-compatibility).
 
 ## What the server exposes
 
-With a card index loaded, the server exposes **52 tools**, **3 workflow
+With a card index loaded, the server exposes **53 tools**, **3 workflow
 prompts**, and addressable card, deck, and collection resources. Tool schemas
 and descriptions are available through MCP `tools/list`.
 
@@ -116,6 +119,7 @@ and descriptions are available through MCP `tools/list`.
 | Data                 | `ping`, `data_status`, `data_ingest`                                                                                                                                                                |
 | Cards                | `card_search`, `card_discover`, `card_get`, `card_resolve_name`, `card_printings`, `card_mechanics`                                                                                                 |
 | Collection           | `collection_set`, `collection_add`, `collection_get`, `collection_clear`                                                                                                                            |
+| Construction         | `construction_spec`                                                                                                                                                                                 |
 | Decks                | `deck_create`, `deck_get`, `deck_list`, `deck_rename`, `deck_delete`, `deck_set_commander`, `deck_set_companion`, `deck_set_roles`, `deck_get_intent`, `deck_set_intent`, `deck_add`, `deck_remove` |
 | History and exchange | `deck_snapshot`, `deck_diff`, `deck_restore`, `deck_import`, `deck_export`                                                                                                                          |
 | Validation           | `validate_deck`, `validate_card`, `validate_commander`                                                                                                                                              |
@@ -124,13 +128,33 @@ and descriptions are available through MCP `tools/list`.
 | Community data       | `meta_commander_profile`, `meta_recommend`, `meta_budget_swaps`, `meta_combos`, `meta_classify_bracket`, `meta_check_policy`                                                                        |
 
 The prompts `build_commander_deck`, `tune_deck`, and `fit_budget` teach clients
-the corresponding workflows. Resources use `card://{oracle_id}`,
+the corresponding workflows. `build_commander_deck` can begin without a commander
+or continue a saved `deck_id`. Resources use `card://{oracle_id}`,
 `deck://{deck_id}`, and `collection://{session}` URIs.
 
 Card inputs such as `deck_add` and `card_get` accept names or Oracle IDs.
 Content-changing deck operations return `vitals` so the assistant can see the
 new count, identity, legality, and version without fetching the deck again.
 Batch additions report rejected cards and unresolved names individually.
+
+### Start with a construction specification
+
+Call `construction_spec {}` to surface missing choices, or supply a theme:
+
+```text
+construction_spec {"request":{"theme":"Artifact recursion","budget":{"mode":"target","usd":150}}}
+```
+
+The read-only result contains a versioned `specification`, `diagnostics`,
+`choices` and `unresolved_requirements`. Its status is `ready`, `needs_choices`
+or `conflict`. Without an intent target, an omitted budget stays unspecified;
+choose `unbounded` explicitly for no spending limit, `cap` for a hard ceiling,
+or `target` for a preference.
+`ready` means the specification is ready for downstream work; it does not
+establish that a completed deck exists or that the requirements are feasible.
+The tool neither searches for cards nor saves deck changes. See the
+[construction recipe](./docs/AGENT-COOKBOOK.md#normalize-construction-goals)
+for partial lists, saved intent, command-zone alternatives and constraints.
 
 ### Search examples
 

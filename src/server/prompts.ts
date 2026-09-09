@@ -34,36 +34,63 @@ const buildCommanderDeck: PromptDefinition = {
   config: {
     title: "Build a Commander deck",
     description:
-      "The full build recipe for a new 100-card Commander deck around a commander, " +
-      "optionally steered by a theme and a budget (budget_usd, numeric string).",
+      "Plan a new or partial 100-card Commander deck from a commander, theme, saved deck or empty request; budget_usd is an optional advisory USD target.",
     argsSchema: {
-      commander: z.string().describe("Commander card name, e.g. 'Atraxa, Praetors' Voice'"),
-      theme: z.string().optional().describe("Optional theme/archetype, e.g. 'counters'"),
-      budget_usd: z.string().optional().describe("Optional budget in USD, e.g. '150'"),
+      commander: z.string().optional().describe("Optional commander card name"),
+      theme: z.string().optional().describe("Optional theme or playstyle"),
+      deck_id: z
+        .string()
+        .optional()
+        .describe("Optional saved partial deck; retains its versioned intent"),
+      budget_usd: z.string().optional().describe("Optional advisory USD target, e.g. '150'"),
     },
   },
   build: (args) => {
-    const theme = args.theme ? ` with a '${args.theme}' theme` : "";
-    const budget = args.budget_usd
-      ? `\n7. Budget pass (target \u0024${args.budget_usd}): budget_plan with target_usd for ` +
-        "zero-change reprint savings, then meta_budget_swaps for out/in replacements until " +
-        "budget_plan.full_deck.target_met or meta_budget_swaps.target_met is true with complete price coverage. Disclose unknown/stale price freshness and extra purchase costs."
-      : "";
+    const usd = args.budget_usd?.trim() ? Number(args.budget_usd) : undefined;
+    const validBudget = usd !== undefined && Number.isFinite(usd) && usd >= 0;
+    const normalization = JSON.stringify({
+      ...(args.deck_id ? { deck_id: args.deck_id } : {}),
+      request: {
+        ...(args.commander ? { commanders: [args.commander] } : {}),
+        ...(args.theme ? { theme: args.theme } : {}),
+        ...(validBudget ? { budget: { mode: "target", usd } } : {}),
+      },
+    });
+    const budget = validBudget
+      ? "\n7. Budget pass (target $" +
+        usd +
+        "): budget_plan with target_usd; a target is preferred, so ask before treating it as a mandatory cap. Check whole-deck complete price coverage and disclose unknown/stale prices and extra purchase costs."
+      : args.budget_usd !== undefined
+        ? "\nBudget input is invalid; request a finite nonnegative USD amount or an explicit unbounded choice."
+        : "";
+    const seed = args.deck_id
+      ? "Use the saved partial deck and its intent; preserve protected cards and edit bounds."
+      : args.commander
+        ? "After choices resolve, deck_create {name} then deck_set_commander {commanders: " +
+          JSON.stringify(args.commander) +
+          "}."
+        : "After a command zone is explicitly selected, deck_create {name} then deck_set_commander with that selection.";
     return (
-      `Build a legal 100-card Commander deck around ${args.commander}${theme}.\n\n` +
-      "Recipe:\n" +
-      `1. deck_create {name} then deck_set_commander {commanders: "${args.commander}"} — by name; the response's computed_color_identity scopes everything after.\n` +
-      "2. meta_recommend for local contributions to the actual deck and saved intent; optional provider: 'edhrec' adds separate population metrics. Review interactions, requirements and tradeoffs before adding suggestion oracle_ids.\n" +
-      "3. deck_add in batches of 10-20 card NAMES (mixing recommendation ids is fine); read verdicts[] for per-card legality and failed[] for typos.\n" +
-      "4. deck_status after each batch — one offline call for count/100, legality, curve, mana coverage, and role gaps; steer the next batch at whatever it flags.\n" +
-      "5. Mana pass: analyze_mana_base for under-supported colors, then card_search (t:land plus identity filters) and deck_add basics with {card, qty}.\n" +
-      "6. validate_deck for the authoritative gate; deck_export to share." +
+      "Build a legal 100-card Commander deck" +
+      (args.theme ? " with a " + JSON.stringify(args.theme) + " theme" : "") +
+      ".\n\nRecipe:\n" +
+      "0. construction_spec " +
+      normalization +
+      " before searching or changing cards. Resolve conflict diagnostics and choices; unsupported hard requirements need a supported reformulation or explicit user decision. Never silently relax mandatory constraints.\n" +
+      "1. " +
+      seed +
+      " If no commander is selected, use card_discover mode commanders for theme-based alternatives, present the choices, and rerun construction_spec with the chosen command zone. Do not invent a budget.\n" +
+      "2. meta_recommend for local contributions to the actual deck and saved intent; review interactions, requirements and tradeoffs.\n" +
+      "3. deck_add in batches of 10-20 card names; inspect failed[] and verdicts[]. Multiple role memberships never create extra physical copies.\n" +
+      "4. deck_status after each batch to check count/100, legality, mana and role gaps.\n" +
+      "5. analyze_mana_base, then card_search and deck_add for mana needs. Commanders count inside 100; a declared companion stays outside and has separate restrictions and costs.\n" +
+      "6. validate_deck and meta_check_policy for final checks; budget_plan for costs; deck_export to share." +
       budget +
-      `\n\n${CONVENTIONS}`
+      "\n\n" +
+      CONVENTIONS
     );
   },
 };
-
 const tuneDeck: PromptDefinition = {
   name: "tune_deck",
   config: {

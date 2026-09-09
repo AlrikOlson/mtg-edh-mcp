@@ -24,6 +24,107 @@ only text receive the same JSON in a text block. Both modern and older protocol
 clients use the same tools. HTTP clients should re-list and re-read after changes;
 HTTP does not offer subscription notifications.
 
+## Normalize construction goals
+
+Use `construction_spec` before choosing cards. It accepts an empty request,
+a theme, a command zone, a partial library or a saved `deck_id`, without
+creating or changing a deck. These are illustrative tool calls:
+
+```text
+construction_spec {}
+construction_spec {"request":{"schema_version":1,"theme":"Artifact recursion"}}
+construction_spec {
+  "request":{
+    "schema_version":1,
+    "commanders":["Atraxa, Praetors' Voice"],
+    "command_zone_kind":"single",
+    "theme":"Counters",
+    "cards":[{"oracle_id":"Sol Ring","qty":1},{"oracle_id":"Forest","qty":6}],
+    "budget":{"mode":"target","usd":150},
+    "lands":{"min":35,"max":38,"strength":"preferred"},
+    "roles":{"ramp":{"min":10,"max":14,"strength":"preferred"}}
+  }
+}
+```
+
+Card references accept exact indexed names or Oracle IDs, including the
+`oracle_id` input fields. Unknown or ambiguous names require a choice; the tool
+does not substitute fuzzy matches. The version-1 result contains
+`specification`, `diagnostics`, `choices` and
+`unresolved_requirements`. Respond to `needs_choices` by reviewing the supplied
+options and making another request with the chosen values. A `conflict` needs
+the conflicting inputs corrected; diagnostics identify their paths. Hard
+constraints are never silently relaxed. Review
+`specification.preferred_relaxations` before accepting a suggested tradeoff.
+
+Budget modes are deliberate: an omitted budget inherits
+`intent.soft.spend_target_usd`, including saved intent, as a target or stays
+`unspecified` when none exists. `unspecified` does not mean unlimited;
+`{"mode":"unbounded"}` explicitly removes a spending bound,
+`{"mode":"cap","usd":150}` sets a hard ceiling, and
+`{"mode":"target","usd":150}` expresses a preferred estimate. Caps and targets
+require an amount. `include_companion` defaults to `false` and controls whether
+the budget includes the outside-deck companion. Price availability and actual
+purchase cost still need downstream checks.
+
+Land and role ranges carry `strength: "hard"` or `"preferred"`. Role membership
+can overlap: a card contributing to ramp and draw occupies one library slot.
+`requirements` retain authored prose and its strength; `strategy_dependencies`
+can name prerequisite cards and roles. Unsupported or unproved requirements
+remain in `unresolved_requirements`, rather than becoming claims of compliance.
+
+Keep competing command zones explicit instead of silently selecting one:
+
+```text
+construction_spec {
+  "request":{
+    "theme":"Scry",
+    "command_zone_alternatives":[
+      {"commanders":["Eligeth, Crossroads Augur"],"command_zone_kind":"single"},
+      {"commanders":["Eligeth, Crossroads Augur","Siani, Eye of the Storm"],"command_zone_kind":"partner"}
+    ],
+    "budget":{"mode":"unbounded"}
+  }
+}
+```
+
+The supported kinds are `single`, `partner`, `background` and
+`doctor_companion`; candidates retain their own validation results. Set the
+chosen `commanders` and `command_zone_kind` in the next request. One command-zone
+card leaves 99 library slots; a legal pair leaves 98. Remove
+`command_zone_alternatives` when supplying a selected command zone. A `companion`
+is a separate card reference outside the 100, not a third commander or a library slot.
+Companion restrictions still require evaluation against the eventual deck.
+
+To continue a saved build, read its current version, then normalize it with
+`deck_id`. Replace the illustrative version `3` with the returned version:
+
+```text
+deck_get {"deck_id":"DECK_ID"}
+construction_spec {"deck_id":"DECK_ID","expected_version":3}
+construction_spec {"deck_id":"DECK_ID","expected_version":3,"request":{"budget":{"mode":"cap","usd":150},"edit_bounds":{"max_additions":10,"max_removals":10}}}
+```
+
+Saved cards and intent are reused; `specification.source` records the source
+deck version, card snapshot and intent snapshot. A version conflict requires a
+fresh read before retrying. Supplying a different `request.cards` baseline with
+`deck_id` returns `SAVED_SEED_OVERRIDE_CONFLICT`; use a request without `deck_id` for a separate
+hypothetical list. Existing cards are seeds that remain editable,
+unless protected by explicit intent or edit bounds; their presence alone does
+not lock them. The call does not save its request back to deck intent.
+
+Edit bounds count physical card copies: `max_additions` and `max_removals`
+limit each direction, while `max_changes` limits their sum. Replacing one
+card uses one removal and one addition, including a saved commander or companion replacement.
+Saved hard `change_limit` constraints remain binding. Normalization checks
+necessary edit counts; the availability of suitable replacements still needs
+candidate search.
+
+`ready` means normalization has no blocking choices or conflicts. It is not a
+completed deck, a card search, or proof that a feasible 100-card solution exists.
+Use `card_discover` or `card_search` for candidates, then normal deck mutations
+and `validate_deck`, `meta_check_policy` and budget checks to evaluate the result.
+
 ## Build and iterate
 
 These are illustrative tool calls, not a JSON file. Replace `DECK_ID` with
@@ -593,11 +694,11 @@ minimums can change actual spending; these are not checkout quotes.
 
 Clients that expose prompts can request these recipes:
 
-| Prompt                 | Arguments                                            |
-| ---------------------- | ---------------------------------------------------- |
-| `build_commander_deck` | `commander`, optional `theme`, optional `budget_usd` |
-| `tune_deck`            | `deck_id`                                            |
-| `fit_budget`           | `deck_id`, `target_usd`                              |
+| Prompt                 | Arguments                                              |
+| ---------------------- | ------------------------------------------------------ |
+| `build_commander_deck` | optional `commander`, `theme`, `budget_usd`, `deck_id` |
+| `tune_deck`            | `deck_id`                                              |
+| `fit_budget`           | `deck_id`, `target_usd`                                |
 
 Prompt arguments are **strings**, including numeric budgets. Numeric budget
 arguments on tools are numbers.
