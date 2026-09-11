@@ -89,6 +89,9 @@ Environment:
   MCP_HTTP_HOST          Loopback host (default: 127.0.0.1)
   MCP_HTTP_PORT          HTTP port (default: 3000; 0 chooses a free port)
   MCP_AUTO_REFRESH       Set to 0 to disable automatic bulk refresh
+  MTG_ENGINE_PREVIEW     Set to 1 to register the development-only engine_preview_fixture
+                         tool; requires MTG_WORKER_BINARY (absolute path of the pinned
+                         native mtg-worker executable). Internal fixture only.
 
 Recovery:
   Stop all servers using MCP_DATA_DIR, then run restore-user-data with an explicit

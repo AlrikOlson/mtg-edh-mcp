@@ -19,6 +19,7 @@ import { CLI_HELP, parseCli } from "./cli.js";
 import { SERVER_VERSION } from "./createServer.js";
 import { runDoctor, runSetup } from "./setup.js";
 import { runSkillsCli } from "../skills/cli.js";
+import { enginePreviewFromEnv } from "./engineTools.js";
 
 /**
  * Read the real data_snapshot, open the current version's card index (if one has
@@ -98,6 +99,9 @@ async function main(): Promise<void> {
   } = await boot();
   const snapshot = cachedSnapshot.provider;
   const freshness = freshnessConfigFromEnv();
+  // Development-only native engine preview; absent unless explicitly opted in.
+  const enginePreview = enginePreviewFromEnv(process.env);
+  if (enginePreview) console.error(`engine preview enabled: ${enginePreview.executable}`);
 
   // Freshness scheduler (spec §3): staleness check now + every bulk interval.
   // Idempotent upstream check; opt out with MCP_AUTO_REFRESH=0.
@@ -116,6 +120,7 @@ async function main(): Promise<void> {
       ingest,
       staleness,
       rules,
+      enginePreview,
     });
     console.error(
       `mtg-edh-mcp listening on http://${host.includes(":") ? `[${host}]` : host}:${running.port}/mcp (streamable HTTP)`,
@@ -136,6 +141,7 @@ async function main(): Promise<void> {
       ingest,
       staleness,
       rules,
+      enginePreview,
     });
     console.error("mtg-edh-mcp serving on stdio");
     // A closed stdin means the client (and the transport) is gone; exit even if

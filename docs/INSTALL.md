@@ -158,14 +158,16 @@ new staging directory. No manual lock or partial-file cleanup is needed.
 
 ## Configuration
 
-| Variable               | Default      | Purpose                                                                        |
-| ---------------------- | ------------ | ------------------------------------------------------------------------------ |
-| `MCP_DATA_DIR`         | `data/cards` | Card snapshots, user-data SQLite and backups; use an absolute path in clients. |
-| `MCP_TRANSPORT`        | `stdio`      | Set to `http` for trusted local HTTP clients.                                  |
-| `MCP_HTTP_HOST`        | `127.0.0.1`  | HTTP bind address.                                                             |
-| `MCP_HTTP_PORT`        | `3000`       | HTTP port.                                                                     |
-| `MCP_AUTO_REFRESH`     | enabled      | `0` or `false` disables background refresh.                                    |
-| `MCP_BULK_INTERVAL_MS` | `43200000`   | Background bulk-data freshness check interval, in milliseconds (12 hours).     |
+| Variable               | Default      | Purpose                                                                                   |
+| ---------------------- | ------------ | ----------------------------------------------------------------------------------------- |
+| `MCP_DATA_DIR`         | `data/cards` | Card snapshots, user-data SQLite and backups; use an absolute path in clients.            |
+| `MCP_TRANSPORT`        | `stdio`      | Set to `http` for trusted local HTTP clients.                                             |
+| `MCP_HTTP_HOST`        | `127.0.0.1`  | HTTP bind address.                                                                        |
+| `MCP_HTTP_PORT`        | `3000`       | HTTP port.                                                                                |
+| `MCP_AUTO_REFRESH`     | enabled      | `0` or `false` disables background refresh.                                               |
+| `MCP_BULK_INTERVAL_MS` | `43200000`   | Background bulk-data freshness check interval, in milliseconds (12 hours).                |
+| `MTG_ENGINE_PREVIEW`   | unset        | `1` registers the development-only `engine_preview_fixture` tool (internal fixture only). |
+| `MTG_WORKER_BINARY`    | unset        | Absolute path of the pinned native `mtg-worker`; required with `MTG_ENGINE_PREVIEW=1`.    |
 
 `MCP_PRICE_INTERVAL_MS` is accepted by the freshness configuration, but does
 not schedule a separate price refresh. Normal bulk updates refresh pricing

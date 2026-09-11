@@ -21,6 +21,7 @@ import {
   type CatalogEnvelope,
 } from "./protocol.generated.js";
 import { assertCompatibleHello, WorkerFrameDecoder } from "./protocol.js";
+import { deriveTrialSeed } from "./trialSeed.js";
 
 const binary = process.env.MTG_WORKER_BINARY;
 const native = it.skipIf(!binary);
@@ -732,17 +733,6 @@ native(
   },
 );
 
-/** Worker-owned derivation (protocol README): SHA-256 over the domain, seed and big-endian index. */
-function trialSeed(seed: string, index: number): string {
-  const suffix = Buffer.alloc(4);
-  suffix.writeUInt32BE(index);
-  return createHash("sha256")
-    .update("mtg-worker-trial-seed-v1")
-    .update(seed)
-    .update(suffix)
-    .digest("hex")
-    .slice(0, 16);
-}
 native(
   "admits the trusted fixture and runs one bounded deterministic game through the real worker",
   async () => {
@@ -795,7 +785,7 @@ native(
       line(hello),
       line({ request_id: "admit", message: { type: "admit", data: admission } }),
       line(runRequest("forged", "0000000000000000")),
-      line(runRequest("run", trialSeed("0000000000000000", 0))),
+      line(runRequest("run", deriveTrialSeed("0000000000000000", 0))),
       line({ request_id: "commander", message: commanderRequest }),
     ]);
     // A cancel written together with the run would be honored at the first

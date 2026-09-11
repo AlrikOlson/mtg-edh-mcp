@@ -43,6 +43,12 @@ export interface ToolDefinition {
     outputSchema?: ZodRawShape;
     /** MCP tool annotations (readOnlyHint etc.) — harness-facing behavior hints. */
     annotations?: ToolAnnotations;
+    /**
+     * Reject unknown argument keys instead of stripping them (the default keeps
+     * the lenient boundary every existing tool relies on). Set it where an extra
+     * key would mean the caller expects behavior the tool never offers.
+     */
+    strictInput?: boolean;
   };
   handler: ToolHandler;
 }
@@ -89,34 +95,95 @@ export function stampSnapshot(result: CallToolResult, snapshot: string): CallToo
   };
 }
 
+/**
+ * Per-server request cancellation registry (MCP 2026-07-28 cancellation).
+ *
+ * The installed SDK (2.0.0) aborts a handler's `mcpReq.signal` on transport
+ * close and on `notifications/cancelled`, but its notification handler drops
+ * request id 0 (`if (!requestId) return`), which is the first request of every
+ * modern stdio connection. Tool handlers therefore receive a signal combined
+ * from the SDK's own and one this registry aborts itself on the notification,
+ * for any id. Replacing the SDK handler is safe here because every tool goes
+ * through this registry and no other request handler in this server consumes
+ * an abort signal. Remove once the SDK honors id 0 (engineTools.test.ts pins
+ * the first-request cancellation).
+ */
+const cancellations = new WeakMap<McpServer, Map<string | number, AbortController>>();
+
+function cancellationMap(server: McpServer): Map<string | number, AbortController> {
+  let map = cancellations.get(server);
+  if (!map) {
+    map = new Map();
+    cancellations.set(server, map);
+    server.server.setNotificationHandler("notifications/cancelled", (notification) => {
+      const id = notification.params.requestId;
+      if (id === undefined) return;
+      const controller = cancellations.get(server)?.get(id);
+      controller?.abort(notification.params.reason ?? "cancelled");
+    });
+  }
+  return map;
+}
+
+interface RequestSlice {
+  readonly id: string | number;
+  readonly signal: AbortSignal;
+}
+
+function requestSlice(extra: unknown): RequestSlice | null {
+  if (typeof extra !== "object" || extra === null || !("mcpReq" in extra)) return null;
+  const req = (extra as { mcpReq: unknown }).mcpReq;
+  if (typeof req !== "object" || req === null || !("id" in req) || !("signal" in req)) return null;
+  const { id, signal } = req as { id: unknown; signal: unknown };
+  if ((typeof id !== "string" && typeof id !== "number") || !(signal instanceof AbortSignal))
+    return null;
+  return { id, signal };
+}
+
 /** Register one tool, wrapping its handler with stamping + structured-error mapping. */
 export function registerTool(
   server: McpServer,
   def: ToolDefinition,
   snapshot: SnapshotProvider,
 ): RegisteredTool {
-  const wrapped: ToolHandler = (args, extra) => {
+  const live = cancellationMap(server);
+  const wrapped: ToolHandler = (rawArgs, rawExtra) => {
     const invoke = async (): Promise<CallToolResult> => {
+      const request = requestSlice(rawExtra);
+      const controller = request ? new AbortController() : null;
+      let extra = rawExtra;
+      if (request && controller) {
+        live.set(request.id, controller);
+        const mcpReq = (rawExtra as { mcpReq: object }).mcpReq;
+        extra = {
+          ...(rawExtra as object),
+          mcpReq: { ...mcpReq, signal: AbortSignal.any([request.signal, controller.signal]) },
+        };
+      }
       try {
-        const result = await def.handler(args, extra);
+        const result = await def.handler(rawArgs, extra);
         return stampSnapshot(result, snapshot());
       } catch (err) {
         if (isStructuredError(err)) {
           return stampSnapshot(toolError(err), snapshot());
         }
         throw err;
+      } finally {
+        if (request && live.get(request.id) === controller) live.delete(request.id);
       }
     };
     return snapshot.withRead ? snapshot.withRead(invoke) : invoke();
   };
   // Keep tool definitions data-first; adapt their raw shapes once at the SDK's
   // Standard Schema boundary. An empty schema still gives handlers an args object.
+  const { strictInput, ...config } = def.config;
+  const shape = config.inputSchema ?? {};
   return server.registerTool(
     def.name,
     {
-      ...def.config,
-      inputSchema: z.object(def.config.inputSchema ?? {}),
-      outputSchema: def.config.outputSchema ? z.object(def.config.outputSchema) : undefined,
+      ...config,
+      inputSchema: strictInput ? z.strictObject(shape) : z.object(shape),
+      outputSchema: config.outputSchema ? z.object(config.outputSchema) : undefined,
     },
     wrapped,
   );
