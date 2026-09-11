@@ -1,14 +1,20 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-export const SCHEMA_SHA256 = "a2ad875393c2afaa91de9331f0574848117758c29038d83a8fa0371424e3569e";
+export const SCHEMA_SHA256 = "bf93a7d2269554f30fb8357536618696ca4697d3eeaf383bb23b03c11c8f9bca";
 import { z } from "zod";
 
 const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });
 
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 export const ENGINE_VERSION = "0.1.0";
 
 export const MAX_FRAME_BYTES = 2097152;
+
+export const PREVIEW_FIXTURE_ID = "forest-bears-internal-v1";
+
+export const PREVIEW_FIXTURE_VERSION = 1;
+
+export const PREVIEW_FIXTURE_DIGEST = "7692ad4aa8565a65754eedad937af1908afcbd20b5a940a62f9b8e43051042e4";
 
 export const IdSchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9_.:-]*$(?![\s\S])/);
 export type Id = z.infer<typeof IdSchema>;
@@ -96,7 +102,7 @@ export const LimitsSchema = z.strictObject({
 });
 export type Limits = z.infer<typeof LimitsSchema>;
 
-export const ScenarioSchema = z.strictObject({
+export const CommanderScenarioSchema = z.strictObject({
 "scenario_id": IdSchema,
 "engine_version": IdSchema,
 "snapshot_digest": DigestSchema,
@@ -105,6 +111,36 @@ export const ScenarioSchema = z.strictObject({
 "seed": SeedSchema,
 "limits": LimitsSchema,
 });
+export type CommanderScenario = z.infer<typeof CommanderScenarioSchema>;
+
+export const PreviewSeatSchema = z.number().int().min(0).max(1);
+export type PreviewSeat = z.infer<typeof PreviewSeatSchema>;
+
+export const PreviewSeatInputSchema = z.strictObject({
+"seat": PreviewSeatSchema,
+"deck_digest": DigestSchema,
+"policy": PolicySchema,
+});
+export type PreviewSeatInput = z.infer<typeof PreviewSeatInputSchema>;
+
+export const PreviewScenarioSchema = z.strictObject({
+"scenario_id": IdSchema,
+"engine_version": IdSchema,
+"snapshot_digest": DigestSchema,
+"rules_digest": DigestSchema,
+"seats": z.array(PreviewSeatInputSchema).min(2).max(2),
+"seed": SeedSchema,
+"limits": LimitsSchema,
+"fixture_id": IdSchema,
+"fixture_version": PositiveSchema,
+"fixture_digest": DigestSchema,
+});
+export type PreviewScenario = z.infer<typeof PreviewScenarioSchema>;
+
+export const ScenarioSchema = z.discriminatedUnion("type", [
+z.strictObject({type: z.literal("commander"), data: CommanderScenarioSchema}),
+z.strictObject({type: z.literal("preview_fixture"), data: PreviewScenarioSchema}),
+]);
 export type Scenario = z.infer<typeof ScenarioSchema>;
 
 export const RunSchema = z.strictObject({
@@ -257,6 +293,36 @@ export const CatalogEnvelopeSchema = z.strictObject({
 });
 export type CatalogEnvelope = z.infer<typeof CatalogEnvelopeSchema>;
 
+export const PreviewCatalogPayloadSchema = z.strictObject({
+"schema_version": CatalogVersionSchema,
+"data_snapshot": IdSchema,
+"index_revision": DigestSchema,
+"fixture_id": IdSchema,
+"fixture_version": PositiveSchema,
+"fixture_digest": DigestSchema,
+"cards": z.array(CatalogEntrySchema).min(1).max(16),
+"records": z.array(CatalogRecordSchema).min(1).max(16),
+});
+export type PreviewCatalogPayload = z.infer<typeof PreviewCatalogPayloadSchema>;
+
+export const PreviewCatalogEnvelopeSchema = z.strictObject({
+"payload_json": CatalogJsonSchema,
+"payload_digest": DigestSchema,
+"expected_index_revision": DigestSchema,
+"expected_fixture_id": IdSchema,
+"expected_fixture_version": PositiveSchema,
+});
+export type PreviewCatalogEnvelope = z.infer<typeof PreviewCatalogEnvelopeSchema>;
+
+export const ProfileCatalogSchema = z.discriminatedUnion("type", [
+z.strictObject({type: z.literal("commander"), data: CatalogEnvelopeSchema}),
+z.strictObject({type: z.literal("preview_fixture"), data: PreviewCatalogEnvelopeSchema}),
+]);
+export type ProfileCatalog = z.infer<typeof ProfileCatalogSchema>;
+
+export const SupportProfileSchema = z.enum(["commander","internal_fixture_v1"]);
+export type SupportProfile = z.infer<typeof SupportProfileSchema>;
+
 export const SupportRequirementSchema = z.strictObject({
 "id": CatalogTextSchema,
 "path": CatalogTextSchema,
@@ -271,6 +337,7 @@ export const SupportRequirementSchema = z.strictObject({
 export type SupportRequirement = z.infer<typeof SupportRequirementSchema>;
 
 export const SupportReportSchema = z.strictObject({
+"profile": SupportProfileSchema,
 "oracle_id": IdSchema,
 "source_digest": DigestSchema,
 "oracle_text_digest": DigestSchema,
@@ -288,12 +355,34 @@ export const SupportReportSchema = z.strictObject({
 export type SupportReport = z.infer<typeof SupportReportSchema>;
 
 export const SupportCheckSchema = z.strictObject({
-"catalog": CatalogEnvelopeSchema,
+"catalog": ProfileCatalogSchema,
 "oracle_id": IdSchema,
 "expected_implementation_version": IdSchema,
 "expected_implementation_digest": DigestSchema.nullable(),
 });
 export type SupportCheck = z.infer<typeof SupportCheckSchema>;
+
+export const ProfilePreflightSchema = z.strictObject({
+"scenario": ScenarioSchema,
+"catalog": ProfileCatalogSchema,
+"expected_implementation_version": IdSchema,
+"expected_implementation_digest": DigestSchema.nullable(),
+});
+export type ProfilePreflight = z.infer<typeof ProfilePreflightSchema>;
+
+export const ProfilePreflightReportSchema = z.strictObject({
+"profile": SupportProfileSchema,
+"fixture_id": IdSchema,
+"fixture_version": PositiveSchema,
+"fixture_digest": DigestSchema,
+"catalog_digest": DigestSchema,
+"scenario_digest": DigestSchema,
+"implementation_version": IdSchema,
+"implementation_digest": DigestSchema,
+"qualified": FlagSchema,
+"reports": z.array(SupportReportSchema).min(1).max(16),
+});
+export type ProfilePreflightReport = z.infer<typeof ProfilePreflightReportSchema>;
 
 export const RequestMessageSchema = z.discriminatedUnion("type", [
 z.strictObject({type: z.literal("hello"), data: HelloSchema}),
@@ -302,8 +391,9 @@ z.strictObject({type: z.literal("admit"), data: ScenarioSchema}),
 z.strictObject({type: z.literal("run"), data: RunSchema}),
 z.strictObject({type: z.literal("decision"), data: DecisionSchema}),
 z.strictObject({type: z.literal("cancel"), data: CancelSchema}),
-z.strictObject({type: z.literal("catalog_check"), data: CatalogEnvelopeSchema}),
+z.strictObject({type: z.literal("catalog_check"), data: ProfileCatalogSchema}),
 z.strictObject({type: z.literal("support_check"), data: SupportCheckSchema}),
+z.strictObject({type: z.literal("profile_preflight"), data: ProfilePreflightSchema}),
 ]);
 export type RequestMessage = z.infer<typeof RequestMessageSchema>;
 
@@ -392,8 +482,9 @@ z.strictObject({type: z.literal("capabilities"), data: CapabilitiesSchema}),
 z.strictObject({type: z.literal("admitted"), data: AdmittedSchema}),
 z.strictObject({type: z.literal("event"), data: EventSchema}),
 z.strictObject({type: z.literal("outcome"), data: OutcomeSchema}),
-z.strictObject({type: z.literal("catalog_checked"), data: CatalogEnvelopeSchema}),
+z.strictObject({type: z.literal("catalog_checked"), data: ProfileCatalogSchema}),
 z.strictObject({type: z.literal("support_checked"), data: SupportReportSchema}),
+z.strictObject({type: z.literal("profile_preflighted"), data: ProfilePreflightReportSchema}),
 ]);
 export type ResponseMessage = z.infer<typeof ResponseMessageSchema>;
 

@@ -1,14 +1,20 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-pub const SCHEMA_SHA256: &str = "a2ad875393c2afaa91de9331f0574848117758c29038d83a8fa0371424e3569e";
+pub const SCHEMA_SHA256: &str = "bf93a7d2269554f30fb8357536618696ca4697d3eeaf383bb23b03c11c8f9bca";
 use serde::{Deserialize, Serialize};
 
 fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }
 
-pub const PROTOCOL_VERSION: u32 = 3;
+pub const PROTOCOL_VERSION: u32 = 4;
 
 pub const ENGINE_VERSION: &str = "0.1.0";
 
 pub const MAX_FRAME_BYTES: usize = 2_097_152;
+
+pub const PREVIEW_FIXTURE_ID: &str = "forest-bears-internal-v1";
+
+pub const PREVIEW_FIXTURE_VERSION: u32 = 1;
+
+pub const PREVIEW_FIXTURE_DIGEST: &str = "7692ad4aa8565a65754eedad937af1908afcbd20b5a940a62f9b8e43051042e4";
 
 pub type Id = String;
 
@@ -342,7 +348,7 @@ Ok(())
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct Scenario {
+pub struct CommanderScenario {
 pub scenario_id: Id,
 pub engine_version: Id,
 pub snapshot_digest: Digest,
@@ -357,27 +363,134 @@ pub limits: Limits,
 /// # Errors
 /// Returns the violated constraint.
 #[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
-pub fn validate_scenario(value: &Scenario) -> Result<(), String> {
+pub fn validate_commander_scenario(value: &CommanderScenario) -> Result<(), String> {
 let field = &value.scenario_id;
-validate_id(field).map_err(|e| format!("Scenario.scenario_id: {e}"))?;
+validate_id(field).map_err(|e| format!("CommanderScenario.scenario_id: {e}"))?;
 let field = &value.engine_version;
-validate_id(field).map_err(|e| format!("Scenario.engine_version: {e}"))?;
+validate_id(field).map_err(|e| format!("CommanderScenario.engine_version: {e}"))?;
 let field = &value.snapshot_digest;
-validate_digest(field).map_err(|e| format!("Scenario.snapshot_digest: {e}"))?;
+validate_digest(field).map_err(|e| format!("CommanderScenario.snapshot_digest: {e}"))?;
 let field = &value.rules_digest;
-validate_digest(field).map_err(|e| format!("Scenario.rules_digest: {e}"))?;
+validate_digest(field).map_err(|e| format!("CommanderScenario.rules_digest: {e}"))?;
 let field = &value.seats;
 if !(4..=4).contains(&field.len()) {
-return Err("Scenario.seats length outside contract bounds".to_owned());
+return Err("CommanderScenario.seats length outside contract bounds".to_owned());
 }
 for item in field {
-validate_seat_input(item).map_err(|e| format!("Scenario.seats: {e}"))?;
+validate_seat_input(item).map_err(|e| format!("CommanderScenario.seats: {e}"))?;
 }
 let field = &value.seed;
-validate_seed(field).map_err(|e| format!("Scenario.seed: {e}"))?;
+validate_seed(field).map_err(|e| format!("CommanderScenario.seed: {e}"))?;
 let field = &value.limits;
-validate_limits(field).map_err(|e| format!("Scenario.limits: {e}"))?;
+validate_limits(field).map_err(|e| format!("CommanderScenario.limits: {e}"))?;
 Ok(())
+}
+
+pub type PreviewSeat = u32;
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_preview_seat(value: &PreviewSeat) -> Result<(), String> {
+if !(0..=1).contains(value) {
+return Err("PreviewSeat outside contract bounds".to_owned());
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PreviewSeatInput {
+pub seat: PreviewSeat,
+pub deck_digest: Digest,
+pub policy: Policy,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_preview_seat_input(value: &PreviewSeatInput) -> Result<(), String> {
+let field = &value.seat;
+validate_preview_seat(field).map_err(|e| format!("PreviewSeatInput.seat: {e}"))?;
+let field = &value.deck_digest;
+validate_digest(field).map_err(|e| format!("PreviewSeatInput.deck_digest: {e}"))?;
+let field = &value.policy;
+validate_policy(field).map_err(|e| format!("PreviewSeatInput.policy: {e}"))?;
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PreviewScenario {
+pub scenario_id: Id,
+pub engine_version: Id,
+pub snapshot_digest: Digest,
+pub rules_digest: Digest,
+pub seats: Vec<PreviewSeatInput>,
+pub seed: Seed,
+pub limits: Limits,
+pub fixture_id: Id,
+pub fixture_version: Positive,
+pub fixture_digest: Digest,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_preview_scenario(value: &PreviewScenario) -> Result<(), String> {
+let field = &value.scenario_id;
+validate_id(field).map_err(|e| format!("PreviewScenario.scenario_id: {e}"))?;
+let field = &value.engine_version;
+validate_id(field).map_err(|e| format!("PreviewScenario.engine_version: {e}"))?;
+let field = &value.snapshot_digest;
+validate_digest(field).map_err(|e| format!("PreviewScenario.snapshot_digest: {e}"))?;
+let field = &value.rules_digest;
+validate_digest(field).map_err(|e| format!("PreviewScenario.rules_digest: {e}"))?;
+let field = &value.seats;
+if !(2..=2).contains(&field.len()) {
+return Err("PreviewScenario.seats length outside contract bounds".to_owned());
+}
+for item in field {
+validate_preview_seat_input(item).map_err(|e| format!("PreviewScenario.seats: {e}"))?;
+}
+let field = &value.seed;
+validate_seed(field).map_err(|e| format!("PreviewScenario.seed: {e}"))?;
+let field = &value.limits;
+validate_limits(field).map_err(|e| format!("PreviewScenario.limits: {e}"))?;
+let field = &value.fixture_id;
+validate_id(field).map_err(|e| format!("PreviewScenario.fixture_id: {e}"))?;
+let field = &value.fixture_version;
+validate_positive(field).map_err(|e| format!("PreviewScenario.fixture_version: {e}"))?;
+let field = &value.fixture_digest;
+validate_digest(field).map_err(|e| format!("PreviewScenario.fixture_digest: {e}"))?;
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", content = "data", deny_unknown_fields)]
+pub enum Scenario {
+#[serde(rename = "commander")]
+Commander(CommanderScenario),
+#[serde(rename = "preview_fixture")]
+PreviewFixture(PreviewScenario),
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_scenario(value: &Scenario) -> Result<(), String> {
+match value {
+Scenario::Commander(data) => validate_commander_scenario(data),
+Scenario::PreviewFixture(data) => validate_preview_scenario(data),
+}
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -1046,6 +1159,122 @@ Ok(())
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct PreviewCatalogPayload {
+pub schema_version: CatalogVersion,
+pub data_snapshot: Id,
+pub index_revision: Digest,
+pub fixture_id: Id,
+pub fixture_version: Positive,
+pub fixture_digest: Digest,
+pub cards: Vec<CatalogEntry>,
+pub records: Vec<CatalogRecord>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_preview_catalog_payload(value: &PreviewCatalogPayload) -> Result<(), String> {
+let field = &value.schema_version;
+validate_catalog_version(field).map_err(|e| format!("PreviewCatalogPayload.schema_version: {e}"))?;
+let field = &value.data_snapshot;
+validate_id(field).map_err(|e| format!("PreviewCatalogPayload.data_snapshot: {e}"))?;
+let field = &value.index_revision;
+validate_digest(field).map_err(|e| format!("PreviewCatalogPayload.index_revision: {e}"))?;
+let field = &value.fixture_id;
+validate_id(field).map_err(|e| format!("PreviewCatalogPayload.fixture_id: {e}"))?;
+let field = &value.fixture_version;
+validate_positive(field).map_err(|e| format!("PreviewCatalogPayload.fixture_version: {e}"))?;
+let field = &value.fixture_digest;
+validate_digest(field).map_err(|e| format!("PreviewCatalogPayload.fixture_digest: {e}"))?;
+let field = &value.cards;
+if !(1..=16).contains(&field.len()) {
+return Err("PreviewCatalogPayload.cards length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_entry(item).map_err(|e| format!("PreviewCatalogPayload.cards: {e}"))?;
+}
+let field = &value.records;
+if !(1..=16).contains(&field.len()) {
+return Err("PreviewCatalogPayload.records length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_record(item).map_err(|e| format!("PreviewCatalogPayload.records: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PreviewCatalogEnvelope {
+pub payload_json: CatalogJson,
+pub payload_digest: Digest,
+pub expected_index_revision: Digest,
+pub expected_fixture_id: Id,
+pub expected_fixture_version: Positive,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_preview_catalog_envelope(value: &PreviewCatalogEnvelope) -> Result<(), String> {
+let field = &value.payload_json;
+validate_catalog_json(field).map_err(|e| format!("PreviewCatalogEnvelope.payload_json: {e}"))?;
+let field = &value.payload_digest;
+validate_digest(field).map_err(|e| format!("PreviewCatalogEnvelope.payload_digest: {e}"))?;
+let field = &value.expected_index_revision;
+validate_digest(field).map_err(|e| format!("PreviewCatalogEnvelope.expected_index_revision: {e}"))?;
+let field = &value.expected_fixture_id;
+validate_id(field).map_err(|e| format!("PreviewCatalogEnvelope.expected_fixture_id: {e}"))?;
+let field = &value.expected_fixture_version;
+validate_positive(field).map_err(|e| format!("PreviewCatalogEnvelope.expected_fixture_version: {e}"))?;
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", content = "data", deny_unknown_fields)]
+pub enum ProfileCatalog {
+#[serde(rename = "commander")]
+Commander(CatalogEnvelope),
+#[serde(rename = "preview_fixture")]
+PreviewFixture(PreviewCatalogEnvelope),
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_profile_catalog(value: &ProfileCatalog) -> Result<(), String> {
+match value {
+ProfileCatalog::Commander(data) => validate_catalog_envelope(data),
+ProfileCatalog::PreviewFixture(data) => validate_preview_catalog_envelope(data),
+}
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+
+pub enum SupportProfile {
+#[serde(rename = "commander")]
+Commander,
+#[serde(rename = "internal_fixture_v1")]
+InternalFixtureV1,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_support_profile(_value: &SupportProfile) -> Result<(), String> {
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct SupportRequirement {
 pub id: CatalogText,
 pub path: CatalogText,
@@ -1098,6 +1327,7 @@ Ok(())
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SupportReport {
+pub profile: SupportProfile,
 pub oracle_id: Id,
 pub source_digest: Digest,
 pub oracle_text_digest: Digest,
@@ -1119,6 +1349,8 @@ pub requirements: Vec<SupportRequirement>,
 /// Returns the violated constraint.
 #[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 pub fn validate_support_report(value: &SupportReport) -> Result<(), String> {
+let field = &value.profile;
+validate_support_profile(field).map_err(|e| format!("SupportReport.profile: {e}"))?;
 let field = &value.oracle_id;
 validate_id(field).map_err(|e| format!("SupportReport.oracle_id: {e}"))?;
 let field = &value.source_digest;
@@ -1171,7 +1403,7 @@ Ok(())
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SupportCheck {
-pub catalog: CatalogEnvelope,
+pub catalog: ProfileCatalog,
 pub oracle_id: Id,
 pub expected_implementation_version: Id,
 #[serde(deserialize_with = "required_nullable")]
@@ -1185,13 +1417,90 @@ pub expected_implementation_digest: Option<Digest>,
 #[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 pub fn validate_support_check(value: &SupportCheck) -> Result<(), String> {
 let field = &value.catalog;
-validate_catalog_envelope(field).map_err(|e| format!("SupportCheck.catalog: {e}"))?;
+validate_profile_catalog(field).map_err(|e| format!("SupportCheck.catalog: {e}"))?;
 let field = &value.oracle_id;
 validate_id(field).map_err(|e| format!("SupportCheck.oracle_id: {e}"))?;
 let field = &value.expected_implementation_version;
 validate_id(field).map_err(|e| format!("SupportCheck.expected_implementation_version: {e}"))?;
 if let Some(field) = &value.expected_implementation_digest {
 validate_digest(field).map_err(|e| format!("SupportCheck.expected_implementation_digest: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ProfilePreflight {
+pub scenario: Scenario,
+pub catalog: ProfileCatalog,
+pub expected_implementation_version: Id,
+#[serde(deserialize_with = "required_nullable")]
+pub expected_implementation_digest: Option<Digest>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_profile_preflight(value: &ProfilePreflight) -> Result<(), String> {
+let field = &value.scenario;
+validate_scenario(field).map_err(|e| format!("ProfilePreflight.scenario: {e}"))?;
+let field = &value.catalog;
+validate_profile_catalog(field).map_err(|e| format!("ProfilePreflight.catalog: {e}"))?;
+let field = &value.expected_implementation_version;
+validate_id(field).map_err(|e| format!("ProfilePreflight.expected_implementation_version: {e}"))?;
+if let Some(field) = &value.expected_implementation_digest {
+validate_digest(field).map_err(|e| format!("ProfilePreflight.expected_implementation_digest: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ProfilePreflightReport {
+pub profile: SupportProfile,
+pub fixture_id: Id,
+pub fixture_version: Positive,
+pub fixture_digest: Digest,
+pub catalog_digest: Digest,
+pub scenario_digest: Digest,
+pub implementation_version: Id,
+pub implementation_digest: Digest,
+pub qualified: Flag,
+pub reports: Vec<SupportReport>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_profile_preflight_report(value: &ProfilePreflightReport) -> Result<(), String> {
+let field = &value.profile;
+validate_support_profile(field).map_err(|e| format!("ProfilePreflightReport.profile: {e}"))?;
+let field = &value.fixture_id;
+validate_id(field).map_err(|e| format!("ProfilePreflightReport.fixture_id: {e}"))?;
+let field = &value.fixture_version;
+validate_positive(field).map_err(|e| format!("ProfilePreflightReport.fixture_version: {e}"))?;
+let field = &value.fixture_digest;
+validate_digest(field).map_err(|e| format!("ProfilePreflightReport.fixture_digest: {e}"))?;
+let field = &value.catalog_digest;
+validate_digest(field).map_err(|e| format!("ProfilePreflightReport.catalog_digest: {e}"))?;
+let field = &value.scenario_digest;
+validate_digest(field).map_err(|e| format!("ProfilePreflightReport.scenario_digest: {e}"))?;
+let field = &value.implementation_version;
+validate_id(field).map_err(|e| format!("ProfilePreflightReport.implementation_version: {e}"))?;
+let field = &value.implementation_digest;
+validate_digest(field).map_err(|e| format!("ProfilePreflightReport.implementation_digest: {e}"))?;
+let field = &value.qualified;
+validate_flag(field).map_err(|e| format!("ProfilePreflightReport.qualified: {e}"))?;
+let field = &value.reports;
+if !(1..=16).contains(&field.len()) {
+return Err("ProfilePreflightReport.reports length outside contract bounds".to_owned());
+}
+for item in field {
+validate_support_report(item).map_err(|e| format!("ProfilePreflightReport.reports: {e}"))?;
 }
 Ok(())
 }
@@ -1212,9 +1521,11 @@ Decision(Decision),
 #[serde(rename = "cancel")]
 Cancel(Cancel),
 #[serde(rename = "catalog_check")]
-CatalogCheck(CatalogEnvelope),
+CatalogCheck(ProfileCatalog),
 #[serde(rename = "support_check")]
 SupportCheck(SupportCheck),
+#[serde(rename = "profile_preflight")]
+ProfilePreflight(ProfilePreflight),
 }
 
 /// Validate the generated wire constraints.
@@ -1230,8 +1541,9 @@ RequestMessage::Admit(data) => validate_scenario(data),
 RequestMessage::Run(data) => validate_run(data),
 RequestMessage::Decision(data) => validate_decision(data),
 RequestMessage::Cancel(data) => validate_cancel(data),
-RequestMessage::CatalogCheck(data) => validate_catalog_envelope(data),
+RequestMessage::CatalogCheck(data) => validate_profile_catalog(data),
 RequestMessage::SupportCheck(data) => validate_support_check(data),
+RequestMessage::ProfilePreflight(data) => validate_profile_preflight(data),
 }
 }
 
@@ -1530,9 +1842,11 @@ Event(Event),
 #[serde(rename = "outcome")]
 Outcome(Outcome),
 #[serde(rename = "catalog_checked")]
-CatalogChecked(CatalogEnvelope),
+CatalogChecked(ProfileCatalog),
 #[serde(rename = "support_checked")]
 SupportChecked(SupportReport),
+#[serde(rename = "profile_preflighted")]
+ProfilePreflighted(ProfilePreflightReport),
 }
 
 /// Validate the generated wire constraints.
@@ -1546,8 +1860,9 @@ ResponseMessage::Hello(data) | ResponseMessage::Capabilities(data) => validate_c
 ResponseMessage::Admitted(data) => validate_admitted(data),
 ResponseMessage::Event(data) => validate_event(data),
 ResponseMessage::Outcome(data) => validate_outcome(data),
-ResponseMessage::CatalogChecked(data) => validate_catalog_envelope(data),
+ResponseMessage::CatalogChecked(data) => validate_profile_catalog(data),
 ResponseMessage::SupportChecked(data) => validate_support_report(data),
+ResponseMessage::ProfilePreflighted(data) => validate_profile_preflight_report(data),
 }
 }
 

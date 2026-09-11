@@ -1,0 +1,198 @@
+{
+  "fixture_id": "forest-bears-internal-v1",
+  "fixture_version": 1,
+  "profile": "internal_fixture_v1",
+  "data_snapshot": "preview-catalog-2026-09-11",
+  "index_revision": "preview-fixture-v1",
+  "scope": "Internal six-card two-seat scenario; not deck-construction or Commander qualification.",
+  "source_capture": {
+    "owner": "mtg-edh-mcp/src/index/map.ts::mapScryfallCard",
+    "captured_at": "2026-09-11",
+    "forest": "engine baseline support_sources.json exact frozen MCP gameplay record",
+    "grizzly_bears_url": "https://api.scryfall.com/cards/409f9b88-f03e-40b6-9883-68c14c37c0de",
+    "grizzly_bears_snapshot_sha256": "06f082a11ab0496c860bfd984e96a3533d72197a392952394933884a57eddaf1",
+    "grizzly_bears_snapshot_path": "crates/mtg-engine/src/cards/support/preview_sources/grizzly-bears.scryfall.json"
+  },
+  "rules": {
+    "effective_date": "2026-08-07",
+    "url": "https://media.wizards.com/2026/downloads/MagicCompRules%2020260819.txt",
+    "sha256": "4381ad1b39ab2c05f7d03633a20f711ed37277074d3266dcba5f38cbb527423f",
+    "references": [
+      "106.4",
+      "117",
+      "302.6",
+      "305",
+      "510",
+      "601",
+      "704.5a",
+      "704.5b",
+      "704.5g"
+    ],
+    "snapshot_path": "crates/mtg-engine/src/cards/support/preview_sources/comprehensive-rules.txt"
+  },
+  "starting_life": 2,
+  "starting_step": "pre_combat_main",
+  "starting_hand": [
+    "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+    "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+    "14c8f55d-d177-4c25-a931-ebeb9e6062a0"
+  ],
+  "library": [
+    "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+    "14c8f55d-d177-4c25-a931-ebeb9e6062a0",
+    "14c8f55d-d177-4c25-a931-ebeb9e6062a0"
+  ],
+  "setup": "Each seat has the fixed hand and top-first ordered library; first seat begins first main after a precommitted keep. No shuffle or mulligan decision. No sideboard or command zone. Six owned objects per seat cannot reach a hand exceeding seven.",
+  "cards": [
+    {
+      "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+      "qty": 3,
+      "source_digest": "de99cffbe7a57111f6c93f2aacba63db073160933e08cbea25777885bfb0dcff",
+      "source": {
+        "version": 1,
+        "source": {
+          "scryfall_id": "dce15387-4114-4b3e-91aa-5b42b45c44ac",
+          "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6"
+        },
+        "layout": "normal",
+        "color_identity": [
+          "G"
+        ],
+        "face_relationship": "single",
+        "playability": "not_evaluated",
+        "characteristics": {
+          "name": "Forest",
+          "mana_cost": "",
+          "cmc": 0,
+          "type_line": "Basic Land — Forest",
+          "oracle_text": "({T}: Add {G}.)",
+          "colors": [],
+          "color_indicator": null,
+          "power": null,
+          "toughness": null,
+          "loyalty": null,
+          "defense": null,
+          "keywords": [],
+          "produced_mana": [
+            "G"
+          ],
+          "printed_name": null,
+          "printed_text": null,
+          "printed_type_line": null
+        },
+        "faces": [
+          {
+            "face_index": 0,
+            "source_path": "",
+            "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+            "characteristics": {
+              "name": "Forest",
+              "mana_cost": "",
+              "cmc": 0,
+              "type_line": "Basic Land — Forest",
+              "oracle_text": "({T}: Add {G}.)",
+              "colors": [],
+              "color_indicator": null,
+              "power": null,
+              "toughness": null,
+              "loyalty": null,
+              "defense": null,
+              "keywords": [],
+              "produced_mana": [
+                "G"
+              ],
+              "printed_name": null,
+              "printed_text": null,
+              "printed_type_line": null
+            }
+          }
+        ],
+        "related_cards": [
+          {
+            "object": "related_card",
+            "id": "4fae200d-5757-4924-8cf4-ab2a5ef2ccc0",
+            "component": "combo_piece",
+            "name": "Forest",
+            "type_line": "Basic Land — Forest",
+            "uri": "https://api.scryfall.com/cards/4fae200d-5757-4924-8cf4-ab2a5ef2ccc0"
+          },
+          {
+            "object": "related_card",
+            "id": "aed8ae06-ae54-4a16-8830-6547164ce6ae",
+            "component": "combo_piece",
+            "name": "Gilt-Leaf Alchemist",
+            "type_line": "Creature — Elf Druid",
+            "uri": "https://api.scryfall.com/cards/aed8ae06-ae54-4a16-8830-6547164ce6ae"
+          }
+        ]
+      }
+    },
+    {
+      "oracle_id": "14c8f55d-d177-4c25-a931-ebeb9e6062a0",
+      "qty": 3,
+      "source_digest": "1ae77a80a6b03c5f95fa3fa7c3c1b641e5cad8f171021b1de3c6df90d75e02a0",
+      "source": {
+        "version": 1,
+        "source": {
+          "scryfall_id": "409f9b88-f03e-40b6-9883-68c14c37c0de",
+          "oracle_id": "14c8f55d-d177-4c25-a931-ebeb9e6062a0"
+        },
+        "layout": "normal",
+        "color_identity": [
+          "G"
+        ],
+        "face_relationship": "single",
+        "playability": "not_evaluated",
+        "characteristics": {
+          "name": "Grizzly Bears",
+          "mana_cost": "{1}{G}",
+          "cmc": 2,
+          "type_line": "Creature — Bear",
+          "oracle_text": "",
+          "colors": [
+            "G"
+          ],
+          "color_indicator": null,
+          "power": "2",
+          "toughness": "2",
+          "loyalty": null,
+          "defense": null,
+          "keywords": [],
+          "produced_mana": null,
+          "printed_name": null,
+          "printed_text": null,
+          "printed_type_line": null
+        },
+        "faces": [
+          {
+            "face_index": 0,
+            "source_path": "",
+            "oracle_id": "14c8f55d-d177-4c25-a931-ebeb9e6062a0",
+            "characteristics": {
+              "name": "Grizzly Bears",
+              "mana_cost": "{1}{G}",
+              "cmc": 2,
+              "type_line": "Creature — Bear",
+              "oracle_text": "",
+              "colors": [
+                "G"
+              ],
+              "color_indicator": null,
+              "power": "2",
+              "toughness": "2",
+              "loyalty": null,
+              "defense": null,
+              "keywords": [],
+              "produced_mana": null,
+              "printed_name": null,
+              "printed_text": null,
+              "printed_type_line": null
+            }
+          }
+        ],
+        "related_cards": null
+      }
+    }
+  ],
+  "damage_assignment_policy": "Canonical core attacker/blocker order assigns lethal damage before the next blocker; this fixed scenario does not offer alternate damage-assignment policies."
+}

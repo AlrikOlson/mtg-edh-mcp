@@ -1,4 +1,4 @@
-# Internal worker contract v2
+# Internal worker contract v4
 
 This package is the sole owner of the authored wire contract:
 `crates/mtg-worker/protocol/contract.json`. It uses a finite typed-source DSL,
@@ -41,7 +41,7 @@ request emits `invalid/handshake_required` and closes it. Malformed frames emit
 delimited frame. The TypeScript response decoder treats malformed worker output
 as terminal; a worker producing invalid output is not compatible.
 
-Hello, capabilities and catalog_check succeed in this revision. Admission, run, decision
+Hello, capabilities, catalog_check, support_check and profile_preflight succeed in this revision. Admission, run, decision
 and cancel requests validate fully and then return `unsupported`, with their
 original request IDs. Capabilities advertise all four as false. Unsupported
 does not mean admitted, completed or cancelled. There is no fallback gameplay.
@@ -122,7 +122,6 @@ Primary data references: [Scryfall card fields](https://github.com/scryfall/api-
 [Scryfall faces](https://github.com/scryfall/api-types/blob/main/src/objects/Card/CardFace.ts),
 [Serde field attributes](https://serde.rs/field-attrs.html).
 
-
 ## Source support preflight (protocol 3)
 
 `support_check` receives a verified catalog envelope, one Oracle ID from that
@@ -163,3 +162,47 @@ Strict physical setup and unexpected-semantics abort remain mandatory in native
 `engine-mvp-support-runtime`, blocking `engine-mvp-worker`; full corpus
 qualification remains `engine-mvp-corpus`.
 
+## Explicit profiles (protocol 4)
+
+`Scenario` is now an adjacent tagged union. The `commander` arm contains the
+unchanged four-seat `CommanderScenario`; every seat still requires commanders.
+The `preview_fixture` arm contains `PreviewScenario`, which has exactly two
+ordered seats (0 and 1), immutable fixture ID/version/digest, and no commander
+or physical-card override fields. Missing/unknown tags and payloads belonging
+to another profile reject during generated validation. This is an internal
+six-card puzzle at two life after precommitted setup, not constructed deck
+legality or a Commander game.
+
+`catalog_check`, `catalog_checked` and `SupportCheck.catalog` now carry
+`ProfileCatalog`: `commander` wraps the existing `CatalogEnvelope`, while
+`preview_fixture` wraps `PreviewCatalogEnvelope`. Preview payloads have fixture
+bindings and card quantities; they contain no authored deck, command zone,
+companion or construction-format fields. Both paths reuse `VerifiedCatalog`
+byte integrity, schema and record/reference validation. `catalog_check` proves
+transfer integrity only; profile qualification remains a separate operation.
+
+`profile_preflight` accepts a `Scenario`, `ProfileCatalog` and the expected
+qualification implementation version/digest. Only the exact canonical preview
+fixture qualifies. The worker checks captured fixture identity/version/digest,
+source snapshot, index revision, every Oracle record/printing/quantity and the
+core's exact-source support evidence. The scenario binds exact catalog bytes
+through `snapshot_digest`, both seats through their `deck_digest` equal to
+`fixture_digest`, the fixture's checked official rules digest, and engine
+version. Profile mismatches, stale evidence and altered sources reject before
+runtime objects are allocated. Commander preflight remains unavailable.
+
+A `profile_preflighted` response contains fixture/catalog/scenario and core
+implementation digests plus profile-scoped card reports. `qualified` refers
+only to this fixed fixture's support obligations. Policy IDs, seeds and numeric
+limits are retained and structurally bounded; this operation does not qualify
+policies, promise trial completion, allocate game state or produce an admission
+credential. All four execution capabilities remain false. A later executor
+must honor the immutable setup and policy restrictions captured in the fixture;
+it cannot extend this evidence to arbitrary inputs.
+
+`PREVIEW_FIXTURE_ID`, `PREVIEW_FIXTURE_VERSION` and `PREVIEW_FIXTURE_DIGEST` are
+generated for both languages from the authored contract. `sync.mjs` verifies
+these values against the canonical core fixture's complete sorted-key JSON
+digest; drift rejects instead of blessing changed evidence. Required
+`SupportReport.profile` distinguishes `commander` from `internal_fixture_v1`.
+Reports themselves are never accepted as a qualification input.

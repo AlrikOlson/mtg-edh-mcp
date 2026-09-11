@@ -1,6 +1,13 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { captureCatalog } from "./catalog.js";
+import { capturePreviewFixture } from "./previewFixture.js";
+import {
+  PreviewCatalogPayloadSchema,
+  PREVIEW_FIXTURE_ID,
+  PREVIEW_FIXTURE_VERSION,
+  PREVIEW_FIXTURE_DIGEST,
+} from "./protocol.generated.js";
 import { catalogFixture, baselineCatalogFixture } from "./catalogFixture.test-support.js";
 import { CatalogPayloadSchema, type CatalogPayload } from "./protocol.generated.js";
 import { expect, it } from "vitest";
@@ -11,6 +18,7 @@ import {
   PROTOCOL_VERSION,
   SCHEMA_SHA256,
   type Response,
+  type CatalogEnvelope,
 } from "./protocol.generated.js";
 import { assertCompatibleHello, WorkerFrameDecoder } from "./protocol.js";
 
@@ -27,6 +35,10 @@ const hello = {
     },
   },
 };
+const commander = (data: CatalogEnvelope) => ({
+  type: "commander" as const,
+  data,
+});
 const line = (value: unknown) => Buffer.from(JSON.stringify(value) + "\n");
 
 /** Acceptance harness only; the production supervisor belongs to a later chunk. */
@@ -135,7 +147,10 @@ native("round trips every frozen baseline gameplay record through the native wor
         line(hello),
         line({
           request_id: "catalog-baseline",
-          message: { type: "catalog_check", data: captured.envelope },
+          message: {
+            type: "catalog_check",
+            data: commander(captured.envelope),
+          },
         }),
       ]),
     );
@@ -146,7 +161,10 @@ native("round trips every frozen baseline gameplay record through the native wor
     });
     expect(replies[1]).toEqual({
       request_id: "catalog-baseline",
-      message: { type: "catalog_checked", data: captured.envelope },
+      message: {
+        type: "catalog_checked",
+        data: commander(captured.envelope),
+      },
     });
     const payload = CatalogPayloadSchema.parse(JSON.parse(captured.envelope.payload_json));
     expect(payload.records).toHaveLength(77);
@@ -211,7 +229,7 @@ native("rejects rehashed corrupt catalogs and recovers without admitting a game"
     const frames = [...bad, captured.envelope].map((data, i) =>
       line({
         request_id: "cat-" + i,
-        message: { type: "catalog_check", data },
+        message: { type: "catalog_check", data: commander(data) },
       }),
     );
     const replies = await run(Buffer.concat([line(hello), ...frames]));
@@ -226,7 +244,7 @@ native("rejects rehashed corrupt catalogs and recovers without admitting a game"
       });
     expect(replies.at(-1)?.message).toEqual({
       type: "catalog_checked",
-      data: captured.envelope,
+      data: commander(captured.envelope),
     });
   } finally {
     await f.close();
@@ -276,13 +294,13 @@ native(
           line(hello),
           line({
             request_id: "faces",
-            message: { type: "catalog_check", data: envelope },
+            message: { type: "catalog_check", data: commander(envelope) },
           }),
         ]),
       );
       expect(replies.at(-1)?.message).toEqual({
         type: "catalog_checked",
-        data: envelope,
+        data: commander(envelope),
       });
     } finally {
       await f.close();
@@ -304,7 +322,7 @@ native("reports every frozen source obligation without granting play support", a
         message: {
           type: "support_check",
           data: {
-            catalog: captured.envelope,
+            catalog: commander(captured.envelope),
             oracle_id: r.oracle_id,
             expected_implementation_version: "core-support-v1",
             expected_implementation_digest: null,
@@ -383,7 +401,7 @@ native(
         message: {
           type: "support_check",
           data: {
-            catalog,
+            catalog: commander(catalog),
             oracle_id: forest.oracle_id,
             expected_implementation_version: "core-support-v1",
             expected_implementation_digest: null,
@@ -477,5 +495,221 @@ native(
     } finally {
       await f.close();
     }
+  },
+);
+
+function previewScenario(captured: Awaited<ReturnType<typeof capturePreviewFixture>>) {
+  return {
+    type: "preview_fixture" as const,
+    data: {
+      scenario_id: "preview-boundary",
+      engine_version: ENGINE_VERSION,
+      snapshot_digest: captured.catalog.data.payload_digest,
+      rules_digest: captured.rules_digest,
+      fixture_id: PREVIEW_FIXTURE_ID,
+      fixture_version: PREVIEW_FIXTURE_VERSION,
+      fixture_digest: PREVIEW_FIXTURE_DIGEST,
+      seats: [0, 1].map((seat) => ({
+        seat,
+        deck_digest: PREVIEW_FIXTURE_DIGEST,
+        policy: {
+          id: "fixture-test",
+          version: "1",
+          observation_version: "1",
+          search_nodes: 1,
+        },
+      })),
+      seed: "0000000000000000",
+      limits: {
+        trials: 1,
+        concurrency: 1,
+        max_turns: 10,
+        max_actions: 1000,
+        max_actions_per_turn: 100,
+        max_elapsed_ms: 5000,
+        max_memory_bytes: 100000000,
+        max_output_bytes: 1000000,
+      },
+    },
+  };
+}
+native(
+  "qualifies the trusted internal fixture through the actual worker without issuing admission",
+  async () => {
+    const captured = await capturePreviewFixture();
+    const query = {
+      scenario: previewScenario(captured),
+      catalog: captured.catalog,
+      expected_implementation_version: "core-support-v1",
+      expected_implementation_digest: null,
+    };
+    const replies = await run(
+      Buffer.concat([
+        line(hello),
+        line({
+          request_id: "preview",
+          message: { type: "profile_preflight", data: query },
+        }),
+        line({
+          request_id: "forged",
+          message: {
+            type: "run",
+            data: {
+              admission_id: PREVIEW_FIXTURE_ID,
+              scenario_digest: PREVIEW_FIXTURE_DIGEST,
+              trial_index: 0,
+              seed: "0000000000000000",
+            },
+          },
+        }),
+      ]),
+    );
+    expect(replies).toHaveLength(3);
+    expect(replies[0]?.message).toMatchObject({
+      type: "hello",
+      data: { admission: false, execution: false },
+    });
+    const reply = replies[1]?.message;
+    expect(reply?.type).toBe("profile_preflighted");
+    if (reply?.type !== "profile_preflighted") throw new Error(JSON.stringify(reply));
+    expect(reply.data).toMatchObject({
+      profile: "internal_fixture_v1",
+      qualified: true,
+      fixture_digest: PREVIEW_FIXTURE_DIGEST,
+      catalog_digest: captured.catalog.data.payload_digest,
+    });
+    expect(reply.data).not.toHaveProperty("admission_id");
+    expect(reply.data.reports).toHaveLength(2);
+    for (const report of reply.data.reports) {
+      expect(report).toMatchObject({
+        profile: "internal_fixture_v1",
+        source_matches: true,
+        supported: true,
+      });
+      expect(report.requirements.every((r) => r.qualified && r.evidence && r.implementation)).toBe(
+        true,
+      );
+    }
+    expect(replies[2]?.message).toMatchObject({
+      type: "outcome",
+      data: { type: "unsupported" },
+    });
+  },
+);
+native(
+  "rejects forged fixture source quantities bindings and profile confusion before any trial",
+  async () => {
+    const captured = await capturePreviewFixture();
+    const base = {
+      scenario: previewScenario(captured),
+      catalog: captured.catalog,
+      expected_implementation_version: "core-support-v1",
+      expected_implementation_digest: null,
+    };
+    const mutate = (edit: (p: ReturnType<typeof PreviewCatalogPayloadSchema.parse>) => void) => {
+      const payload = PreviewCatalogPayloadSchema.parse(
+        JSON.parse(captured.catalog.data.payload_json),
+      );
+      edit(payload);
+      const payload_json = JSON.stringify(payload);
+      const envelope = {
+        ...captured.catalog.data,
+        payload_json,
+        payload_digest: createHash("sha256").update(payload_json).digest("hex"),
+      };
+      return {
+        ...base,
+        catalog: { type: "preview_fixture", data: envelope },
+        scenario: {
+          ...base.scenario,
+          data: {
+            ...base.scenario.data,
+            snapshot_digest: envelope.payload_digest,
+          },
+        },
+      };
+    };
+    const bad = [
+      { ...base, scenario: base.scenario.data },
+      { ...base, scenario: { ...base.scenario, type: "unknown" } },
+      { ...base, catalog: captured.catalog.data },
+      { ...base, catalog: { ...captured.catalog, type: "commander" } },
+      { ...base, scenario: { type: "commander", data: base.scenario.data } },
+      {
+        ...base,
+        scenario: {
+          ...base.scenario,
+          data: { ...base.scenario.data, commanders: ["dummy"] },
+        },
+      },
+      {
+        ...base,
+        scenario: {
+          ...base.scenario,
+          data: { ...base.scenario.data, rules_digest: "0".repeat(64) },
+        },
+      },
+      {
+        ...base,
+        scenario: {
+          ...base.scenario,
+          data: { ...base.scenario.data, fixture_digest: "0".repeat(64) },
+        },
+      },
+      {
+        ...base,
+        catalog: {
+          ...base.catalog,
+          data: { ...base.catalog.data, expected_fixture_version: 2 },
+        },
+      },
+      { ...base, expected_implementation_digest: "0".repeat(64) },
+      { ...base, supported: true },
+      mutate((p) => {
+        p.cards[0]!.qty++;
+      }),
+      mutate((p) => {
+        p.records[1]!.gameplay.characteristics.oracle_text = "Draw a card.";
+      }),
+      mutate((p) => {
+        p.records[1]!.gameplay.faces![0]!.characteristics.power = "3";
+      }),
+      mutate((p) => {
+        p.records[1]!.gameplay.characteristics.keywords = ["Flying"];
+      }),
+      mutate((p) => {
+        p.records[0]!.gameplay.source.oracle_id = p.records[1]!.oracle_id;
+      }),
+      mutate((p) => {
+        p.fixture_digest = "0".repeat(64);
+      }),
+      mutate((p) => {
+        p.records[1]!.printing_ids.push("forged");
+      }),
+    ];
+    const replies = await run(
+      Buffer.concat([
+        line(hello),
+        ...[...bad, base].map((data, i) =>
+          line({
+            request_id: "negative-" + i,
+            message: { type: "profile_preflight", data },
+          }),
+        ),
+      ]),
+    );
+    expect(replies).toHaveLength(bad.length + 2);
+    for (const reply of replies.slice(1, -1))
+      expect(reply.message).toMatchObject({
+        type: "outcome",
+        data: { type: "invalid" },
+      });
+    expect(replies.at(-1)?.message).toMatchObject({
+      type: "profile_preflighted",
+      data: { qualified: true },
+    });
+    expect(replies.some((r) => r.message.type === "admitted" || r.message.type === "event")).toBe(
+      false,
+    );
   },
 );

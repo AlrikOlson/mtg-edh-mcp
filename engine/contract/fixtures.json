@@ -1,1108 +1,1508 @@
 {
-	"valid": [
-		{
-			"name": "hello",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "hello",
-					"data": {
-						"protocol_version": 1,
-						"engine_version": "0.1.0",
-						"schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-					}
-				}
-			}
-		},
-		{
-			"name": "capabilities",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "capabilities",
-					"data": {}
-				}
-			}
-		},
-		{
-			"name": "run",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "decision",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "decision",
-					"data": {
-						"decision_id": "d-1",
-						"seat": 0,
-						"state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"option_id": "o-1"
-					}
-				}
-			}
-		},
-		{
-			"name": "cancel",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "cancel",
-					"data": {
-						"run_request_id": "run-1"
-					}
-				}
-			}
-		},
-		{
-			"name": "admit",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "admit",
-					"data": {
-						"scenario_id": "scenario-1",
-						"engine_version": "0.1.0",
-						"snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"seats": [
-							{
-								"seat": 0,
-								"deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"policy": {
-									"id": "policy-1",
-									"version": "1",
-									"observation_version": "1",
-									"search_nodes": 1
-								},
-								"commanders": ["physical-0"],
-								"cards": [
-									{
-										"physical_id": "physical-0",
-										"oracle_id": "oracle-1"
-									}
-								]
-							},
-							{
-								"seat": 1,
-								"deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"policy": {
-									"id": "policy-1",
-									"version": "1",
-									"observation_version": "1",
-									"search_nodes": 1
-								},
-								"commanders": ["physical-1"],
-								"cards": [
-									{
-										"physical_id": "physical-1",
-										"oracle_id": "oracle-1"
-									}
-								]
-							},
-							{
-								"seat": 2,
-								"deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"policy": {
-									"id": "policy-1",
-									"version": "1",
-									"observation_version": "1",
-									"search_nodes": 1
-								},
-								"commanders": ["physical-2"],
-								"cards": [
-									{
-										"physical_id": "physical-2",
-										"oracle_id": "oracle-1"
-									}
-								]
-							},
-							{
-								"seat": 3,
-								"deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"policy": {
-									"id": "policy-1",
-									"version": "1",
-									"observation_version": "1",
-									"search_nodes": 1
-								},
-								"commanders": ["physical-3"],
-								"cards": [
-									{
-										"physical_id": "physical-3",
-										"oracle_id": "oracle-1"
-									}
-								]
-							}
-						],
-						"seed": "0123456789abcdef",
-						"limits": {
-							"trials": 1,
-							"concurrency": 1,
-							"max_turns": 100,
-							"max_actions": 1000,
-							"max_actions_per_turn": 100,
-							"max_elapsed_ms": 10000,
-							"max_memory_bytes": 100000000,
-							"max_output_bytes": 100000
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "hello",
-			"direction": "response",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "hello",
-					"data": {
-						"protocol_version": 1,
-						"engine_version": "0.1.0",
-						"schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"max_frame_bytes": 65536,
-						"admission": false,
-						"execution": false,
-						"decisions": false,
-						"cancellation": false
-					}
-				}
-			}
-		},
-		{
-			"name": "capabilities",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "capabilities",
-					"data": {
-						"protocol_version": 1,
-						"engine_version": "0.1.0",
-						"schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"max_frame_bytes": 65536,
-						"admission": false,
-						"execution": false,
-						"decisions": false,
-						"cancellation": false
-					}
-				}
-			}
-		},
-		{
-			"name": "admitted",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "admitted",
-					"data": {
-						"admission_id": "a-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-					}
-				}
-			}
-		},
-		{
-			"name": "completed",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "completed",
-						"data": {
-							"winner_seats": [],
-							"final_state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "unsupported",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "unsupported",
-						"data": {
-							"diagnostics": [
-								{
-									"code": "unsupported",
-									"message": "Required behavior is unavailable"
-								}
-							]
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "invalid",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable"
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "engine_error",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "engine_error",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable"
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "truncated",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "truncated",
-						"data": {
-							"reason": "action limit",
-							"turns": 0,
-							"actions": 5
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "cancelled",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "cancelled",
-						"data": {}
-					}
-				}
-			}
-		},
-		{
-			"name": "progress",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "event",
-					"data": {
-						"event_id": "event-1",
-						"sequence": 0,
-						"data": {
-							"type": "progress",
-							"data": {
-								"trial_index": 0,
-								"turns": 2,
-								"actions": 5
-							}
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "decision",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "event",
-					"data": {
-						"event_id": "event-1",
-						"sequence": 0,
-						"data": {
-							"type": "decision",
-							"data": {
-								"decision_id": "d-1",
-								"seat": 3,
-								"state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"options": ["o-1"]
-							}
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "outcome-event",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "event",
-					"data": {
-						"event_id": "event-1",
-						"sequence": 0,
-						"data": {
-							"type": "outcome",
-							"data": {
-								"type": "cancelled",
-								"data": {}
-							}
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "u32-4294967295",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 4294967295,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "seed-ffffffffffffffff",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "ffffffffffffffff"
-					}
-				}
-			}
-		},
-		{
-			"name": "id-\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
-			"direction": "request",
-			"value": {
-				"request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "oracle_id-null",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable",
-							"oracle_id": null
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "oracle_id-oracle_id-1",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable",
-							"oracle_id": "oracle_id-1"
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "physical_id-null",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable",
-							"physical_id": null
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "physical_id-physical_id-1",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable",
-							"physical_id": "physical_id-1"
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "behavior_id-null",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable",
-							"behavior_id": null
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "behavior_id-behavior_id-1",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable",
-							"behavior_id": "behavior_id-1"
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "null request id",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "Required behavior is unavailable"
-						}
-					}
-				},
-				"request_id": null
-			}
-		}
-	],
-	"invalid": [
-		{
-			"name": "u32--1",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": -1,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "u32-4294967296",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 4294967296,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "u32-0.5",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0.5,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "u32-0",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": "0",
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "u32-null",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": null,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "u32-undefined",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "seed-FFFFFFFFFFFFFFFF",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "FFFFFFFFFFFFFFFF"
-					}
-				}
-			}
-		},
-		{
-			"name": "seed-000000000000000",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "000000000000000"
-					}
-				}
-			}
-		},
-		{
-			"name": "seed-00000000000000000",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "00000000000000000"
-					}
-				}
-			}
-		},
-		{
-			"name": "seed-000000000000000g",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "000000000000000g"
-					}
-				}
-			}
-		},
-		{
-			"name": "seed-0",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": 0
-					}
-				}
-			}
-		},
-		{
-			"name": "id-\"\"",
-			"direction": "request",
-			"value": {
-				"request_id": "",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "id-\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
-			"direction": "request",
-			"value": {
-				"request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "id-\"réq-1\"",
-			"direction": "request",
-			"value": {
-				"request_id": "réq-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "id-\"req\\n\"",
-			"direction": "request",
-			"value": {
-				"request_id": "req\n",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "digest-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "digest-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "digest-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "unknown-extra",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				},
-				"extra": true
-			}
-		},
-		{
-			"name": "unknown-message.extra",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					},
-					"extra": true
-				}
-			}
-		},
-		{
-			"name": "unknown-message.data.extra",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "run",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef",
-						"extra": true
-					}
-				}
-			}
-		},
-		{
-			"name": "unknown variant",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "future",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "unknown outcome",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "future",
-						"data": {}
-					}
-				}
-			}
-		},
-		{
-			"name": "missing message",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1"
-			}
-		},
-		{
-			"name": "null message",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": null
-			}
-		},
-		{
-			"name": "wrong variant payload",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "cancel",
-					"data": {
-						"admission_id": "admission-1",
-						"scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"trial_index": 0,
-						"seed": "0123456789abcdef"
-					}
-				}
-			}
-		},
-		{
-			"name": "bad seat",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "decision",
-					"data": {
-						"decision_id": "d-1",
-						"seat": 4,
-						"state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"option_id": "o-1"
-					}
-				}
-			}
-		},
-		{
-			"name": "bad seat count",
-			"direction": "request",
-			"value": {
-				"request_id": "req-1",
-				"message": {
-					"type": "admit",
-					"data": {
-						"scenario_id": "scenario-1",
-						"engine_version": "0.1.0",
-						"snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						"seats": [
-							{
-								"seat": 1,
-								"deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"policy": {
-									"id": "policy-1",
-									"version": "1",
-									"observation_version": "1",
-									"search_nodes": 1
-								},
-								"commanders": ["physical-1"],
-								"cards": [
-									{
-										"physical_id": "physical-1",
-										"oracle_id": "oracle-1"
-									}
-								]
-							},
-							{
-								"seat": 2,
-								"deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"policy": {
-									"id": "policy-1",
-									"version": "1",
-									"observation_version": "1",
-									"search_nodes": 1
-								},
-								"commanders": ["physical-2"],
-								"cards": [
-									{
-										"physical_id": "physical-2",
-										"oracle_id": "oracle-1"
-									}
-								]
-							},
-							{
-								"seat": 3,
-								"deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"policy": {
-									"id": "policy-1",
-									"version": "1",
-									"observation_version": "1",
-									"search_nodes": 1
-								},
-								"commanders": ["physical-3"],
-								"cards": [
-									{
-										"physical_id": "physical-3",
-										"oracle_id": "oracle-1"
-									}
-								]
-							}
-						],
-						"seed": "0123456789abcdef",
-						"limits": {
-							"trials": 1,
-							"concurrency": 1,
-							"max_turns": 100,
-							"max_actions": 1000,
-							"max_actions_per_turn": 100,
-							"max_elapsed_ms": 10000,
-							"max_memory_bytes": 100000000,
-							"max_output_bytes": 100000
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "empty options",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "event",
-					"data": {
-						"event_id": "event-1",
-						"sequence": 0,
-						"data": {
-							"type": "decision",
-							"data": {
-								"decision_id": "d-1",
-								"seat": 3,
-								"state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-								"options": []
-							}
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "unsupported diagnostics empty",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "unsupported",
-						"data": {
-							"diagnostics": []
-						}
-					}
-				}
-			}
-		},
-		{
-			"name": "unicode diagnostic rejected",
-			"direction": "response",
-			"value": {
-				"message": {
-					"type": "outcome",
-					"data": {
-						"type": "invalid",
-						"data": {
-							"code": "unsupported",
-							"message": "café 🃏"
-						}
-					}
-				}
-			}
-		}
-	],
-	"raw": [
-		"{\"request_id\":\"req-1\",\"message\":{\"type\":\"run\",\"data\":{\"admission_id\":\"admission-1\",\"scenario_digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"trial_index\":1.0,\"seed\":\"0123456789abcdef\"}}}",
-		"{\"request_id\":\"req-1\",\"message\":{\"type\":\"run\",\"data\":{\"admission_id\":\"admission-1\",\"scenario_digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"trial_index\":1e0,\"seed\":\"0123456789abcdef\"}}}",
-		"{\"request_id\":\"req-1\",\"message\":{\"type\":\"run\",\"data\":{\"admission_id\":\"admission-1\",\"scenario_digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"trial_index\":-0.0,\"seed\":\"0123456789abcdef\"}}}"
-	]
+  "valid": [
+    {
+      "name": "hello",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "hello",
+          "data": {
+            "protocol_version": 1,
+            "engine_version": "0.1.0",
+            "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    },
+    {
+      "name": "capabilities",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "capabilities",
+          "data": {}
+        }
+      }
+    },
+    {
+      "name": "run",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "decision",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decision",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0,
+            "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "option_id": "o-1"
+          }
+        }
+      }
+    },
+    {
+      "name": "cancel",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "cancel",
+          "data": {
+            "run_request_id": "run-1"
+          }
+        }
+      }
+    },
+    {
+      "name": "admit",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "type": "commander",
+            "data": {
+              "scenario_id": "scenario-1",
+              "engine_version": "0.1.0",
+              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "seats": [
+                {
+                  "seat": 0,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["physical-0"],
+                  "cards": [
+                    {
+                      "physical_id": "physical-0",
+                      "oracle_id": "oracle-1"
+                    }
+                  ]
+                },
+                {
+                  "seat": 1,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["physical-1"],
+                  "cards": [
+                    {
+                      "physical_id": "physical-1",
+                      "oracle_id": "oracle-1"
+                    }
+                  ]
+                },
+                {
+                  "seat": 2,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["physical-2"],
+                  "cards": [
+                    {
+                      "physical_id": "physical-2",
+                      "oracle_id": "oracle-1"
+                    }
+                  ]
+                },
+                {
+                  "seat": 3,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["physical-3"],
+                  "cards": [
+                    {
+                      "physical_id": "physical-3",
+                      "oracle_id": "oracle-1"
+                    }
+                  ]
+                }
+              ],
+              "seed": "0123456789abcdef",
+              "limits": {
+                "trials": 1,
+                "concurrency": 1,
+                "max_turns": 100,
+                "max_actions": 1000,
+                "max_actions_per_turn": 100,
+                "max_elapsed_ms": 10000,
+                "max_memory_bytes": 100000000,
+                "max_output_bytes": 100000
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "hello",
+      "direction": "response",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "hello",
+          "data": {
+            "protocol_version": 1,
+            "engine_version": "0.1.0",
+            "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "max_frame_bytes": 65536,
+            "admission": false,
+            "execution": false,
+            "decisions": false,
+            "cancellation": false
+          }
+        }
+      }
+    },
+    {
+      "name": "capabilities",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "capabilities",
+          "data": {
+            "protocol_version": 1,
+            "engine_version": "0.1.0",
+            "schema_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "max_frame_bytes": 65536,
+            "admission": false,
+            "execution": false,
+            "decisions": false,
+            "cancellation": false
+          }
+        }
+      }
+    },
+    {
+      "name": "admitted",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "admitted",
+          "data": {
+            "admission_id": "a-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    },
+    {
+      "name": "completed",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "completed",
+            "data": {
+              "winner_seats": [],
+              "final_state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unsupported",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "unsupported",
+            "data": {
+              "diagnostics": [
+                {
+                  "code": "unsupported",
+                  "message": "Required behavior is unavailable"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "invalid",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "engine_error",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "engine_error",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "truncated",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "truncated",
+            "data": {
+              "reason": "action limit",
+              "turns": 0,
+              "actions": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "cancelled",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "cancelled",
+            "data": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "progress",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "progress",
+              "data": {
+                "trial_index": 0,
+                "turns": 2,
+                "actions": 5
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "options": ["o-1"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "outcome-event",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "outcome",
+              "data": {
+                "type": "cancelled",
+                "data": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "u32-4294967295",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 4294967295,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "seed-ffffffffffffffff",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "ffffffffffffffff"
+          }
+        }
+      }
+    },
+    {
+      "name": "id-\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+      "direction": "request",
+      "value": {
+        "request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "oracle_id-null",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable",
+              "oracle_id": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "oracle_id-oracle_id-1",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable",
+              "oracle_id": "oracle_id-1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "physical_id-null",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable",
+              "physical_id": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "physical_id-physical_id-1",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable",
+              "physical_id": "physical_id-1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "behavior_id-null",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable",
+              "behavior_id": null
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "behavior_id-behavior_id-1",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable",
+              "behavior_id": "behavior_id-1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "null request id",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "Required behavior is unavailable"
+            }
+          }
+        },
+        "request_id": null
+      }
+    },
+    {
+      "name": "preview admit schema only",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "type": "preview_fixture",
+            "data": {
+              "scenario_id": "scenario-1",
+              "engine_version": "0.1.0",
+              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "seats": [
+                {
+                  "seat": 0,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                },
+                {
+                  "seat": 1,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                }
+              ],
+              "seed": "0123456789abcdef",
+              "limits": {
+                "trials": 1,
+                "concurrency": 1,
+                "max_turns": 100,
+                "max_actions": 1000,
+                "max_actions_per_turn": 100,
+                "max_elapsed_ms": 10000,
+                "max_memory_bytes": 100000000,
+                "max_output_bytes": 100000
+              },
+              "fixture_id": "forest-bears-puzzle-v1",
+              "fixture_version": 1,
+              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "u32--1",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": -1,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "u32-4294967296",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 4294967296,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "u32-0.5",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0.5,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "u32-0",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": "0",
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "u32-null",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": null,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "u32-undefined",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "seed-FFFFFFFFFFFFFFFF",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "FFFFFFFFFFFFFFFF"
+          }
+        }
+      }
+    },
+    {
+      "name": "seed-000000000000000",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "000000000000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "seed-00000000000000000",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "00000000000000000"
+          }
+        }
+      }
+    },
+    {
+      "name": "seed-000000000000000g",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "000000000000000g"
+          }
+        }
+      }
+    },
+    {
+      "name": "seed-0",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "id-\"\"",
+      "direction": "request",
+      "value": {
+        "request_id": "",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "id-\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+      "direction": "request",
+      "value": {
+        "request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "id-\"r\u00e9q-1\"",
+      "direction": "request",
+      "value": {
+        "request_id": "r\u00e9q-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "id-\"req\\n\"",
+      "direction": "request",
+      "value": {
+        "request_id": "req\n",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "digest-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "digest-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "digest-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown-extra",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        },
+        "extra": true
+      }
+    },
+    {
+      "name": "unknown-message.extra",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          },
+          "extra": true
+        }
+      }
+    },
+    {
+      "name": "unknown-message.data.extra",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "run",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef",
+            "extra": true
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown variant",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "future",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown outcome",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "future",
+            "data": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "missing message",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1"
+      }
+    },
+    {
+      "name": "null message",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": null
+      }
+    },
+    {
+      "name": "wrong variant payload",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "cancel",
+          "data": {
+            "admission_id": "admission-1",
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "trial_index": 0,
+            "seed": "0123456789abcdef"
+          }
+        }
+      }
+    },
+    {
+      "name": "bad seat",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decision",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 4,
+            "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "option_id": "o-1"
+          }
+        }
+      }
+    },
+    {
+      "name": "bad seat count",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "type": "commander",
+            "data": {
+              "scenario_id": "scenario-1",
+              "engine_version": "0.1.0",
+              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "seats": [
+                {
+                  "seat": 1,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["physical-1"],
+                  "cards": [
+                    {
+                      "physical_id": "physical-1",
+                      "oracle_id": "oracle-1"
+                    }
+                  ]
+                },
+                {
+                  "seat": 2,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["physical-2"],
+                  "cards": [
+                    {
+                      "physical_id": "physical-2",
+                      "oracle_id": "oracle-1"
+                    }
+                  ]
+                },
+                {
+                  "seat": 3,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["physical-3"],
+                  "cards": [
+                    {
+                      "physical_id": "physical-3",
+                      "oracle_id": "oracle-1"
+                    }
+                  ]
+                }
+              ],
+              "seed": "0123456789abcdef",
+              "limits": {
+                "trials": 1,
+                "concurrency": 1,
+                "max_turns": 100,
+                "max_actions": 1000,
+                "max_actions_per_turn": 100,
+                "max_elapsed_ms": 10000,
+                "max_memory_bytes": 100000000,
+                "max_output_bytes": 100000
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "empty options",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "options": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unsupported diagnostics empty",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "unsupported",
+            "data": {
+              "diagnostics": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unicode diagnostic rejected",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "caf\u00e9 \ud83c\udccf"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "missing scenario profile",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "scenario_id": "scenario-1",
+            "engine_version": "0.1.0",
+            "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "seats": [
+              {
+                "seat": 0,
+                "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "policy": {
+                  "id": "policy-1",
+                  "version": "1",
+                  "observation_version": "1",
+                  "search_nodes": 1
+                },
+                "commanders": ["physical-0"],
+                "cards": [
+                  {
+                    "physical_id": "physical-0",
+                    "oracle_id": "oracle-1"
+                  }
+                ]
+              },
+              {
+                "seat": 1,
+                "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "policy": {
+                  "id": "policy-1",
+                  "version": "1",
+                  "observation_version": "1",
+                  "search_nodes": 1
+                },
+                "commanders": ["physical-1"],
+                "cards": [
+                  {
+                    "physical_id": "physical-1",
+                    "oracle_id": "oracle-1"
+                  }
+                ]
+              },
+              {
+                "seat": 2,
+                "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "policy": {
+                  "id": "policy-1",
+                  "version": "1",
+                  "observation_version": "1",
+                  "search_nodes": 1
+                },
+                "commanders": ["physical-2"],
+                "cards": [
+                  {
+                    "physical_id": "physical-2",
+                    "oracle_id": "oracle-1"
+                  }
+                ]
+              },
+              {
+                "seat": 3,
+                "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "policy": {
+                  "id": "policy-1",
+                  "version": "1",
+                  "observation_version": "1",
+                  "search_nodes": 1
+                },
+                "commanders": ["physical-3"],
+                "cards": [
+                  {
+                    "physical_id": "physical-3",
+                    "oracle_id": "oracle-1"
+                  }
+                ]
+              }
+            ],
+            "seed": "0123456789abcdef",
+            "limits": {
+              "trials": 1,
+              "concurrency": 1,
+              "max_turns": 100,
+              "max_actions": 1000,
+              "max_actions_per_turn": 100,
+              "max_elapsed_ms": 10000,
+              "max_memory_bytes": 100000000,
+              "max_output_bytes": 100000
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unknown scenario profile",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "type": "unknown",
+            "data": {
+              "scenario_id": "scenario-1",
+              "engine_version": "0.1.0",
+              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "seats": [
+                {
+                  "seat": 0,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                },
+                {
+                  "seat": 1,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                }
+              ],
+              "seed": "0123456789abcdef",
+              "limits": {
+                "trials": 1,
+                "concurrency": 1,
+                "max_turns": 100,
+                "max_actions": 1000,
+                "max_actions_per_turn": 100,
+                "max_elapsed_ms": 10000,
+                "max_memory_bytes": 100000000,
+                "max_output_bytes": 100000
+              },
+              "fixture_id": "forest-bears-puzzle-v1",
+              "fixture_version": 1,
+              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "preview dummy commander",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "type": "preview_fixture",
+            "data": {
+              "scenario_id": "scenario-1",
+              "engine_version": "0.1.0",
+              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "seats": [
+                {
+                  "seat": 0,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["dummy"]
+                },
+                {
+                  "seat": 1,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                }
+              ],
+              "seed": "0123456789abcdef",
+              "limits": {
+                "trials": 1,
+                "concurrency": 1,
+                "max_turns": 100,
+                "max_actions": 1000,
+                "max_actions_per_turn": 100,
+                "max_elapsed_ms": 10000,
+                "max_memory_bytes": 100000000,
+                "max_output_bytes": 100000
+              },
+              "fixture_id": "forest-bears-puzzle-v1",
+              "fixture_version": 1,
+              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "preview forged support",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "type": "preview_fixture",
+            "data": {
+              "scenario_id": "scenario-1",
+              "engine_version": "0.1.0",
+              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "seats": [
+                {
+                  "seat": 0,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                },
+                {
+                  "seat": 1,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                }
+              ],
+              "seed": "0123456789abcdef",
+              "limits": {
+                "trials": 1,
+                "concurrency": 1,
+                "max_turns": 100,
+                "max_actions": 1000,
+                "max_actions_per_turn": 100,
+                "max_elapsed_ms": 10000,
+                "max_memory_bytes": 100000000,
+                "max_output_bytes": 100000
+              },
+              "fixture_id": "forest-bears-puzzle-v1",
+              "fixture_version": 1,
+              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "supported": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "preview four seats",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "type": "preview_fixture",
+            "data": {
+              "scenario_id": "scenario-1",
+              "engine_version": "0.1.0",
+              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "seats": [
+                {
+                  "seat": 0,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                },
+                {
+                  "seat": 1,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                },
+                {
+                  "seat": 0,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                },
+                {
+                  "seat": 1,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  }
+                }
+              ],
+              "seed": "0123456789abcdef",
+              "limits": {
+                "trials": 1,
+                "concurrency": 1,
+                "max_turns": 100,
+                "max_actions": 1000,
+                "max_actions_per_turn": 100,
+                "max_elapsed_ms": 10000,
+                "max_memory_bytes": 100000000,
+                "max_output_bytes": 100000
+              },
+              "fixture_id": "forest-bears-puzzle-v1",
+              "fixture_version": 1,
+              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "raw": [
+    "{\"request_id\":\"req-1\",\"message\":{\"type\":\"run\",\"data\":{\"admission_id\":\"admission-1\",\"scenario_digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"trial_index\":1.0,\"seed\":\"0123456789abcdef\"}}}",
+    "{\"request_id\":\"req-1\",\"message\":{\"type\":\"run\",\"data\":{\"admission_id\":\"admission-1\",\"scenario_digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"trial_index\":1e0,\"seed\":\"0123456789abcdef\"}}}",
+    "{\"request_id\":\"req-1\",\"message\":{\"type\":\"run\",\"data\":{\"admission_id\":\"admission-1\",\"scenario_digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"trial_index\":-0.0,\"seed\":\"0123456789abcdef\"}}}"
+  ]
 }

@@ -1,13 +1,14 @@
 {
-  "source_revision": "0a9cf00790b40e9a00467e62a81eb0fb8a2b248f",
+  "source_revision": "56c95abc8d5a36fecbbeef2c5396f94620cb443d",
   "files": {
-    "engine/contract/README.md": "93aeca27d24b76b4f1d3a768587facc2e8e7ce1e7e3536d87b1a3e2eaa8ea3e8",
-    "engine/contract/contract.json": "a2ad875393c2afaa91de9331f0574848117758c29038d83a8fa0371424e3569e",
-    "engine/contract/generate.mjs": "c9f13d92dd207ab87457217798d7f4d89f91b588f33d1178966765bbf489fa96",
-    "engine/contract/generate.test.mjs": "227645af7bba1885e1a047ab285811501f6c086cf90cafbd0d69754b9662557d",
-    "engine/contract/fixtures.json": "97db139f093142150878468de33180d56da19784f34402d602200fa8d87e4c7c",
+    "engine/contract/README.md": "869386d32601e91753502ed230c53a419f5cdaf3e653cf564a7d2d9313e848a6",
+    "engine/contract/contract.json": "bf93a7d2269554f30fb8357536618696ca4697d3eeaf383bb23b03c11c8f9bca",
+    "engine/contract/generate.mjs": "92816dfc480324f0df632823165a12bb9faf41995d0d54ee5e58fdcb6e396f9b",
+    "engine/contract/generate.test.mjs": "78b250ada303ba916ab8cf38914e1be5a87c65194b0062675481d8fae394713d",
+    "engine/contract/fixtures.json": "f8ec5aeabdc7196ff834cd6b3ad4c6919459e06f155a775b09d43f9d4dd575b9",
     "engine/contract/catalog-fixture.json": "92e0af5b6a9597b754c7fa54e89854430bd9e4c6c0159f7c33a77edb3aad8d58",
-    "engine/contract/generated.rs": "b7b8a7e06508e2288c8598e9ef0db139c66718951dbf95b87b08a62d7fdd86b6",
-    "src/engine/protocol.generated.ts": "24882596a65a809d6e9c550869b4ab5b801139d999a53af5c0d184fc059420b2"
+    "engine/contract/preview-fixture.json": "7e88f8d81ed881ad6a997625e8960ad9b298fdb7618b20f14d45cdf0c4871953",
+    "engine/contract/generated.rs": "ebcaa696c7e93af59759d9a8d769d0ae6062e902fb7510792c47fea3c2eb0c49",
+    "src/engine/protocol.generated.ts": "d4a43ec215794f98e3e5586fdb467b60f9fe6d2bb29ab3c120760f266bd3c9be"
   }
 }
