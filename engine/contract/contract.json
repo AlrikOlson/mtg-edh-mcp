@@ -1,7 +1,7 @@
 {
   "version": 1,
   "constants": {
-    "PROTOCOL_VERSION": 4,
+    "PROTOCOL_VERSION": 5,
     "ENGINE_VERSION": "0.1.0",
     "MAX_FRAME_BYTES": 2097152,
     "PREVIEW_FIXTURE_ID": "forest-bears-internal-v1",
@@ -175,6 +175,9 @@
           "type": "Positive"
         },
         "max_actions_per_turn": {
+          "type": "Positive"
+        },
+        "max_work": {
           "type": "Positive"
         },
         "max_elapsed_ms": {
@@ -931,12 +934,30 @@
         }
       }
     },
+    "Admission": {
+      "kind": "record",
+      "fields": {
+        "scenario": {
+          "type": "Scenario"
+        },
+        "catalog": {
+          "type": "ProfileCatalog"
+        },
+        "expected_implementation_version": {
+          "type": "Id"
+        },
+        "expected_implementation_digest": {
+          "type": "Digest",
+          "nullable": true
+        }
+      }
+    },
     "RequestMessage": {
       "kind": "union",
       "variants": {
         "hello": "Hello",
         "capabilities": "Empty",
-        "admit": "Scenario",
+        "admit": "Admission",
         "run": "Run",
         "decision": "Decision",
         "cancel": "Cancel",
@@ -1001,8 +1022,20 @@
             "max": 4
           }
         },
+        "reason": {
+          "type": "Text"
+        },
+        "initial_state_hash": {
+          "type": "Digest"
+        },
         "final_state_hash": {
           "type": "Digest"
+        },
+        "turns": {
+          "type": "Count"
+        },
+        "actions": {
+          "type": "Count"
         }
       }
     },
@@ -1038,6 +1071,12 @@
           "type": "Id"
         },
         "scenario_digest": {
+          "type": "Digest"
+        },
+        "catalog_digest": {
+          "type": "Digest"
+        },
+        "initial_state_hash": {
           "type": "Digest"
         }
       }

@@ -79,94 +79,109 @@
         "message": {
           "type": "admit",
           "data": {
-            "type": "commander",
-            "data": {
-              "scenario_id": "scenario-1",
-              "engine_version": "0.1.0",
-              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "seats": [
-                {
-                  "seat": 0,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
+            "scenario": {
+              "type": "commander",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-0"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-0",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
                   },
-                  "commanders": ["physical-0"],
-                  "cards": [
-                    {
-                      "physical_id": "physical-0",
-                      "oracle_id": "oracle-1"
-                    }
-                  ]
-                },
-                {
-                  "seat": 1,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-1"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-1",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
                   },
-                  "commanders": ["physical-1"],
-                  "cards": [
-                    {
-                      "physical_id": "physical-1",
-                      "oracle_id": "oracle-1"
-                    }
-                  ]
-                },
-                {
-                  "seat": 2,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
+                  {
+                    "seat": 2,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-2"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-2",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
                   },
-                  "commanders": ["physical-2"],
-                  "cards": [
-                    {
-                      "physical_id": "physical-2",
-                      "oracle_id": "oracle-1"
-                    }
-                  ]
-                },
-                {
-                  "seat": 3,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
-                  },
-                  "commanders": ["physical-3"],
-                  "cards": [
-                    {
-                      "physical_id": "physical-3",
-                      "oracle_id": "oracle-1"
-                    }
-                  ]
+                  {
+                    "seat": 3,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-3"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-3",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
                 }
-              ],
-              "seed": "0123456789abcdef",
-              "limits": {
-                "trials": 1,
-                "concurrency": 1,
-                "max_turns": 100,
-                "max_actions": 1000,
-                "max_actions_per_turn": 100,
-                "max_elapsed_ms": 10000,
-                "max_memory_bytes": 100000000,
-                "max_output_bytes": 100000
               }
-            }
+            },
+            "catalog": {
+              "type": "commander",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_deck_id": "deck-1",
+                "expected_deck_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
           }
         }
       }
@@ -218,7 +233,9 @@
           "type": "admitted",
           "data": {
             "admission_id": "a-1",
-            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            "scenario_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "catalog_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "initial_state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
           }
         }
       }
@@ -233,7 +250,11 @@
             "type": "completed",
             "data": {
               "winner_seats": [],
-              "final_state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              "reason": "life_reached_zero",
+              "initial_state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "final_state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "turns": 5,
+              "actions": 40
             }
           }
         }
@@ -560,49 +581,64 @@
         "message": {
           "type": "admit",
           "data": {
-            "type": "preview_fixture",
-            "data": {
-              "scenario_id": "scenario-1",
-              "engine_version": "0.1.0",
-              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "seats": [
-                {
-                  "seat": 0,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
+            "scenario": {
+              "type": "preview_fixture",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
                   }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
                 },
-                {
-                  "seat": 1,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
-                  }
-                }
-              ],
-              "seed": "0123456789abcdef",
-              "limits": {
-                "trials": 1,
-                "concurrency": 1,
-                "max_turns": 100,
-                "max_actions": 1000,
-                "max_actions_per_turn": 100,
-                "max_elapsed_ms": 10000,
-                "max_memory_bytes": 100000000,
-                "max_output_bytes": 100000
-              },
-              "fixture_id": "forest-bears-puzzle-v1",
-              "fixture_version": 1,
-              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            }
+                "fixture_id": "forest-bears-puzzle-v1",
+                "fixture_version": 1,
+                "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            },
+            "catalog": {
+              "type": "preview_fixture",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_fixture_id": "forest-bears-internal-v1",
+                "expected_fixture_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
           }
         }
       }
@@ -817,10 +853,10 @@
       }
     },
     {
-      "name": "id-\"r\u00e9q-1\"",
+      "name": "id-\"réq-1\"",
       "direction": "request",
       "value": {
-        "request_id": "r\u00e9q-1",
+        "request_id": "réq-1",
         "message": {
           "type": "run",
           "data": {
@@ -1031,13 +1067,181 @@
         "message": {
           "type": "admit",
           "data": {
-            "type": "commander",
+            "scenario": {
+              "type": "commander",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-1"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-1",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 2,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-2"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-2",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 3,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-3"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-3",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                }
+              }
+            },
+            "catalog": {
+              "type": "commander",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_deck_id": "deck-1",
+                "expected_deck_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
+          }
+        }
+      }
+    },
+    {
+      "name": "empty options",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
             "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "options": []
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unsupported diagnostics empty",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "unsupported",
+            "data": {
+              "diagnostics": []
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "unicode diagnostic rejected",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "invalid",
+            "data": {
+              "code": "unsupported",
+              "message": "café 🃏"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "missing scenario profile",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "scenario": {
               "scenario_id": "scenario-1",
               "engine_version": "0.1.0",
               "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
               "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
               "seats": [
+                {
+                  "seat": 0,
+                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "policy": {
+                    "id": "policy-1",
+                    "version": "1",
+                    "observation_version": "1",
+                    "search_nodes": 1
+                  },
+                  "commanders": ["physical-0"],
+                  "cards": [
+                    {
+                      "physical_id": "physical-0",
+                      "oracle_id": "oracle-1"
+                    }
+                  ]
+                },
                 {
                   "seat": 1,
                   "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -1097,162 +1301,24 @@
                 "max_turns": 100,
                 "max_actions": 1000,
                 "max_actions_per_turn": 100,
+                "max_work": 100000,
                 "max_elapsed_ms": 10000,
                 "max_memory_bytes": 100000000,
                 "max_output_bytes": 100000
               }
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "empty options",
-      "direction": "response",
-      "value": {
-        "message": {
-          "type": "event",
-          "data": {
-            "event_id": "event-1",
-            "sequence": 0,
-            "data": {
-              "type": "decision",
+            },
+            "catalog": {
+              "type": "commander",
               "data": {
-                "decision_id": "d-1",
-                "seat": 3,
-                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "options": []
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_deck_id": "deck-1",
+                "expected_deck_version": 1
               }
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "unsupported diagnostics empty",
-      "direction": "response",
-      "value": {
-        "message": {
-          "type": "outcome",
-          "data": {
-            "type": "unsupported",
-            "data": {
-              "diagnostics": []
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "unicode diagnostic rejected",
-      "direction": "response",
-      "value": {
-        "message": {
-          "type": "outcome",
-          "data": {
-            "type": "invalid",
-            "data": {
-              "code": "unsupported",
-              "message": "caf\u00e9 \ud83c\udccf"
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "missing scenario profile",
-      "direction": "request",
-      "value": {
-        "request_id": "req-1",
-        "message": {
-          "type": "admit",
-          "data": {
-            "scenario_id": "scenario-1",
-            "engine_version": "0.1.0",
-            "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "seats": [
-              {
-                "seat": 0,
-                "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "policy": {
-                  "id": "policy-1",
-                  "version": "1",
-                  "observation_version": "1",
-                  "search_nodes": 1
-                },
-                "commanders": ["physical-0"],
-                "cards": [
-                  {
-                    "physical_id": "physical-0",
-                    "oracle_id": "oracle-1"
-                  }
-                ]
-              },
-              {
-                "seat": 1,
-                "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "policy": {
-                  "id": "policy-1",
-                  "version": "1",
-                  "observation_version": "1",
-                  "search_nodes": 1
-                },
-                "commanders": ["physical-1"],
-                "cards": [
-                  {
-                    "physical_id": "physical-1",
-                    "oracle_id": "oracle-1"
-                  }
-                ]
-              },
-              {
-                "seat": 2,
-                "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "policy": {
-                  "id": "policy-1",
-                  "version": "1",
-                  "observation_version": "1",
-                  "search_nodes": 1
-                },
-                "commanders": ["physical-2"],
-                "cards": [
-                  {
-                    "physical_id": "physical-2",
-                    "oracle_id": "oracle-1"
-                  }
-                ]
-              },
-              {
-                "seat": 3,
-                "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "policy": {
-                  "id": "policy-1",
-                  "version": "1",
-                  "observation_version": "1",
-                  "search_nodes": 1
-                },
-                "commanders": ["physical-3"],
-                "cards": [
-                  {
-                    "physical_id": "physical-3",
-                    "oracle_id": "oracle-1"
-                  }
-                ]
-              }
-            ],
-            "seed": "0123456789abcdef",
-            "limits": {
-              "trials": 1,
-              "concurrency": 1,
-              "max_turns": 100,
-              "max_actions": 1000,
-              "max_actions_per_turn": 100,
-              "max_elapsed_ms": 10000,
-              "max_memory_bytes": 100000000,
-              "max_output_bytes": 100000
-            }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
           }
         }
       }
@@ -1265,49 +1331,64 @@
         "message": {
           "type": "admit",
           "data": {
-            "type": "unknown",
-            "data": {
-              "scenario_id": "scenario-1",
-              "engine_version": "0.1.0",
-              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "seats": [
-                {
-                  "seat": 0,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
+            "scenario": {
+              "type": "unknown",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
                   }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
                 },
-                {
-                  "seat": 1,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
-                  }
-                }
-              ],
-              "seed": "0123456789abcdef",
-              "limits": {
-                "trials": 1,
-                "concurrency": 1,
-                "max_turns": 100,
-                "max_actions": 1000,
-                "max_actions_per_turn": 100,
-                "max_elapsed_ms": 10000,
-                "max_memory_bytes": 100000000,
-                "max_output_bytes": 100000
-              },
-              "fixture_id": "forest-bears-puzzle-v1",
-              "fixture_version": 1,
-              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            }
+                "fixture_id": "forest-bears-puzzle-v1",
+                "fixture_version": 1,
+                "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            },
+            "catalog": {
+              "type": "commander",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_deck_id": "deck-1",
+                "expected_deck_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
           }
         }
       }
@@ -1320,50 +1401,65 @@
         "message": {
           "type": "admit",
           "data": {
-            "type": "preview_fixture",
-            "data": {
-              "scenario_id": "scenario-1",
-              "engine_version": "0.1.0",
-              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "seats": [
-                {
-                  "seat": 0,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
+            "scenario": {
+              "type": "preview_fixture",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["dummy"]
                   },
-                  "commanders": ["dummy"]
-                },
-                {
-                  "seat": 1,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
                   }
-                }
-              ],
-              "seed": "0123456789abcdef",
-              "limits": {
-                "trials": 1,
-                "concurrency": 1,
-                "max_turns": 100,
-                "max_actions": 1000,
-                "max_actions_per_turn": 100,
-                "max_elapsed_ms": 10000,
-                "max_memory_bytes": 100000000,
-                "max_output_bytes": 100000
-              },
-              "fixture_id": "forest-bears-puzzle-v1",
-              "fixture_version": 1,
-              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                },
+                "fixture_id": "forest-bears-puzzle-v1",
+                "fixture_version": 1,
+                "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            },
+            "catalog": {
+              "type": "preview_fixture",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_fixture_id": "forest-bears-internal-v1",
+                "expected_fixture_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
           }
         }
       }
@@ -1376,50 +1472,65 @@
         "message": {
           "type": "admit",
           "data": {
-            "type": "preview_fixture",
-            "data": {
-              "scenario_id": "scenario-1",
-              "engine_version": "0.1.0",
-              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "seats": [
-                {
-                  "seat": 0,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
+            "scenario": {
+              "type": "preview_fixture",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
                   }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
                 },
-                {
-                  "seat": 1,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
-                  }
-                }
-              ],
-              "seed": "0123456789abcdef",
-              "limits": {
-                "trials": 1,
-                "concurrency": 1,
-                "max_turns": 100,
-                "max_actions": 1000,
-                "max_actions_per_turn": 100,
-                "max_elapsed_ms": 10000,
-                "max_memory_bytes": 100000000,
-                "max_output_bytes": 100000
-              },
-              "fixture_id": "forest-bears-puzzle-v1",
-              "fixture_version": 1,
-              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "supported": true
-            }
+                "fixture_id": "forest-bears-puzzle-v1",
+                "fixture_version": 1,
+                "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "supported": true
+              }
+            },
+            "catalog": {
+              "type": "preview_fixture",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_fixture_id": "forest-bears-internal-v1",
+                "expected_fixture_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
           }
         }
       }
@@ -1432,68 +1543,298 @@
         "message": {
           "type": "admit",
           "data": {
-            "type": "preview_fixture",
+            "scenario": {
+              "type": "preview_fixture",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                },
+                "fixture_id": "forest-bears-puzzle-v1",
+                "fixture_version": 1,
+                "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            },
+            "catalog": {
+              "type": "preview_fixture",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_fixture_id": "forest-bears-internal-v1",
+                "expected_fixture_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
+          }
+        }
+      }
+    },
+    {
+      "name": "admit without catalog",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "scenario": {
+              "type": "preview_fixture",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                },
+                "fixture_id": "forest-bears-puzzle-v1",
+                "fixture_version": 1,
+                "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
+          }
+        }
+      }
+    },
+    {
+      "name": "admit untagged catalog",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "scenario": {
+              "type": "preview_fixture",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                },
+                "fixture_id": "forest-bears-puzzle-v1",
+                "fixture_version": 1,
+                "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            },
+            "catalog": {
+              "payload_json": "{}",
+              "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "expected_fixture_id": "forest-bears-internal-v1",
+              "expected_fixture_version": 1
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
+          }
+        }
+      }
+    },
+    {
+      "name": "admit missing work limit",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "scenario": {
+              "type": "preview_fixture",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    }
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                },
+                "fixture_id": "forest-bears-puzzle-v1",
+                "fixture_version": 1,
+                "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            },
+            "catalog": {
+              "type": "preview_fixture",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_fixture_id": "forest-bears-internal-v1",
+                "expected_fixture_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
+          }
+        }
+      }
+    },
+    {
+      "name": "completed without reason",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "outcome",
+          "data": {
+            "type": "completed",
             "data": {
-              "scenario_id": "scenario-1",
-              "engine_version": "0.1.0",
-              "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-              "seats": [
-                {
-                  "seat": 0,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
-                  }
-                },
-                {
-                  "seat": 1,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
-                  }
-                },
-                {
-                  "seat": 0,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
-                  }
-                },
-                {
-                  "seat": 1,
-                  "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                  "policy": {
-                    "id": "policy-1",
-                    "version": "1",
-                    "observation_version": "1",
-                    "search_nodes": 1
-                  }
-                }
-              ],
-              "seed": "0123456789abcdef",
-              "limits": {
-                "trials": 1,
-                "concurrency": 1,
-                "max_turns": 100,
-                "max_actions": 1000,
-                "max_actions_per_turn": 100,
-                "max_elapsed_ms": 10000,
-                "max_memory_bytes": 100000000,
-                "max_output_bytes": 100000
-              },
-              "fixture_id": "forest-bears-puzzle-v1",
-              "fixture_version": 1,
-              "fixture_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              "winner_seats": [],
+              "initial_state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "final_state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "turns": 5,
+              "actions": 40
             }
           }
         }

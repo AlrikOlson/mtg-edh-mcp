@@ -1,4 +1,4 @@
-# Internal worker contract v4
+# Internal worker contract v5
 
 This package is the sole owner of the authored wire contract:
 `crates/mtg-worker/protocol/contract.json`. It uses a finite typed-source DSL,
@@ -41,11 +41,12 @@ request emits `invalid/handshake_required` and closes it. Malformed frames emit
 delimited frame. The TypeScript response decoder treats malformed worker output
 as terminal; a worker producing invalid output is not compatible.
 
-Hello, capabilities, catalog_check, support_check and profile_preflight succeed in this revision. Admission, run, decision
-and cancel requests validate fully and then return `unsupported`, with their
-original request IDs. Capabilities advertise all four as false. Unsupported
-does not mean admitted, completed or cancelled. There is no fallback gameplay.
-`--self-check` remains an independent build probe, outside protocol mode.
+Hello, capabilities, catalog_check, support_check, profile_preflight, admit,
+run and cancel succeed in this revision for the internal fixture only.
+Decision requests validate fully and then return `unsupported`; the
+`decisions` capability stays false. Unsupported does not mean admitted,
+completed or cancelled. There is no fallback gameplay. `--self-check` remains
+an independent build probe, outside protocol mode.
 
 Version 2 rejects unknown fields, variants and wrong payload types. Optional
 fields accept omission or null; Rust reserialization omits absent/null fields.
@@ -206,3 +207,61 @@ these values against the canonical core fixture's complete sorted-key JSON
 digest; drift rejects instead of blessing changed evidence. Required
 `SupportReport.profile` distinguishes `commander` from `internal_fixture_v1`.
 Reports themselves are never accepted as a qualification input.
+
+## Fixture admission and bounded runs (protocol 5)
+
+`admit` now carries `Admission`: the `Scenario`, the `ProfileCatalog` it binds
+through `snapshot_digest`, and the expected qualification implementation
+version/digest. Admission reuses the exact `profile_preflight` binding, then
+resolves each seat's named client and proves physical setup once through the
+core's `setup::prepare_preview_game`. `admitted` returns a deterministic
+`admission_id` derived from the scenario and catalog digests, both digests and
+the `initial_state_hash` of that proof. Identical admissions are idempotent; a
+worker retains at most eight distinct admissions (`invalid/admission_limit`).
+Only `preview_fixture` scenarios admit; a `commander` scenario answers
+`unsupported/commander_admission_unavailable`. Unknown policy identities,
+versions or observation versions answer `unsupported` per seat. Stale rules,
+fixture, catalog, seat or implementation bindings answer `invalid` with the
+same codes as preflight. Nothing is retained on rejection.
+
+Named clients: `fixture-baseline@1` plays a land, casts the first legal spell,
+otherwise passes, attacks with every legal attacker and never blocks;
+`fixture-pass@1` passes every priority. Both declare `observation_version` `1`:
+they read only the engine's enumerated legal options and never mutate state or
+inspect hidden zones. `search_nodes` is retained as a declared ceiling; neither
+client searches.
+
+`Limits` gains `max_work`, the canonical work-unit budget. A `run` must name a
+retained `admission_id`, its `scenario_digest`, a `trial_index` below
+`limits.trials` and the derived trial seed: the first sixteen hex characters of
+SHA-256 over `mtg-worker-trial-seed-v1`, the scenario seed and the big-endian
+trial index. Any other seed is `invalid/trial_seed_mismatch`, so seeds are
+independent of scheduling. The run executes on its own thread against a fresh
+canonical setup for that seed; one `event/progress` per completed turn precedes
+exactly one terminal `outcome`, all with the run's request ID.
+
+Budgets map onto canonical execution control: `max_turns` pauses the live
+scheduler at the turn boundary; `max_actions` and `max_work` are cumulative
+counters; `max_actions_per_turn` is applied as a per-turn ceiling on the same
+counter; `max_elapsed_ms` arms a watchdog that raises the cooperative stop
+token; `max_output_bytes` refuses a progress event that would not leave room
+for the outcome and raises the same token. `max_memory_bytes` and
+`concurrency` are declared for the parent supervisor and not enforced here.
+Outcomes are distinct: `completed` carries `winner_seats` (empty for a draw),
+the rules `reason`, initial/final core hashes, `turns` and `actions`;
+`truncated` names `turn_limit`, `action_limit`, `actions_per_turn_limit`,
+`work_limit`, `elapsed_limit` or `output_limit`; `cancelled` follows a parent
+cancel; `unsupported` reports an engine request the worker cannot relay;
+`engine_error` reports a canonical failure. A cap or failure is never a loss
+or an implicit pass.
+
+Input is read on a dedicated thread. While a run is live, `cancel` naming the
+run's request ID raises the stop token at once and is answered after the run's
+outcome: `cancelled` when the stop was honored, `invalid/cancel_late` when the
+run had already reached its outcome. Other requests wait behind the run in
+arrival order (at most 64, then `invalid/backlog_limit`) and are answered
+after it; a clean end of input still answers them, a framing failure discards
+them. Progress events are acknowledged before the run continues, and queued
+frames are handled before that acknowledgement, so output accounting and a
+cancel delivered before an acknowledgement are deterministic. Hard timeouts,
+memory limits and process termination remain the parent's responsibility.

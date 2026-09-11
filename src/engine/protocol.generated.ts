@@ -1,10 +1,10 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-export const SCHEMA_SHA256 = "bf93a7d2269554f30fb8357536618696ca4697d3eeaf383bb23b03c11c8f9bca";
+export const SCHEMA_SHA256 = "1f7beba69864e1578193fe4137c70d1b6fe32d32043399226ac5f76ee30fb6ea";
 import { z } from "zod";
 
 const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });
 
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 export const ENGINE_VERSION = "0.1.0";
 
@@ -96,6 +96,7 @@ export const LimitsSchema = z.strictObject({
 "max_turns": PositiveSchema,
 "max_actions": PositiveSchema,
 "max_actions_per_turn": PositiveSchema,
+"max_work": PositiveSchema,
 "max_elapsed_ms": PositiveSchema,
 "max_memory_bytes": PositiveSchema,
 "max_output_bytes": PositiveSchema,
@@ -384,10 +385,18 @@ export const ProfilePreflightReportSchema = z.strictObject({
 });
 export type ProfilePreflightReport = z.infer<typeof ProfilePreflightReportSchema>;
 
+export const AdmissionSchema = z.strictObject({
+"scenario": ScenarioSchema,
+"catalog": ProfileCatalogSchema,
+"expected_implementation_version": IdSchema,
+"expected_implementation_digest": DigestSchema.nullable(),
+});
+export type Admission = z.infer<typeof AdmissionSchema>;
+
 export const RequestMessageSchema = z.discriminatedUnion("type", [
 z.strictObject({type: z.literal("hello"), data: HelloSchema}),
 z.strictObject({type: z.literal("capabilities"), data: EmptySchema}),
-z.strictObject({type: z.literal("admit"), data: ScenarioSchema}),
+z.strictObject({type: z.literal("admit"), data: AdmissionSchema}),
 z.strictObject({type: z.literal("run"), data: RunSchema}),
 z.strictObject({type: z.literal("decision"), data: DecisionSchema}),
 z.strictObject({type: z.literal("cancel"), data: CancelSchema}),
@@ -419,7 +428,11 @@ export type Unsupported = z.infer<typeof UnsupportedSchema>;
 
 export const CompletedSchema = z.strictObject({
 "winner_seats": z.array(SeatSchema).min(0).max(4),
+"reason": TextSchema,
+"initial_state_hash": DigestSchema,
 "final_state_hash": DigestSchema,
+"turns": CountSchema,
+"actions": CountSchema,
 });
 export type Completed = z.infer<typeof CompletedSchema>;
 
@@ -443,6 +456,8 @@ export type Outcome = z.infer<typeof OutcomeSchema>;
 export const AdmittedSchema = z.strictObject({
 "admission_id": IdSchema,
 "scenario_digest": DigestSchema,
+"catalog_digest": DigestSchema,
+"initial_state_hash": DigestSchema,
 });
 export type Admitted = z.infer<typeof AdmittedSchema>;
 

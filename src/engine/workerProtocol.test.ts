@@ -110,10 +110,24 @@ native("exchanges real generated Rust replies with the TypeScript validator", as
   const first = replies[0];
   if (!first) throw new Error("missing hello");
   assertCompatibleHello(first, "h-1");
-  for (const response of replies.slice(1)) {
+  for (const [index, response] of replies.slice(1).entries()) {
     expect(response.request_id).toBe("req-1");
     expect(response.message.type).toBe("outcome");
-    if (response.message.type === "outcome") expect(response.message.data.type).toBe("unsupported");
+    // Schema-only fixtures never admit or execute: Commander admission and
+    // interactive decisions are unsupported capabilities; forged preview
+    // admissions, runs and cancels are refused as invalid.
+    const request = z
+      .object({ message: z.object({ type: z.string(), data: z.unknown() }) })
+      .parse(requests[index]?.value);
+    const scenario = z
+      .object({ scenario: z.object({ type: z.string() }) })
+      .safeParse(request.message.data);
+    const expected =
+      request.message.type === "decision" ||
+      (request.message.type === "admit" && scenario.data?.scenario.type === "commander")
+        ? "unsupported"
+        : "invalid";
+    if (response.message.type === "outcome") expect(response.message.data.type).toBe(expected);
   }
 });
 native("rejects mismatched worker versions and drains only framed diagnostics", async () => {
@@ -157,7 +171,7 @@ native("round trips every frozen baseline gameplay record through the native wor
     expect(replies).toHaveLength(2);
     expect(replies[0]?.message).toMatchObject({
       type: "hello",
-      data: { admission: false, execution: false },
+      data: { admission: true, execution: true, decisions: false, cancellation: true },
     });
     expect(replies[1]).toEqual({
       request_id: "catalog-baseline",
@@ -380,7 +394,7 @@ native("reports every frozen source obligation without granting play support", a
     expect(qualified).toBe(3);
     expect(replies[0]?.message).toMatchObject({
       type: "hello",
-      data: { admission: false, execution: false },
+      data: { admission: true, execution: true, decisions: false, cancellation: true },
     });
   } finally {
     await f.close();
@@ -490,7 +504,7 @@ native(
       });
       expect(replies.at(-1)?.message).toMatchObject({
         type: "outcome",
-        data: { type: "unsupported" },
+        data: { type: "invalid", data: { code: "admission_unknown" } },
       });
     } finally {
       await f.close();
@@ -498,7 +512,10 @@ native(
   },
 );
 
-function previewScenario(captured: Awaited<ReturnType<typeof capturePreviewFixture>>) {
+function previewScenario(
+  captured: Awaited<ReturnType<typeof capturePreviewFixture>>,
+  policies: [string, string] = ["fixture-test", "fixture-test"],
+) {
   return {
     type: "preview_fixture" as const,
     data: {
@@ -509,11 +526,11 @@ function previewScenario(captured: Awaited<ReturnType<typeof capturePreviewFixtu
       fixture_id: PREVIEW_FIXTURE_ID,
       fixture_version: PREVIEW_FIXTURE_VERSION,
       fixture_digest: PREVIEW_FIXTURE_DIGEST,
-      seats: [0, 1].map((seat) => ({
+      seats: policies.map((id, seat) => ({
         seat,
         deck_digest: PREVIEW_FIXTURE_DIGEST,
         policy: {
-          id: "fixture-test",
+          id,
           version: "1",
           observation_version: "1",
           search_nodes: 1,
@@ -526,6 +543,7 @@ function previewScenario(captured: Awaited<ReturnType<typeof capturePreviewFixtu
         max_turns: 10,
         max_actions: 1000,
         max_actions_per_turn: 100,
+        max_work: 100000,
         max_elapsed_ms: 5000,
         max_memory_bytes: 100000000,
         max_output_bytes: 1000000,
@@ -567,7 +585,7 @@ native(
     expect(replies).toHaveLength(3);
     expect(replies[0]?.message).toMatchObject({
       type: "hello",
-      data: { admission: false, execution: false },
+      data: { admission: true, execution: true, decisions: false, cancellation: true },
     });
     const reply = replies[1]?.message;
     expect(reply?.type).toBe("profile_preflighted");
@@ -592,7 +610,7 @@ native(
     }
     expect(replies[2]?.message).toMatchObject({
       type: "outcome",
-      data: { type: "unsupported" },
+      data: { type: "invalid", data: { code: "admission_unknown" } },
     });
   },
 );
@@ -711,5 +729,115 @@ native(
     expect(replies.some((r) => r.message.type === "admitted" || r.message.type === "event")).toBe(
       false,
     );
+  },
+);
+
+/** Worker-owned derivation (protocol README): SHA-256 over the domain, seed and big-endian index. */
+function trialSeed(seed: string, index: number): string {
+  const suffix = Buffer.alloc(4);
+  suffix.writeUInt32BE(index);
+  return createHash("sha256")
+    .update("mtg-worker-trial-seed-v1")
+    .update(seed)
+    .update(suffix)
+    .digest("hex")
+    .slice(0, 16);
+}
+native(
+  "admits the trusted fixture and runs one bounded deterministic game through the real worker",
+  async () => {
+    const captured = await capturePreviewFixture();
+    const admission = {
+      scenario: previewScenario(captured, ["fixture-baseline", "fixture-pass"]),
+      catalog: captured.catalog,
+      expected_implementation_version: "core-support-v1",
+      expected_implementation_digest: null,
+    };
+    const first = await run(
+      Buffer.concat([
+        line(hello),
+        line({ request_id: "admit", message: { type: "admit", data: admission } }),
+      ]),
+    );
+    const admitted = first[1]?.message;
+    if (admitted?.type !== "admitted") throw new Error(JSON.stringify(admitted));
+    expect(admitted.data).toMatchObject({
+      scenario_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+      catalog_digest: captured.catalog.data.payload_digest,
+      initial_state_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
+    const runRequest = (request_id: string, seed: string) => ({
+      request_id,
+      message: {
+        type: "run",
+        data: {
+          admission_id: admitted.data.admission_id,
+          scenario_digest: admitted.data.scenario_digest,
+          trial_index: 0,
+          seed,
+        },
+      },
+    });
+    // The shared contract fixture's Commander admission is structurally valid
+    // but names no real capture; the worker must refuse it as unsupported.
+    const commanderAdmission = z
+      .object({
+        valid: z.array(z.object({ name: z.string(), value: z.unknown() })),
+      })
+      .parse(
+        JSON.parse(
+          await readFile(new URL("../../engine/contract/fixtures.json", import.meta.url), "utf8"),
+        ),
+      )
+      .valid.find((c) => c.name === "admit")?.value;
+    const commanderRequest = z.object({ message: z.unknown() }).parse(commanderAdmission).message;
+    const input = Buffer.concat([
+      line(hello),
+      line({ request_id: "admit", message: { type: "admit", data: admission } }),
+      line(runRequest("forged", "0000000000000000")),
+      line(runRequest("run", trialSeed("0000000000000000", 0))),
+      line({ request_id: "commander", message: commanderRequest }),
+    ]);
+    // A cancel written together with the run would be honored at the first
+    // checkpoint; mid-run cancellation ordering is proven in the canonical
+    // worker suite, not through this all-at-once harness.
+    const [a, b] = await Promise.all([run(input), run(input)]);
+    expect(a).toEqual(b);
+    expect(a[0]?.message).toMatchObject({
+      type: "hello",
+      data: { admission: true, execution: true, decisions: false, cancellation: true },
+    });
+    expect(a[1]).toEqual({ request_id: "admit", message: admitted });
+    expect(a[2]?.message).toMatchObject({
+      type: "outcome",
+      data: { type: "invalid", data: { code: "trial_seed_mismatch" } },
+    });
+    const runReplies = a.filter((reply) => reply.request_id === "run");
+    expect(runReplies).toHaveLength(5);
+    for (const [index, reply] of runReplies.slice(0, 4).entries())
+      expect(reply.message).toMatchObject({
+        type: "event",
+        data: { sequence: index, data: { type: "progress", data: { turns: index + 1 } } },
+      });
+    const outcome = runReplies[4]?.message;
+    if (outcome?.type !== "outcome" || outcome.data.type !== "completed")
+      throw new Error(JSON.stringify(outcome));
+    expect(outcome.data.data).toMatchObject({
+      winner_seats: [0],
+      reason: "life_reached_zero",
+      turns: 5,
+      initial_state_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      final_state_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
+    expect(outcome.data.data.initial_state_hash).not.toBe(outcome.data.data.final_state_hash);
+    const rest = a.slice(3 + runReplies.length);
+    expect(rest.map((reply) => reply.request_id)).toEqual(["commander"]);
+    expect(rest[0]?.message).toMatchObject({
+      type: "outcome",
+      data: {
+        type: "unsupported",
+        data: { diagnostics: [{ code: "commander_admission_unavailable" }] },
+      },
+    });
   },
 );

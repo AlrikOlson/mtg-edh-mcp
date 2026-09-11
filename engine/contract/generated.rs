@@ -1,10 +1,10 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-pub const SCHEMA_SHA256: &str = "bf93a7d2269554f30fb8357536618696ca4697d3eeaf383bb23b03c11c8f9bca";
+pub const SCHEMA_SHA256: &str = "1f7beba69864e1578193fe4137c70d1b6fe32d32043399226ac5f76ee30fb6ea";
 use serde::{Deserialize, Serialize};
 
 fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }
 
-pub const PROTOCOL_VERSION: u32 = 4;
+pub const PROTOCOL_VERSION: u32 = 5;
 
 pub const ENGINE_VERSION: &str = "0.1.0";
 
@@ -316,6 +316,7 @@ pub concurrency: Positive,
 pub max_turns: Positive,
 pub max_actions: Positive,
 pub max_actions_per_turn: Positive,
+pub max_work: Positive,
 pub max_elapsed_ms: Positive,
 pub max_memory_bytes: Positive,
 pub max_output_bytes: Positive,
@@ -337,6 +338,8 @@ let field = &value.max_actions;
 validate_positive(field).map_err(|e| format!("Limits.max_actions: {e}"))?;
 let field = &value.max_actions_per_turn;
 validate_positive(field).map_err(|e| format!("Limits.max_actions_per_turn: {e}"))?;
+let field = &value.max_work;
+validate_positive(field).map_err(|e| format!("Limits.max_work: {e}"))?;
 let field = &value.max_elapsed_ms;
 validate_positive(field).map_err(|e| format!("Limits.max_elapsed_ms: {e}"))?;
 let field = &value.max_memory_bytes;
@@ -1506,6 +1509,34 @@ Ok(())
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Admission {
+pub scenario: Scenario,
+pub catalog: ProfileCatalog,
+pub expected_implementation_version: Id,
+#[serde(deserialize_with = "required_nullable")]
+pub expected_implementation_digest: Option<Digest>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_admission(value: &Admission) -> Result<(), String> {
+let field = &value.scenario;
+validate_scenario(field).map_err(|e| format!("Admission.scenario: {e}"))?;
+let field = &value.catalog;
+validate_profile_catalog(field).map_err(|e| format!("Admission.catalog: {e}"))?;
+let field = &value.expected_implementation_version;
+validate_id(field).map_err(|e| format!("Admission.expected_implementation_version: {e}"))?;
+if let Some(field) = &value.expected_implementation_digest {
+validate_digest(field).map_err(|e| format!("Admission.expected_implementation_digest: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type", content = "data", deny_unknown_fields)]
 pub enum RequestMessage {
 #[serde(rename = "hello")]
@@ -1513,7 +1544,7 @@ Hello(Hello),
 #[serde(rename = "capabilities")]
 Capabilities(Empty),
 #[serde(rename = "admit")]
-Admit(Scenario),
+Admit(Admission),
 #[serde(rename = "run")]
 Run(Run),
 #[serde(rename = "decision")]
@@ -1537,7 +1568,7 @@ pub fn validate_request_message(value: &RequestMessage) -> Result<(), String> {
 match value {
 RequestMessage::Hello(data) => validate_hello(data),
 RequestMessage::Capabilities(data) => validate_empty(data),
-RequestMessage::Admit(data) => validate_scenario(data),
+RequestMessage::Admit(data) => validate_admission(data),
 RequestMessage::Run(data) => validate_run(data),
 RequestMessage::Decision(data) => validate_decision(data),
 RequestMessage::Cancel(data) => validate_cancel(data),
@@ -1628,7 +1659,11 @@ Ok(())
 #[serde(deny_unknown_fields)]
 pub struct Completed {
 pub winner_seats: Vec<Seat>,
+pub reason: Text,
+pub initial_state_hash: Digest,
 pub final_state_hash: Digest,
+pub turns: Count,
+pub actions: Count,
 }
 
 /// Validate the generated wire constraints.
@@ -1644,8 +1679,16 @@ return Err("Completed.winner_seats length outside contract bounds".to_owned());
 for item in field {
 validate_seat(item).map_err(|e| format!("Completed.winner_seats: {e}"))?;
 }
+let field = &value.reason;
+validate_text(field).map_err(|e| format!("Completed.reason: {e}"))?;
+let field = &value.initial_state_hash;
+validate_digest(field).map_err(|e| format!("Completed.initial_state_hash: {e}"))?;
 let field = &value.final_state_hash;
 validate_digest(field).map_err(|e| format!("Completed.final_state_hash: {e}"))?;
+let field = &value.turns;
+validate_count(field).map_err(|e| format!("Completed.turns: {e}"))?;
+let field = &value.actions;
+validate_count(field).map_err(|e| format!("Completed.actions: {e}"))?;
 Ok(())
 }
 
@@ -1709,6 +1752,8 @@ Outcome::Cancelled(data) => validate_empty(data),
 pub struct Admitted {
 pub admission_id: Id,
 pub scenario_digest: Digest,
+pub catalog_digest: Digest,
+pub initial_state_hash: Digest,
 }
 
 /// Validate the generated wire constraints.
@@ -1721,6 +1766,10 @@ let field = &value.admission_id;
 validate_id(field).map_err(|e| format!("Admitted.admission_id: {e}"))?;
 let field = &value.scenario_digest;
 validate_digest(field).map_err(|e| format!("Admitted.scenario_digest: {e}"))?;
+let field = &value.catalog_digest;
+validate_digest(field).map_err(|e| format!("Admitted.catalog_digest: {e}"))?;
+let field = &value.initial_state_hash;
+validate_digest(field).map_err(|e| format!("Admitted.initial_state_hash: {e}"))?;
 Ok(())
 }
 
