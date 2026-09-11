@@ -24,9 +24,11 @@ confidence. Link reasoning or chunks with `signal_link`. Record an explanation
 and appropriate dismiss/snooze action for refuted claims.
 
 Use `signal_pending` and lifecycle responses to determine surfacing. Promote
-actionable signals to backlog with `signal_promote` when the requested triage
-scope authorizes it; otherwise surface the concrete recommendation. Respect
-native confidence/lifecycle gates. Promotion never starts implementation.
+validated actionable signals under the charter's standing maintenance authority
+with `signal_promote`; then ensure the resulting chunk is `pending` using the
+native status tool if promotion defaults to backlog. Preserve evidence,
+dependencies and priority. Respect native confidence/lifecycle gates.
+Promotion never starts implementation.
 
 Report signal, evidence, recorded transition, and next candidate. Do not repeat
 unchanged non-actionable feedback, reset ship state, open another store, or

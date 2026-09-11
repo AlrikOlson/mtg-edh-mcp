@@ -18,6 +18,18 @@ before choosing commands. Use the host's available web search and page-open
 tools for current external API documentation and prior art. Installed versions
 remain the target; legacy search tool names describe a capability.
 
+## Project prime directive
+
+Read `docs/ENGINE-CHARTER.md` before substantial work. It is the durable project
+prime directive for full any-Commander game simulation through MCP, not a
+`/goal` task. Autonomously reconcile the roadmap before planning and closing
+each unit as code, rules, catalog and evidence change. Add, split, merge,
+reprioritize and correct dependencies with evidence; preserve history and
+existing work. Keep planned unfinished work and discoveries pending, never in
+backlog. Dependencies and explicit blocker metadata describe readiness.
+Always review canonical ownership, consumers, reuse, invariants and removal
+of overlap. Respect requested implementation scope and loop bounds.
+
 ## State and evidence
 
 - The native roadmap is authoritative and execution tasks live in `ship_plan`.

@@ -18,6 +18,13 @@ Use the skill matching the user’s request:
   the requested scope, without implementing the resulting features.
 - `/init`: tailor project configuration without starting implementation.
 
+Read `docs/ENGINE-CHARTER.md` for the standing any-Commander simulation prime
+directive. Maintain the native roadmap autonomously before planning and before
+closing substantial work; keep new planned work pending with evidence,
+dependencies and priority. Always record architecture, ownership, reuse and
+migration decisions. This maintenance authority applies across skills and is
+distinct from implementation authorization.
+
 A manual fix, review, configuration task, or planning discussion does not
 itself authorize starting a roadmap chunk or an implementation loop. Preserve
 unrelated user changes and active work. Store iteration narrative in native

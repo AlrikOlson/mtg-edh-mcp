@@ -1,8 +1,8 @@
 # Agent Instructions
 
-## Standing engine mission
+## Project prime directive
 
-Read [docs/ENGINE-CHARTER.md](docs/ENGINE-CHARTER.md) before planning or changing this project. It defines the standing integration goal, canonical ownership, no-duplication rule, migration requirements and MVP release gates. Every unit must record an architecture/reuse review and verify that it preserves one production owner per decision. The native roadmap holds the execution plan; preserve its history and existing user work.
+Read [docs/ENGINE-CHARTER.md](docs/ENGINE-CHARTER.md) before planning or changing this project. The prime directive is full-game simulation for any Commander-legal deck through MCP and the single canonical Rust engine. The fixture and Muldrotha milestones do not complete it. Maintain the native roadmap autonomously as evidence changes: add, split, merge, reorder and correct work within this directive; keep all planned unfinished work and discoveries pending, never in backlog. Before and after every substantial unit, record architecture, ownership, reuse, migration and independent acceptance evidence. Preserve native history, active work and user changes. This is project policy, not a `/goal` task; respect each invocation's implementation bounds.
 
 ## Project tools
 

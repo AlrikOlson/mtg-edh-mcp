@@ -1,8 +1,8 @@
 # mtg-edh-mcp
 
-## Standing engine mission
+## Project prime directive
 
-Read [docs/ENGINE-CHARTER.md](docs/ENGINE-CHARTER.md) before planning or changing this project. It defines the standing integration goal, canonical ownership, no-duplication rule, migration requirements and MVP release gates. Every unit must record an architecture/reuse review and verify that it preserves one production owner per decision. The native roadmap holds the execution plan; preserve its history and existing user work.
+Read [docs/ENGINE-CHARTER.md](docs/ENGINE-CHARTER.md) before planning or changing this project. The prime directive is full-game simulation for any Commander-legal deck through MCP and the single canonical Rust engine. The fixture and Muldrotha milestones do not complete it. Maintain the native roadmap autonomously as evidence changes: add, split, merge, reorder and correct work within this directive; keep all planned unfinished work and discoveries pending, never in backlog. Before and after every substantial unit, record architecture, ownership, reuse, migration and independent acceptance evidence. Preserve native history, active work and user changes. This is project policy, not a `/goal` task; respect each invocation's implementation bounds.
 
 ## Quick Start
 
@@ -14,22 +14,9 @@ npx tsc --noEmit && npm test && npm run lint
 
 ## Workflow — Plan, Execute, Verify
 
-Every change follows this strict loop. No exceptions. The roadmap, the plan and the gates live in think-and-ship (the `roadmap_*` / `ship_*` / `think_*` / `signal_*` tools on the `magistr` MCP server); `ROADMAP.md` is a generated view.
+The project skills and their runtime contract own the exact lifecycle for the requested work. Use native Magistr reasoning, roadmap and execution state, Workbench grounding and verified edits, applicable recorded quality gates and an atomic scoped commit. Follow the matching skill's completion order; do not duplicate or reinterpret its lifecycle here.
 
-1. **PLAN** — `roadmap_next` picks the chunk; read the codebase; `ship_set_objective` + `ship_plan` before touching source files; open a `think_record_step`.
-2. **EXECUTE** — Implement with TDD (red-green-refactor). Follow `.claude/rules/conventions.md`.
-3. **VERIFY** — All four steps are mandatory, in order:
-   - Run quality gates: `npx tsc --noEmit && npm test && npm run lint` — recorded through `ship_check`
-   - **Update the roadmap** — `roadmap_complete_chunk` for what you implemented, `roadmap_add_chunk` for anything new
-   - **Commit** — one atomic commit per chunk
-   - **Close** — `ship_finalize` and a closing `think_record_step`
-
-**These rules are NON-NEGOTIABLE:**
-
-- You MUST update the roadmap after every piece of work — no work is invisible
-- You MUST commit at the end — uncommitted work is unfinished work
-- You MUST pass quality gates before committing — no broken commits
-- You MUST plan before executing — reading first, coding second
+Apply the charter's autonomous roadmap maintenance before planning and before closing substantial work. Keep architecture and reuse review active, preserve acceptance and history, and ensure new planned work is pending with dependencies and priority. Planning authority does not start implementation or an unbounded loop. Native roadmap state is authoritative; export a view only when project policy requests it.
 
 ## Skills
 

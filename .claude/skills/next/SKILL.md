@@ -68,8 +68,10 @@ for delegation; the coordinating session owns shared ship state and file scope.
    without recording or close the chunk anyway.
 3. Complete verification with artifact and check references. Complete the chunk
    using `roadmap_complete_chunk` with its real `task:<verification-id>` ship
-   reference. Record discoveries as `backlog` unless the user authorized another
-   status. Update descriptions if the delivered scope changed.
+   reference. Keep discoveries `pending` under the charter's prime directive.
+   Autonomously reconcile descriptions, priorities and dependencies with new
+   evidence, preserving ownership and acceptance. Split oversized follow-up
+   work into independently verifiable units; do not start the next chunk.
 4. Finalize with `ship_finalize` and record a closing `think_record_step`.
    Inspect both responses; any refusal leaves the iteration incomplete.
    Recover supported lifecycle context before treating a refusal as a blocker.

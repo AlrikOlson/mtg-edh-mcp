@@ -1,14 +1,32 @@
 # Canonical MTG Engine Charter
 
-Adopted 2026-09-09 by explicit user direction; native mission decision: `think:287`.
+Adopted 2026-09-09; expanded by explicit user direction on 2026-09-11. Native prime-directive decision: `think:337`; prior mission history remains at `think:287`.
 
-## Standing mission
+## Project prime directive
 
-Incorporate the existing `mtg-game-engine` into `mtg-edh-mcp` as the single canonical gameplay implementation. Improve the engine and MCP together until a verified Commander simulation MVP is ready for local release, then expand supported gameplay and evidence-driven deckbuilding through that same architecture.
+Deliver complete, correct full-game simulation for any Commander-legal deck through `mtg-edh-mcp`, using the existing `mtg-game-engine` as the single canonical gameplay implementation. Users must be able to submit independently authored decks for an ordinary four-player Commander pod, run actual games, inspect outcomes and decisions, cancel work, replay games and compare deck revisions using engine evidence. Continue improving the engine and MCP together until this works through the installed MCP server.
+
+The internal Forest/Bears fixture, exact Muldrotha mirror pod and subsequent diverse-deck cohorts are required delivery and verification milestones. None completes the any-deck directive. Prioritize usable end-to-end MCP increments, then broaden supported gameplay through the same owners; do not let unrelated improvements displace the route to full simulation.
 
 This mission and the prohibition on duplicate production behavior are standing requirements for every agent and harness. Only an explicit user change can replace the mission or waive these constraints. Implementation decisions can evolve through evidence-backed architecture decisions; do not quietly weaken release acceptance to make a chunk pass.
 
-The native Magistr roadmap is authoritative for scope, dependencies and status. This charter defines durable ownership and release invariants; it is not a second roadmap. Superseded native plans retain their evidence and links. The `/goal` task is limited to rebuilding and finalizing this roadmap. Implementation and release work happen separately, outside `/goal`; the long-term integration mission remains the roadmap's destination.
+The native Magistr roadmap is authoritative for scope, dependencies and status. This charter defines durable ownership and release invariants; it is not a second roadmap. Superseded native plans retain their evidence and links. This is a standing project prime directive, not a `/goal` task or authorization to create an API goal, background scheduler or unbounded implementation loop. Each invocation retains its requested scope: `$next` implements one ready chunk, a requested loop retains its bound, and planning refreshes do not start implementation.
+
+## Autonomous roadmap maintenance
+
+The user authorizes agents to maintain the native roadmap without repeated approval whenever evidence changes the best route to the prime directive. Before planning and before closing each substantial unit, inspect the current frontier and reconcile findings from code, tests, runtime behavior, rules, catalog changes and user feedback. Add, split, merge, rewrite, reorder and correct dependencies or status as needed; link evidence and preserve acceptance obligations, completed history and existing work. Resolve contradictions immediately instead of recording a gap only in prose.
+
+Keep all planned unfinished work and new actionable discoveries `pending`, including dependency-gated work. Use dependencies, explicit external-blocker metadata and priority to describe readiness; do not use `backlog` as a parking state. A chunk being implemented may be `in_progress`, and completion/obsolescence must remain truthful. Retain non-goal work as lower-priority pending work without letting it block the simulation path. Promotion from stakeholder signals follows native evidence/lifecycle requirements and ends in pending roadmap work.
+
+Keep the architect role active on every unit: identify the existing production owner, public and private consumers, invariants, dependency direction, reusable seams, alternatives and the migration/removal of overlap. Prefer the smallest coherent deliverable that advances actual MCP capability. Split oversized work into independently testable units before implementation. Update the plan proactively; do not change this directive, weaken correctness gates, reset another session's active work or introduce a competing engine.
+
+## Any-deck completion boundary
+
+Define each release against a dated, checksummed official Commander rules/legality snapshot and the complete corresponding Commander-legal Oracle card pool. Include all legal commander configurations and companions, every face, clause, optional choice, cost, generated object and reachable interaction. Custom cards, house rules and other formats require explicit separate scope; difficult legal cards cannot be excluded to make the denominator smaller. New cards, Oracle updates and rule/legality changes create pending requalification work and an explicit freshness boundary.
+
+Support must generalize from the canonical executable card model rather than a deck-name or fixture allowlist. Before claiming any-deck completion, the complete legal-pool census must have no unresolved behavior obligations, mixed independently authored pods must run through the installed MCP, and independent rules/interaction evidence must accompany truthful policy, operational and statistical qualification. Unsupported-card rejection is necessary during development but does not satisfy this final gate. Compilation, card ingestion, keyword recognition, a completed MCP task or a capped trial does not establish a completed game.
+
+A full simulation executes all starting procedures, ordinary turns, legal choices, stack/priority, multiplayer combat and terminal conditions through Rust. Mandatory rules draws, voluntary choices, cancellation, operational caps and engine failures remain distinct. Policies must respect hidden information and demonstrate useful play across strategies; their measured strength and limits remain explicit. Maintain and expand this evidence after release instead of treating a frozen snapshot as permanent universal coverage.
 
 ## Ownership
 
@@ -28,17 +46,17 @@ Reuse core setup and evaluation across the worker and existing engine consumers.
 
 ## Architecture review on every unit
 
-Before implementation, record the existing owner, consumers and dependencies; identify what can be reused, what must change, and which overlapping path will be removed. Keep gameplay regressions with the canonical engine and boundary tests with the adapter. Generate shared contracts instead of hand-maintaining parallel definitions.
+Before any substantial planning, implementation or review unit, record the existing owner, consumers and dependencies; identify what can be reused, what must change, and which overlapping path will be removed. Check the unit against the prime directive and update the native roadmap when the architecture or evidence changes. Keep gameplay regressions with the canonical engine and boundary tests with the adapter. Generate shared contracts instead of hand-maintaining parallel definitions.
 
 Before completion, verify that the final change preserves one owner per decision, cite independent behavioral evidence, run the applicable real gates and record an atomic scoped commit. Inventory newly discovered work in the native roadmap. Preserve unrelated user changes in both repositories and never turn a dirty checkout into undocumented release provenance.
 
 Independent reference fixtures and expected-result tests are encouraged. The prohibition concerns duplicate production truth, including shadow validators, behavior parsers, payment solvers, RNG/state machines and hidden fallback execution.
 
-## Finite MVP contract
+## Required finite MVP milestone
 
 The fixed benchmark is the exact final recorded Muldrotha deck at `~/Movies/MTG-MCP-Demo-2026-09-09/session/22-final-deck.json`: 100 physical cards, 99 library cards plus Muldrotha in the command zone, and 77 distinct Oracle identities. The baseline chunk must preserve it as a digest-verified fixture with quantities, faces, Oracle text and source snapshot. Difficult cards cannot be silently substituted or excluded.
 
-The initial pod has four independent seats using this identical deck: 400 distinct physical card instances sharing immutable definitions. Ownership, command-zone history, counters, targets, graveyards and per-object permissions must remain independent. This is real multiplayer with a bounded corpus. Diverse opponent decks are an explicit post-MVP expansion; mirror-pod results do not establish matchup strength.
+The initial pod has four independent seats using this identical deck: 400 distinct physical card instances sharing immutable definitions. Ownership, command-zone history, counters, targets, graveyards and per-object permissions must remain independent. This is real multiplayer with a bounded corpus. Diverse opponent decks are a separate required expansion milestone that can advance as shared runtime and MCP capabilities become ready; mirror-pod results do not establish matchup strength.
 
 Support must cover every required Oracle clause, face, optional choice, alternate cost and runtime-generated object, including tokens. A finite support matrix links each requirement to its canonical implementation and independent expected-result scenarios. Pin text hashes and implementation versions; changed Oracle text invalidates prior support. The baseline inventory refines mechanic chunks before implementation so no generic remaining-abilities task hides unbounded work.
 
@@ -60,7 +78,7 @@ Before benchmark execution, declare hardware, seeds, sample/seat schedule, compl
 
 Use asynchronous child-process execution with explicit arguments, bounded framing, drained output, structured diagnostics and parent-enforced termination. The Node [child-process documentation](https://nodejs.org/api/child_process.html) is the implementation reference. Never interpret imported card text as executable code or permit protocol fields to select arbitrary shell commands, files or network destinations.
 
-Cancellation must honor the negotiated host contract, including the distinction between ordinary requests and task-augmented requests in the [MCP cancellation specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation). Test races, cooperative stop, hard kill, worker crash/hang, parent disconnect, output flooding and recovery. Hosts without task support still need a usable bounded workflow.
+Cancellation must honor the selected protocol revision and host capabilities. Pin the installed SDK and real client compatibility matrix; use the [current MCP cancellation contract](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation) and preserve supported legacy behavior separately. Optional Tasks extension revisions and terminal tool errors require explicit adapters; a task status alone is not a game outcome. Test races, cooperative stop, hard kill, worker crash/hang, parent disconnect, output flooding and recovery. Hosts without task support still need a usable bounded workflow.
 
 Preserve deck intent and prior reports across failures. Use existing principal/version/storage boundaries for immutable jobs and atomic persistence; test concurrent submissions, idempotency, disk/write failure and crash recovery. Retain referenced snapshots for replay and release rollback.
 
@@ -76,7 +94,7 @@ Report wins, draws, capped/truncated trials, cancellations, unsupported inputs a
 
 Keeping the previous packaged release for rollback does not justify two active gameplay implementations in the new release.
 
-## Release acceptance
+## Required local milestone release acceptance
 
 The initial local binary target is macOS arm64. The baseline records exact Node/OS/native-addon versions; any additional advertised platform must pass native installed acceptance, not merely cross-compile. A clean installed package must run the fixed snapshot without Cargo/Rust, a GUI or a runtime catalog download. Document normal catalog onboarding separately.
 
@@ -94,4 +112,4 @@ The 2026-09-09 audit found a usable headless Rust core at engine HEAD `b2d9018` 
 
 Load-bearing seams are `crates/mtg-engine/src/game_state.rs` (state/RNG), `game_loop.rs` (priority/error handling), `cards/card_factory.rs` and `cards/coverage.rs` (partial behavior/heuristic coverage), `casting/mod.rs` (casting zones), and the desktop's `commands/play.rs` (two-player/commander-in-hand setup). MCP migration starts from `src/analyze/manaSequence.ts`, `manaModel.ts`, `sim.ts` and `src/server/analyzeTools.ts`, while retaining canonical card/deck services.
 
-After MVP acceptance, continue through measured diverse decks, broader mechanics and interactions, current rules/discovery evidence, richer inventory/acquisition and proposals, durable data operations and proven host capabilities. Each expansion follows the same ownership and conformance rules. New evidence may refine the native dependency graph; it cannot silently erase the mission, difficult benchmark requirements or no-duplication constraint.
+After MVP acceptance, continue toward any-deck completion through complete legal-pool census and qualification, measured diverse decks, broader mechanics and interactions, current rules evidence, general policies and installed MCP acceptance. Inventory, acquisition, other formats and unrelated host features stay behind this prime directive. Each expansion follows the same ownership and conformance rules. New evidence may refine the native dependency graph; it cannot silently erase the mission, difficult benchmark requirements or no-duplication constraint.
