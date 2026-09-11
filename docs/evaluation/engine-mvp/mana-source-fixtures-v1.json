@@ -1,0 +1,1708 @@
+{
+  "version": 1,
+  "provenance": "Independent expected resources authored from frozen corpus-v1 Oracle clauses, existing MCP dual/Signet reference tests and CR 106/118/302/605. Primitive-only cases do not assert complete card binding.",
+  "cases": [
+    {
+      "id": "basic-green",
+      "sources": [
+        {
+          "id": "forest",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["forest"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "basic-black",
+      "sources": [
+        {
+          "id": "swamp",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Black"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{B}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["swamp"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "basic-blue",
+      "sources": [
+        {
+          "id": "island",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["island"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "basic-wrong-color",
+      "sources": [
+        {
+          "id": "forest",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "tapped-source",
+      "sources": [
+        {
+          "id": "forest",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": true,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "one-dual-not-two",
+      "sources": [
+        {
+          "id": "dual",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "two-physical-duals",
+      "sources": [
+        {
+          "id": "dual",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        },
+        {
+          "id": "second",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["dual", "second"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 2,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "three-color-exclusive",
+      "sources": [
+        {
+          "id": "palace",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Black"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{B}{G}{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "three-color-choice",
+      "sources": [
+        {
+          "id": "palace",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Black"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{B}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["palace"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "any-color-choice",
+      "sources": [
+        {
+          "id": "scout",
+          "card_type": "Creature",
+          "opponent": false,
+          "tapped": false,
+          "haste": true,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["White"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Black"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Red"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{W}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["scout"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "one-colorless",
+      "sources": [
+        {
+          "id": "stone",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": [null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{C}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["stone"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "ring-excess",
+      "sources": [
+        {
+          "id": "ring",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": [null, null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{1}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["ring"],
+        "graveyard": [],
+        "pool": [
+          {
+            "mana": [null],
+            "restriction": "Unrestricted"
+          }
+        ],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "ring-not-colored",
+      "sources": [
+        {
+          "id": "ring",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": [null, null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "signet-not-self-funded",
+      "sources": [
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{1}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue", "Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "signet-fee-before-output",
+      "sources": [
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{1}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue", "Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        },
+        {
+          "id": "feeder",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": [null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["signet", "feeder"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 2,
+        "activation_order": ["feeder", "signet"]
+      }
+    },
+    {
+      "id": "fee-color-backtracking",
+      "sources": [
+        {
+          "id": "filter",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{1}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green", "Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [
+        {
+          "mana": ["Blue", "Red"],
+          "restriction": "Unrestricted"
+        }
+      ],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}{G}{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["filter"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "ordered-source-chain",
+      "sources": [
+        {
+          "id": "filter",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{U}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green", "Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        },
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{1}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue", "Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        },
+        {
+          "id": "feeder",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": [null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}{G}{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["filter", "signet", "feeder"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 3,
+        "activation_order": ["feeder", "signet", "filter"]
+      }
+    },
+    {
+      "id": "restricted-creature-surplus",
+      "sources": [
+        {
+          "id": "restricted",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green", "Green"],
+                  "restriction": {
+                    "SpellType": "Creature"
+                  }
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": ["Creature"],
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["restricted"],
+        "graveyard": [],
+        "pool": [
+          {
+            "mana": ["Green"],
+            "restriction": {
+              "SpellType": "Creature"
+            }
+          }
+        ],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "restricted-not-artifact",
+      "sources": [
+        {
+          "id": "restricted",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green", "Green"],
+                  "restriction": {
+                    "SpellType": "Creature"
+                  }
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": ["Artifact"],
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "restricted-not-activation-fee",
+      "sources": [
+        {
+          "id": "restricted",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green", "Green"],
+                  "restriction": {
+                    "SpellType": "Creature"
+                  }
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        },
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{1}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue", "Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}{G}",
+      "spell_types": ["Creature"],
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "ability-restriction-funds-signet",
+      "sources": [
+        {
+          "id": "ability",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": [null, null],
+                  "restriction": "ActivatedAbility"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        },
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{1}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue", "Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["ability", "signet"],
+        "graveyard": [],
+        "pool": [
+          {
+            "mana": [null],
+            "restriction": "ActivatedAbility"
+          }
+        ],
+        "life": 20,
+        "production_events": 2,
+        "activation_order": ["ability", "signet"]
+      }
+    },
+    {
+      "id": "restricted-floating-not-bare-payment",
+      "sources": [],
+      "initial_pool": [
+        {
+          "mana": ["Green"],
+          "restriction": {
+            "SpellType": "Creature"
+          }
+        }
+      ],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "new-creature-ineligible",
+      "sources": [
+        {
+          "id": "elf",
+          "card_type": "Creature",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "creature-next-own-turn",
+      "sources": [
+        {
+          "id": "elf",
+          "card_type": "Creature",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 2,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["elf"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "creature-haste",
+      "sources": [
+        {
+          "id": "elf",
+          "card_type": "Creature",
+          "opponent": false,
+          "tapped": false,
+          "haste": true,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["elf"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "wrong-controller",
+      "sources": [
+        {
+          "id": "forest",
+          "card_type": "Land",
+          "opponent": true,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "treasure-spent-once",
+      "sources": [
+        {
+          "id": "treasure",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": true,
+              "outputs": [
+                {
+                  "mana": ["White"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Black"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Red"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{R}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": [],
+        "graveyard": ["treasure"],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": ["treasure"]
+      }
+    },
+    {
+      "id": "treasure-cannot-double-spend",
+      "sources": [
+        {
+          "id": "treasure",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": true,
+              "outputs": [
+                {
+                  "mana": ["White"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Black"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Red"],
+                  "restriction": "Unrestricted"
+                },
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{2}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "life-sacrifice",
+      "sources": [
+        {
+          "id": "battery",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 2,
+              "tap": false,
+              "sacrifice": true,
+              "outputs": [
+                {
+                  "mana": [null, null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{2}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": [],
+        "graveyard": ["battery"],
+        "pool": [],
+        "life": 18,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "life-sacrifice-rollback",
+      "sources": [
+        {
+          "id": "battery",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 2,
+              "tap": false,
+              "sacrifice": true,
+              "outputs": [
+                {
+                  "mana": [null, null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{3}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "tap-then-sacrifice",
+      "sources": [
+        {
+          "id": "two-modes",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": [null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            },
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": false,
+              "sacrifice": true,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{C}{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": [],
+        "graveyard": ["two-modes"],
+        "pool": [],
+        "life": 20,
+        "production_events": 2,
+        "activation_order": ["two-modes", "two-modes"]
+      }
+    },
+    {
+      "id": "orchard-tapped-opponent",
+      "sources": [
+        {
+          "id": "orchard",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "OpponentLandColors"
+        },
+        {
+          "id": "their-forest",
+          "card_type": "Land",
+          "opponent": true,
+          "tapped": true,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["orchard", "their-forest"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": ["orchard"]
+      }
+    },
+    {
+      "id": "orchard-not-colorless",
+      "sources": [
+        {
+          "id": "orchard",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "OpponentLandColors"
+        },
+        {
+          "id": "their-wastes",
+          "card_type": "Land",
+          "opponent": true,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": [null],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{C}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "orchard-ungrounded-cycle",
+      "sources": [
+        {
+          "id": "orchard",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "OpponentLandColors"
+        },
+        {
+          "id": "theirs",
+          "card_type": "Land",
+          "opponent": true,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "OpponentLandColors"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": null
+    },
+    {
+      "id": "orchard-grounded-cycle",
+      "sources": [
+        {
+          "id": "orchard",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "OpponentLandColors"
+        },
+        {
+          "id": "theirs",
+          "card_type": "Land",
+          "opponent": true,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "OpponentLandColors"
+        },
+        {
+          "id": "forest",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": true,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Green"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["orchard", "forest"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "pool-ignores-fees-and-restrictions",
+      "sources": [
+        {
+          "id": "pool",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "ControlledLandTypes"
+        },
+        {
+          "id": "filter",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": true,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{9}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue"],
+                  "restriction": {
+                    "SpellType": "Creature"
+                  }
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "expected": {
+        "tapped": ["pool", "filter"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    }
+  ]
+}

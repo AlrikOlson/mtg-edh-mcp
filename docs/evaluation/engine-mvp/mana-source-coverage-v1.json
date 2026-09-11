@@ -1,0 +1,566 @@
+{
+  "version": 1,
+  "scope": "primitive-conformance-only",
+  "cards": [
+    {
+      "oracle_id": "04b7362d-0490-4cb0-b5d7-2a7732f659ce",
+      "name": "Bojuka Bog",
+      "oracle_text": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 24
+        },
+        {
+          "face_index": 0,
+          "start": 25,
+          "end": 80
+        },
+        {
+          "face_index": 0,
+          "start": 81,
+          "end": 94
+        }
+      ],
+      "scenario_refs": ["basic-black", "tapped-source"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind tapped entry and the exact black mana clause."
+        },
+        {
+          "owner": "engine-mvp-zones",
+          "requirement": "Bind targeted graveyard-exile entry trigger through the shared event/target owner."
+        }
+      ]
+    },
+    {
+      "oracle_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+      "name": "Command Tower",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 66
+        }
+      ],
+      "scenario_refs": ["three-color-exclusive", "three-color-choice"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-commander",
+          "requirement": "Supply established Commander color identity across zones; empty identity yields no colors."
+        },
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind the output choices to that identity; the supplied BGU fixture is not runtime Commander identity."
+        }
+      ]
+    },
+    {
+      "oracle_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+      "name": "Arcane Signet",
+      "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 66
+        }
+      ],
+      "scenario_refs": ["three-color-exclusive", "three-color-choice", "one-colorless"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-commander",
+          "requirement": "Supply established Commander color identity across zones."
+        },
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind identity-derived alternatives, casting cost and noncreature immediate eligibility; a generic Signet fee fixture is not Arcane Signet behavior."
+        }
+      ]
+    },
+    {
+      "oracle_id": "2549bc57-9ffb-4053-9f10-f2a5f792b845",
+      "name": "Myriad Landscape",
+      "oracle_text": "This land enters tapped.\n{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Search your library for up to two basic land cards that share a land type, put them onto the battlefield tapped, then shuffle.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 24
+        },
+        {
+          "face_index": 0,
+          "start": 25,
+          "end": 38
+        },
+        {
+          "face_index": 0,
+          "start": 39,
+          "end": 196
+        }
+      ],
+      "scenario_refs": ["one-colorless", "tapped-source", "tap-then-sacrifice"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind tapped entry and distinct {2}, tap, sacrifice library search; its tap cannot also pay that ability."
+        },
+        {
+          "owner": "engine-mvp-zones",
+          "requirement": "Search physical basics sharing a land type, allow shortfalls, place tapped and shuffle through ordinary stack execution."
+        }
+      ]
+    },
+    {
+      "oracle_id": "27b047e3-0d41-45e2-98e9-9391d7923a1e",
+      "name": "Exotic Orchard",
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 78
+        }
+      ],
+      "scenario_refs": [
+        "orchard-tapped-opponent",
+        "orchard-not-colorless",
+        "orchard-ungrounded-cycle",
+        "orchard-grounded-cycle"
+      ],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind potential production including applicable replacements."
+        },
+        {
+          "owner": "engine-mvp-multiplayer",
+          "requirement": "Extend current opponents to four seats and remove eliminated players from the relevant set."
+        }
+      ]
+    },
+    {
+      "oracle_id": "32116127-cf96-4a1b-8896-a1ebc087b597",
+      "name": "Llanowar Wastes",
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {B} or {G}. This land deals 1 damage to you.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 13
+        },
+        {
+          "face_index": 0,
+          "start": 14,
+          "end": 67
+        }
+      ],
+      "scenario_refs": ["one-colorless", "one-dual-not-two", "two-physical-duals"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind C versus B/G and deal one damage after colored production via the canonical damage/prevention pipeline, never PayLife; activation at one life is legal."
+        }
+      ]
+    },
+    {
+      "oracle_id": "3f3b2c10-21f8-4e13-be83-4ef3fa36e123",
+      "name": "Elvish Mystic",
+      "oracle_text": "{T}: Add {G}.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 13
+        }
+      ],
+      "scenario_refs": [
+        "basic-green",
+        "new-creature-ineligible",
+        "creature-next-own-turn",
+        "creature-haste",
+        "wrong-controller"
+      ],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind the exact green creature ability and casting cost through existing control/eligibility and casting owners."
+        }
+      ]
+    },
+    {
+      "oracle_id": "40b36bc6-c185-4bda-99e7-0118953c2c97",
+      "name": "Yavimaya Coast",
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {G} or {U}. This land deals 1 damage to you.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 13
+        },
+        {
+          "face_index": 0,
+          "start": 14,
+          "end": 67
+        }
+      ],
+      "scenario_refs": ["one-colorless", "one-dual-not-two", "two-physical-duals"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind C versus G/U with one damage after colored production, prevention/replacement and proper state-based checkpoint; never substitute a life cost."
+        }
+      ]
+    },
+    {
+      "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+      "name": "Swamp",
+      "oracle_text": "({T}: Add {B}.)",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 15
+        }
+      ],
+      "scenario_refs": ["basic-black", "tapped-source"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind intrinsic subtype mana, normal land-play timing/allowance and effect-driven tapped placement."
+        }
+      ]
+    },
+    {
+      "oracle_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+      "name": "Llanowar Elves",
+      "oracle_text": "{T}: Add {G}.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 13
+        }
+      ],
+      "scenario_refs": [
+        "basic-green",
+        "new-creature-ineligible",
+        "creature-next-own-turn",
+        "creature-haste"
+      ],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind exact green creature ability/casting cost through shared source and casting owners."
+        }
+      ]
+    },
+    {
+      "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+      "name": "Sol Ring",
+      "oracle_text": "{T}: Add {C}{C}.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 16
+        }
+      ],
+      "scenario_refs": ["ring-excess", "ring-not-colored"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind exact simultaneous CC clause, casting cost and phase-boundary pool clearing to canonical owners."
+        }
+      ]
+    },
+    {
+      "oracle_id": "857febd9-cdd7-4f8e-a852-d88084b0cfbc",
+      "name": "Underground River",
+      "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {B}. This land deals 1 damage to you.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 13
+        },
+        {
+          "face_index": 0,
+          "start": 14,
+          "end": 67
+        }
+      ],
+      "scenario_refs": ["one-colorless", "one-dual-not-two", "two-physical-duals"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind C versus U/B and mandatory one damage after colored production; use damage events, prevention and state-based checkpoints, not a life cost."
+        }
+      ]
+    },
+    {
+      "oracle_id": "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+      "name": "Fellwar Stone",
+      "oracle_text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 78
+        }
+      ],
+      "scenario_refs": [
+        "orchard-tapped-opponent",
+        "orchard-not-colorless",
+        "orchard-grounded-cycle"
+      ],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind the shared opponent-color query to this artifact and its casting cost, including applicable replacements."
+        },
+        {
+          "owner": "engine-mvp-multiplayer",
+          "requirement": "Use current opponents and elimination across four seats."
+        }
+      ]
+    },
+    {
+      "oracle_id": "9a39ca64-e1a9-42ef-8efd-6aa3edde3d93",
+      "name": "Molt Tender",
+      "oracle_text": "{T}: Mill a card. (Put the top card of your library into your graveyard.)\n{T}, Exile a card from your graveyard: Add one mana of any color.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 73
+        },
+        {
+          "face_index": 0,
+          "start": 74,
+          "end": 139
+        }
+      ],
+      "scenario_refs": ["any-color-choice", "new-creature-ineligible"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-cost-choices",
+          "requirement": "Select and exile one exact card already in the controller's graveyard as an activation cost; this cost is not represented by the tap-only fixture."
+        },
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind distinct tap-to-mill and tap-plus-exile-for-mana abilities; never use one physical tap for both."
+        },
+        {
+          "owner": "engine-mvp-zones",
+          "requirement": "Emit the graveyard-leaving event and execute library movement through the ordinary ability owner."
+        }
+      ]
+    },
+    {
+      "oracle_id": "aef4ab0e-c81f-428c-ab23-64504a9fb989",
+      "name": "Kheru Goldkeeper",
+      "oracle_text": "Flying\nWhenever one or more cards leave your graveyard during your turn, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nRenew — {2}{B}{G}{U}, Exile this card from your graveyard: Put two +1/+1 counters and a flying counter on target creature. Activate only as a sorcery.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 6
+        },
+        {
+          "face_index": 0,
+          "start": 7,
+          "end": 177
+        },
+        {
+          "face_index": 0,
+          "start": 178,
+          "end": 328
+        }
+      ],
+      "scenario_refs": ["treasure-spent-once", "treasure-cannot-double-spend"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-combat-objects",
+          "requirement": "Create canonical Treasure token objects with tap/sacrifice any-color ability and token state-based cleanup."
+        },
+        {
+          "owner": "engine-mvp-graveyard",
+          "requirement": "Bind own-turn graveyard-departure trigger and renew exile cost."
+        },
+        {
+          "owner": "engine-mvp-layers",
+          "requirement": "Bind flying, +1/+1 and flying counters; the fixture represents Treasure activation resources, not the Goldkeeper card."
+        }
+      ]
+    },
+    {
+      "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
+      "name": "Island",
+      "oracle_text": "({T}: Add {U}.)",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 15
+        }
+      ],
+      "scenario_refs": ["basic-blue", "basic-wrong-color", "tapped-source"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind intrinsic mana, normal play allowance and fetched tapped placement."
+        }
+      ]
+    },
+    {
+      "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+      "name": "Forest",
+      "oracle_text": "({T}: Add {G}.)",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 15
+        }
+      ],
+      "scenario_refs": ["basic-green", "basic-wrong-color", "tapped-source"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind intrinsic mana, normal play allowance and fetched tapped placement."
+        }
+      ]
+    },
+    {
+      "oracle_id": "c97361b5-af16-4a7b-af85-a429dbaf4ad2",
+      "name": "Mind Stone",
+      "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 13
+        },
+        {
+          "face_index": 0,
+          "start": 14,
+          "end": 61
+        }
+      ],
+      "scenario_refs": ["one-colorless", "signet-fee-before-output"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind casting cost and separate mana versus {1}, tap, sacrifice draw activation; it cannot supply its own reserved tap."
+        },
+        {
+          "owner": "engine-mvp-effects",
+          "requirement": "Resolve draw through the ordinary stack owner; do not classify that library-moving effect as a mana ability."
+        }
+      ]
+    },
+    {
+      "oracle_id": "c9fe1383-1331-4a58-a45a-3320250221a9",
+      "name": "Woodland Cemetery",
+      "oracle_text": "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 63
+        },
+        {
+          "face_index": 0,
+          "start": 64,
+          "end": 84
+        }
+      ],
+      "scenario_refs": ["one-dual-not-two", "two-physical-duals", "tapped-source"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind B/G alternatives and entry-time Swamp-or-Forest subtype condition; output colors do not establish basic land subtype."
+        }
+      ]
+    },
+    {
+      "oracle_id": "d38646dc-d1ea-473c-aaf1-df8ba327459f",
+      "name": "Trailtracker Scout",
+      "oracle_text": "{T}: Add one mana of any color.\nWhenever you expend 8, return up to one target permanent card from your graveyard to your hand. (You expend 8 as you spend your eighth total mana to cast spells during a turn.)",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 31
+        },
+        {
+          "face_index": 0,
+          "start": 32,
+          "end": 208
+        }
+      ],
+      "scenario_refs": ["any-color-choice", "new-creature-ineligible", "creature-haste"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind exact any-color creature activation."
+        },
+        {
+          "owner": "engine-mvp-cost-choices",
+          "requirement": "Count only actual mana spent casting toward expend eight."
+        },
+        {
+          "owner": "engine-mvp-effects",
+          "requirement": "Bind optional graveyard-permanent target and expend trigger, excluding activated payments."
+        }
+      ]
+    },
+    {
+      "oracle_id": "df317532-7d36-40fd-938f-e972749c8792",
+      "name": "Fyndhorn Elves",
+      "oracle_text": "{T}: Add {G}.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 13
+        }
+      ],
+      "scenario_refs": ["basic-green", "new-creature-ineligible", "creature-next-own-turn"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind exact green creature mana and casting cost; reuse shared current-control eligibility."
+        }
+      ]
+    },
+    {
+      "oracle_id": "f9e7e855-1e3b-42d3-91b0-64ba8b5b8982",
+      "name": "Opulent Palace",
+      "oracle_text": "This land enters tapped.\n{T}: Add {B}, {G}, or {U}.",
+      "spans": [
+        {
+          "face_index": 0,
+          "start": 0,
+          "end": 24
+        },
+        {
+          "face_index": 0,
+          "start": 25,
+          "end": 51
+        }
+      ],
+      "scenario_refs": ["three-color-exclusive", "three-color-choice", "tapped-source"],
+      "remaining_bindings": [
+        {
+          "owner": "engine-mvp-lands",
+          "requirement": "Bind exact B/G/U alternatives and unconditional tapped entry; preserve nonbasic identity."
+        }
+      ]
+    }
+  ]
+}
