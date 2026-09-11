@@ -21,7 +21,7 @@ const WUBRG: readonly Color[] = ["W", "U", "B", "R", "G"];
 /** A command-zone-relevant ability detected on a card (CR 702.124a). */
 type PartnerKind = "partner" | "partner_text" | "partner_with" | "doctors_companion";
 
-interface CommanderShape {
+export interface CommanderShape {
   partner?: PartnerKind;
   /** The named partner, when the card has "Partner with [name]". */
   partnerName?: string;
@@ -46,6 +46,11 @@ function creatureTypes(typeLine: string): string[] {
     .replace(/\bTime Lord\b/g, "Time_Lord")
     .split(/\s+/)
     .map((t) => t.replace("Time_Lord", "Time Lord"));
+}
+
+/** Command-zone ability shape of a card's front face (CR 702.124); the census reuses it. */
+export function commanderShape(card: Card): CommanderShape {
+  return classify(card);
 }
 
 function classify(card: Card): CommanderShape {

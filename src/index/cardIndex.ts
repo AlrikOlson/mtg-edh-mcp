@@ -9,7 +9,15 @@
 import { lstat, open } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
-import type { Card, CardRef, Color, Prices, Printing, RefColorIdentity } from "../types/index.js";
+import type {
+  Card,
+  CardRef,
+  Color,
+  Legality,
+  Prices,
+  Printing,
+  RefColorIdentity,
+} from "../types/index.js";
 import type { QueryNode } from "../query/index.js";
 import { streamCardArray, VersionedStore } from "../ingest/index.js";
 import { CARD_INDEX_VERSION, SCHEMA_SQL } from "./schema.js";
@@ -403,6 +411,27 @@ export class CardIndex {
 
   count(): number {
     return (this.state.countStmt.get() as { n: number }).n;
+  }
+
+  /**
+   * Visit every card with the given Commander legality once, in oracle_id order,
+   * inside one read snapshot. Evaluation census seam over the stored §4 Card
+   * (printings are not joined); it performs no gameplay classification itself.
+   */
+  forEachCommanderLegality(status: Legality, visit: (card: Card) => void): number {
+    return this.withRead(() => {
+      const rows = this.state.db
+        .prepare<[string]>(
+          `SELECT card FROM cards WHERE legalities_commander = ? ORDER BY oracle_id`,
+        )
+        .iterate(status) as IterableIterator<{ card: string }>;
+      let visited = 0;
+      for (const row of rows) {
+        visit(JSON.parse(row.card) as Card);
+        visited += 1;
+      }
+      return visited;
+    });
   }
 
   /**
