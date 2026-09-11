@@ -57,7 +57,15 @@
       "format": {
         "extensions": ["ts", "tsx", "js", "jsx", "json", "css", "md"],
         "command": "npx prettier --write --ignore-path .gitignore {file}",
-        "exclusions": ["node_modules", "dist", "build", ".next", "coverage"]
+        "exclusions": [
+          "node_modules",
+          "dist",
+          "build",
+          ".next",
+          "coverage",
+          "engine/contract",
+          "src/engine/protocol.generated.ts"
+        ]
       },
       "testing": {
         "companion_pattern": "{name}.test.{ext}",
