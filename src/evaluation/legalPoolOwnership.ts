@@ -582,7 +582,7 @@ export interface QualifiedEvidence {
   readonly engine_revision: string;
 }
 
-const CORE_SUPPORT_REVISION = "bcb9a0292ab78035b9cc1e65ec21c8b2c2270643";
+const CORE_SUPPORT_REVISION = "3030792528fe0b25087191d39b9835f118bd7a77";
 const BASIC_MANA_IMPLEMENTATION =
   "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability";
 const BASIC_MANA_EVIDENCE = "tests/strict_support.rs::intrinsic_basic_mana";
