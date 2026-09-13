@@ -9,7 +9,8 @@ import type { DeckPlanRequest, DeckPlanValidation } from "../types/deckPlan.js";
 import { commanderColorIdentity } from "../validate/commanderRules.js";
 import { companionRuleCoverage, isCompanionCard } from "../validate/companionRules.js";
 import { validateDeck } from "../validate/validateDeck.js";
-import { copyLimit, normalizeConstruction } from "./construction.js";
+import { normalizeConstruction } from "./construction.js";
+import { copyLimit } from "../validate/coreRules.js";
 
 const counts = (entries: readonly DeckCardEntry[]): Map<string, number> => {
   const result = new Map<string, number>();
@@ -165,7 +166,7 @@ export function prepareDeckChange(
         "/cards",
         `${card.name} has ${card.legalities.commander ?? "unknown"} Commander legality.`,
       );
-    const limit = copyLimit(card);
+    const limit = copyLimit(card).max;
     if (limit === null)
       add(
         "COPY_LIMIT_UNRESOLVED",

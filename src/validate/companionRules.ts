@@ -183,6 +183,11 @@ const COMPANION_RULES: Record<string, CompanionRule> = {
   "Yorion, Sky Nomad": yorionRule,
 };
 
+/** Companions whose deckbuilding condition this authority models, for evidence tracking. */
+export function modeledCompanionNames(): string[] {
+  return Object.keys(COMPANION_RULES).sort();
+}
+
 /**
  * Validate the declared companion's deckbuilding condition over the deck's
  * starting cards (the commanders + the 99, excluding the companion itself).

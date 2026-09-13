@@ -7,6 +7,7 @@ import { z } from "zod";
 import { CardIndex, DEFAULT_INDEX_NAME } from "../index/cardIndex.js";
 import { DEFAULT_DATA_ROOT, freshnessConfigFromEnv } from "../index/freshness.js";
 import { VersionedStore } from "../ingest/store.js";
+import { RULES_STALE_AFTER_MS, RulesStore, openCurrentRules } from "../rules/index.js";
 import {
   USER_DATA_DATABASE_NAME,
   UserDataStore,
@@ -26,6 +27,8 @@ export interface DiagnosticCheck {
   status: "ok" | "action" | "error";
   message: string;
   fix?: string;
+  /** Structured provenance for evidence corpora (versions, digests, dates). */
+  details?: Record<string, string | number | boolean | null>;
 }
 export interface DiagnosticReport {
   command: "setup" | "doctor";
@@ -389,6 +392,66 @@ async function inspectCards(report: DiagnosticReport, options: SetupOptions): Pr
   }
 }
 
+/**
+ * Rules corpus readiness: the published Comprehensive Rules release and rulings
+ * export with their digests, effective date and age. Read-only: the store is
+ * opened through the same recovery path the server uses at boot, and staleness
+ * uses the serving window, so doctor and rules tools agree.
+ */
+async function inspectRules(report: DiagnosticReport, options: SetupOptions): Promise<void> {
+  const store = new RulesStore(report.paths.dataRoot);
+  if (!(await exists(store.pointerPath))) {
+    report.checks.push({
+      name: "rules_corpus",
+      status: "ok",
+      message:
+        "No rules corpus is stored; rules_lookup, rules_search and card_rulings report unavailable until rules_refresh publishes one.",
+      details: { version: null },
+    });
+    return;
+  }
+  try {
+    const open = await openCurrentRules(store);
+    if (!open) throw new Error("Unreadable rules corpus");
+    const rules = open.manifest.comprehensive_rules;
+    const rulings = open.manifest.rulings;
+    const retrieved = Math.min(Date.parse(rules.retrieved_at), Date.parse(rulings.retrieved_at));
+    const age = Math.max(0, (options.now?.() ?? Date.now()) - retrieved);
+    const stale = !Number.isFinite(retrieved) || age >= RULES_STALE_AFTER_MS;
+    const ageHours = Number.isFinite(retrieved) ? Math.round((age / 3_600_000) * 10) / 10 : null;
+    report.checks.push({
+      name: "rules_corpus",
+      status: stale || open.recovered_from_previous ? "action" : "ok",
+      message: `Comprehensive Rules ${rules.published_version ?? "unknown release"} (effective ${rules.effective_date ?? "unknown"}, ${rules.rule_count} rules) and ${rulings.ruling_count} rulings; ${open.recovered_from_previous ? "serving the previous version because the current one is unreadable" : "current version valid"}; ${stale ? "stale" : "fresh"}.`,
+      ...(stale || open.recovered_from_previous
+        ? {
+            fix: "Call rules_refresh to download and publish the current release and rulings export.",
+          }
+        : {}),
+      details: {
+        version: open.version,
+        effective_date: rules.effective_date,
+        published_version: rules.published_version,
+        comprehensive_rules_sha256: rules.sha256,
+        comprehensive_rules_url: rules.url,
+        rulings_sha256: rulings.sha256,
+        rulings_updated_at: rulings.updated_at,
+        age_hours: ageHours,
+        stale_after_hours: RULES_STALE_AFTER_MS / 3_600_000,
+        recovered_from_previous: open.recovered_from_previous,
+      },
+    });
+  } catch {
+    report.checks.push({
+      name: "rules_corpus",
+      status: "error",
+      message:
+        "The published rules corpus is unreadable or its digest does not match its manifest.",
+      fix: "Call rules_refresh to publish a fresh corpus version; the versions directory is preserved.",
+    });
+  }
+}
+
 /** Diagnose local state only: no networking, directories, locks, migrations, or repairs. */
 export async function runDoctor(options: SetupOptions): Promise<DiagnosticReport> {
   const report = reportFor("doctor", options);
@@ -454,5 +517,6 @@ export async function runDoctor(options: SetupOptions): Promise<DiagnosticReport
   }
   await inspectUserData(report);
   await inspectCards(report, options);
+  await inspectRules(report, options);
   return finish(report);
 }

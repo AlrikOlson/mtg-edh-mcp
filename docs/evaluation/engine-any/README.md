@@ -9,12 +9,13 @@ authoritative and nothing here executes rules or authorizes play.
 
 ## Files
 
-| File                                                     | Owner                                                              | Content                                                                                                                                                                                                                                  |
-| -------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [census-v1.json](census-v1.json)                         | `scripts/legal-pool-census.mjs` over `src/evaluation/legalPool.ts` | Snapshot, rules and vocabulary bindings, denominators, status totals, owner and family tables, keyword tables, layouts, baseline drift, banned identities, ledger digest, unresolved rows (must be empty), limitations.                  |
-| [pool-ledger-v1.jsonl](pool-ledger-v1.jsonl)             | same generator                                                     | One `[oracle_id, name, source_digest]` line per legal identity, sorted by oracle_id. The digest is the key-sorted compact JSON SHA-256 of the canonical `CardGameplay` record, identical to the Rust support registry's `source_digest`. |
-| [keyword-vocabulary-v1.json](keyword-vocabulary-v1.json) | frozen from Scryfall's catalog endpoints on 2026-09-11             | 223 keyword abilities, 79 keyword actions and 69 ability words with per-list digests. Membership classifies labels; it is never behavior evidence.                                                                                       |
-| `src/evaluation/legalPoolOwnership.ts`                   | this repository                                                    | Family → chunk owners, the nine keyword batches and the three qualified-evidence rows. A vocabulary entry outside every batch fails `npm test`.                                                                                          |
+| File                                                     | Owner                                                              | Content                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [census-v1.json](census-v1.json)                         | `scripts/legal-pool-census.mjs` over `src/evaluation/legalPool.ts` | Snapshot, rules and vocabulary bindings, denominators, status totals, owner and family tables, keyword tables, layouts, baseline drift, banned identities, ledger digest, unresolved rows (must be empty), limitations.                                                                                                                                                                                                                           |
+| [pool-ledger-v1.jsonl](pool-ledger-v1.jsonl)             | same generator                                                     | One `[oracle_id, name, source_digest]` line per legal identity, sorted by oracle_id. The digest is the key-sorted compact JSON SHA-256 of the canonical `CardGameplay` record, identical to the Rust support registry's `source_digest`.                                                                                                                                                                                                          |
+| [keyword-vocabulary-v1.json](keyword-vocabulary-v1.json) | frozen from Scryfall's catalog endpoints on 2026-09-11             | 223 keyword abilities, 79 keyword actions and 69 ability words with per-list digests. Membership classifies labels; it is never behavior evidence.                                                                                                                                                                                                                                                                                                |
+| [requalification-v1.json](requalification-v1.json)       | same generator over `src/evaluation/evidenceFreshness.ts`          | The dated update record: previous and current evidence bindings (snapshot, rules release, rulings export, vocabulary, engine pin, ledger and banned digests, qualified evidence, baseline drift, keyword labels), the construction authority's card dependencies and Game Changers membership frozen by digest, the rules-audit excerpt binding, every change between the two, invalidated evidence and the finite requalification units to file. |
+| `src/evaluation/legalPoolOwnership.ts`                   | this repository                                                    | Family → chunk owners, the nine keyword batches and the three qualified-evidence rows. A vocabulary entry outside every batch fails `npm test`.                                                                                                                                                                                                                                                                                                   |
 
 Exact Oracle text is not copied here. It stays in the immutable versioned
 snapshot named by the census (`snapshot.version`, bulk file provenance and
@@ -50,23 +51,57 @@ triggered, activated, replacement, reminder, static); a misrouted clause is
 still owned, and the eventual qualification evidence is the canonical Rust
 report, never this classifier.
 
-## Regenerating and checking
+## Updating, diffing and requalifying
 
 ```sh
-MCP_DATA_DIR="$HOME/.mtg-edh-mcp/cards" node scripts/legal-pool-census.mjs           # rewrite
-MCP_DATA_DIR="$HOME/.mtg-edh-mcp/cards" node scripts/legal-pool-census.mjs --check   # compare
+MCP_DATA_DIR="$HOME/.mtg-edh-mcp/cards" node scripts/legal-pool-census.mjs           # update
+MCP_DATA_DIR="$HOME/.mtg-edh-mcp/cards" node scripts/legal-pool-census.mjs --check   # verify
 ```
 
-The generator bundles the TypeScript owner with esbuild into `build/`, opens
-the served snapshot read-only, reads the published rules manifest and never
-reaches the network. `src/evaluation/legalPool.test.ts` always checks the
-ownership table, the digest convention against the frozen Reclamation Sage
-record, the fixture classification and baseline drift reporting; when a served
-data root exists it also regenerates the census and requires equality with the
-committed files.
+The update step reads the committed census and ledger as the previous
+evidence, regenerates the census over the served snapshot, diffs the two with
+`src/evaluation/evidenceFreshness.ts`, and writes the new census, ledger and
+`requalification-v1.json` together. The generator bundles the TypeScript
+owners with esbuild into `build/`, opens the served snapshot read-only, reads
+the published rules manifest and never reaches the network. `--check`
+regenerates and requires the committed census and ledger to match byte for
+byte and the committed requalification's `current` state to match the data
+root.
 
-A new snapshot changes the ledger, the pool digest and usually the keyword
-tables. Review the diff, assign any new vocabulary to a batch (the test fails
-until you do), file requalification work for changed identities, then commit
-the regenerated files as a new version. Do not edit the generated files by
-hand and do not narrow the denominator to make a report look better.
+What moves and what it invalidates:
+
+| Source change                            | Detected by                          | Invalidates                                                | Unit filed                                        |
+| ---------------------------------------- | ------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------- |
+| Oracle text or characteristics of a card | ledger `source_digest`               | qualified rows of that identity; construction dependencies | `pool_identities` per pending owner               |
+| New legal identity                       | ledger row added                     | nothing (rows land in their pending owners)                | `pool_identities` per pending owner               |
+| Identity banned, unbanned or removed     | ledger row removed; `banned` list    | qualified rows of a removed identity                       | recorded in `changes`; qualified rows open a unit |
+| New keyword label                        | census keyword tables                | nothing until the vocabulary batch test fails              | `pool_identities`; `vocabulary` when frozen       |
+| Comprehensive Rules release              | rules manifest `sha256`              | the frozen validator excerpt when cut from another release | `rules_release`                                   |
+| Rulings export                           | rules manifest `updated_at`/`sha256` | cited card rulings                                         | `rulings_export`                                  |
+| Frozen keyword vocabulary                | vocabulary digests                   | batch assignments (`npm test` fails until assigned)        | `vocabulary`                                      |
+| Engine source pin                        | `engine/source.json` revision        | every qualified row                                        | `engine_revision`                                 |
+| Companion or copy-exception card record  | construction dependency digest       | the validator's assumption about that card                 | `construction_dependency`                         |
+| Game Changers membership                 | policy digest                        | bracket/policy evidence                                    | `policy_membership`                               |
+| Frozen MVP baseline record               | census baseline drift                | the fixed-corpus evidence                                  | `baseline_corpus` (owner `engine-mvp-corpus`)     |
+
+`status` is `current` when the update rebinds the evidence and opens no work,
+and `requalification_required` otherwise. Units with an `owner` are absorbed
+by that pending chunk's scope; units with `owner: null` name a new chunk to
+file. Filing is the maintainer's step in the native roadmap; the report is
+the evidence, never the roadmap.
+
+`src/evaluation/legalPool.test.ts` always checks the ownership table, the
+digest convention against the frozen Reclamation Sage record, the fixture
+classification and baseline drift reporting; when a served data root exists
+it also regenerates the census and requires equality with the committed
+files. `src/evaluation/evidenceFreshness.test.ts` exercises the diff on two
+fixture snapshots (added, removed and changed identities, a new ban, a new
+keyword, a changed copy grant, a changed Game Changers list, a moved engine
+pin, a moved rules release) and requires the committed requalification to
+bind exactly the committed census.
+
+Review every diff, assign new vocabulary to a batch, file the listed units,
+then commit the regenerated files as a new version. Do not edit the generated
+files by hand and do not narrow the denominator to make a report look better.
+The previous ledger of any committed update is the file at the prior commit;
+its digest is recorded under `previous.bindings.ledger_digest`.

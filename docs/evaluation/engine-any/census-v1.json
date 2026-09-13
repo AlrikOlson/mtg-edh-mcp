@@ -1,23 +1,23 @@
 {
   "version": "legal-pool-census-v1",
   "snapshot": {
-    "version": "2026-09-11T23-06-58-054Z-3da5dfb1-cac8-4b65-8a5f-30138d0c266d",
-    "snapshot": "2026-09-11",
+    "version": "2026-09-12T21-06-22-327Z-6f10ee14-534e-4b8d-ad1e-f9eb57f4ad29",
+    "snapshot": "2026-09-12",
     "files": {
       "oracle_cards": {
         "name": "oracle_cards.jsonl",
-        "updated_at": "2026-09-11T21:01:55.052+00:00",
-        "bytes": 203428296,
-        "source_uri": "https://data.scryfall.io/oracle-cards/oracle-cards-20260911210155.jsonl.gz"
+        "updated_at": "2026-09-12T21:01:56.253+00:00",
+        "bytes": 203427753,
+        "source_uri": "https://data.scryfall.io/oracle-cards/oracle-cards-20260912210156.jsonl.gz"
       },
       "default_cards": {
         "name": "default_cards.jsonl",
-        "updated_at": "2026-09-11T21:05:43.335+00:00",
-        "bytes": 630155841,
-        "source_uri": "https://data.scryfall.io/default-cards/default-cards-20260911210543.jsonl.gz"
+        "updated_at": "2026-09-12T21:05:31.691+00:00",
+        "bytes": 630154943,
+        "source_uri": "https://data.scryfall.io/default-cards/default-cards-20260912210531.jsonl.gz"
       }
     },
-    "index_revision": "67de708410540835dda13c5efba012ae4294df007c5259bdd8be68403ab96145",
+    "index_revision": "6707adee22860d2e6f942d331804bb417eedb43a8709b9f77cfa9b19ab04ed2a",
     "identities_total": 38740,
     "legal_identities": 31830,
     "banned_identities": 83,

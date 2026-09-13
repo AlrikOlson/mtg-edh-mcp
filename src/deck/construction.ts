@@ -12,7 +12,7 @@ import type {
   ConstructionZone,
 } from "../types/construction.js";
 import { intentDiagnostics, type DeckIntent } from "./intent.js";
-import { COMMANDER_DECK_SIZE, anyNumberReason, checkColorIdentity } from "../validate/coreRules.js";
+import { COMMANDER_DECK_SIZE, checkColorIdentity, copyLimit } from "../validate/coreRules.js";
 import { commanderColorIdentity, validateCommander } from "../validate/commanderRules.js";
 import {
   isCompanionCard,
@@ -21,29 +21,6 @@ import {
 } from "../validate/companionRules.js";
 import { budgetPlan } from "../analyze/budget.js";
 import { compilePlaygroupPolicy } from "../meta/playgroupPolicy.js";
-
-export const copyLimit = (card: Card): number | null => {
-  // The shared allowlist includes bounded-copy exceptions; preserve their actual limits here.
-  const bounded = /up to (\w+) cards named/i.exec(card.oracle_text)?.[1];
-  const numbers: Record<string, number> = {
-    one: 1,
-    two: 2,
-    three: 3,
-    four: 4,
-    five: 5,
-    six: 6,
-    seven: 7,
-    eight: 8,
-    nine: 9,
-  };
-  if (bounded) {
-    const value = numbers[bounded.toLowerCase()] ?? Number(bounded);
-    return Number.isSafeInteger(value) && value >= 1 ? value : null;
-  }
-  if (card.name === "Seven Dwarves") return 7;
-  if (card.name === "Nazgûl") return 9;
-  return anyNumberReason(card) ? COMMANDER_DECK_SIZE : 1;
-};
 
 export function normalizeConstruction(
   request: ConstructionRequest,
@@ -350,7 +327,7 @@ export function normalizeConstruction(
         ["/intent/hard/excluded_cards", "/intent/hard/locked_cards"],
       );
     const card = index.getCard(id);
-    if (card && copyLimit(card) === null)
+    if (card && copyLimit(card).max === null)
       add(
         diagnostics,
         "COPY_LIMIT_UNRESOLVED",
@@ -367,14 +344,14 @@ export function normalizeConstruction(
         `${card.name} has ${card.legalities.commander ?? "unknown"} Commander legality.`,
         ["/strategy_dependencies"],
       );
-    const limit = card ? copyLimit(card) : null;
+    const limit = card ? copyLimit(card).max : null;
     if (card && limit !== null && qty > limit)
       add(
         diagnostics,
         "MANDATORY_COPY_LIMIT",
         "conflict",
         "/intent/hard/locked_cards",
-        `${card.name} permits at most ${copyLimit(card)} copies, but ${qty} are required.`,
+        `${card.name} permits at most ${limit} copies, but ${qty} are required.`,
       );
   }
   if (companionId) {
@@ -679,7 +656,7 @@ export function normalizeConstruction(
           ((card.legalities.commander !== undefined && card.legalities.commander !== "legal") ||
             (known && card.color_identity.some((c) => !zone.color_identity.includes(c)))));
       if (incompatible) forcedRemovals += qty;
-      else if (card) forcedRemovals += Math.max(0, qty - (copyLimit(card) ?? qty));
+      else if (card) forcedRemovals += Math.max(0, qty - (copyLimit(card).max ?? qty));
     }
     const lockedMissing = library.reduce(
       (sum, e) => sum + Math.max(0, e.qty - (seedCounts.get(e.oracle_id) ?? 0)),

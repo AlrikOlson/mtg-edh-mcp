@@ -24,7 +24,7 @@ beforeAll(async () => {
       type_line: "Creature — Shapeshifter",
       color_identity: ["G"],
     }),
-    rawCard("Unmodeled Copies", "A deck can have up to eleven cards named Unmodeled Copies."),
+    rawCard("Unmodeled Copies", "A deck can have up to umpteen cards named Unmodeled Copies."),
     rawCard(
       "Bala Ged Recovery // Bala Ged Sanctuary",
       "Return target card from your graveyard to your hand.",

@@ -9,10 +9,13 @@ export {
   checkBanlist,
   anyNumberReason,
   anyNumberExemptions,
+  copyLimit,
   COMMANDER_DECK_SIZE,
   type CardLookup,
   type AnyNumberReason,
   type AnyNumberExemption,
+  type CopyLimit,
+  type CopyLimitReason,
 } from "./coreRules.js";
 export {
   validateCommander,

@@ -6,7 +6,8 @@ import { extractMechanics } from "../analyze/mechanics.js";
 import { analyzeManaBase, DEFAULT_BANDS } from "../analyze/mana.js";
 import { cheapestUsdCents } from "../analyze/pricing.js";
 import { analyzeStrategy, candidateStrategySupport } from "../analyze/strategy.js";
-import { copyLimit, normalizeConstruction } from "../deck/construction.js";
+import { normalizeConstruction } from "../deck/construction.js";
+import { copyLimit } from "../validate/coreRules.js";
 import { prepareDeckChange } from "../deck/deckPlan.js";
 import type { CardIndex } from "../index/cardIndex.js";
 import { ROLES, type Card } from "../types/card.js";
@@ -399,7 +400,7 @@ function constructWithinRead(
         excluded("color_identity");
         continue;
       }
-      const copies = copyLimit(card);
+      const copies = copyLimit(card).max;
       if (copies === null) {
         excluded("copy_limit_unknown");
         continue;

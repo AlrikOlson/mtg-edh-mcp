@@ -8,6 +8,7 @@ import {
   checkBanlist,
   anyNumberReason,
   anyNumberExemptions,
+  copyLimit,
   type CardLookup,
 } from "./index.js";
 
@@ -230,6 +231,87 @@ describe("anyNumberReason + anyNumberExemptions (review #14)", () => {
     expect(anyNumberExemptions(d, lookup)).toEqual([
       { oracle_id: "o-swarm", name: "Endless Swarm", qty: 15, reason: "oracle_text" },
       { oracle_id: "o-plains", name: "Plains", qty: 20, reason: "basic_land" },
+    ]);
+  });
+});
+
+describe("copyLimit (CR 903.5b with card-text overrides under CR 101.1)", () => {
+  const dwarves = card({
+    oracle_id: "o-dwarves",
+    name: "Seven Dwarves",
+    type_line: "Creature — Dwarf",
+    oracle_text:
+      "This creature gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves.",
+  });
+  const nazgul = card({
+    oracle_id: "o-nazgul",
+    name: "Nazgûl",
+    type_line: "Creature — Wraith",
+    oracle_text: "Deathtouch\nA deck can have up to nine cards named Nazgûl.",
+  });
+  const unparsed = card({
+    oracle_id: "o-unparsed",
+    name: "Hypothetical Horde",
+    type_line: "Creature — Horde",
+    oracle_text: "A deck can have up to several cards named Hypothetical Horde.",
+  });
+  const plains = card({ oracle_id: "o-plains", name: "Plains", type_line: "Basic Land — Plains" });
+  const rats = card({ oracle_id: "o-rats", name: "Relentless Rats", type_line: "Creature — Rat" });
+  const sol = card({ oracle_id: "o-sol", name: "Sol Ring" });
+  const lookup = lookupOf(dwarves, nazgul, unparsed, plains, rats, sol);
+
+  it("reads bounded grants from Oracle text and never widens them to unlimited", () => {
+    expect(copyLimit(dwarves)).toEqual({ max: 7, reason: "bounded_text" });
+    expect(copyLimit(nazgul)).toEqual({ max: 9, reason: "bounded_text" });
+    expect(copyLimit(unparsed)).toEqual({ max: null, reason: "bounded_text" });
+    expect(copyLimit(plains)).toEqual({ max: 100, reason: "basic_land" });
+    expect(copyLimit(rats)).toEqual({ max: 100, reason: "allowlist" });
+    expect(copyLimit(sol)).toEqual({ max: 1, reason: "singleton" });
+    expect(anyNumberReason(dwarves)).toBeNull();
+  });
+
+  it("accepts the cap and rejects cap+1 through the singleton rule", () => {
+    expect(checkSingleton(deck({ cards: [{ oracle_id: "o-dwarves", qty: 7 }] }), lookup)).toEqual(
+      [],
+    );
+    expect(checkSingleton(deck({ cards: [{ oracle_id: "o-nazgul", qty: 9 }] }), lookup)).toEqual(
+      [],
+    );
+    const over = checkSingleton(
+      deck({
+        cards: [
+          { oracle_id: "o-dwarves", qty: 8 },
+          { oracle_id: "o-nazgul", qty: 10 },
+        ],
+      }),
+      lookup,
+    );
+    expect(over.map((v) => v.rule)).toEqual(["SINGLETON", "SINGLETON"]);
+    expect(over[0]).toMatchObject({
+      card: { oracle_id: "o-dwarves", name: "Seven Dwarves" },
+      detail: "Seven Dwarves appears 8 times (card text allows up to 7)",
+      fix_hint: "reduce to 7 copies",
+    });
+    expect(over[1]?.detail).toBe("Nazgûl appears 10 times (card text allows up to 9)");
+  });
+
+  it("treats an ununderstood bounded grant as singleton and says so", () => {
+    const v = checkSingleton(deck({ cards: [{ oracle_id: "o-unparsed", qty: 2 }] }), lookup);
+    expect(v).toHaveLength(1);
+    expect(v[0]?.detail).toContain("bounded copy grant is not understood");
+  });
+
+  it("reports bounded exemptions with their cap and excludes over-cap entries", () => {
+    const d = deck({
+      cards: [
+        { oracle_id: "o-dwarves", qty: 7 },
+        { oracle_id: "o-nazgul", qty: 10 },
+        { oracle_id: "o-plains", qty: 30 },
+      ],
+    });
+    expect(anyNumberExemptions(d, lookup)).toEqual([
+      { oracle_id: "o-dwarves", name: "Seven Dwarves", qty: 7, reason: "bounded_text", max: 7 },
+      { oracle_id: "o-plains", name: "Plains", qty: 30, reason: "basic_land" },
     ]);
   });
 });

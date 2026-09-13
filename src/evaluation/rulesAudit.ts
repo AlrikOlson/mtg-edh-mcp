@@ -22,6 +22,7 @@ import {
   validateCore,
   commanderColorIdentity,
   anyNumberReason,
+  anyNumberExemptions,
   type CardLookup,
 } from "../validate/index.js";
 
@@ -202,6 +203,16 @@ const RATS = card({
   mv: 3,
   oracle_text: "A deck can have any number of cards named Relentless Rats.",
 });
+const DWARVES = card({
+  oracle_id: "dwarves",
+  name: "Seven Dwarves",
+  type_line: "Creature — Dwarf",
+  color_identity: ["R"],
+  mv: 2,
+  oracle_text:
+    "This creature gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves.",
+});
+const RED = legend({ oracle_id: "red", name: "Red Legend", color_identity: ["R"] });
 const BLACK = legend({ oracle_id: "black", name: "Black Legend", color_identity: ["B"] });
 const BANNED = card({
   oracle_id: "banned",
@@ -430,6 +441,49 @@ export const RULES_AUDIT_CASES: readonly AuditCase[] = [
       }
       return allViolations(fixture);
     },
+  },
+  {
+    id: "singleton-bounded-text-at-cap",
+    rules: ["903.5b", "101.1"],
+    claim:
+      "A card whose own text allows up to seven copies is legal at exactly seven; the exemption is reported as bounded_text with its cap.",
+    quotes: [
+      { rule: "903.5b", text: "each card in a Commander deck must have a different English name" },
+      {
+        rule: "101.1",
+        text: "The card overrides only the rule that applies to that specific situation",
+      },
+    ],
+    expected: [],
+    run: () => {
+      const fixture = commanderDeck([RED], [{ card: DWARVES, qty: 7 }]);
+      const exemption = anyNumberExemptions(fixture.deck, fixture.lookup).find(
+        (e) => e.oracle_id === DWARVES.oracle_id,
+      );
+      if (exemption?.reason !== "bounded_text" || exemption.max !== 7) {
+        return [
+          {
+            rule: "SINGLETON",
+            severity: "error",
+            detail: `expected a bounded_text exemption capped at 7, got ${JSON.stringify(exemption)}`,
+          },
+        ];
+      }
+      return allViolations(fixture);
+    },
+  },
+  {
+    id: "singleton-bounded-text-over-cap",
+    rules: ["903.5b", "101.1"],
+    claim: "Eight copies of a card whose text allows up to seven is a SINGLETON error.",
+    quotes: [
+      {
+        rule: "101.1",
+        text: "Whenever a card’s text directly contradicts these rules, the card takes precedence",
+      },
+    ],
+    expected: ["SINGLETON"],
+    run: () => allViolations(commanderDeck([RED], [{ card: DWARVES, qty: 8 }])),
   },
   {
     id: "color-identity-outside",

@@ -308,6 +308,23 @@ function keywordFamily(keyword: string, vocabulary: VocabularyIndex): string[] {
   return entry ? [`kw:${entry.name}`, `vocab:${entry.kind}`] : ["vocab:unlisted"];
 }
 
+/** Pending chunks owning a row's families (sorted, unique); empty means unresolved. */
+export function ownersOfFamilies(
+  families: readonly string[],
+  batches: ReadonlyMap<string, string> = keywordBatchIndex(),
+): string[] {
+  const owners = new Set<string>();
+  for (const family of families) {
+    if (family.startsWith("kw:")) {
+      const chunk = batches.get(family.slice(3).toLowerCase());
+      if (chunk) owners.add(chunk);
+      continue;
+    }
+    for (const chunk of FAMILY_OWNERS[family] ?? []) owners.add(chunk);
+  }
+  return [...owners].sort();
+}
+
 /** Every census obligation for one stored card. Pure; no index access. */
 export function censusCard(
   card: Card,
@@ -416,20 +433,8 @@ export function censusCard(
   );
   const resolved: CensusRow[] = rows.map((row) => {
     if (qualifiedIds.has(row.id)) return { ...row, status: "qualified", owners: [] };
-    const owners = new Set<string>();
-    for (const family of row.families) {
-      if (family.startsWith("kw:")) {
-        const chunk = batches.get(family.slice(3).toLowerCase());
-        if (chunk) owners.add(chunk);
-        continue;
-      }
-      for (const chunk of FAMILY_OWNERS[family] ?? []) owners.add(chunk);
-    }
-    return {
-      ...row,
-      status: owners.size > 0 ? "owned" : "unresolved",
-      owners: [...owners].sort(),
-    };
+    const owners = ownersOfFamilies(row.families, batches);
+    return { ...row, status: owners.length > 0 ? "owned" : "unresolved", owners };
   });
   return {
     oracle_id: card.oracle_id,

@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import { BulkClient, VersionedStore } from "../ingest/index.js";
 import { refreshSnapshot } from "../index/refresh.js";
+import { rulesFixture } from "../rules/fixture.js";
+import { COMPREHENSIVE_RULES_FILE, RulesStore, refreshRules } from "../rules/index.js";
 import { UserDataStore } from "../storage/userData.js";
 import { runDoctor, runSetup } from "./setup.js";
 
@@ -156,6 +158,74 @@ describe("doctor", () => {
     const report = await runDoctor(options());
     expect(report.exitCode).toBe(0);
     expect(report.checks.find((check) => check.name === "card_data")?.status).toBe("ok");
+    expect(await files()).toEqual(before);
+  });
+
+  it("reports an absent rules corpus without failing and never reaches the network", async () => {
+    await seed();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const report = await runDoctor(options());
+    expect(report.exitCode).toBe(0);
+    expect(report.checks.find((check) => check.name === "rules_corpus")).toMatchObject({
+      status: "ok",
+      message: expect.stringContaining("No rules corpus is stored"),
+      details: { version: null },
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("reports the published rules corpus provenance read-only and flags staleness on the serving window", async () => {
+    await seed();
+    const store = new RulesStore(root);
+    const { manifest } = await refreshRules({
+      store,
+      client: rulesFixture().client,
+      now: () => new Date(now),
+    });
+    const before = await files();
+    const fresh = await runDoctor(options());
+    expect(fresh.exitCode).toBe(0);
+    expect(fresh.checks.find((check) => check.name === "rules_corpus")).toMatchObject({
+      status: "ok",
+      message: expect.stringContaining("Comprehensive Rules 20260901 (effective 2026-08-07"),
+      details: {
+        version: manifest.version,
+        effective_date: "2026-08-07",
+        published_version: "20260901",
+        comprehensive_rules_sha256: manifest.comprehensive_rules.sha256,
+        rulings_sha256: manifest.rulings.sha256,
+        rulings_updated_at: manifest.rulings.updated_at,
+        age_hours: 0,
+        stale_after_hours: 720,
+        recovered_from_previous: false,
+      },
+    });
+    expect(await files()).toEqual(before);
+
+    const stale = await runDoctor({ ...options(), now: () => now + 31 * 24 * 3_600_000 });
+    expect(stale.exitCode).toBe(2);
+    expect(stale.checks.find((check) => check.name === "rules_corpus")).toMatchObject({
+      status: "action",
+      fix: expect.stringContaining("rules_refresh"),
+      details: { age_hours: 744 },
+    });
+    expect(stale.nextSteps.join(" ")).toContain("rules_refresh");
+  });
+
+  it("reports a rules corpus whose bytes no longer match its manifest without modifying it", async () => {
+    await seed();
+    const store = new RulesStore(root);
+    const { version } = await refreshRules({
+      store,
+      client: rulesFixture().client,
+      now: () => new Date(now),
+    });
+    await writeFile(store.filePath(version, COMPREHENSIVE_RULES_FILE), "secret=do-not-output");
+    const before = await files();
+    const report = await runDoctor(options());
+    expect(report.exitCode).toBe(1);
+    expect(report.checks.find((check) => check.name === "rules_corpus")?.status).toBe("error");
+    expect(JSON.stringify(report)).not.toContain("do-not-output");
     expect(await files()).toEqual(before);
   });
 
