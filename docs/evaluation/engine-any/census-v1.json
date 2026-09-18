@@ -1,27 +1,27 @@
 {
   "version": "legal-pool-census-v1",
   "snapshot": {
-    "version": "2026-09-18T16-23-27-276Z-5fad15bf-1667-4933-8943-791fe8417288",
+    "version": "2026-09-18T21-16-15-477Z-8e28e3d3-ae15-4636-b20c-85230da046e8",
     "snapshot": "2026-09-18",
     "files": {
       "oracle_cards": {
         "name": "oracle_cards.jsonl",
-        "updated_at": "2026-09-18T09:01:53.848+00:00",
-        "bytes": 204175358,
-        "source_uri": "https://data.scryfall.io/oracle-cards/oracle-cards-20260918090153.jsonl.gz"
+        "updated_at": "2026-09-18T21:01:55.967+00:00",
+        "bytes": 204246638,
+        "source_uri": "https://data.scryfall.io/oracle-cards/oracle-cards-20260918210155.jsonl.gz"
       },
       "default_cards": {
         "name": "default_cards.jsonl",
-        "updated_at": "2026-09-18T09:05:32.127+00:00",
-        "bytes": 631764773,
-        "source_uri": "https://data.scryfall.io/default-cards/default-cards-20260918090532.jsonl.gz"
+        "updated_at": "2026-09-18T21:05:39.545+00:00",
+        "bytes": 632125841,
+        "source_uri": "https://data.scryfall.io/default-cards/default-cards-20260918210539.jsonl.gz"
       }
     },
-    "index_revision": "2ce64affd0cd2b18b7cacd5e88c03932d41734bebd07e547b97df68b3addabd4",
-    "identities_total": 38891,
+    "index_revision": "019a6fd8b1e0df0112be1e4e199a88c628f5f7ea130349675d8d09087c291b8b",
+    "identities_total": 38906,
     "legal_identities": 31830,
     "banned_identities": 83,
-    "not_legal_identities": 6978
+    "not_legal_identities": 6993
   },
   "rules": {
     "version": "2026-09-11T23-19-17-123Z-8d1907fb-42d1-4d57-9be6-9a77507a7e2d",
@@ -63,7 +63,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff"
+      "engine_revision": "e2b247ed25389af8d68c45bbb8a443acdb201c4a"
     },
     {
       "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
@@ -72,7 +72,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff"
+      "engine_revision": "e2b247ed25389af8d68c45bbb8a443acdb201c4a"
     },
     {
       "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
@@ -81,10 +81,10 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff"
+      "engine_revision": "e2b247ed25389af8d68c45bbb8a443acdb201c4a"
     }
   ],
-  "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff",
+  "engine_revision": "e2b247ed25389af8d68c45bbb8a443acdb201c4a",
   "totals": {
     "faces": 32350,
     "faceless_identities": 305,
@@ -10868,7 +10868,7 @@
   "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
   "ledger": {
     "rows": 31830,
-    "digest": "954532bae9c3e1a89ecafedefe9e4743ef499dd939ef1f29fb08d46431c0c8e3"
+    "digest": "e6550340012b49df6b5f4a311833e1d6ff6ab53e86c080f6cf91f8016e885b45"
   },
   "unresolved": [],
   "limitations": [
