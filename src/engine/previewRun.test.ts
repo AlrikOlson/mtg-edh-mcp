@@ -33,7 +33,7 @@ async function failure(promise: Promise<unknown>): Promise<PreviewRunError> {
 }
 
 describe("PreviewFixtureService input boundary", () => {
-  it("accepts only the declared fixture, bounded limits and the two named policies", () => {
+  it("accepts only the declared fixture, bounded limits and two to four named policies", () => {
     const parsed = PreviewRunInputSchema.parse(input);
     expect(parsed).toMatchObject({
       trial_index: 0,
@@ -47,12 +47,21 @@ describe("PreviewFixtureService input boundary", () => {
       { ...input, seed: "seed" },
       { ...input, deck_id: "authored" },
       { ...input, policies: ["fixture-baseline", "optimal"] },
+      { ...input, policies: ["fixture-baseline"] },
+      { ...input, policies: Array<string>(5).fill("fixture-pass") },
       { ...input, max_turns: 0 },
       { ...input, max_turns: 51 },
       { ...input, max_elapsed_ms: 60_000 },
       { ...input, trials: 9 },
     ])
       expect(PreviewRunInputSchema.safeParse(bad).success).toBe(false);
+    for (const seats of [3, 4])
+      expect(
+        PreviewRunInputSchema.parse({
+          ...input,
+          policies: Array<string>(seats).fill("fixture-baseline"),
+        }).policies,
+      ).toHaveLength(seats);
   });
 
   it("rejects a trial index at or beyond the trial count before any worker starts", async () => {
@@ -188,6 +197,30 @@ describe("PreviewFixtureService against the pinned native worker", () => {
     expect(b.outcome).toEqual(a.outcome);
     expect(b.events).toEqual(a.events);
     expect(a.supervision).toMatchObject({ termination: "closed", exit_code: 0, stderr: "" });
+  });
+
+  native("plays a four-seat pod to one survivor, identically in two processes", async () => {
+    const service = new PreviewFixtureService({ executable: binary as string });
+    const pod = {
+      ...input,
+      policies: Array<"fixture-baseline">(4).fill("fixture-baseline"),
+      max_turns: 40,
+    };
+    const [a, b] = await Promise.all([service.run(pod), service.run(pod)]);
+    expect(a.status).toBe("completed");
+    if (a.outcome.type !== "completed") throw new Error(JSON.stringify(a.outcome));
+    // Seat 1 falls on turn 9, seat 3 on turn 10 and seat 2 on turn 11; the worker decides all of it.
+    expect(a.outcome.data).toMatchObject({
+      winner_seats: [0],
+      reason: "life_reached_zero",
+      turns: 11,
+    });
+    expect(a.events.map((e) => e.turns)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(b.admission).toEqual(a.admission);
+    expect(b.outcome).toEqual(a.outcome);
+    const two = await service.run(input);
+    expect(two.admission?.scenario_digest).not.toBe(a.admission?.scenario_digest);
+    expect(two.admission?.initial_state_hash).not.toBe(a.admission?.initial_state_hash);
   });
 
   native("truncates at the declared turn cap without naming a winner", async () => {

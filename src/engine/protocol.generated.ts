@@ -1,5 +1,5 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-export const SCHEMA_SHA256 = "1f7beba69864e1578193fe4137c70d1b6fe32d32043399226ac5f76ee30fb6ea";
+export const SCHEMA_SHA256 = "dd9da7e06c94e764d8e0b17a09cd86ac8bc2ef1c485b6fe1db1b27e7d0632e6d";
 import { z } from "zod";
 
 const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });
@@ -114,7 +114,7 @@ export const CommanderScenarioSchema = z.strictObject({
 });
 export type CommanderScenario = z.infer<typeof CommanderScenarioSchema>;
 
-export const PreviewSeatSchema = z.number().int().min(0).max(1);
+export const PreviewSeatSchema = z.number().int().min(0).max(3);
 export type PreviewSeat = z.infer<typeof PreviewSeatSchema>;
 
 export const PreviewSeatInputSchema = z.strictObject({
@@ -129,7 +129,7 @@ export const PreviewScenarioSchema = z.strictObject({
 "engine_version": IdSchema,
 "snapshot_digest": DigestSchema,
 "rules_digest": DigestSchema,
-"seats": z.array(PreviewSeatInputSchema).min(2).max(2),
+"seats": z.array(PreviewSeatInputSchema).min(2).max(4),
 "seed": SeedSchema,
 "limits": LimitsSchema,
 "fixture_id": IdSchema,

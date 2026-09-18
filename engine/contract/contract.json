@@ -224,7 +224,7 @@
     "PreviewSeat": {
       "kind": "integer",
       "min": 0,
-      "max": 1
+      "max": 3
     },
     "PreviewSeatInput": {
       "kind": "record",
@@ -259,7 +259,7 @@
           "type": "PreviewSeatInput",
           "array": {
             "min": 2,
-            "max": 2
+            "max": 4
           }
         },
         "seed": {

@@ -462,6 +462,45 @@ describe("engine_preview_fixture against the pinned native worker", () => {
     });
   });
 
+  native("plays a four-seat pod to one survivor through the MCP tool", async () => {
+    const service = new PreviewFixtureService({ executable: binary as string });
+    await withHttpClient(service, async (c) => {
+      const progress: number[] = [];
+      const result = await c.callTool(
+        {
+          name: ENGINE_PREVIEW_TOOL,
+          arguments: {
+            ...input,
+            policies: [
+              "fixture-baseline",
+              "fixture-baseline",
+              "fixture-baseline",
+              "fixture-baseline",
+            ],
+            max_turns: 40,
+          },
+        },
+        { onprogress: (p) => progress.push(p.progress) },
+      );
+      expect(result.isError).not.toBe(true);
+      expect(statusOf(result)).toEqual({ tool_status: "completed", stage: "run" });
+      expect(result.structuredContent).toMatchObject({
+        outcome: {
+          type: "completed",
+          data: { winner_seats: [0], reason: "life_reached_zero", turns: 11 },
+        },
+        events_total: 10,
+        supervision: { termination: "closed", exit_code: 0, stderr: "" },
+      });
+      expect(progress).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      const crowded = await c.callTool({
+        name: ENGINE_PREVIEW_TOOL,
+        arguments: { ...input, policies: Array<string>(5).fill("fixture-pass") },
+      });
+      expect(crowded.isError).toBe(true);
+    });
+  });
+
   native("reproduces the same hashes over stdio as over HTTP", async () => {
     const service = new PreviewFixtureService({ executable: binary as string });
     const overHttp = await withHttpClient(service, (c) =>

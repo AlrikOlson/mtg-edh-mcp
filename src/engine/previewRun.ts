@@ -55,6 +55,9 @@ export const PREVIEW_IMPLEMENTATION_VERSION = "core-support-v1";
 /** The only decision clients the worker names for the fixture; nothing else is accepted. */
 export const PREVIEW_POLICY_IDS = ["fixture-baseline", "fixture-pass"] as const;
 export type PreviewPolicyId = (typeof PREVIEW_POLICY_IDS)[number];
+/** Seat bounds of the generated preview scenario; the worker contract stays the authority. */
+export const PREVIEW_MIN_SEATS = 2;
+export const PREVIEW_MAX_SEATS = 4;
 const PREVIEW_POLICY_VERSION = "1";
 const PREVIEW_OBSERVATION_VERSION = "1";
 /** Declared for the worker; memory enforcement is engine-mvp-supervision's. */
@@ -82,7 +85,12 @@ export const PREVIEW_RUN_INPUT_SHAPE = {
   seed: SeedSchema,
   trial_index: CountSchema.max(MAX_TRIALS - 1).default(0),
   trials: PositiveSchema.max(MAX_TRIALS).default(1),
-  policies: z.tuple([PolicyIdSchema, PolicyIdSchema]).default(["fixture-baseline", "fixture-pass"]),
+  /** One named client per seat, in turn order; the worker contract bounds the pod at two to four. */
+  policies: z
+    .array(PolicyIdSchema)
+    .min(PREVIEW_MIN_SEATS)
+    .max(PREVIEW_MAX_SEATS)
+    .default(["fixture-baseline", "fixture-pass"]),
   max_turns: z.number().int().min(1).max(50).default(10),
   max_actions: z.number().int().min(1).max(10_000).default(1_000),
   max_actions_per_turn: z.number().int().min(1).max(1_000).default(100),

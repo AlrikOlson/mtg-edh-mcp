@@ -1,14 +1,14 @@
 {
-  "source_revision": "3bc0fd248a02dffad18f959965f8df8c5bdd1da7",
+  "source_revision": "a7a78140d35ad6b60a8e1e8cbb7e05fd747b4621",
   "files": {
     "engine/contract/README.md": "c75dd2d6f5a70b9b8284e9aceb340b75335dbc8718964912be9fa3e89d1db4f3",
-    "engine/contract/contract.json": "1f7beba69864e1578193fe4137c70d1b6fe32d32043399226ac5f76ee30fb6ea",
+    "engine/contract/contract.json": "dd9da7e06c94e764d8e0b17a09cd86ac8bc2ef1c485b6fe1db1b27e7d0632e6d",
     "engine/contract/generate.mjs": "92816dfc480324f0df632823165a12bb9faf41995d0d54ee5e58fdcb6e396f9b",
     "engine/contract/generate.test.mjs": "78b250ada303ba916ab8cf38914e1be5a87c65194b0062675481d8fae394713d",
-    "engine/contract/fixtures.json": "09cce4bb2ff6b199672b7b51aacf5d79f512509a2d82dae39f0daa964182dc70",
+    "engine/contract/fixtures.json": "5edc407563091b79e787630b0a9f3ff6f25de9f6e73f33ca7470369ad0a80c0f",
     "engine/contract/catalog-fixture.json": "92e0af5b6a9597b754c7fa54e89854430bd9e4c6c0159f7c33a77edb3aad8d58",
     "engine/contract/preview-fixture.json": "7e88f8d81ed881ad6a997625e8960ad9b298fdb7618b20f14d45cdf0c4871953",
-    "engine/contract/generated.rs": "9aed0ef8cacedbd71bcc60c7d99f636b478f5de3c98e60dfc65547a6b86c6418",
-    "src/engine/protocol.generated.ts": "d215a0f8f4f40d3a22c8406d9471c1e99c348fa425bfb02c0bdb2163ecd9da81"
+    "engine/contract/generated.rs": "090c04a63739e029ab0d4986f30fb1992a7998c3156389db3bf5bf5cef5b407f",
+    "src/engine/protocol.generated.ts": "138106f3b11e64e9460d9a2852b5e6f795fd5d8628abd55e1d7f59b260fc276a"
   }
 }

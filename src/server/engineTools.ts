@@ -107,7 +107,7 @@ export function makeEnginePreviewTools(service: PreviewFixtureService): ToolDefi
           "Run one bounded trial of the internal Forest/Bears fixture in the native Rust engine worker.\n" +
           `USE: development proof that the MCP-to-engine path admits, runs, caps and cancels (fixture ${described.fixture_id} v${described.fixture_version}, policies ${described.policies.join("/")}). NOT: deck evaluation, Muldrotha or any authored deck (simulate_deck stays the public owner).\n` +
           "FLOW: ping -> engine_preview_fixture -> (inspect outcome, digests and supervision).\n" +
-          "ARGS: fixture_id (fixed), seed (16 hex), trial_index/trials (<= 8), policies pair, max_turns (10), max_actions, max_actions_per_turn, max_work, max_elapsed_ms (5000), max_output_bytes.\n" +
+          "ARGS: fixture_id (fixed), seed (16 hex), trial_index/trials (<= 8), policies (one per seat, 2-4 seats in turn order), max_turns (10), max_actions, max_actions_per_turn, max_work, max_elapsed_ms (5000), max_output_bytes.\n" +
           `RETURNS: tool_status (completed|truncated|cancelled|unsupported|invalid|engine_error), stage, outcome, fixture, engine, input (with trial_seed), limits, catalog_digest, admission, events (bounded progress), supervision receipt. MAX DURATION: ${PREVIEW_MAX_DURATION_MS} ms; the parent kills the worker ${PREVIEW_PARENT_GRACE_MS} ms after max_elapsed_ms even while progress is emitted.`,
         inputSchema: PREVIEW_RUN_INPUT_SHAPE,
         // An unknown key (a deck id, a profile, a path) is a request for something

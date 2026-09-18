@@ -1,5 +1,5 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-pub const SCHEMA_SHA256: &str = "1f7beba69864e1578193fe4137c70d1b6fe32d32043399226ac5f76ee30fb6ea";
+pub const SCHEMA_SHA256: &str = "dd9da7e06c94e764d8e0b17a09cd86ac8bc2ef1c485b6fe1db1b27e7d0632e6d";
 use serde::{Deserialize, Serialize};
 
 fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }
@@ -397,7 +397,7 @@ pub type PreviewSeat = u32;
 /// Returns the violated constraint.
 #[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 pub fn validate_preview_seat(value: &PreviewSeat) -> Result<(), String> {
-if !(0..=1).contains(value) {
+if !(0..=3).contains(value) {
 return Err("PreviewSeat outside contract bounds".to_owned());
 }
 Ok(())
@@ -456,7 +456,7 @@ validate_digest(field).map_err(|e| format!("PreviewScenario.snapshot_digest: {e}
 let field = &value.rules_digest;
 validate_digest(field).map_err(|e| format!("PreviewScenario.rules_digest: {e}"))?;
 let field = &value.seats;
-if !(2..=2).contains(&field.len()) {
+if !(2..=4).contains(&field.len()) {
 return Err("PreviewScenario.seats length outside contract bounds".to_owned());
 }
 for item in field {
