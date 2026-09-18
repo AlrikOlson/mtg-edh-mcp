@@ -63,7 +63,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
+      "engine_revision": "5013f1b7503ce3fa75361e72774fccb5d7c85c9a"
     },
     {
       "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
@@ -72,7 +72,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
+      "engine_revision": "5013f1b7503ce3fa75361e72774fccb5d7c85c9a"
     },
     {
       "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
@@ -81,10 +81,10 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
+      "engine_revision": "5013f1b7503ce3fa75361e72774fccb5d7c85c9a"
     }
   ],
-  "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab",
+  "engine_revision": "5013f1b7503ce3fa75361e72774fccb5d7c85c9a",
   "totals": {
     "faces": 32350,
     "faceless_identities": 305,
