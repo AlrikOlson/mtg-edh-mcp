@@ -13,21 +13,21 @@ tools. Do one focused research pass without starting an implementation objective
    the user's topic or state one consequential stale area. If the roadmap is
    empty, report it rather than inventing unrelated implementation work.
 2. Ground real entry points, dependencies, and current behavior with workbench.
-   Record an opening `think_record_step` with the research question and evidence
+   Record the research question with `think_record_step` and identify evidence
    that could change the plan.
 3. Research current primary sources for APIs, versions, alternatives, and
    limitations. Compare findings against code and acceptance criteria. Record
-   conclusions, uncertainty, and refuted ideas.
+   findings as evidence arrives, including changed conclusions, uncertainty,
+   and refuted ideas, following the shared runtime's reasoning guidance.
 4. Apply scoped descriptive, acceptance, and dependency corrections with
-   `roadmap_update_chunk`. Keep discoveries `pending` under the project prime directive; use
+   `roadmap_update_chunk`. Put discoveries in `backlog` by default; use
    `roadmap_link` for evidence. Mark work obsolete only with supporting evidence
    and within the user's requested scope.
 5. `roadmap_reprioritize` records an ordering proposal; it does not apply it.
    Use the advertised mutation tools to apply priority/status changes already
-   authorized by the charter's standing autonomous maintenance directive.
-   Ask only when the proposed change exceeds that directive or changes its goal.
-6. Record closing reasoning and `roadmap_record_refresh` provenance. Honor the
-   runtime's roadmap/export policy. Report changes, remaining proposals,
+   authorized by the user. Otherwise present the concrete proposal for review.
+6. Synthesize the recorded findings and add `roadmap_record_refresh` provenance.
+   Honor the runtime's roadmap/export policy. Report changes, remaining proposals,
    evidence, and the next useful decision. Stop without implementing a chunk.
 
 Preserve active implementation objectives and the existing shared state store.
