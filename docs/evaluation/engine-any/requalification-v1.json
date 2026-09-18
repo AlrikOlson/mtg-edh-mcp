@@ -32,7 +32,7 @@
           "ability_words": "f788e2f57d8c720b53dde6ea5ef5040879ae96ee7b2a9f87e6380e5465aed3ca"
         }
       },
-      "engine_revision": "14935a451007c9489b9ad9f40a03690706b91aa0",
+      "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff",
       "ledger_digest": "954532bae9c3e1a89ecafedefe9e4743ef499dd939ef1f29fb08d46431c0c8e3",
       "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
       "qualified_evidence": [
@@ -1048,7 +1048,7 @@
           "ability_words": "f788e2f57d8c720b53dde6ea5ef5040879ae96ee7b2a9f87e6380e5465aed3ca"
         }
       },
-      "engine_revision": "14935a451007c9489b9ad9f40a03690706b91aa0",
+      "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff",
       "ledger_digest": "954532bae9c3e1a89ecafedefe9e4743ef499dd939ef1f29fb08d46431c0c8e3",
       "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
       "qualified_evidence": [
@@ -1056,19 +1056,19 @@
           "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
           "name": "Swamp",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "14935a451007c9489b9ad9f40a03690706b91aa0"
+          "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff"
         },
         {
           "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
           "name": "Island",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "14935a451007c9489b9ad9f40a03690706b91aa0"
+          "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff"
         },
         {
           "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
           "name": "Forest",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "14935a451007c9489b9ad9f40a03690706b91aa0"
+          "engine_revision": "81df46ad14a37385fbb60da87db9bef62e6a3eff"
         }
       ],
       "baseline": {
