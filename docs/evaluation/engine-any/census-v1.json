@@ -1,27 +1,27 @@
 {
   "version": "legal-pool-census-v1",
   "snapshot": {
-    "version": "2026-09-12T21-06-22-327Z-6f10ee14-534e-4b8d-ad1e-f9eb57f4ad29",
-    "snapshot": "2026-09-12",
+    "version": "2026-09-18T16-23-27-276Z-5fad15bf-1667-4933-8943-791fe8417288",
+    "snapshot": "2026-09-18",
     "files": {
       "oracle_cards": {
         "name": "oracle_cards.jsonl",
-        "updated_at": "2026-09-12T21:01:56.253+00:00",
-        "bytes": 203427753,
-        "source_uri": "https://data.scryfall.io/oracle-cards/oracle-cards-20260912210156.jsonl.gz"
+        "updated_at": "2026-09-18T09:01:53.848+00:00",
+        "bytes": 204175358,
+        "source_uri": "https://data.scryfall.io/oracle-cards/oracle-cards-20260918090153.jsonl.gz"
       },
       "default_cards": {
         "name": "default_cards.jsonl",
-        "updated_at": "2026-09-12T21:05:31.691+00:00",
-        "bytes": 630154943,
-        "source_uri": "https://data.scryfall.io/default-cards/default-cards-20260912210531.jsonl.gz"
+        "updated_at": "2026-09-18T09:05:32.127+00:00",
+        "bytes": 631764773,
+        "source_uri": "https://data.scryfall.io/default-cards/default-cards-20260918090532.jsonl.gz"
       }
     },
-    "index_revision": "6707adee22860d2e6f942d331804bb417eedb43a8709b9f77cfa9b19ab04ed2a",
-    "identities_total": 38740,
+    "index_revision": "2ce64affd0cd2b18b7cacd5e88c03932d41734bebd07e547b97df68b3addabd4",
+    "identities_total": 38891,
     "legal_identities": 31830,
     "banned_identities": 83,
-    "not_legal_identities": 6827
+    "not_legal_identities": 6978
   },
   "rules": {
     "version": "2026-09-11T23-19-17-123Z-8d1907fb-42d1-4d57-9be6-9a77507a7e2d",
@@ -63,7 +63,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
+      "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
     },
     {
       "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
@@ -72,7 +72,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
+      "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
     },
     {
       "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
@@ -81,10 +81,10 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
+      "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
     }
   ],
-  "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77",
+  "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab",
   "totals": {
     "faces": 32350,
     "faceless_identities": 305,
@@ -10502,8 +10502,33 @@
   "baseline": {
     "version": "engine-mvp-baseline-v1",
     "identities": 77,
-    "unchanged": 77,
-    "changed": [],
+    "unchanged": 73,
+    "changed": [
+      {
+        "oracle_id": "0895c9b7-ae7d-4bb3-af17-3b75deb50a25",
+        "name": "Command Tower",
+        "frozen": "a6fcbced0faf852f454154faacdc83c0444b7422d9970eaedbfefd551167e72f",
+        "current": "541841b9a58c5c7b244edf8612544cd1a7183384da6cd0f82fd005a308cc15b0"
+      },
+      {
+        "oracle_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+        "name": "Arcane Signet",
+        "frozen": "6bbc43e043bf79075ee7a84b5c94b824d5cc3861f10675b34f32e7badfa750ad",
+        "current": "2b9c8bba124839e569a5fa328adf21e0f06e9353a63d47e148fb750c83e64317"
+      },
+      {
+        "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+        "name": "Sol Ring",
+        "frozen": "44f24b1ac350c086f7f8d9875f34690ad3e0c55eb0d5abf8c4acb35946b28bdf",
+        "current": "192c28801491119389c1bdfda25308e741e8ac410a9bdd40d5fcb8df55fcad41"
+      },
+      {
+        "oracle_id": "857febd9-cdd7-4f8e-a852-d88084b0cfbc",
+        "name": "Underground River",
+        "frozen": "0efebaa05959ba4479ace6fc7a10cc6b8e975b2dbc91f0fa9ba7400d40f38c58",
+        "current": "5afac2b5a5016aaced945318284893970755c10571c2dbd907180edc17813e39"
+      }
+    ],
     "absent": []
   },
   "banned": [
@@ -10843,7 +10868,7 @@
   "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
   "ledger": {
     "rows": 31830,
-    "digest": "1ea9fed6c4ffeb033a1b31471db405e63538f8f896a570d786b843ba558ea893"
+    "digest": "954532bae9c3e1a89ecafedefe9e4743ef499dd939ef1f29fb08d46431c0c8e3"
   },
   "unresolved": [],
   "limitations": [

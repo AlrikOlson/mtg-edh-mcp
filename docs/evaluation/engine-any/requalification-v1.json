@@ -1,14 +1,14 @@
 {
   "version": "evidence-requalification-v1",
-  "as_of": "2026-09-12",
-  "status": "current",
+  "as_of": "2026-09-18",
+  "status": "requalification_required",
   "previous": {
     "bindings": {
       "census_version": "legal-pool-census-v1",
       "snapshot": {
-        "version": "2026-09-12T21-06-22-327Z-6f10ee14-534e-4b8d-ad1e-f9eb57f4ad29",
-        "snapshot": "2026-09-12",
-        "index_revision": "6707adee22860d2e6f942d331804bb417eedb43a8709b9f77cfa9b19ab04ed2a",
+        "version": "2026-09-18T16-23-27-276Z-5fad15bf-1667-4933-8943-791fe8417288",
+        "snapshot": "2026-09-18",
+        "index_revision": "2ce64affd0cd2b18b7cacd5e88c03932d41734bebd07e547b97df68b3addabd4",
         "legal_identities": 31830,
         "banned_identities": 83
       },
@@ -32,33 +32,33 @@
           "ability_words": "f788e2f57d8c720b53dde6ea5ef5040879ae96ee7b2a9f87e6380e5465aed3ca"
         }
       },
-      "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77",
-      "ledger_digest": "1ea9fed6c4ffeb033a1b31471db405e63538f8f896a570d786b843ba558ea893",
+      "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab",
+      "ledger_digest": "954532bae9c3e1a89ecafedefe9e4743ef499dd939ef1f29fb08d46431c0c8e3",
       "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
       "qualified_evidence": [
         {
           "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
           "name": "Swamp",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "bcb9a0292ab78035b9cc1e65ec21c8b2c2270643"
+          "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
         },
         {
           "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
           "name": "Island",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "bcb9a0292ab78035b9cc1e65ec21c8b2c2270643"
+          "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
         },
         {
           "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
           "name": "Forest",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "bcb9a0292ab78035b9cc1e65ec21c8b2c2270643"
+          "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
         }
       ],
       "baseline": {
         "version": "engine-mvp-baseline-v1",
         "identities": 77,
-        "changed": 0,
+        "changed": 4,
         "absent": 0
       },
       "keyword_labels": [
@@ -1022,9 +1022,9 @@
     "bindings": {
       "census_version": "legal-pool-census-v1",
       "snapshot": {
-        "version": "2026-09-12T21-06-22-327Z-6f10ee14-534e-4b8d-ad1e-f9eb57f4ad29",
-        "snapshot": "2026-09-12",
-        "index_revision": "6707adee22860d2e6f942d331804bb417eedb43a8709b9f77cfa9b19ab04ed2a",
+        "version": "2026-09-18T16-23-27-276Z-5fad15bf-1667-4933-8943-791fe8417288",
+        "snapshot": "2026-09-18",
+        "index_revision": "2ce64affd0cd2b18b7cacd5e88c03932d41734bebd07e547b97df68b3addabd4",
         "legal_identities": 31830,
         "banned_identities": 83
       },
@@ -1048,33 +1048,33 @@
           "ability_words": "f788e2f57d8c720b53dde6ea5ef5040879ae96ee7b2a9f87e6380e5465aed3ca"
         }
       },
-      "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77",
-      "ledger_digest": "1ea9fed6c4ffeb033a1b31471db405e63538f8f896a570d786b843ba558ea893",
+      "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab",
+      "ledger_digest": "954532bae9c3e1a89ecafedefe9e4743ef499dd939ef1f29fb08d46431c0c8e3",
       "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
       "qualified_evidence": [
         {
           "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
           "name": "Swamp",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
+          "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
         },
         {
           "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
           "name": "Island",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
+          "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
         },
         {
           "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
           "name": "Forest",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "3030792528fe0b25087191d39b9835f118bd7a77"
+          "engine_revision": "0d98b08f9d8e9f415773b835fcbad3a747ed09ab"
         }
       ],
       "baseline": {
         "version": "engine-mvp-baseline-v1",
         "identities": 77,
-        "changed": 0,
+        "changed": 4,
         "absent": 0
       },
       "keyword_labels": [
@@ -2063,8 +2063,25 @@
       "changed": false
     }
   },
-  "invalidated": [],
-  "requalification": [],
+  "invalidated": [
+    {
+      "kind": "baseline_corpus",
+      "subject": "engine-mvp-baseline-v1 (77 identities)",
+      "reason": "4 changed, 0 absent against the current pool",
+      "owners": ["engine-mvp-corpus"]
+    }
+  ],
+  "requalification": [
+    {
+      "kind": "baseline_corpus",
+      "owner": "engine-mvp-corpus",
+      "suggested_chunk": "engine-mvp-corpus",
+      "identities": 4,
+      "rows": 4,
+      "samples": ["Command Tower", "Arcane Signet", "Sol Ring", "Underground River"],
+      "detail": "frozen MVP baseline records no longer match the pool; the fixed corpus needs requalification"
+    }
+  ],
   "limitations": [
     "Identity-level pool changes compare exact-source digests of the canonical gameplay record; the previous ledger is the committed file before this update (its digest is recorded), reproducible from repository history.",
     "Requalification units name pending owners for planning; filing them in the native roadmap is a maintainer step, and only the canonical Rust support report ever qualifies a row.",
