@@ -6,6 +6,27 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Consolidate deck-construction legality into the public validator. `validate_deck`
+  (and every composition of the core, commander and companion rules: `deck_status`,
+  `analyze_deck` vitals, the deck plan, construction and engine capture) now reports
+  five further error rules: `FORMAT_ILLEGAL` for a card whose Commander legality is
+  `not_legal` or `restricted`, `FORMAT_LEGALITY_UNKNOWN` for a record without one,
+  `COMMANDER_LIBRARY_OVERLAP` for a commander also in the library beyond its copy
+  limit, `COMPANION_DECK_OVERLAP` for a declared companion inside the starting deck,
+  and `COMPANION_CONDITION_UNRESOLVED` when a companion condition cannot be
+  established exactly (an unmodeled companion, Kaheera's or Zirda's heuristic
+  restriction, or a starting card with incomplete characteristics). Migration: a
+  deck that passed only because of one of these gaps now fails `validate_deck`; a
+  Kaheera or Zirda deck is no longer `ok`, and `deck_set_companion` reports
+  `condition_met: false` for it; `BANLIST` also covers the declared companion;
+  `validate_card` and `deck_add` pre-check format legality; the deck plan and
+  construction diagnostics keep their codes but carry the validator's wording, a
+  banned mandatory card is reported as `BANLIST` (was `FORMAT_ILLEGAL`), and a
+  heuristic companion no longer yields per-card `COMPANION` conflicts. A legendary
+  card whose own text makes it a creature card off the battlefield (Grist, the
+  Hunger Tide) is now an eligible commander; `is:commander` search reflects it after
+  the next `data_ingest`.
+
 - Carry a face inventory for every Commander-legal layout in the canonical
   catalog record: saga, class, case, leveler, mutate and prototype cards now
   carry their root face like normal cards, and `face_relationship` labels flip,

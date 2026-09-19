@@ -17,6 +17,7 @@ import type {
   Prices,
 } from "../types/index.js";
 import { classifyRoles } from "../analyze/roles.js";
+import { CREATURE_CARD_OUTSIDE_BATTLEFIELD } from "../validate/commanderRules.js";
 import type {
   ScryfallCardFace,
   ScryfallCardRaw,
@@ -70,7 +71,12 @@ export function isCommanderEligible(
   // a printed P/T. The "... can be your commander" text path covers the rest.
   const legendary = /Legendary/i.test(typeLine);
   const hasPrintedPT = power !== undefined && toughness !== undefined;
-  const legendaryPermanent = legendary && (/Creature/i.test(typeLine) || hasPrintedPT);
+  const legendaryPermanent =
+    legendary &&
+    (/Creature/i.test(typeLine) ||
+      hasPrintedPT ||
+      // A card whose own text makes it a creature card off the battlefield (CR 903.3).
+      CREATURE_CARD_OUTSIDE_BATTLEFIELD.test(oracleText));
   return legendaryPermanent || /can be your commander/i.test(oracleText);
 }
 

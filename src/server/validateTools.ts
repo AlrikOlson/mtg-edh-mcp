@@ -15,6 +15,7 @@ import {
   commanderColorIdentity,
   checkBanlist,
   checkColorIdentity,
+  checkFormatLegality,
   checkSingleton,
   anyNumberExemptions,
 } from "../validate/index.js";
@@ -93,7 +94,7 @@ function validateCardTool(store: DeckStore, index: CardIndex, session: string): 
         "USE: testing a candidate before committing. NOT: applying it (deck_add already pre-checks per card); whole-deck legality (validate_deck).\n" +
         "FLOW: card_search -> validate_card -> deck_add.\n" +
         "ARGS: deck_id; card (name or oracle_id; oracle_id is a legacy alias); qty.\n" +
-        "RETURNS: ok, violations[] (card-scoped identity/banlist/singleton).",
+        "RETURNS: ok, violations[] (card-scoped identity/banlist/format-legality/singleton).",
       inputSchema: {
         deck_id: z.string(),
         card: z.string().optional(),
@@ -119,6 +120,7 @@ function validateCardTool(store: DeckStore, index: CardIndex, session: string): 
       const violations = [
         ...checkColorIdentity(prospective, lookup),
         ...checkBanlist(prospective, lookup),
+        ...checkFormatLegality(prospective, lookup),
         ...checkSingleton(prospective, lookup),
       ].filter((v) => v.card?.oracle_id === oracleId);
       return {

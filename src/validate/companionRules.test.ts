@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { Card, Deck } from "../types/index.js";
 import { validateCompanion, isCompanionCard, type CardLookup } from "./index.js";
-import { companionRuleCoverage } from "./companionRules.js";
+import {
+  companionRuleCoverage,
+  companionCharacteristicsUnknown,
+  resolveCompanionCondition,
+  checkCompanionOverlap,
+} from "./companionRules.js";
 
 function card(partial: Partial<Card> & { oracle_id: string; name: string }): Card {
   return {
@@ -73,14 +78,25 @@ describe("validateCompanion", () => {
     expect(validateCompanion(d, lookupOf(card({ oracle_id: "a", name: "A", mv: 3 })))).toEqual([]);
   });
 
-  it("no-ops for a declared companion we do not model", () => {
+  it("reports a declared companion we do not model as an unresolved condition, never a silent pass", () => {
     const unknown = companion("Some Future Companion");
     const d = deck({
       companion: unknown.oracle_id,
       cards: [{ oracle_id: "a", qty: 1 }],
     });
     const v = validateCompanion(d, lookupOf(unknown, card({ oracle_id: "a", name: "A", mv: 5 })));
-    expect(v).toEqual([]);
+    expect(v).toHaveLength(1);
+    expect(v[0]).toMatchObject({
+      rule: "COMPANION_CONDITION_UNRESOLVED",
+      severity: "error",
+      card: { oracle_id: unknown.oracle_id, name: "Some Future Companion" },
+    });
+    expect(v[0]?.detail).toContain("not modeled");
+  });
+
+  it("still says nothing about a declared companion card the lookup does not know", () => {
+    const d = deck({ companion: "missing", cards: [{ oracle_id: "a", qty: 1 }] });
+    expect(validateCompanion(d, lookupOf(card({ oracle_id: "a", name: "A", mv: 5 })))).toEqual([]);
   });
 
   it("Gyruda: passes an all-even deck, flags an odd-MV card", () => {
@@ -243,7 +259,11 @@ describe("validateCompanion", () => {
       companion: kaheera.oracle_id,
       cards: [{ oracle_id: "g", qty: 1 }],
     });
-    expect(validateCompanion(bad, lookupOf(kaheera, goblin))).toHaveLength(1);
+    // Kaheera's restriction is heuristic (printed subtypes miss changelings), so the
+    // condition is reported unresolved and the heuristic is never a certified break.
+    expect(validateCompanion(bad, lookupOf(kaheera, goblin)).map((v) => v.rule)).toEqual([
+      "COMPANION_CONDITION_UNRESOLVED",
+    ]);
 
     const ok = deck({
       companion: kaheera.oracle_id,
@@ -252,7 +272,9 @@ describe("validateCompanion", () => {
         { oracle_id: "a", qty: 1 },
       ],
     });
-    expect(validateCompanion(ok, lookupOf(kaheera, cat, artifact))).toEqual([]);
+    const v = validateCompanion(ok, lookupOf(kaheera, cat, artifact));
+    expect(v.map((x) => x.rule)).toEqual(["COMPANION_CONDITION_UNRESOLVED"]);
+    expect(v[0]?.detail).toContain("heuristic");
   });
 
   it("checks the commanders too, but never the companion card itself", () => {
@@ -273,5 +295,184 @@ describe("validateCompanion", () => {
     const v = validateCompanion(d, lookupOf(obosh, oddCmd, evenCard));
     expect(v).toHaveLength(1);
     expect(v[0]?.card?.name).toBe("Even");
+  });
+
+  it("reports a companion inside the starting deck as an overlap and evaluates that copy like any other starting card", () => {
+    const obosh = card({
+      oracle_id: "obosh",
+      name: "Obosh, the Preypiercer",
+      type_line: "Legendary Creature — Hellion Horror",
+      oracle_text: "Companion — Each card in your starting deck has an odd mana value.",
+      mv: 5,
+    });
+    const gyruda = card({
+      oracle_id: "gyruda",
+      name: "Gyruda, Doom of Depths",
+      type_line: "Legendary Creature — Demon Kraken",
+      oracle_text: "Companion — Each card in your starting deck has an even mana value.",
+      mv: 6,
+    });
+    const inLibrary = deck({
+      companion: gyruda.oracle_id,
+      commanders: ["obosh"],
+      cards: [{ oracle_id: "gyruda", qty: 1 }],
+    });
+    // Gyruda's condition (even) is broken by Obosh (5); the in-deck Gyruda copy is even and passes.
+    expect(
+      validateCompanion(inLibrary, lookupOf(obosh, gyruda)).map((v) => [v.rule, v.card?.name]),
+    ).toEqual([
+      ["COMPANION_DECK_OVERLAP", "Gyruda, Doom of Depths"],
+      ["COMPANION", "Obosh, the Preypiercer"],
+    ]);
+    const asCommander = deck({ companion: "gyruda", commanders: ["gyruda"], cards: [] });
+    expect(checkCompanionOverlap(asCommander).map((v) => v.rule)).toEqual([
+      "COMPANION_DECK_OVERLAP",
+    ]);
+    expect(checkCompanionOverlap(deck({ commanders: ["gyruda"] }))).toEqual([]);
+  });
+});
+
+/** A canonical record whose characteristics are complete unless overridden. */
+function withGameplay(
+  base: Card,
+  overrides: Partial<Card["gameplay"] & object> = {},
+  characteristics: Partial<NonNullable<Card["gameplay"]>["characteristics"]> = {},
+): Card {
+  return {
+    ...base,
+    gameplay: {
+      version: 1,
+      source: { scryfall_id: null, oracle_id: base.oracle_id },
+      layout: "normal",
+      color_identity: [...base.color_identity],
+      face_relationship: "single",
+      playability: "not_evaluated",
+      characteristics: {
+        name: base.name,
+        mana_cost: base.mana_cost,
+        cmc: base.mv,
+        type_line: base.type_line,
+        oracle_text: base.oracle_text,
+        colors: null,
+        color_indicator: null,
+        power: null,
+        toughness: null,
+        loyalty: null,
+        defense: null,
+        keywords: null,
+        produced_mana: null,
+        printed_name: null,
+        printed_text: null,
+        printed_type_line: null,
+        ...characteristics,
+      },
+      faces: null,
+      related_cards: null,
+      ...overrides,
+    },
+  };
+}
+
+describe("companionCharacteristicsUnknown", () => {
+  const plain = card({ oracle_id: "p", name: "Plain", mana_cost: "{1}", mv: 1 });
+
+  it("accepts a legacy flat card and a complete single-face record", () => {
+    expect(companionCharacteristicsUnknown(plain)).toBe(false);
+    expect(companionCharacteristicsUnknown(withGameplay(plain))).toBe(false);
+  });
+
+  it("flags changelings, multiface cards and missing canonical characteristics", () => {
+    expect(companionCharacteristicsUnknown({ ...plain, oracle_text: "Changeling" })).toBe(true);
+    expect(companionCharacteristicsUnknown({ ...plain, type_line: "Sorcery // Land" })).toBe(true);
+    expect(
+      companionCharacteristicsUnknown(withGameplay(plain, { face_relationship: "modal" })),
+    ).toBe(true);
+    expect(companionCharacteristicsUnknown(withGameplay(plain, {}, { cmc: null }))).toBe(true);
+    expect(companionCharacteristicsUnknown(withGameplay(plain, {}, { mana_cost: null }))).toBe(
+      true,
+    );
+    expect(companionCharacteristicsUnknown(withGameplay(plain, {}, { type_line: null }))).toBe(
+      true,
+    );
+    expect(companionCharacteristicsUnknown(withGameplay(plain, {}, { oracle_text: null }))).toBe(
+      true,
+    );
+  });
+});
+
+describe("resolveCompanionCondition", () => {
+  const lurrus = companion("Lurrus of the Dream-Den");
+  const yorion = companion("Yorion, Sky Nomad");
+  const cheap = card({ oracle_id: "cheap", name: "Cheap", mv: 1, mana_cost: "{1}" });
+
+  it("is exact for a supported companion over complete starting characteristics", () => {
+    const d = deck({ companion: lurrus.oracle_id, cards: [{ oracle_id: "cheap", qty: 1 }] });
+    expect(resolveCompanionCondition(d, lookupOf(lurrus, cheap))).toEqual({ status: "exact" });
+  });
+
+  it("names the unmodeled or heuristic coverage as the reason", () => {
+    const d = deck({ cards: [{ oracle_id: "cheap", qty: 1 }] });
+    expect(
+      resolveCompanionCondition(
+        { ...d, companion: "future" },
+        lookupOf(companion("future"), cheap),
+      ),
+    ).toMatchObject({ status: "unresolved", reason: "unmodeled" });
+    expect(
+      resolveCompanionCondition(
+        { ...d, companion: "Zirda, the Dawnwaker" },
+        lookupOf(companion("Zirda, the Dawnwaker"), cheap),
+      ),
+    ).toMatchObject({ status: "unresolved", reason: "heuristic" });
+  });
+
+  it("names the starting cards whose characteristics are incomplete, except for Yorion's count-only condition", () => {
+    const fuzzy = withGameplay(card({ oracle_id: "fuzzy", name: "Fuzzy" }), {}, { cmc: null });
+    const d = deck({
+      companion: lurrus.oracle_id,
+      commanders: ["fuzzy"],
+      cards: [
+        { oracle_id: "cheap", qty: 1 },
+        { oracle_id: "missing", qty: 1 },
+      ],
+    });
+    expect(resolveCompanionCondition(d, lookupOf(lurrus, cheap, fuzzy))).toEqual({
+      status: "unresolved",
+      reason: "characteristics",
+      cards: [{ oracle_id: "fuzzy", name: "Fuzzy" }],
+    });
+    expect(
+      resolveCompanionCondition({ ...d, companion: yorion.oracle_id }, lookupOf(yorion, fuzzy)),
+    ).toEqual({ status: "exact" });
+  });
+
+  it("reports nothing without a declared or known companion", () => {
+    expect(resolveCompanionCondition(deck({}), lookupOf())).toEqual({ status: "exact" });
+    expect(resolveCompanionCondition(deck({ companion: "missing" }), lookupOf())).toEqual({
+      status: "exact",
+    });
+  });
+
+  it("is reported by validateCompanion as COMPANION_CONDITION_UNRESOLVED naming the cards, with certain breaks on the readable cards kept", () => {
+    const fuzzy = withGameplay(card({ oracle_id: "fuzzy", name: "Fuzzy" }), {}, { cmc: null });
+    const big = card({
+      oracle_id: "big",
+      name: "Big Golem",
+      type_line: "Artifact Creature",
+      mv: 5,
+    });
+    const d = deck({
+      companion: lurrus.oracle_id,
+      cards: [
+        { oracle_id: "fuzzy", qty: 1 },
+        { oracle_id: "big", qty: 1 },
+      ],
+    });
+    const v = validateCompanion(d, lookupOf(lurrus, fuzzy, big));
+    expect(v.map((x) => [x.rule, x.card?.name])).toEqual([
+      ["COMPANION", "Big Golem"],
+      ["COMPANION_CONDITION_UNRESOLVED", "Lurrus of the Dream-Den"],
+    ]);
+    expect(v[1]?.detail).toContain("Fuzzy");
   });
 });

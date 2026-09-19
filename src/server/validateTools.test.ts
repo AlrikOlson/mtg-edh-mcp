@@ -61,6 +61,18 @@ const ORACLE = [
     prices: { usd: "5.00" },
   },
   {
+    oracle_id: "o-conspiracy",
+    id: "p-conspiracy",
+    name: "Backup Plan",
+    cmc: 0,
+    colors: [],
+    color_identity: [],
+    type_line: "Conspiracy",
+    oracle_text: "",
+    legalities: { commander: "not_legal" },
+    prices: {},
+  },
+  {
     oracle_id: "o-island",
     id: "p-island",
     name: "Island",
@@ -187,6 +199,24 @@ describe("validation tools", () => {
     });
     const afterCards = (after.structuredContent as { deck: { cards: unknown[] } }).deck.cards;
     expect(afterCards).toEqual(beforeCards); // unchanged
+  });
+
+  it("validate_card and validate_deck refuse a card that is not legal in Commander as FORMAT_ILLEGAL", async () => {
+    const card = await client.callTool({
+      name: "validate_card",
+      arguments: { deck_id: "deck-1", card: "Backup Plan" },
+    });
+    const precheck = card.structuredContent as Result;
+    expect(precheck.ok).toBe(false);
+    expect(precheck.violations.map((v) => v.rule)).toEqual(["FORMAT_ILLEGAL"]);
+    deckStore.update("deck-1", (d) => ({ ...d, cards: [{ oracle_id: "o-conspiracy", qty: 1 }] }));
+    const deck = await client.callTool({
+      name: "validate_deck",
+      arguments: { deck_id: "deck-1" },
+    });
+    const gate = deck.structuredContent as Result;
+    expect(gate.ok).toBe(false);
+    expect(gate.violations.map((v) => v.rule)).toContain("FORMAT_ILLEGAL");
   });
 
   it("validate_card returns ok for an on-identity / colorless card", async () => {

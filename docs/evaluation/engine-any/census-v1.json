@@ -88,12 +88,12 @@
   "totals": {
     "faces": 32655,
     "faceless_identities": 0,
-    "rows_total": 1088336,
-    "rows_counted": 648902,
+    "rows_total": 1088337,
+    "rows_counted": 648903,
     "clauses": 60408,
     "by_status": {
       "qualified": 3,
-      "owned": 648899,
+      "owned": 648900,
       "unresolved": 0
     },
     "by_shape": {
@@ -222,8 +222,8 @@
     },
     {
       "chunk": "engine-mvp-commander",
-      "rows": 3682,
-      "cards": 3426
+      "rows": 3683,
+      "cards": 3427
     },
     {
       "chunk": "engine-mvp-cost-choices",
@@ -315,8 +315,8 @@
     },
     {
       "family": "commander:eligible",
-      "rows": 3386,
-      "cards": 3386,
+      "rows": 3387,
+      "cards": 3387,
       "owners": ["engine-mvp-commander"],
       "samples": [
         "Nissa, Worldsoul Speaker",

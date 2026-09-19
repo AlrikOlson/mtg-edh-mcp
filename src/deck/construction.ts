@@ -12,15 +12,49 @@ import type {
   ConstructionZone,
 } from "../types/construction.js";
 import { intentDiagnostics, type DeckIntent } from "./intent.js";
-import { COMMANDER_DECK_SIZE, checkColorIdentity, copyLimit } from "../validate/coreRules.js";
+import type { ViolationRule } from "../types/violation.js";
+import {
+  COMMANDER_DECK_SIZE,
+  checkBanlist,
+  checkColorIdentity,
+  checkCommanderLibraryOverlap,
+  checkFormatLegality,
+  commanderLegality,
+  copyLimit,
+} from "../validate/coreRules.js";
 import { commanderColorIdentity, validateCommander } from "../validate/commanderRules.js";
 import {
+  checkCompanionOverlap,
   isCompanionCard,
   validateCompanion,
-  companionRuleCoverage,
 } from "../validate/companionRules.js";
 import { budgetPlan } from "../analyze/budget.js";
 import { compilePlaygroupPolicy } from "../meta/playgroupPolicy.js";
+
+/**
+ * Verdicts the validate authority owns that construction reports under the
+ * same code: format legality, command-zone and companion overlap, and an
+ * unresolved companion condition. Construction keeps no guard of its own for
+ * these; it maps the violation and chooses only the construction severity.
+ */
+export const CONSTRUCTION_LEGALITY_RULES: ReadonlySet<ViolationRule> = new Set<ViolationRule>([
+  "FORMAT_ILLEGAL",
+  "FORMAT_LEGALITY_UNKNOWN",
+  "COMMANDER_LIBRARY_OVERLAP",
+  "COMPANION_DECK_OVERLAP",
+  "COMPANION_CONDITION_UNRESOLVED",
+]);
+
+/**
+ * The construction severity of a legality verdict: an unknown legality or an
+ * unresolved companion condition needs evidence (`unresolved`); every other
+ * violation is a proven `conflict`.
+ */
+export function legalityDiagnosticSeverity(rule: ViolationRule): "conflict" | "unresolved" {
+  return rule === "FORMAT_LEGALITY_UNKNOWN" || rule === "COMPANION_CONDITION_UNRESOLVED"
+    ? "unresolved"
+    : "conflict";
+}
 
 export function normalizeConstruction(
   request: ConstructionRequest,
@@ -119,6 +153,22 @@ export function normalizeConstruction(
   for (const entry of resolveEntries(request.cards ?? deck?.cards ?? [], "/cards"))
     seedCounts.set(entry.oracle_id, (seedCounts.get(entry.oracle_id) ?? 0) + entry.qty);
   const seed = [...seedCounts].map(([oracle_id, qty]) => ({ oracle_id, qty }));
+  const lookup = (id: string): Card | null => index.getCard(id);
+  const entriesOf = (counts: ReadonlyMap<string, number>): DeckCardEntry[] =>
+    [...counts].map(([oracle_id, qty]) => ({ oracle_id, qty }));
+  /** A zone-independent deck view for the validate authority's per-card verdicts. */
+  const libraryDeck = (cards: DeckCardEntry[], companion: string | null): Deck => ({
+    deck_id: "construction",
+    name: "Construction constraints",
+    format: "commander",
+    commanders: [],
+    command_zone_kind: "single",
+    cards,
+    computed_color_identity: [],
+    version: 0,
+    data_snapshot: deck?.data_snapshot ?? "",
+    ...(companion ? { companion } : {}),
+  });
   if (deck && request.cards) {
     const baseline = new Map<string, number>();
     for (const entry of deck.cards)
@@ -335,15 +385,6 @@ export function normalizeConstruction(
         "/intent/hard/locked_cards",
         `The bounded copy exception for ${card.name} is not understood.`,
       );
-    if (card && card.legalities.commander !== "legal")
-      add(
-        diagnostics,
-        card.legalities.commander ? "FORMAT_ILLEGAL" : "FORMAT_LEGALITY_UNKNOWN",
-        card.legalities.commander ? "conflict" : "unresolved",
-        "/intent/hard/locked_cards",
-        `${card.name} has ${card.legalities.commander ?? "unknown"} Commander legality.`,
-        ["/strategy_dependencies"],
-      );
     const limit = card ? copyLimit(card).max : null;
     if (card && limit !== null && qty > limit)
       add(
@@ -354,6 +395,20 @@ export function normalizeConstruction(
         `${card.name} permits at most ${limit} copies, but ${qty} are required.`,
       );
   }
+  // Mandatory cards' standing in the format is the validate authority's verdict.
+  const mandatoryDeckView = libraryDeck(entriesOf(mandatory), null);
+  for (const violation of [
+    ...checkBanlist(mandatoryDeckView, lookup),
+    ...checkFormatLegality(mandatoryDeckView, lookup),
+  ])
+    add(
+      diagnostics,
+      violation.rule,
+      legalityDiagnosticSeverity(violation.rule),
+      "/intent/hard/locked_cards",
+      violation.detail,
+      ["/strategy_dependencies"],
+    );
   if (companionId) {
     const card = index.getCard(companionId);
     if (card) {
@@ -373,23 +428,29 @@ export function normalizeConstruction(
           "/companion",
           `${card.name} does not have the companion ability.`,
         );
-      if (card.legalities.commander !== "legal")
+      const companionView = libraryDeck([], companionId);
+      for (const violation of [
+        ...checkBanlist(companionView, lookup),
+        ...checkFormatLegality(companionView, lookup),
+      ])
         add(
           diagnostics,
           "COMPANION_FORMAT_ILLEGAL",
-          card.legalities.commander ? "conflict" : "unresolved",
+          legalityDiagnosticSeverity(violation.rule),
           "/companion",
-          `${card.name} is not known legal in Commander.`,
+          violation.detail,
         );
-      if (mandatory.has(companionId) || seedCounts.has(companionId))
-        add(
-          diagnostics,
-          "COMPANION_DECK_OVERLAP",
-          "conflict",
-          "/companion",
-          "The declared companion must be separate from the starting deck.",
-          ["/cards", "/intent/hard/locked_cards"],
-        );
+      const seedAndMandatory = new Map(seedCounts);
+      for (const [id, qty] of mandatory)
+        seedAndMandatory.set(id, Math.max(seedAndMandatory.get(id) ?? 0, qty));
+      for (const violation of checkCompanionOverlap(
+        libraryDeck(entriesOf(seedAndMandatory), companionId),
+        lookup,
+      ))
+        add(diagnostics, violation.rule, "conflict", "/companion", violation.detail, [
+          "/cards",
+          "/intent/hard/locked_cards",
+        ]);
       if (excluded.has(companionId))
         add(
           diagnostics,
@@ -408,7 +469,7 @@ export function normalizeConstruction(
       normalizedIntent.hard.change_limit,
     );
   const seedTotal = seed.reduce((sum, entry) => sum + entry.qty, 0);
-  const asDeck = (zone: ConstructionZone, cards: DeckCardEntry[]): Deck => ({
+  const asDeck = (zone: ConstructionZone, cards: DeckCardEntry[], withCompanion = true): Deck => ({
     deck_id: "construction",
     name: "Construction constraints",
     format: "commander",
@@ -418,7 +479,7 @@ export function normalizeConstruction(
     computed_color_identity: zone.color_identity,
     version: 0,
     data_snapshot: deck?.data_snapshot ?? "",
-    ...(companionId ? { companion: companionId } : {}),
+    ...(companionId && withCompanion ? { companion: companionId } : {}),
   });
   const evaluateZone = (
     refs: readonly string[],
@@ -471,14 +532,9 @@ export function normalizeConstruction(
           `Selected commander '${id}' is outside the allowed list.`,
           ["/intent/hard/commanders/allowed"],
         );
-      if (seedCounts.has(id))
-        declare(
-          "COMMANDER_LIBRARY_OVERLAP",
-          "conflict",
-          `Commander '${id}' also occurs in the library seed.`,
-          ["/cards"],
-        );
     }
+    for (const violation of checkCommanderLibraryOverlap(asDeck(zone, seed, false), lookup))
+      declare(violation.rule, "conflict", violation.detail, ["/cards"]);
     for (const id of constraints?.required ?? [])
       if (!commanders.includes(id))
         declare(
@@ -497,16 +553,16 @@ export function normalizeConstruction(
         "The command zone exceeds the declared color identity.",
         ["/intent/hard/commanders/color_identity"],
       );
-    for (const [id] of inventory) {
-      const card = index.getCard(id);
-      if (card && !mandatory.has(id) && card.legalities.commander !== "legal")
-        declare(
-          card.legalities.commander ? "FORMAT_ILLEGAL" : "FORMAT_LEGALITY_UNKNOWN",
-          card.legalities.commander ? "conflict" : "unresolved",
-          `${card.name} has ${card.legalities.commander ?? "unknown"} Commander legality.`,
-          ["/intent/hard/locked_cards"],
-        );
-    }
+    // The commanders' standing in the format; mandatory cards were judged once above.
+    const zoneView = asDeck(zone, [], false);
+    for (const violation of [
+      ...checkBanlist(zoneView, lookup),
+      ...checkFormatLegality(zoneView, lookup),
+    ])
+      if (!violation.card || !mandatory.has(violation.card.oracle_id))
+        declare(violation.rule, legalityDiagnosticSeverity(violation.rule), violation.detail, [
+          "/intent/hard/locked_cards",
+        ]);
     if (known)
       for (const violation of checkColorIdentity(mandatoryDeck, (id) => index.getCard(id)))
         declare(violation.rule, "conflict", violation.detail, [
@@ -604,56 +660,35 @@ export function normalizeConstruction(
             "The companion exceeds the command-zone color identity.",
             [path],
           );
-        if (commanders.includes(companionId))
+        for (const violation of checkCompanionOverlap(asDeck(zone, []), lookup))
+          add(target, violation.rule, "conflict", "/companion", violation.detail, [
+            "/cards",
+            "/intent/hard/locked_cards",
+            path,
+          ]);
+        // The condition's breaks and its resolvability are the validate authority's verdicts.
+        for (const violation of validateCompanion(mandatoryDeck, lookup)) {
+          // A mandatory or command-zone companion was reported as an overlap above.
+          if (violation.rule === "COMPANION_DECK_OVERLAP") continue;
           add(
             target,
-            "COMPANION_DECK_OVERLAP",
-            "conflict",
+            violation.rule,
+            legalityDiagnosticSeverity(violation.rule),
             "/companion",
-            "The declared companion must be separate from the starting deck.",
-            ["/cards", "/intent/hard/locked_cards", path],
+            violation.detail,
+            [path, "/intent/hard/locked_cards"],
           );
-        if (
-          companionRuleCoverage(card) !== "supported" ||
-          (card.name !== "Yorion, Sky Nomad" &&
-            [...inventory.keys()].some((id) => {
-              const starting = index.getCard(id);
-              return (
-                starting &&
-                (/\bchangeling\b/i.test(starting.oracle_text) ||
-                  starting.type_line.includes("//") ||
-                  (starting.gameplay?.faces?.length ?? 0) > 1 ||
-                  (starting.gameplay &&
-                    (starting.gameplay.face_relationship !== "single" ||
-                      starting.gameplay.characteristics.cmc === null ||
-                      starting.gameplay.characteristics.mana_cost === null ||
-                      starting.gameplay.characteristics.type_line === null ||
-                      starting.gameplay.characteristics.oracle_text === null)))
-              );
-            }))
-        )
-          add(
-            target,
-            "COMPANION_CONDITION_UNRESOLVED",
-            "unresolved",
-            "/companion",
-            "This companion condition lacks an exact evaluator.",
-          );
-        else
-          for (const violation of validateCompanion(mandatoryDeck, (id) => index.getCard(id)))
-            add(target, violation.rule, "conflict", "/companion", violation.detail, [
-              path,
-              "/intent/hard/locked_cards",
-            ]);
+        }
       }
     }
     let forcedRemovals = 0;
     for (const [id, qty] of seedCounts) {
       const card = index.getCard(id);
+      const legality = card ? commanderLegality(card) : "unknown";
       const incompatible =
         excluded.has(id) ||
         (card &&
-          ((card.legalities.commander !== undefined && card.legalities.commander !== "legal") ||
+          ((legality !== "unknown" && legality !== "legal") ||
             (known && card.color_identity.some((c) => !zone.color_identity.includes(c)))));
       if (incompatible) forcedRemovals += qty;
       else if (card) forcedRemovals += Math.max(0, qty - (copyLimit(card).max ?? qty));

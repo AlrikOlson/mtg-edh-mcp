@@ -64,12 +64,48 @@ re-read of the excerpt rather than a silent update.
 | Singleton and exemptions | 903.5b, 101.1                         |     3 | Verified unchanged                            |
 | Color identity           | 903.4, 903.5c, 702.124c               |     3 | Verified unchanged                            |
 | Banned list              | 100.2c (list itself is Scryfall data) |     1 | Verified unchanged                            |
-| Eligible commander types | 903.3, 903.3a                         |     5 | Verified unchanged                            |
+| Format legality          | 100.2c, 903.5 (pool is Scryfall data) |     2 | **Consolidated** (2026-09-19)                 |
+| Command-zone overlap     | 903.5a, 903.5b                        |     1 | **Consolidated** (2026-09-19)                 |
+| Eligible commander types | 903.3, 903.3a, 101.1                  |     6 | Creature-card-off-battlefield case added      |
 | Partner, partner with    | 702.124f/g/h/j                        |     4 | Verified unchanged                            |
 | Partner—[text]           | 702.124i, 702.124f                    |     3 | **Discrepancy fixed**                         |
 | Choose a Background      | 702.124k                              |     2 | Tightened to legendary Background enchantment |
 | Doctor's companion       | 702.124m                              |     3 | **Discrepancy fixed**                         |
 | Companion                | 702.139a, 702.139b, 903.5a            |     2 | Verified unchanged                            |
+| Companion overlap        | 702.139a                              |     1 | **Consolidated** (2026-09-19)                 |
+| Companion resolvability  | 702.139a                              |     3 | Unresolved conditions reported, never passed  |
+
+## Construction authority consolidation (2026-09-19)
+
+The deck plan, deck construction and build construction used to carry their
+own legality guards beside the public validator, and the two disagreed. The
+validator now owns every deck-construction verdict, and those paths read it
+(`docs/architecture/mcp-construction-authority-consolidation.md`):
+
+- **Format legality (100.2c, 903.5).** A card whose Commander legality is
+  `not_legal` (or `restricted`) is `FORMAT_ILLEGAL`; a record carrying no
+  Commander legality is `FORMAT_LEGALITY_UNKNOWN`. Banned cards stay
+  `BANLIST`, which now also covers the declared companion.
+- **Command-zone overlap (903.5a, 903.5b).** The commander counts among the
+  100, so a commander also in the library beyond its copy limit is
+  `COMMANDER_LIBRARY_OVERLAP`, read through the same `copyLimit` as the
+  singleton rule.
+- **Companion overlap (702.139a).** The companion is one card from outside
+  the game; a declared companion that is also a commander or a library card
+  is `COMPANION_DECK_OVERLAP`.
+- **Companion resolvability (702.139a).** `resolveCompanionCondition` is the
+  one decision of whether a condition is exactly evaluable: an unmodeled
+  companion, a heuristic restriction (Kaheera, Zirda) or a starting card with
+  incomplete characteristics is `COMPANION_CONDITION_UNRESOLVED`. A supported
+  restriction is still judged over the exactly readable cards; a heuristic one
+  is never evaluated as a certified break.
+- **Eligibility (903.3, 101.1).** A legendary card whose own text makes it a
+  creature card in every zone but the battlefield (Grist, the Hunger Tide) is
+  a creature card for 903.3, which reads the card outside the battlefield.
+  The validator and the ingest heuristic share the reading.
+
+The excerpt and both pinned digests are unchanged; every new case quotes
+wording already frozen in it.
 
 ## Discrepancies found and fixed
 

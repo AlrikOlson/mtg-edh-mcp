@@ -105,6 +105,60 @@ describe("isCommanderEligible", () => {
     });
     expect(isCommanderEligible(artifact)).toBe(false);
   });
+
+  it("accepts a legendary card whose own text makes it a creature card while not on the battlefield (CR 903.3 reads the card outside the battlefield)", () => {
+    const grist = card({
+      oracle_id: "grist",
+      name: "Grist, the Hunger Tide",
+      type_line: "Legendary Planeswalker — Grist",
+      oracle_text:
+        "As long as Grist, the Hunger Tide isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types.\n+1: Create a 1/1 black Insect creature token.",
+      is_commander_eligible: false,
+    });
+    expect(isCommanderEligible(grist)).toBe(true);
+    // The front face governs: the same text on a canonical record reads the same.
+    expect(
+      isCommanderEligible({
+        ...grist,
+        gameplay: {
+          version: 1,
+          source: { scryfall_id: null, oracle_id: "grist" },
+          layout: "normal",
+          color_identity: ["B", "G"],
+          face_relationship: "single",
+          playability: "not_evaluated",
+          characteristics: {
+            name: grist.name,
+            mana_cost: "{1}{B}{G}",
+            cmc: 3,
+            type_line: grist.type_line,
+            oracle_text: grist.oracle_text,
+            colors: null,
+            color_indicator: null,
+            power: null,
+            toughness: null,
+            loyalty: "3",
+            defense: null,
+            keywords: [],
+            produced_mana: null,
+            printed_name: null,
+            printed_text: null,
+            printed_type_line: null,
+          },
+          faces: null,
+          related_cards: null,
+        },
+      }),
+    ).toBe(true);
+    // Nonlegendary, or a creature only while on the battlefield, is not a creature card.
+    expect(isCommanderEligible({ ...grist, type_line: "Planeswalker — Grist" })).toBe(false);
+    expect(
+      isCommanderEligible({
+        ...grist,
+        oracle_text: "As long as Gideon is on the battlefield, it's a 4/4 Human Soldier creature.",
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("checkCommanderEligibility", () => {

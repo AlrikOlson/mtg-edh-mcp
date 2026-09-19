@@ -156,6 +156,53 @@ describe("deck change desired-state validation", () => {
     expect(result.validation.valid).toBe(true);
     expect(codes(result)).toContain("BUDGET_TARGET_UNMET");
   });
+  it("reads format legality, command-zone and companion overlap and the companion condition from the validate authority", () => {
+    const consolidated = new Set([
+      "FORMAT_ILLEGAL",
+      "FORMAT_LEGALITY_UNKNOWN",
+      "COMMANDER_LIBRARY_OVERLAP",
+      "COMPANION_DECK_OVERLAP",
+      "COMPANION_CONDITION_UNRESOLVED",
+    ]);
+    // Normalization judges the seed inventory and the plan judges the whole deck through
+    // the same validate authority, so a code may appear once per view; the sets agree.
+    const parity = (result: ReturnType<typeof prepare>) => {
+      const fromLegality = [
+        ...new Set(
+          result.validation.legality.map((v) => v.rule).filter((r) => consolidated.has(r)),
+        ),
+      ].sort();
+      const fromDiagnostics = [...new Set(codes(result).filter((c) => consolidated.has(c)))].sort();
+      expect(fromDiagnostics).toEqual(fromLegality);
+      return fromDiagnostics;
+    };
+    const overlap = prepare({ cards: [...inventory(98), { oracle_id: "Leader", qty: 1 }] });
+    expect(overlap.validation.valid).toBe(false);
+    expect(parity(overlap)).toEqual(["COMMANDER_LIBRARY_OVERLAP"]);
+    expect(overlap.validation.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "COMMANDER_LIBRARY_OVERLAP",
+        severity: "conflict",
+        path: "/commanders",
+      }),
+    );
+    const companion = prepare({
+      companion: "Kaheera, the Orphanguard",
+      cards: [...inventory(98), { oracle_id: "Kaheera, the Orphanguard", qty: 1 }],
+    });
+    expect(parity(companion)).toEqual(["COMPANION_CONDITION_UNRESOLVED", "COMPANION_DECK_OVERLAP"]);
+    expect(companion.validation.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "COMPANION_CONDITION_UNRESOLVED",
+        severity: "unresolved",
+        path: "/companion",
+      }),
+    );
+    expect(
+      parity(prepare({ cards: [...inventory(98), { oracle_id: "Not Legal", qty: 1 }] })),
+    ).toEqual(["FORMAT_ILLEGAL"]);
+    expect(parity(prepare({}))).toEqual([]);
+  });
   it("fails closed for unsupported hard requirements and companion conditions", () => {
     const unsupported = prepare({
       requirements: [{ id: "win", text: "Always win by turn four", strength: "hard" }],

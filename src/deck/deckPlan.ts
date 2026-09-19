@@ -7,9 +7,13 @@ import type { ConstructionDiagnostic } from "../types/construction.js";
 import type { Deck, DeckCardEntry } from "../types/deck.js";
 import type { DeckPlanRequest, DeckPlanValidation } from "../types/deckPlan.js";
 import { commanderColorIdentity } from "../validate/commanderRules.js";
-import { companionRuleCoverage, isCompanionCard } from "../validate/companionRules.js";
+import { isCompanionCard } from "../validate/companionRules.js";
 import { validateDeck } from "../validate/validateDeck.js";
-import { normalizeConstruction } from "./construction.js";
+import {
+  CONSTRUCTION_LEGALITY_RULES,
+  legalityDiagnosticSeverity,
+  normalizeConstruction,
+} from "./construction.js";
 import { copyLimit } from "../validate/coreRules.js";
 
 const counts = (entries: readonly DeckCardEntry[]): Map<string, number> => {
@@ -53,20 +57,10 @@ function knownLandType(card: Card | null): string | null {
   return card.type_line || null;
 }
 
-function companionCharacteristicsUnknown(card: Card): boolean {
-  return (
-    /\bchangeling\b/i.test(card.oracle_text) ||
-    card.type_line.includes("//") ||
-    (card.gameplay?.faces?.length ?? 0) > 1 ||
-    Boolean(
-      card.gameplay &&
-      (card.gameplay.face_relationship !== "single" ||
-        card.gameplay.characteristics.cmc === null ||
-        card.gameplay.characteristics.mana_cost === null ||
-        card.gameplay.characteristics.type_line === null ||
-        card.gameplay.characteristics.oracle_text === null),
-    )
-  );
+/** Where a legality verdict the validate authority owns is reported in the request. */
+function legalityDiagnosticPath(rule: string): string {
+  if (rule === "COMMANDER_LIBRARY_OVERLAP") return "/commanders";
+  return rule.startsWith("COMPANION") ? "/companion" : "/cards";
 }
 
 export function prepareDeckChange(
@@ -159,13 +153,6 @@ export function prepareDeckChange(
       );
       continue;
     }
-    if (card.legalities.commander !== "legal")
-      add(
-        card.legalities.commander ? "FORMAT_ILLEGAL" : "FORMAT_LEGALITY_UNKNOWN",
-        card.legalities.commander ? "conflict" : "unresolved",
-        "/cards",
-        `${card.name} has ${card.legalities.commander ?? "unknown"} Commander legality.`,
-      );
     const limit = copyLimit(card).max;
     if (limit === null)
       add(
@@ -182,23 +169,8 @@ export function prepareDeckChange(
         `${card.name} permits at most ${limit} copies in the starting deck.`,
       );
   }
-  for (const id of commanders)
-    if (desiredCounts.has(id))
-      add(
-        "COMMANDER_LIBRARY_OVERLAP",
-        "conflict",
-        "/commanders",
-        `Commander '${id}' also appears in the library.`,
-      );
   if (desired.companion) {
     const companion = lookup(desired.companion);
-    if (startingCounts.has(desired.companion))
-      add(
-        "COMPANION_DECK_OVERLAP",
-        "conflict",
-        "/companion",
-        "The declared companion must be outside the starting deck.",
-      );
     if (companion) {
       if (!isCompanionCard(companion))
         add(
@@ -214,23 +186,20 @@ export function prepareDeckChange(
           "/companion",
           "The companion exceeds the command-zone color identity.",
         );
-      if (
-        companionRuleCoverage(companion) !== "supported" ||
-        (companion.name !== "Yorion, Sky Nomad" &&
-          [...startingCounts.keys()].some((id) => {
-            const card = lookup(id);
-            return !card || companionCharacteristicsUnknown(card);
-          }))
-      )
-        add(
-          "COMPANION_CONDITION_UNRESOLVED",
-          "unresolved",
-          "/companion",
-          "Installed starting-card characteristics do not establish this companion condition exactly.",
-        );
     }
   }
   const legality = validateDeck(desired, lookup);
+  // Format legality, command-zone and companion overlap and companion-condition
+  // resolvability are the validate authority's verdicts, reported here under the
+  // same codes with construction severities.
+  for (const violation of legality)
+    if (CONSTRUCTION_LEGALITY_RULES.has(violation.rule))
+      add(
+        violation.rule,
+        legalityDiagnosticSeverity(violation.rule),
+        legalityDiagnosticPath(violation.rule),
+        violation.detail,
+      );
   const hard = specification.intent?.hard;
   for (const entry of hard?.locked_cards ?? [])
     if ((startingCounts.get(entry.oracle_id) ?? 0) < entry.qty)

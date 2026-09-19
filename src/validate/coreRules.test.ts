@@ -9,6 +9,9 @@ import {
   anyNumberReason,
   anyNumberExemptions,
   copyLimit,
+  commanderLegality,
+  checkFormatLegality,
+  checkCommanderLibraryOverlap,
   type CardLookup,
 } from "./index.js";
 
@@ -313,5 +316,126 @@ describe("copyLimit (CR 903.5b with card-text overrides under CR 101.1)", () => 
       { oracle_id: "o-dwarves", name: "Seven Dwarves", qty: 7, reason: "bounded_text", max: 7 },
       { oracle_id: "o-plains", name: "Plains", qty: 30, reason: "basic_land" },
     ]);
+  });
+});
+
+describe("checkFormatLegality", () => {
+  const lookup = lookupOf(
+    card({ oracle_id: "o-legal", name: "Legal" }),
+    card({ oracle_id: "o-not", name: "Not Legal", legalities: { commander: "not_legal" } }),
+    card({
+      oracle_id: "o-restricted",
+      name: "Restricted",
+      legalities: { commander: "restricted" },
+    }),
+    card({ oracle_id: "o-unknown", name: "Unknown", legalities: {} }),
+    card({ oracle_id: "o-banned", name: "Banned", legalities: { commander: "banned" } }),
+  );
+
+  it("reads one Commander legality per card, unknown when the format is absent", () => {
+    expect(commanderLegality(lookup("o-legal")!)).toBe("legal");
+    expect(commanderLegality(lookup("o-not")!)).toBe("not_legal");
+    expect(commanderLegality(lookup("o-banned")!)).toBe("banned");
+    expect(commanderLegality(lookup("o-unknown")!)).toBe("unknown");
+  });
+
+  it("reports not_legal and restricted as FORMAT_ILLEGAL and a missing legality as FORMAT_LEGALITY_UNKNOWN once per identity across the command zone, library and companion", () => {
+    const d = deck({
+      commanders: ["o-not"],
+      cards: [
+        { oracle_id: "o-not", qty: 1 },
+        { oracle_id: "o-restricted", qty: 1 },
+        { oracle_id: "o-legal", qty: 1 },
+      ],
+      companion: "o-unknown",
+    });
+    expect(checkFormatLegality(d, lookup).map((v) => [v.rule, v.card?.name, v.severity])).toEqual([
+      ["FORMAT_ILLEGAL", "Not Legal", "error"],
+      ["FORMAT_ILLEGAL", "Restricted", "error"],
+      ["FORMAT_LEGALITY_UNKNOWN", "Unknown", "error"],
+    ]);
+  });
+
+  it("leaves banned cards to the banlist rule, which also covers the companion, and skips unknown cards", () => {
+    const d = deck({
+      cards: [
+        { oracle_id: "o-legal", qty: 1 },
+        { oracle_id: "o-missing", qty: 1 },
+      ],
+      companion: "o-banned",
+    });
+    expect(checkFormatLegality(d, lookup)).toEqual([]);
+    expect(checkBanlist(d, lookup).map((v) => [v.rule, v.card?.name])).toEqual([
+      ["BANLIST", "Banned"],
+    ]);
+  });
+
+  it("is part of validateCore", () => {
+    const d = deck({ commanders: ["o-legal"], cards: [{ oracle_id: "o-not", qty: 1 }] });
+    expect(validateCore(d, lookup).map((v) => v.rule)).toContain("FORMAT_ILLEGAL");
+  });
+});
+
+describe("checkCommanderLibraryOverlap", () => {
+  const leader = card({
+    oracle_id: "o-leader",
+    name: "Leader",
+    type_line: "Legendary Creature — Elf",
+  });
+  const rats = card({
+    oracle_id: "o-rats",
+    name: "Relentless Rats",
+    type_line: "Creature — Rat",
+    oracle_text: "A deck can have any number of cards named Relentless Rats.",
+  });
+  const dwarves = card({
+    oracle_id: "o-dwarves",
+    name: "Seven Dwarves",
+    type_line: "Creature — Dwarf",
+    oracle_text: "A deck can have up to seven cards named Seven Dwarves.",
+  });
+  const lookup = lookupOf(leader, rats, dwarves);
+
+  it("reports a commander that also appears in the library", () => {
+    const d = deck({ commanders: ["o-leader"], cards: [{ oracle_id: "o-leader", qty: 1 }] });
+    const v = checkCommanderLibraryOverlap(d, lookup);
+    expect(v).toHaveLength(1);
+    expect(v[0]).toMatchObject({
+      rule: "COMMANDER_LIBRARY_OVERLAP",
+      severity: "error",
+      card: { oracle_id: "o-leader", name: "Leader" },
+    });
+    expect(v[0]?.detail).toContain("Leader");
+  });
+
+  it("passes a commander that stays out of the library", () => {
+    const d = deck({ commanders: ["o-leader"], cards: [{ oracle_id: "o-rats", qty: 3 }] });
+    expect(checkCommanderLibraryOverlap(d, lookup)).toEqual([]);
+  });
+
+  it("treats an unknown commander as a singleton card", () => {
+    const d = deck({ commanders: ["o-missing"], cards: [{ oracle_id: "o-missing", qty: 1 }] });
+    expect(checkCommanderLibraryOverlap(d, lookup).map((v) => v.rule)).toEqual([
+      "COMMANDER_LIBRARY_OVERLAP",
+    ]);
+  });
+
+  it("reads the same copy limit as the singleton rule", () => {
+    const unlimited = deck({ commanders: ["o-rats"], cards: [{ oracle_id: "o-rats", qty: 20 }] });
+    expect(checkCommanderLibraryOverlap(unlimited, lookup)).toEqual([]);
+    const atCap = deck({ commanders: ["o-dwarves"], cards: [{ oracle_id: "o-dwarves", qty: 6 }] });
+    expect(checkCommanderLibraryOverlap(atCap, lookup)).toEqual([]);
+    const overCap = deck({
+      commanders: ["o-dwarves"],
+      cards: [{ oracle_id: "o-dwarves", qty: 7 }],
+    });
+    expect(checkCommanderLibraryOverlap(overCap, lookup).map((v) => v.rule)).toEqual([
+      "COMMANDER_LIBRARY_OVERLAP",
+    ]);
+  });
+
+  it("is part of validateCore", () => {
+    const d = deck({ commanders: ["o-leader"], cards: [{ oracle_id: "o-leader", qty: 1 }] });
+    expect(validateCore(d, lookup).map((v) => v.rule)).toContain("COMMANDER_LIBRARY_OVERLAP");
   });
 });

@@ -10,10 +10,14 @@ export {
   anyNumberReason,
   anyNumberExemptions,
   copyLimit,
+  commanderLegality,
+  checkFormatLegality,
+  checkCommanderLibraryOverlap,
   COMMANDER_DECK_SIZE,
   type CardLookup,
   type AnyNumberReason,
   type AnyNumberExemption,
+  type CommanderLegality,
   type CopyLimit,
   type CopyLimitReason,
 } from "./coreRules.js";
@@ -25,5 +29,13 @@ export {
   isLegendaryBackground,
   commanderColorIdentity,
 } from "./commanderRules.js";
-export { validateCompanion, isCompanionCard } from "./companionRules.js";
+export {
+  validateCompanion,
+  isCompanionCard,
+  checkCompanionOverlap,
+  companionCharacteristicsUnknown,
+  companionRuleCoverage,
+  resolveCompanionCondition,
+  type CompanionResolution,
+} from "./companionRules.js";
 export { validateDeck } from "./validateDeck.js";

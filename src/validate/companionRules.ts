@@ -6,8 +6,13 @@
  * closed, rules-defined set — so it is modelled as a name-keyed table of pure
  * predicates rather than a list of arbitrary cards.
  *
- * The check runs only when a companion is declared (`deck.companion`); an
- * undeclared deck, or a declared card we do not model, yields no violations.
+ * The check runs only when a companion is declared (`deck.companion`) and the
+ * card is known. A companion that also sits in the starting deck is an overlap
+ * (CR 702.139a: the companion comes from outside the game). A condition this
+ * module cannot establish exactly (an unmodeled companion, a heuristic
+ * restriction, or a starting card whose characteristics are incomplete) is
+ * reported as unresolved, never passed silently; {@link resolveCompanionCondition}
+ * is the one owner of that decision for validation and construction alike.
  */
 import type { Card, Deck, Violation } from "../types/index.js";
 import type { CardLookup } from "./coreRules.js";
@@ -183,33 +188,12 @@ const COMPANION_RULES: Record<string, CompanionRule> = {
   "Yorion, Sky Nomad": yorionRule,
 };
 
+/** Companions whose condition reads only the deck's size, never a card's characteristics. */
+const COUNT_ONLY_COMPANIONS = new Set<string>(["Yorion, Sky Nomad"]);
+
 /** Companions whose deckbuilding condition this authority models, for evidence tracking. */
 export function modeledCompanionNames(): string[] {
   return Object.keys(COMPANION_RULES).sort();
-}
-
-/**
- * Validate the declared companion's deckbuilding condition over the deck's
- * starting cards (the commanders + the 99, excluding the companion itself).
- * Returns no violations when no companion is declared, the companion card is
- * unknown, or it is not one we model.
- */
-export function validateCompanion(deck: Deck, lookup: CardLookup): Violation[] {
-  if (!deck.companion) return [];
-  const companionCard = lookup(deck.companion);
-  if (!companionCard) return [];
-  const rule = COMPANION_RULES[companionCard.name];
-  if (!rule) return [];
-
-  const starting: Card[] = [];
-  const seen = new Set<string>([deck.companion]);
-  for (const id of [...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]) {
-    if (seen.has(id)) continue;
-    seen.add(id);
-    const card = lookup(id);
-    if (card) starting.push(card);
-  }
-  return rule.check(starting, deck);
 }
 
 /**
@@ -222,4 +206,162 @@ export function companionRuleCoverage(card: Card): "supported" | "heuristic" | "
   if (card.name === "Kaheera, the Orphanguard" || card.name === "Zirda, the Dawnwaker")
     return "heuristic";
   return "supported";
+}
+
+/**
+ * True when a starting card's characteristics cannot be read exactly for a
+ * companion condition: a changeling carries every creature type, a multiface
+ * record flattens two faces into one, and a canonical record missing its mana
+ * value, mana cost, type line or Oracle text establishes nothing. The one
+ * owner of this reading; the deck plan, deck construction and the build
+ * library consume it.
+ */
+export function companionCharacteristicsUnknown(card: Card): boolean {
+  return (
+    /\bchangeling\b/i.test(card.oracle_text) ||
+    card.type_line.includes("//") ||
+    (card.gameplay?.faces?.length ?? 0) > 1 ||
+    Boolean(
+      card.gameplay &&
+      (card.gameplay.face_relationship !== "single" ||
+        card.gameplay.characteristics.cmc === null ||
+        card.gameplay.characteristics.mana_cost === null ||
+        card.gameplay.characteristics.type_line === null ||
+        card.gameplay.characteristics.oracle_text === null),
+    )
+  );
+}
+
+/** Whether the declared companion's condition is exactly evaluable over the starting deck. */
+export type CompanionResolution =
+  | { status: "exact" }
+  | { status: "unresolved"; reason: "unmodeled" | "heuristic" }
+  | {
+      status: "unresolved";
+      reason: "characteristics";
+      /** The starting cards whose characteristics are incomplete. */
+      cards: Array<Pick<Card, "oracle_id" | "name">>;
+    };
+
+/** The starting deck's known cards (commanders and library), each identity once. */
+function startingCards(deck: Deck, lookup: CardLookup): Card[] {
+  const starting: Card[] = [];
+  const seen = new Set<string>();
+  for (const id of [...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const card = lookup(id);
+    if (card) starting.push(card);
+  }
+  return starting;
+}
+
+/**
+ * The one decision of whether a companion condition can be established exactly
+ * (CR 702.139a: the condition must be fulfilled by the starting deck): the
+ * companion's coverage label first, then every known starting card's
+ * characteristic completeness, except for a count-only condition. No declared
+ * or known companion resolves as exact because there is nothing to establish.
+ */
+export function resolveCompanionCondition(deck: Deck, lookup: CardLookup): CompanionResolution {
+  if (!deck.companion) return { status: "exact" };
+  const companionCard = lookup(deck.companion);
+  if (!companionCard) return { status: "exact" };
+  const coverage = companionRuleCoverage(companionCard);
+  if (coverage !== "supported") return { status: "unresolved", reason: coverage };
+  if (COUNT_ONLY_COMPANIONS.has(companionCard.name)) return { status: "exact" };
+  const cards = startingCards(deck, lookup)
+    .filter(companionCharacteristicsUnknown)
+    .map((c) => ({ oracle_id: c.oracle_id, name: c.name }));
+  return cards.length === 0
+    ? { status: "exact" }
+    : { status: "unresolved", reason: "characteristics", cards };
+}
+
+/**
+ * Companion overlap (CR 702.139a: the companion is one card from outside the
+ * game): the declared companion may not also be a commander or a library card.
+ * Construction maps this verdict to its COMPANION_DECK_OVERLAP diagnostic.
+ */
+export function checkCompanionOverlap(deck: Deck, lookup?: CardLookup): Violation[] {
+  const id = deck.companion;
+  if (!id) return [];
+  const inside =
+    deck.commanders.includes(id) || deck.cards.some((e) => e.oracle_id === id && e.qty > 0);
+  if (!inside) return [];
+  const name = lookup?.(id)?.name ?? id;
+  return [
+    {
+      rule: "COMPANION_DECK_OVERLAP",
+      severity: "error",
+      card: { oracle_id: id, name },
+      detail: `${name} is the declared companion and also part of the starting deck`,
+      fix_hint: "remove the companion from the deck or drop the companion",
+    },
+  ];
+}
+
+function unresolvedDetail(
+  companionCard: Card,
+  resolution: Exclude<CompanionResolution, { status: "exact" }>,
+): string {
+  switch (resolution.reason) {
+    case "unmodeled":
+      return `${companionCard.name}'s companion condition is not modeled by this validator`;
+    case "heuristic":
+      return `${companionCard.name}'s companion condition is evaluated heuristically (printed subtypes and ability shapes), not exactly`;
+    case "characteristics":
+      return `${companionCard.name}'s companion condition cannot be established exactly: incomplete characteristics for ${resolution.cards.map((c) => c.name).join(", ")}`;
+    default: {
+      const exhaustive: never = resolution;
+      return String(exhaustive);
+    }
+  }
+}
+
+function unresolvedViolation(
+  companionCard: Card,
+  resolution: Exclude<CompanionResolution, { status: "exact" }>,
+): Violation {
+  const detail = unresolvedDetail(companionCard, resolution);
+  return {
+    rule: "COMPANION_CONDITION_UNRESOLVED",
+    severity: "error",
+    card: { oracle_id: companionCard.oracle_id, name: companionCard.name },
+    detail,
+    fix_hint: "drop the companion, or supply exact card evidence for its condition",
+  };
+}
+
+/**
+ * Validate the declared companion over the deck's starting cards (the
+ * commanders + the 99): the overlap check, the restriction's breaks, then an
+ * unresolved report when the condition is not exactly established. A supported
+ * restriction is evaluated over the exactly readable cards even when another
+ * card's characteristics are incomplete (a break on a complete card is
+ * certain); a heuristic or unmodeled restriction is never evaluated, because
+ * its break would not be a certified verdict. Returns no violations when no
+ * companion is declared or the companion card is unknown.
+ */
+export function validateCompanion(deck: Deck, lookup: CardLookup): Violation[] {
+  if (!deck.companion) return [];
+  const companionCard = lookup(deck.companion);
+  if (!companionCard) return [];
+  const violations = checkCompanionOverlap(deck, lookup);
+  const resolution = resolveCompanionCondition(deck, lookup);
+  const rule = COMPANION_RULES[companionCard.name];
+  if (rule && (resolution.status === "exact" || resolution.reason === "characteristics")) {
+    const starting = startingCards(deck, lookup);
+    violations.push(
+      ...rule.check(
+        resolution.status === "exact"
+          ? starting
+          : starting.filter((c) => !companionCharacteristicsUnknown(c)),
+        deck,
+      ),
+    );
+  }
+  if (resolution.status === "unresolved")
+    violations.push(unresolvedViolation(companionCard, resolution));
+  return violations;
 }

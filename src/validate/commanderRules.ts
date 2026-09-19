@@ -121,6 +121,16 @@ export function isLegendaryBackground(card: Card): boolean {
   );
 }
 
+/**
+ * Text that makes a card a creature card in every zone but the battlefield (a
+ * characteristic-defining ability such as Grist, the Hunger Tide's). CR 903.3
+ * asks whether the designated card is a creature card, and the card is read
+ * outside the battlefield, so such a legendary card is eligible. The ingest
+ * heuristic shares this reading.
+ */
+export const CREATURE_CARD_OUTSIDE_BATTLEFIELD =
+  /as long as .+? isn['’]t on the battlefield, it['’]s an? [^.]*\bcreature\b/i;
+
 /** A sole commander according to its front-face facts; legacy flags remain compatible. */
 export function isCommanderEligible(card: Card): boolean {
   const front = commanderCharacteristics(card);
@@ -130,7 +140,8 @@ export function isCommanderEligible(card: Card): boolean {
     (!card.gameplay && card.is_commander_eligible) ||
     (legendary &&
       (/\bCreature\b/i.test(front.type_line) ||
-        (/\b(?:Vehicle|Spacecraft)\b/i.test(front.type_line) && printedPT))) ||
+        (/\b(?:Vehicle|Spacecraft)\b/i.test(front.type_line) && printedPT) ||
+        CREATURE_CARD_OUTSIDE_BATTLEFIELD.test(front.oracle_text))) ||
     /can be your commander/i.test(front.oracle_text)
   );
 }

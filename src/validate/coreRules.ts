@@ -3,15 +3,21 @@
  * card lookup, returning structured {@link Violation}s. No MCP/DeckStore
  * coupling: the validate_* tools (p4-tools) wire these to a CardIndex.
  *
- * The four core rules:
+ * The core rules:
  *  - card count: exactly 100 including the command zone (report the delta);
  *  - singleton: at most one of each card, except basics, a curated "any number"
  *    allowlist, and cards whose oracle text grants any number;
+ *  - command-zone overlap: a commander may not also sit in the library beyond
+ *    the same copy limit (CR 903.5a counts the commander in the 100);
  *  - color identity: each card's identity must be a subset of the deck's;
  *  - banlist: a card is banned iff `legalities.commander === "banned"` — derived
- *    purely from Scryfall data, never a hardcoded list.
+ *    purely from Scryfall data, never a hardcoded list;
+ *  - format legality: every other Commander legality but `legal` is refused
+ *    (`not_legal`/`restricted` as FORMAT_ILLEGAL, a missing legality as
+ *    FORMAT_LEGALITY_UNKNOWN). Deck construction reads these verdicts and keeps
+ *    no legality guard of its own.
  */
-import type { Card, Color, Deck, Violation } from "../types/index.js";
+import type { Card, Color, Deck, Legality, Violation } from "../types/index.js";
 
 /** Resolves an oracle_id to its full Card, or null when unknown. */
 export type CardLookup = (oracleId: string) => Card | null;
@@ -245,17 +251,69 @@ export function checkColorIdentity(deck: Deck, lookup: CardLookup): Violation[] 
 }
 
 /**
+ * Command-zone overlap (CR 903.5a counts the commander among the 100; 903.5b
+ * allows one copy of a name unless the card's own text says otherwise): a
+ * commander that also appears in the library is refused when the command-zone
+ * copy plus the library copies exceed {@link copyLimit}. An unknown card is one
+ * copy. Reads the same limit as the singleton rule; construction maps this
+ * verdict to its COMMANDER_LIBRARY_OVERLAP diagnostic.
+ */
+export function checkCommanderLibraryOverlap(deck: Deck, lookup: CardLookup): Violation[] {
+  const violations: Violation[] = [];
+  for (const oracleId of new Set(deck.commanders)) {
+    const inLibrary = deck.cards
+      .filter((e) => e.oracle_id === oracleId)
+      .reduce((sum, e) => sum + e.qty, 0);
+    if (inLibrary === 0) continue;
+    const card = lookup(oracleId);
+    const max = card ? (copyLimit(card).max ?? 1) : 1;
+    if (inLibrary + 1 <= max) continue;
+    const name = card?.name ?? oracleId;
+    violations.push({
+      rule: "COMMANDER_LIBRARY_OVERLAP",
+      severity: "error",
+      card: card ? cardRef(card) : { oracle_id: oracleId, name: oracleId },
+      detail: `${name} is a commander and also appears ${inLibrary} time(s) in the library (${max} cop${max === 1 ? "y" : "ies"} allowed including the command zone)`,
+      fix_hint: "remove the library copy or choose another commander",
+    });
+  }
+  return violations;
+}
+
+/** Every identity a deck references: commanders, library and the declared companion, once each. */
+function deckIdentities(deck: Deck): string[] {
+  const seen = new Set<string>();
+  for (const id of [
+    ...deck.commanders,
+    ...deck.cards.map((e) => e.oracle_id),
+    ...(deck.companion ? [deck.companion] : []),
+  ])
+    seen.add(id);
+  return [...seen];
+}
+
+/** A card's Commander legality as recorded, or `unknown` when the record carries none. */
+export type CommanderLegality = Legality | "unknown";
+
+/**
+ * The one reading of a card's Commander legality (Scryfall `legalities.commander`).
+ * Construction and validation both read this; no other module may inspect the
+ * legality map for the Commander verdict.
+ */
+export function commanderLegality(card: Card): CommanderLegality {
+  return card.legalities.commander ?? "unknown";
+}
+
+/**
  * Banlist rule: a card is banned iff its Commander legality is "banned". The
- * banlist is therefore always current Scryfall data — never hardcoded.
+ * banlist is therefore always current Scryfall data — never hardcoded. The
+ * declared companion is checked with the deck.
  */
 export function checkBanlist(deck: Deck, lookup: CardLookup): Violation[] {
   const violations: Violation[] = [];
-  const seen = new Set<string>();
-  for (const oracleId of [...deck.commanders, ...deck.cards.map((e) => e.oracle_id)]) {
-    if (seen.has(oracleId)) continue;
-    seen.add(oracleId);
+  for (const oracleId of deckIdentities(deck)) {
     const card = lookup(oracleId);
-    if (!card || card.legalities.commander !== "banned") continue;
+    if (!card || commanderLegality(card) !== "banned") continue;
     violations.push({
       rule: "BANLIST",
       severity: "error",
@@ -267,12 +325,50 @@ export function checkBanlist(deck: Deck, lookup: CardLookup): Violation[] {
   return violations;
 }
 
-/** Run all four core rules and return the concatenated violations (§6). */
+/**
+ * Format legality (CR 100.2c, 903.5: Commander decks are built from the cards
+ * legal in the format): a card whose Commander legality is anything but
+ * `legal` or `banned` is FORMAT_ILLEGAL; a record with no Commander legality is
+ * FORMAT_LEGALITY_UNKNOWN, an error because nothing establishes the card's
+ * standing. Banned cards are the banlist rule's. The declared companion is
+ * checked with the deck; unknown cards are skipped as everywhere else.
+ */
+export function checkFormatLegality(deck: Deck, lookup: CardLookup): Violation[] {
+  const violations: Violation[] = [];
+  for (const oracleId of deckIdentities(deck)) {
+    const card = lookup(oracleId);
+    if (!card) continue;
+    const legality = commanderLegality(card);
+    if (legality === "legal" || legality === "banned") continue;
+    violations.push(
+      legality === "unknown"
+        ? {
+            rule: "FORMAT_LEGALITY_UNKNOWN",
+            severity: "error",
+            card: cardRef(card),
+            detail: `${card.name} carries no Commander legality`,
+            fix_hint: "refresh the card data or remove the card",
+          }
+        : {
+            rule: "FORMAT_ILLEGAL",
+            severity: "error",
+            card: cardRef(card),
+            detail: `${card.name} is ${legality === "not_legal" ? "not legal" : legality} in Commander`,
+            fix_hint: "remove the card",
+          },
+    );
+  }
+  return violations;
+}
+
+/** Run the core rules and return the concatenated violations (§6). */
 export function validateCore(deck: Deck, lookup: CardLookup): Violation[] {
   return [
     ...checkCardCount(deck),
     ...checkSingleton(deck, lookup),
+    ...checkCommanderLibraryOverlap(deck, lookup),
     ...checkColorIdentity(deck, lookup),
     ...checkBanlist(deck, lookup),
+    ...checkFormatLegality(deck, lookup),
   ];
 }

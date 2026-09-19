@@ -7,7 +7,7 @@ import { analyzeManaBase, DEFAULT_BANDS } from "../analyze/mana.js";
 import { cheapestUsdCents } from "../analyze/pricing.js";
 import { analyzeStrategy, candidateStrategySupport } from "../analyze/strategy.js";
 import { normalizeConstruction } from "../deck/construction.js";
-import { copyLimit } from "../validate/coreRules.js";
+import { commanderLegality, copyLimit } from "../validate/coreRules.js";
 import { prepareDeckChange } from "../deck/deckPlan.js";
 import type { CardIndex } from "../index/cardIndex.js";
 import { ROLES, type Card } from "../types/card.js";
@@ -101,22 +101,6 @@ function landStatus(card: Card): boolean | null {
     : card.type_line || null;
   return type === null ? null : /\bLand\b/.test(type);
 }
-function companionUnknown(card: Card): boolean {
-  return (
-    /\bchangeling\b/i.test(card.oracle_text) ||
-    card.type_line.includes("//") ||
-    (card.gameplay?.faces?.length ?? 0) > 1 ||
-    Boolean(
-      card.gameplay &&
-      (card.gameplay.face_relationship !== "single" ||
-        card.gameplay.characteristics.cmc === null ||
-        card.gameplay.characteristics.mana_cost === null ||
-        card.gameplay.characteristics.type_line === null ||
-        card.gameplay.characteristics.oracle_text === null),
-    )
-  );
-}
-
 /** A seed is editable inventory. Moving a seed card to its declared external zone is a repair. */
 function normalizeForBuild(
   request: ConstructionRequest,
@@ -392,7 +376,7 @@ function constructWithinRead(
         excluded("excluded_or_other_zone");
         continue;
       }
-      if (card.legalities.commander !== "legal") {
+      if (commanderLegality(card) !== "legal") {
         excluded("format_legality");
         continue;
       }
@@ -415,13 +399,13 @@ function constructWithinRead(
         excluded("budget_price_unknown");
         continue;
       }
+      // The validate authority decides both a break and an unreadable candidate.
       if (
         context.companion &&
-        (companionUnknown(card) ||
-          validateCompanion(
-            { ...context, cards: [...context.cards, { oracle_id: card.oracle_id, qty: 1 }] },
-            (id) => index.getCard(id),
-          ).some((violation) => violation.severity === "error"))
+        validateCompanion(
+          { ...context, cards: [...context.cards, { oracle_id: card.oracle_id, qty: 1 }] },
+          (id) => index.getCard(id),
+        ).length > 0
       ) {
         excluded("companion");
         continue;

@@ -48,6 +48,7 @@ beforeAll(async () => {
       { type_line: "Legendary Creature — Demon Kraken" },
     ),
     rawCard("Banned Card", "", { legalities: { commander: "banned" } }),
+    rawCard("Not Legal", "", { legalities: { commander: "not_legal" } }),
     rawCard("Partner A", "Partner", {
       type_line: "Legendary Creature — Human",
       prices: { usd: "2.00" },
@@ -428,6 +429,52 @@ describe("construction normalization", () => {
     expect(normalize({ budget: { mode: "unbounded" }, companion: "Spell" }).status).toBe(
       "conflict",
     );
+  });
+  it("reads format legality and overlap verdicts from the validate authority under the construction codes", () => {
+    const find = (result: ReturnType<typeof normalize>, code: string) =>
+      result.diagnostics.find((d) => d.code === code);
+    const banned = normalize({
+      ...chosen,
+      intent: { schema_version: 1, hard: { locked_cards: [{ oracle_id: "Banned Card", qty: 1 }] } },
+    });
+    expect(find(banned, "BANLIST")).toMatchObject({
+      severity: "conflict",
+      path: "/intent/hard/locked_cards",
+    });
+    const illegal = normalize({
+      ...chosen,
+      intent: { schema_version: 1, hard: { locked_cards: [{ oracle_id: "Not Legal", qty: 1 }] } },
+    });
+    expect(illegal.status).toBe("conflict");
+    expect(find(illegal, "FORMAT_ILLEGAL")).toMatchObject({
+      severity: "conflict",
+      path: "/intent/hard/locked_cards",
+    });
+    const overlap = normalize({ ...chosen, cards: [{ oracle_id: "Leader", qty: 1 }] });
+    expect(find(overlap, "COMMANDER_LIBRARY_OVERLAP")).toMatchObject({
+      severity: "conflict",
+      path: "/command_zone",
+    });
+    const seededCompanion = normalize({
+      ...chosen,
+      companion: "Gyruda, Doom of Depths",
+      cards: [{ oracle_id: "Gyruda, Doom of Depths", qty: 1 }],
+    });
+    expect(
+      seededCompanion.diagnostics.filter((d) => d.code === "COMPANION_DECK_OVERLAP"),
+    ).toHaveLength(1);
+    const commandingCompanion = normalize({
+      commanders: ["Gyruda, Doom of Depths"],
+      budget: { mode: "unbounded" },
+      companion: "Gyruda, Doom of Depths",
+    });
+    expect(
+      commandingCompanion.diagnostics.filter((d) => d.code === "COMPANION_DECK_OVERLAP"),
+    ).toHaveLength(1);
+    const notLegalCompanion = normalize({ ...chosen, companion: "Not Legal" });
+    expect(find(notLegalCompanion, "COMPANION_FORMAT_ILLEGAL")).toMatchObject({
+      severity: "conflict",
+    });
   });
   it("keeps companion outside 100 and checks mandatory commander restrictions", () => {
     const result = normalize({ ...chosen, companion: "Lurrus of the Dream-Den" });

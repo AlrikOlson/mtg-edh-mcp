@@ -22,6 +22,21 @@ describe("isCommanderEligible (ingest heuristic)", () => {
       isCommanderEligible("Legendary Planeswalker — Rowan", "Rowan can be your commander."),
     ).toBe(true);
   });
+
+  it("accepts a legendary card that is a creature card while not on the battlefield", () => {
+    expect(
+      isCommanderEligible(
+        "Legendary Planeswalker — Grist",
+        "As long as Grist, the Hunger Tide isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types.",
+      ),
+    ).toBe(true);
+    expect(
+      isCommanderEligible(
+        "Legendary Planeswalker — Gideon",
+        "As long as Gideon is on the battlefield, it's a 4/4 Human Soldier creature.",
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("mapScryfallCard sets is_commander_eligible", () => {

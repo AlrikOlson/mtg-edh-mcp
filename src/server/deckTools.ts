@@ -20,6 +20,7 @@ import { diffDecks, formatDecklist, parseDecklist, type DeckStore } from "../dec
 import {
   checkBanlist,
   checkColorIdentity,
+  checkFormatLegality,
   checkSingleton,
   commanderColorIdentity,
   validateCommander,
@@ -671,6 +672,7 @@ function addVerdict(prospective: Deck, oracleId: string, index?: CardIndex): Vio
   return [
     ...checkColorIdentity(prospective, lookup),
     ...checkBanlist(prospective, lookup),
+    ...checkFormatLegality(prospective, lookup),
     ...checkSingleton(prospective, lookup),
   ].filter((v) => v.card?.oracle_id === oracleId);
 }

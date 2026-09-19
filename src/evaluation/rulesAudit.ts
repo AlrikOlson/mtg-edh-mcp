@@ -358,6 +358,48 @@ const PRICY_PERMANENT = card({
   mv: 5,
 });
 
+const NOT_LEGAL = card({
+  oracle_id: "conspiracy",
+  name: "Backup Plan",
+  type_line: "Conspiracy",
+  legalities: { commander: "not_legal" },
+});
+const NO_LEGALITY = card({
+  oracle_id: "unlisted",
+  name: "Unlisted Card",
+  type_line: "Artifact",
+  legalities: {},
+});
+const GRIST = card({
+  oracle_id: "grist",
+  name: "Grist, the Hunger Tide",
+  type_line: "Legendary Planeswalker — Grist",
+  color_identity: ["B", "G"],
+  mv: 3,
+  mana_cost: "{1}{B}{G}",
+  oracle_text:
+    "As long as Grist, the Hunger Tide isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types.\n+1: Create a 1/1 black Insect creature token.",
+});
+const UNMODELED_COMPANION = card({
+  oracle_id: "future",
+  name: "Unmodeled Companion",
+  type_line: "Legendary Creature — Beast",
+  oracle_text: "Companion — Each card in your starting deck has a name.",
+});
+const KAHEERA = card({
+  oracle_id: "kaheera",
+  name: "Kaheera, the Orphanguard",
+  type_line: "Legendary Creature — Cat Beast",
+  oracle_text:
+    "Companion — Each creature card in your starting deck is a Cat, Elemental, Nightmare, Dinosaur, or Beast.",
+});
+const MODAL_LAND = card({
+  oracle_id: "mdfc",
+  name: "Bala Ged Recovery // Bala Ged Sanctuary",
+  type_line: "Sorcery // Land",
+  mv: 3,
+});
+
 function violationRules(violations: Violation[]): ViolationRule[] {
   return [...new Set(violations.map((v) => v.rule))].sort();
 }
@@ -756,6 +798,104 @@ export const RULES_AUDIT_CASES: readonly AuditCase[] = [
     ],
     expected: ["COMPANION"],
     run: () => allViolations(commanderDeck([CHEAP_LEGEND], [], { companion: YORION })),
+  },
+  {
+    id: "format-legality-not-legal",
+    rules: ["100.2c", "903.5"],
+    claim:
+      "A card whose Commander legality is not_legal is a FORMAT_ILLEGAL error (the legal pool itself is Scryfall data, not text).",
+    quotes: [
+      {
+        rule: "100.2c",
+        text: "Commander decks are subject to additional deckbuilding restrictions and requirements",
+      },
+      {
+        rule: "903.5",
+        text: "Each Commander deck is subject to the following deck construction rules",
+      },
+    ],
+    expected: ["FORMAT_ILLEGAL"],
+    run: () => allViolations(commanderDeck([GREEN], [{ card: NOT_LEGAL, qty: 1 }])),
+  },
+  {
+    id: "format-legality-unknown",
+    rules: ["100.2c"],
+    claim:
+      "A card record carrying no Commander legality is a FORMAT_LEGALITY_UNKNOWN error, never a silent pass.",
+    quotes: [
+      {
+        rule: "100.2c",
+        text: "Commander decks are subject to additional deckbuilding restrictions",
+      },
+    ],
+    expected: ["FORMAT_LEGALITY_UNKNOWN"],
+    run: () => allViolations(commanderDeck([GREEN], [{ card: NO_LEGALITY, qty: 1 }])),
+  },
+  {
+    id: "commander-in-library",
+    rules: ["903.5a", "903.5b"],
+    claim:
+      "The commander counts among the 100, so a second copy in the library is a COMMANDER_LIBRARY_OVERLAP error.",
+    quotes: [
+      { rule: "903.5a", text: "exactly 100 cards, including its commander" },
+      { rule: "903.5b", text: "each card in a Commander deck must have a different English name" },
+    ],
+    expected: ["COMMANDER_LIBRARY_OVERLAP"],
+    run: () => allViolations(commanderDeck([GREEN], [{ card: GREEN, qty: 1 }])),
+  },
+  {
+    id: "companion-in-starting-deck",
+    rules: ["702.139a"],
+    claim:
+      "The companion is a card from outside the game, so a declared companion inside the starting deck is a COMPANION_DECK_OVERLAP error.",
+    quotes: [{ rule: "702.139a", text: "one card you own from outside the game" }],
+    expected: ["COMPANION_DECK_OVERLAP"],
+    run: () =>
+      allViolations(
+        commanderDeck([CHEAP_LEGEND], [{ card: LURRUS, qty: 1 }], { companion: LURRUS }),
+      ),
+  },
+  {
+    id: "companion-unmodeled-unresolved",
+    rules: ["702.139a"],
+    claim:
+      "A companion whose condition this validator does not model is COMPANION_CONDITION_UNRESOLVED, never a silent pass.",
+    quotes: [{ rule: "702.139a", text: "whose condition is fulfilled by your starting deck" }],
+    expected: ["COMPANION_CONDITION_UNRESOLVED"],
+    run: () => allViolations(commanderDeck([CHEAP_LEGEND], [], { companion: UNMODELED_COMPANION })),
+  },
+  {
+    id: "companion-heuristic-unresolved",
+    rules: ["702.139a"],
+    claim:
+      "A heuristic restriction (Kaheera reads printed subtypes) is COMPANION_CONDITION_UNRESOLVED and is never evaluated as a certified break.",
+    quotes: [{ rule: "702.139a", text: "whose condition is fulfilled by your starting deck" }],
+    expected: ["COMPANION_CONDITION_UNRESOLVED"],
+    run: () => allViolations(commanderDeck([CHEAP_LEGEND], [], { companion: KAHEERA })),
+  },
+  {
+    id: "companion-characteristics-unresolved",
+    rules: ["702.139a"],
+    claim:
+      "A starting card whose characteristics cannot be read exactly (a two-faced record) leaves a supported condition COMPANION_CONDITION_UNRESOLVED; the readable cards are still judged.",
+    quotes: [{ rule: "702.139a", text: "whose condition is fulfilled by your starting deck" }],
+    expected: ["COMPANION_CONDITION_UNRESOLVED"],
+    run: () =>
+      allViolations(
+        commanderDeck([CHEAP_LEGEND], [{ card: MODAL_LAND, qty: 1 }], { companion: LURRUS }),
+      ),
+  },
+  {
+    id: "eligible-creature-card-outside-battlefield",
+    rules: ["903.3", "101.1"],
+    claim:
+      "A legendary card whose own text makes it a creature card in every zone but the battlefield is a creature card for 903.3, which reads the card outside the battlefield; it is eligible without a can-be-your-commander clause.",
+    quotes: [
+      { rule: "903.3", text: "(a) a creature card" },
+      { rule: "101.1", text: "the card takes precedence" },
+    ],
+    expected: [],
+    run: () => allViolations(commanderDeck([GRIST], [])),
   },
 ];
 

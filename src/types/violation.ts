@@ -16,9 +16,19 @@ export type ViolationRule =
   | "SINGLETON"
   | "COLOR_IDENTITY"
   | "BANLIST"
+  /** A card whose Commander legality is not_legal (or restricted); banned is BANLIST. */
+  | "FORMAT_ILLEGAL"
+  /** A card record carrying no Commander legality at all. */
+  | "FORMAT_LEGALITY_UNKNOWN"
+  /** A commander that also appears in the library beyond its copy limit (CR 903.5a, 903.5b). */
+  | "COMMANDER_LIBRARY_OVERLAP"
   | "COMMANDER_ELIGIBILITY"
   | "MULTI_COMMANDER"
-  | "COMPANION";
+  | "COMPANION"
+  /** The declared companion also sits in the starting deck (CR 702.139a). */
+  | "COMPANION_DECK_OVERLAP"
+  /** The companion condition cannot be established exactly over the starting deck. */
+  | "COMPANION_CONDITION_UNRESOLVED";
 
 /**
  * `Violation` (§4) — the unit of validation output. `card` is omitted for

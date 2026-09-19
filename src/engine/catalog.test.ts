@@ -190,3 +190,62 @@ it("matches the real MCP whole-deck gate for accepted and rejected construction"
     await server.close();
   }
 });
+it("refuses the consolidated construction verdicts with the violations validate_deck reports", async () => {
+  const store = new DeckStore({ newId: () => f.deck.deck_id });
+  const server = createServer({
+    index: f.index,
+    deckStore: store,
+    snapshot: staticSnapshotProvider(f.deck.data_snapshot),
+  });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  const client = new Client({ name: "catalog-acceptance", version: "1" });
+  await client.connect(clientTransport);
+  const command = f.deck.commanders[0]!;
+  const land = f.deck.cards[0]!.oracle_id;
+  try {
+    await client.callTool({ name: "deck_create", arguments: { name: "Catalog" } });
+    const variants: Array<{ deck: () => void; rule: string }> = [
+      {
+        // The commander also in the library (CR 903.5a, 903.5b).
+        deck: () => {
+          f.deck.cards = [
+            { oracle_id: command, qty: 1 },
+            { oracle_id: land, qty: 98 },
+          ];
+        },
+        rule: "COMMANDER_LIBRARY_OVERLAP",
+      },
+      {
+        // A card the served record marks not legal in Commander.
+        deck: () => {
+          f.deck.cards = [{ oracle_id: land, qty: 99 }];
+          f.db
+            .prepare(
+              "UPDATE cards SET card = json_set(card, '$.legalities.commander', 'not_legal'), legalities_commander = 'not_legal' WHERE oracle_id = ?",
+            )
+            .run(land);
+        },
+        rule: "FORMAT_ILLEGAL",
+      },
+    ];
+    for (const variant of variants) {
+      variant.deck();
+      store.update(f.deck.deck_id, () => structuredClone(f.deck));
+      const verdict = await client.callTool({
+        name: "validate_deck",
+        arguments: { deck_id: f.deck.deck_id },
+      });
+      const capture = captureCatalog(f.options());
+      expect(capture).toMatchObject({ ok: false, code: "invalid_construction" });
+      expect(capture.violations.map((v) => v.rule)).toContain(variant.rule);
+      expect(verdict.structuredContent).toMatchObject({
+        ok: false,
+        violations: capture.violations,
+      });
+    }
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
