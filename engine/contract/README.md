@@ -218,11 +218,49 @@ core's `setup::prepare_preview_game`. `admitted` returns a deterministic
 `admission_id` derived from the scenario and catalog digests, both digests and
 the `initial_state_hash` of that proof. Identical admissions are idempotent; a
 worker retains at most eight distinct admissions (`invalid/admission_limit`).
-Only `preview_fixture` scenarios admit; a `commander` scenario answers
-`unsupported/commander_admission_unavailable`. Unknown policy identities,
-versions or observation versions answer `unsupported` per seat. Stale rules,
-fixture, catalog, seat or implementation bindings answer `invalid` with the
-same codes as preflight. Nothing is retained on rejection.
+Only `preview_fixture` scenarios are retained; a `commander` scenario goes
+through the Commander admission owner described below. Unknown policy
+identities, versions or observation versions answer `unsupported` per seat.
+Stale rules, fixture, catalog, seat or implementation bindings answer
+`invalid` with the same codes as preflight. Nothing is retained on rejection.
+
+### Commander admission (schema unchanged)
+
+A `commander` scenario is admitted through the canonical owners in order, and
+the first refusal answers; nothing is allocated or retained on any of them.
+
+1. Binding (`invalid`). `support_version_mismatch`, `catalog_invalid` and
+   `profile_mismatch` as for the fixture. `commander_scenario_binding_mismatch`
+   when `engine_version`, `rules_digest` (the engine's official rules snapshot),
+   `snapshot_digest` (the catalog envelope's `payload_digest`), seat order or
+   any seat's `deck_digest` (the same capture, so every seat plays the captured
+   deck) does not bind. `commander_scenario_deck_mismatch` when a seat's
+   `cards` are not exactly the captured deck's Oracle multiset (commanders and
+   main deck; a companion is outside the game), when a `physical_id` repeats
+   anywhere in the pod, or when a seat's `commanders` are not physical ids of
+   its own cards with the captured commanders' Oracle identities.
+2. Variants (`unsupported`, one diagnostic). `commander_variant_unsupported`
+   for a `command_zone_kind` other than `single`, more than one commander or a
+   meld commander (CR 903.3b); `companion_unsupported` for a captured
+   companion. Construction legality is MCP's verdict and never implies these
+   are executable.
+3. Policies (`unsupported`, one diagnostic per seat), as for the fixture.
+4. Qualification (`unsupported`). Every distinct Oracle identity of the deck
+   is qualified through the core `cards::support` owner under the `commander`
+   profile, exactly as `support_check` reports it; each refused identity is one
+   `card_unsupported` diagnostic carrying `oracle_id`, in deck order, at most
+   256. A stale `expected_implementation_digest` is
+   `invalid/support_version_mismatch`. Today the qualifier refuses every card,
+   so a real capture stops here with its exact per-card diagnostics.
+5. Setup blueprints. Each seat becomes the core's Commander seat blueprint:
+   the commander apart in the command zone at 40 life (CR 903.6, 903.7), every
+   other physical card in the library in declared order, no opening hand.
+   Shuffling, opening hands and mulligans (CR 103.3, 103.5, 903.7) have no
+   owner yet, so a fully qualified pod answers
+   `unsupported/starting_procedure_unavailable` at exactly that point instead
+   of being dealt by this adapter. `profile_preflight` still answers
+   `invalid/commander_preflight_unavailable`: its report shape is bound to the
+   fixture, and per-card `support_check` is the Commander preflight.
 
 Named clients: `fixture-baseline@1` plays a land, casts the first legal spell,
 otherwise passes, attacks with every legal attacker and never blocks;

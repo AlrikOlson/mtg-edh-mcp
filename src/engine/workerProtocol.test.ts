@@ -9,7 +9,12 @@ import {
   PREVIEW_FIXTURE_DIGEST,
 } from "./protocol.generated.js";
 import { catalogFixture, baselineCatalogFixture } from "./catalogFixture.test-support.js";
-import { CatalogPayloadSchema, type CatalogPayload } from "./protocol.generated.js";
+import {
+  CatalogPayloadSchema,
+  CommanderScenarioSchema,
+  type CatalogPayload,
+  type CommanderScenario,
+} from "./protocol.generated.js";
 import { expect, it } from "vitest";
 import { z } from "zod";
 import { readFile } from "node:fs/promises";
@@ -114,20 +119,14 @@ native("exchanges real generated Rust replies with the TypeScript validator", as
   for (const [index, response] of replies.slice(1).entries()) {
     expect(response.request_id).toBe("req-1");
     expect(response.message.type).toBe("outcome");
-    // Schema-only fixtures never admit or execute: Commander admission and
-    // interactive decisions are unsupported capabilities; forged preview
-    // admissions, runs and cancels are refused as invalid.
+    // Schema-only fixtures never admit or execute: interactive decisions are
+    // an unsupported capability; the Commander admission's placeholder
+    // catalog, forged preview admissions, runs and cancels are refused as
+    // invalid.
     const request = z
       .object({ message: z.object({ type: z.string(), data: z.unknown() }) })
       .parse(requests[index]?.value);
-    const scenario = z
-      .object({ scenario: z.object({ type: z.string() }) })
-      .safeParse(request.message.data);
-    const expected =
-      request.message.type === "decision" ||
-      (request.message.type === "admit" && scenario.data?.scenario.type === "commander")
-        ? "unsupported"
-        : "invalid";
+    const expected = request.message.type === "decision" ? "unsupported" : "invalid";
     if (response.message.type === "outcome") expect(response.message.data.type).toBe(expected);
   }
 });
@@ -769,7 +768,7 @@ native(
       },
     });
     // The shared contract fixture's Commander admission is structurally valid
-    // but names no real capture; the worker must refuse it as unsupported.
+    // but carries a placeholder catalog; integrity refuses it before binding.
     const commanderAdmission = z
       .object({
         valid: z.array(z.object({ name: z.string(), value: z.unknown() })),
@@ -824,10 +823,132 @@ native(
     expect(rest.map((reply) => reply.request_id)).toEqual(["commander"]);
     expect(rest[0]?.message).toMatchObject({
       type: "outcome",
-      data: {
-        type: "unsupported",
-        data: { diagnostics: [{ code: "commander_admission_unavailable" }] },
-      },
+      data: { type: "invalid", data: { code: "catalog_invalid" } },
     });
   },
 );
+
+native("refuses the real Muldrotha mirror pod per card before any Commander setup", async () => {
+  const f = await baselineCatalogFixture();
+  try {
+    const captured = captureCatalog(f.options());
+    if (!captured.ok) throw new Error(JSON.stringify(captured));
+    const payload = CatalogPayloadSchema.parse(JSON.parse(captured.envelope.payload_json));
+    const rulesDigest = z
+      .object({ rules: z.object({ sha256: z.string() }) })
+      .parse(
+        JSON.parse(
+          await readFile(
+            new URL("../../engine/contract/preview-fixture.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+      ).rules.sha256;
+    // Every seat plays the captured deck as its own physical instances.
+    const entries = [...payload.deck.commanders, ...payload.deck.cards];
+    const scenarioFor = (envelope: CatalogEnvelope): CommanderScenario =>
+      CommanderScenarioSchema.parse({
+        scenario_id: "muldrotha-mirror-pod",
+        engine_version: ENGINE_VERSION,
+        snapshot_digest: envelope.payload_digest,
+        rules_digest: rulesDigest,
+        seats: [0, 1, 2, 3].map((seat) => {
+          const cards = entries.flatMap((entry) =>
+            Array.from({ length: entry.qty }, (_, copy) => ({
+              physical_id: `s${seat}-${entry.oracle_id}-${copy}`,
+              oracle_id: entry.oracle_id,
+            })),
+          );
+          return {
+            seat,
+            deck_digest: envelope.payload_digest,
+            policy: {
+              id: "fixture-baseline",
+              version: "1",
+              observation_version: "1",
+              search_nodes: 1,
+            },
+            commanders: [cards[0]!.physical_id],
+            cards,
+          };
+        }),
+        seed: "0123456789abcdef",
+        limits: {
+          trials: 1,
+          concurrency: 1,
+          max_turns: 10,
+          max_actions: 10000,
+          max_actions_per_turn: 1000,
+          max_work: 1000000,
+          max_elapsed_ms: 30000,
+          max_memory_bytes: 100000000,
+          max_output_bytes: 1000000,
+        },
+      });
+    const admit = (request_id: string, scenario: CommanderScenario, envelope: CatalogEnvelope) => ({
+      request_id,
+      message: {
+        type: "admit",
+        data: {
+          scenario: { type: "commander", data: scenario },
+          catalog: commander(envelope),
+          expected_implementation_version: "core-support-v1",
+          expected_implementation_digest: null,
+        },
+      },
+    });
+    const partnerJson = JSON.stringify({
+      ...payload,
+      deck: { ...payload.deck, command_zone_kind: "partner" },
+    });
+    const partner: CatalogEnvelope = {
+      ...captured.envelope,
+      payload_json: partnerJson,
+      payload_digest: createHash("sha256").update(partnerJson).digest("hex"),
+    };
+    const pod = scenarioFor(captured.envelope);
+    const replies = await run(
+      Buffer.concat([
+        line(hello),
+        line(admit("pod", pod, captured.envelope)),
+        line(admit("rules", { ...pod, rules_digest: "0".repeat(64) }, captured.envelope)),
+        line(admit("partner", scenarioFor(partner), partner)),
+      ]),
+    );
+    expect(replies.map((reply) => reply.request_id)).toEqual(["h-1", "pod", "rules", "partner"]);
+    const outcome = replies[1]?.message;
+    if (outcome?.type !== "outcome" || outcome.data.type !== "unsupported")
+      throw new Error(JSON.stringify(outcome));
+    const diagnostics = z
+      .array(
+        z.object({
+          code: z.string(),
+          oracle_id: z.string().optional(),
+          physical_id: z.string().optional(),
+        }),
+      )
+      .parse(outcome.data.data.diagnostics);
+    // One exact refusal per Oracle identity of the 100-card deck, in deck
+    // order, none per seat or per physical copy, and nothing admitted.
+    expect(diagnostics.map((d) => d.oracle_id)).toEqual(entries.map((e) => e.oracle_id));
+    expect(diagnostics).toHaveLength(f.source.records.length);
+    for (const diagnostic of diagnostics) {
+      expect(diagnostic.code).toBe("card_unsupported");
+      expect(diagnostic.physical_id).toBeUndefined();
+    }
+    expect(replies[2]?.message).toMatchObject({
+      type: "outcome",
+      data: { type: "invalid", data: { code: "commander_scenario_binding_mismatch" } },
+    });
+    expect(replies[3]?.message).toMatchObject({
+      type: "outcome",
+      data: {
+        type: "unsupported",
+        data: { diagnostics: [{ code: "commander_variant_unsupported" }] },
+      },
+    });
+    expect(replies.some((r) => r.message.type === "admitted")).toBe(false);
+  } finally {
+    await f.close();
+  }
+});
