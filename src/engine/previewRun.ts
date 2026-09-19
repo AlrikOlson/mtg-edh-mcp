@@ -72,8 +72,8 @@ export const PREVIEW_MIN_SEATS = 2;
 export const PREVIEW_MAX_SEATS = 4;
 const PREVIEW_POLICY_VERSION = "1";
 const PREVIEW_OBSERVATION_VERSION = "1";
-/** Declared for the worker; memory enforcement is engine-mvp-supervision's. */
-const PREVIEW_MAX_MEMORY_BYTES = 256 * 1024 * 1024;
+/** Declared to the worker and enforced by the supervisor's resident-size poll. */
+export const PREVIEW_MAX_MEMORY_BYTES = 256 * 1024 * 1024;
 const MAX_TRIALS = 8;
 /** Ceiling on the worker's own elapsed budget a caller may request. */
 export const PREVIEW_MAX_ELAPSED_MS_CEILING = 30_000;
@@ -449,6 +449,7 @@ export class PreviewFixtureService {
         signal: options.signal,
         maxElapsedMs: input.max_elapsed_ms + PREVIEW_PARENT_GRACE_MS,
         maxOutputBytes: input.max_output_bytes + OUTPUT_SLACK_BYTES,
+        maxMemoryBytes: PREVIEW_MAX_MEMORY_BYTES,
       });
     } catch (error) {
       if (error instanceof WorkerFailure) {

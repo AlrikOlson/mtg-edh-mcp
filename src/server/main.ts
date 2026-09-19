@@ -19,7 +19,25 @@ import { CLI_HELP, parseCli } from "./cli.js";
 import { SERVER_VERSION } from "./createServer.js";
 import { runDoctor, runSetup } from "./setup.js";
 import { runSkillsCli } from "../skills/cli.js";
-import { enginePreviewFromEnv } from "./engineTools.js";
+import { engineJobsFor, enginePreviewFromEnv } from "./engineTools.js";
+import type { EngineJobService } from "../engine/jobs.js";
+
+/** Grace for running engine jobs to stop before the process exits regardless. */
+const JOB_SHUTDOWN_GRACE_MS = 10_000;
+
+/**
+ * Exit once the transport is gone: running engine jobs are cancelled first so
+ * no worker outlives the server, bounded by the supervisor's kill grace.
+ */
+function exitAfterJobs(jobs: EngineJobService | undefined): void {
+  if (!jobs) {
+    process.exit(0);
+    return;
+  }
+  const fallback = setTimeout(() => process.exit(0), JOB_SHUTDOWN_GRACE_MS);
+  fallback.unref();
+  void jobs.shutdown().finally(() => process.exit(0));
+}
 
 /**
  * Read the real data_snapshot, open the current version's card index (if one has
@@ -102,6 +120,15 @@ async function main(): Promise<void> {
   // Development-only native engine preview; absent unless explicitly opted in.
   const enginePreview = enginePreviewFromEnv(process.env);
   if (enginePreview) console.error(`engine preview enabled: ${enginePreview.executable}`);
+  // Durable fixture jobs share the preview service and live in the data root.
+  const engineJobs = enginePreview
+    ? engineJobsFor(enginePreview, process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT)
+    : undefined;
+  if (engineJobs) {
+    const interrupted = engineJobs.recoveredJobs().length;
+    if (interrupted > 0)
+      console.error(`engine jobs: ${interrupted} unfinished job(s) marked interrupted`);
+  }
 
   // Freshness scheduler (spec §3): staleness check now + every bulk interval.
   // Idempotent upstream check; opt out with MCP_AUTO_REFRESH=0.
@@ -121,6 +148,7 @@ async function main(): Promise<void> {
       staleness,
       rules,
       enginePreview,
+      engineJobs,
     });
     console.error(
       `mtg-edh-mcp listening on http://${host.includes(":") ? `[${host}]` : host}:${running.port}/mcp (streamable HTTP)`,
@@ -129,8 +157,8 @@ async function main(): Promise<void> {
     // GUI dies, stdin closes and we exit — orphan-proof without process groups.
     if (process.env.MCP_WATCH_STDIN === "1") {
       process.stdin.resume();
-      process.stdin.on("end", () => process.exit(0));
-      process.stdin.on("close", () => process.exit(0));
+      process.stdin.on("end", () => exitAfterJobs(engineJobs));
+      process.stdin.on("close", () => exitAfterJobs(engineJobs));
     }
   } else {
     await startStdio({
@@ -142,12 +170,14 @@ async function main(): Promise<void> {
       staleness,
       rules,
       enginePreview,
+      engineJobs,
     });
     console.error("mtg-edh-mcp serving on stdio");
     // A closed stdin means the client (and the transport) is gone; exit even if
     // background timers would otherwise keep the event loop alive — orphan-proof.
-    process.stdin.on("end", () => process.exit(0));
-    process.stdin.on("close", () => process.exit(0));
+    // Running engine jobs are stopped first so no worker outlives the server.
+    process.stdin.on("end", () => exitAfterJobs(engineJobs));
+    process.stdin.on("close", () => exitAfterJobs(engineJobs));
   }
 }
 

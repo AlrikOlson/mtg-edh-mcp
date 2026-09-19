@@ -18,9 +18,77 @@
  * Reference: https://nodejs.org/api/child_process.html (spawn with explicit
  * argv, `stdio: "pipe"`, `kill`, and the `close` event that follows every pipe).
  */
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFile, spawn, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { encodeRequestFrame, WorkerFrameDecoder } from "./protocol.js";
 import type { RequestMessage, Response } from "./protocol.generated.js";
+
+/**
+ * How the parent measured the worker's resident size. Node exposes no API for
+ * another process's memory, so the ceiling is a parent poll whose method is
+ * reported: the kernel's `/proc/<pid>/status` on Linux, `ps -o rss=` with a
+ * fixed argument array elsewhere; `unavailable` when the probe failed and
+ * `none` when no ceiling was declared.
+ */
+export type MemoryEnforcement = "proc_status" | "ps_rss" | "unavailable" | "none";
+
+export interface MemoryProbe {
+  readonly method: Exclude<MemoryEnforcement, "unavailable" | "none">;
+  /** Resident bytes of `pid`, or null when no sample is available right now. */
+  residentBytes(pid: number): Promise<number | null>;
+}
+
+const VM_RSS = /^VmRSS:\s+(\d+)\s+kB$/m;
+
+const procStatusProbe: MemoryProbe = {
+  method: "proc_status",
+  async residentBytes(pid) {
+    let status: string;
+    try {
+      status = await readFile(`/proc/${pid}/status`, "utf8");
+    } catch {
+      // The process is already gone; the close event settles the run.
+      return null;
+    }
+    const match = VM_RSS.exec(status);
+    if (!match) throw new Error(`no VmRSS in /proc/${pid}/status`);
+    return Number(match[1]) * 1024;
+  },
+};
+
+const psRssProbe: MemoryProbe = {
+  method: "ps_rss",
+  residentBytes(pid) {
+    return new Promise((resolve, reject) => {
+      execFile(
+        "ps",
+        ["-o", "rss=", "-p", String(pid)],
+        { shell: false, windowsHide: true, timeout: 2000 },
+        (error, stdout) => {
+          if (error) {
+            // A missing `ps` is a real unavailability; a non-zero exit is the
+            // process being gone, which the close event settles.
+            if ("code" in error && error.code === "ENOENT") reject(error);
+            else resolve(null);
+            return;
+          }
+          const kib = Number.parseInt(stdout.trim(), 10);
+          if (!Number.isFinite(kib)) {
+            reject(new Error(`unparseable ps output ${JSON.stringify(stdout)}`));
+            return;
+          }
+          resolve(kib * 1024);
+        },
+      );
+    });
+  },
+};
+
+/** The platform's resident-size probe: the kernel's procfs when present, `ps` otherwise. */
+export function defaultMemoryProbe(): MemoryProbe {
+  return existsSync("/proc/self/status") ? procStatusProbe : psRssProbe;
+}
 
 export interface SupervisorOptions {
   /** Absolute path of the worker executable. Fixed for the supervisor's lifetime. */
@@ -33,6 +101,10 @@ export interface SupervisorOptions {
   readonly killGraceMs?: number;
   /** Ceiling on retained stderr bytes; exceeding it terminates the worker. */
   readonly maxStderrBytes?: number;
+  /** Resident-size probe used when a run declares a memory ceiling; defaults to the platform's. */
+  readonly memoryProbe?: MemoryProbe;
+  /** Milliseconds between resident-size samples while a ceiling is declared. */
+  readonly memoryPollMs?: number;
 }
 
 export interface RunOptions {
@@ -42,6 +114,11 @@ export interface RunOptions {
   readonly maxElapsedMs: number;
   /** Ceiling on total stdout bytes the worker may produce. */
   readonly maxOutputBytes: number;
+  /**
+   * Ceiling on the worker's resident size, enforced by the parent's poll; the
+   * receipt reports the method. Absent means no ceiling and no sampling.
+   */
+  readonly maxMemoryBytes?: number;
 }
 
 export type TerminationReason =
@@ -49,6 +126,7 @@ export type TerminationReason =
   | "deadline"
   | "output_limit"
   | "stderr_limit"
+  | "memory_limit"
   | "protocol"
   | "aborted"
   | "crashed"
@@ -70,6 +148,10 @@ export interface WorkerReceipt {
   readonly requests: number;
   readonly responses: number;
   readonly hard_killed: boolean;
+  /** Largest resident size sampled, or null when nothing was sampled. */
+  readonly peak_rss_bytes: number | null;
+  /** How the memory ceiling was measured, if one was declared. */
+  readonly memory_enforcement: MemoryEnforcement;
 }
 
 export class WorkerFailure extends Error {
@@ -119,6 +201,7 @@ interface Waiter {
 const DEFAULT_MAX_CONCURRENT = 2;
 const DEFAULT_KILL_GRACE_MS = 1000;
 const DEFAULT_MAX_STDERR_BYTES = 16 * 1024;
+const DEFAULT_MEMORY_POLL_MS = 250;
 
 export class WorkerSupervisor {
   private readonly executable: string;
@@ -126,6 +209,8 @@ export class WorkerSupervisor {
   private readonly maxConcurrent: number;
   readonly killGraceMs: number;
   readonly maxStderrBytes: number;
+  readonly memoryProbe: MemoryProbe;
+  readonly memoryPollMs: number;
   private live = 0;
 
   constructor(options: SupervisorOptions) {
@@ -134,6 +219,8 @@ export class WorkerSupervisor {
     this.maxConcurrent = options.maxConcurrent ?? DEFAULT_MAX_CONCURRENT;
     this.killGraceMs = options.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
     this.maxStderrBytes = options.maxStderrBytes ?? DEFAULT_MAX_STDERR_BYTES;
+    this.memoryProbe = options.memoryProbe ?? defaultMemoryProbe();
+    this.memoryPollMs = options.memoryPollMs ?? DEFAULT_MEMORY_POLL_MS;
   }
 
   /** Number of workers currently alive under this supervisor. */
@@ -155,6 +242,11 @@ export class WorkerSupervisor {
       throw new RangeError("maxElapsedMs must be a positive integer");
     if (!Number.isInteger(options.maxOutputBytes) || options.maxOutputBytes <= 0)
       throw new RangeError("maxOutputBytes must be a positive integer");
+    if (
+      options.maxMemoryBytes !== undefined &&
+      (!Number.isInteger(options.maxMemoryBytes) || options.maxMemoryBytes <= 0)
+    )
+      throw new RangeError("maxMemoryBytes must be a positive integer when declared");
     if (this.live >= this.maxConcurrent)
       throw new WorkerFailure("busy", `worker concurrency limit ${this.maxConcurrent} reached`);
     if (options.signal?.aborted)
@@ -203,6 +295,10 @@ class Lifetime {
   /** Grace after SIGTERM before SIGKILL. */
   private killTimer: NodeJS.Timeout | null = null;
   private deadline: NodeJS.Timeout | null = null;
+  private memoryTimer: NodeJS.Timeout | null = null;
+  private sampling = false;
+  private peakRss: number | null = null;
+  private memoryEnforcement: MemoryEnforcement = "none";
 
   constructor(
     private readonly supervisor: WorkerSupervisor,
@@ -230,6 +326,10 @@ class Lifetime {
       // EPIPE after the worker died is reported through the close receipt.
     });
     this.deadline = setTimeout(() => this.fail("deadline"), this.options.maxElapsedMs);
+    if (this.options.maxMemoryBytes !== undefined) {
+      this.memoryEnforcement = this.supervisor.memoryProbe.method;
+      this.memoryTimer = setInterval(() => void this.sampleMemory(), this.supervisor.memoryPollMs);
+    }
     const onAbort = () => this.onAbort();
     this.options.signal?.addEventListener("abort", onAbort, { once: true });
 
@@ -255,6 +355,7 @@ class Lifetime {
     this.options.signal?.removeEventListener("abort", onAbort);
     for (const timer of [this.deadline, this.abortTimer, this.killTimer])
       if (timer) clearTimeout(timer);
+    this.stopSampling();
     const termination = this.termination ?? "closed";
     const receipt: WorkerReceipt = Object.freeze({
       pid: child.pid ?? null,
@@ -268,6 +369,8 @@ class Lifetime {
       requests: this.requests,
       responses: this.responses,
       hard_killed: this.hardKilled,
+      peak_rss_bytes: this.peakRss,
+      memory_enforcement: this.memoryEnforcement,
     });
     const detail = this.spawnError ? `: ${this.spawnError.message}` : "";
     const failed = `worker ${termination}${detail}`;
@@ -404,6 +507,35 @@ class Lifetime {
     }
   }
 
+  /** One resident-size sample; the ceiling ends the session, a probe failure ends only the sampling. */
+  private async sampleMemory(): Promise<void> {
+    const pid = this.child?.pid;
+    const ceiling = this.options.maxMemoryBytes;
+    if (this.sampling || this.termination !== null || pid === undefined || ceiling === undefined)
+      return;
+    this.sampling = true;
+    try {
+      const resident = await this.supervisor.memoryProbe.residentBytes(pid);
+      if (resident === null || this.termination !== null) return;
+      this.peakRss = Math.max(this.peakRss ?? 0, resident);
+      if (resident > ceiling) this.fail("memory_limit");
+    } catch {
+      // The method is reported as unavailable rather than guessed; the other
+      // limits and the parent deadline still bound the worker.
+      this.memoryEnforcement = "unavailable";
+      this.stopSampling();
+    } finally {
+      this.sampling = false;
+    }
+  }
+
+  private stopSampling(): void {
+    if (this.memoryTimer) {
+      clearInterval(this.memoryTimer);
+      this.memoryTimer = null;
+    }
+  }
+
   private onStderr(chunk: Buffer): void {
     this.stderrBytes += chunk.length;
     if (this.stderrBytes > this.supervisor.maxStderrBytes) {
@@ -430,6 +562,7 @@ class Lifetime {
   private fail(reason: TerminationReason): void {
     if (this.termination !== null) return;
     this.termination = reason;
+    this.stopSampling();
     if (!this.abort.signal.aborted) this.abort.abort();
     this.rejectAll(reason);
     this.terminateProcess();

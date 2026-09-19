@@ -7,7 +7,12 @@ import {
   SCHEMA_SHA256,
   type Response,
 } from "./protocol.generated.js";
-import { WorkerFailure, WorkerSupervisor, type WorkerSession } from "./supervisor.js";
+import {
+  WorkerFailure,
+  WorkerSupervisor,
+  type MemoryProbe,
+  type WorkerSession,
+} from "./supervisor.js";
 
 const hello = {
   type: "hello" as const,
@@ -27,13 +32,18 @@ const run = {
   },
 };
 
-function supervisor(mode: FakeWorkerMode, extra: { maxConcurrent?: number; grace?: number } = {}) {
+function supervisor(
+  mode: FakeWorkerMode,
+  extra: { maxConcurrent?: number; grace?: number; memoryProbe?: MemoryProbe } = {},
+) {
   return new WorkerSupervisor({
     executable: process.execPath,
     args: fakeWorkerArgs(mode),
     maxConcurrent: extra.maxConcurrent ?? 1,
     killGraceMs: extra.grace ?? 300,
     maxStderrBytes: 4096,
+    memoryPollMs: 25,
+    ...(extra.memoryProbe ? { memoryProbe: extra.memoryProbe } : {}),
   });
 }
 
@@ -94,8 +104,86 @@ describe("WorkerSupervisor", () => {
       responses: 4,
       hard_killed: false,
       stderr: "",
+      // No ceiling was declared, so nothing was sampled or enforced.
+      memory_enforcement: "none",
+      peak_rss_bytes: null,
     });
     expect(await gone(receipt.pid)).toBe(true);
+  });
+
+  it("terminates a worker whose resident size exceeds the declared memory ceiling", async () => {
+    const sup = supervisor("balloon");
+    const error = await failure(
+      sup.run(
+        async (session) => {
+          await handshake(session);
+          return drive(session);
+        },
+        { maxElapsedMs: 8000, maxOutputBytes: 1_000_000, maxMemoryBytes: 32 * 1024 * 1024 },
+      ),
+    );
+    expect(error.reason).toBe("memory_limit");
+    expect(error.receipt?.termination).toBe("memory_limit");
+    // The default probe is the platform's: /proc on Linux, ps elsewhere.
+    expect(["proc_status", "ps_rss"]).toContain(error.receipt?.memory_enforcement);
+    expect(error.receipt?.peak_rss_bytes).toBeGreaterThan(32 * 1024 * 1024);
+    expect(await gone(error.receipt?.pid ?? null)).toBe(true);
+    expect(sup.active()).toBe(0);
+  }, 15_000);
+
+  it("enforces the ceiling through the injected probe and reports its method", async () => {
+    const probe: MemoryProbe = { method: "proc_status", residentBytes: async () => 1 << 30 };
+    const error = await failure(
+      supervisor("hang", { memoryProbe: probe }).run(
+        async (session) => {
+          await handshake(session);
+          return drive(session);
+        },
+        { ...limits, maxMemoryBytes: 1024 },
+      ),
+    );
+    expect(error.reason).toBe("memory_limit");
+    expect(error.receipt).toMatchObject({
+      termination: "memory_limit",
+      memory_enforcement: "proc_status",
+      peak_rss_bytes: 1 << 30,
+    });
+    expect(await gone(error.receipt?.pid ?? null)).toBe(true);
+  });
+
+  it("reports memory enforcement as unavailable when the probe fails, without ending the run", async () => {
+    const probe: MemoryProbe = {
+      method: "ps_rss",
+      residentBytes: async () => {
+        throw new Error("no ps here");
+      },
+    };
+    const controller = new AbortController();
+    const { value, receipt } = await supervisor("slow", { memoryProbe: probe }).run(
+      async (session) => {
+        await handshake(session);
+        let seen = 0;
+        const outcome = await session.stream("r", run, (reply) => {
+          seen += 1;
+          if (seen === 4) controller.abort();
+          return reply.message.type === "outcome";
+        });
+        return outcome.message;
+      },
+      { ...limits, signal: controller.signal, maxMemoryBytes: 1024 },
+    );
+    expect(value).toEqual({ type: "outcome", data: { type: "cancelled", data: {} } });
+    expect(receipt).toMatchObject({
+      termination: "closed",
+      memory_enforcement: "unavailable",
+      peak_rss_bytes: null,
+    });
+  });
+
+  it("rejects a non-positive memory ceiling before spawning", async () => {
+    await expect(
+      supervisor("complete").run(async () => 1, { ...limits, maxMemoryBytes: 0 }),
+    ).rejects.toThrow(RangeError);
   });
 
   it("kills a hung worker at the parent deadline and leaves no orphan", async () => {

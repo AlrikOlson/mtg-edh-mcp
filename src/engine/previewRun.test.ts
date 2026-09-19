@@ -112,6 +112,9 @@ describe("PreviewFixtureService over a protocol-shaped fake worker", () => {
       events_total: 2,
       supervision: { termination: "closed", exit_code: 0 },
     });
+    // The declared memory ceiling is now the supervisor's to enforce; the
+    // receipt names the platform's method rather than reporting no ceiling.
+    expect(report.supervision.memory_enforcement).not.toBe("none");
     expect(report.input.trial_seed).toBe(deriveTrialSeed("0000000000000000", 0));
     expect(report.limits).toMatchObject({ trials: 1, max_turns: 3, max_work: 100_000 });
     expect(progress).toEqual([1, 2]);

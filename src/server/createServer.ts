@@ -33,8 +33,9 @@ import { DEFAULT_DATA_ROOT } from "../index/index.js";
 import type { CardDataSource } from "./cardData.js";
 import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
-import { makeEnginePreviewTools } from "./engineTools.js";
+import { makeEngineJobTools, makeEnginePreviewTools } from "./engineTools.js";
 import type { PreviewFixtureService } from "../engine/previewRun.js";
+import type { EngineJobService } from "../engine/jobs.js";
 
 export const SERVER_NAME = "mtg-edh-mcp";
 
@@ -113,6 +114,12 @@ export interface CreateServerOptions {
    * `engine_preview_fixture` tool exists only when this is provided.
    */
   enginePreview?: PreviewFixtureService;
+  /**
+   * Durable fixture jobs over the preview service (engine-mvp-supervision).
+   * One shared instance per process; the engine_job_* tools exist only when
+   * this is provided, and every job is scoped to the server's `session`.
+   */
+  engineJobs?: EngineJobService;
 }
 
 /** Construct a fully wired (but not yet connected) MCP server. */
@@ -181,6 +188,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
       ...dataTools,
       ...makeRulesTools(rules),
       ...(options.enginePreview ? makeEnginePreviewTools(options.enginePreview) : []),
+      ...(options.engineJobs ? makeEngineJobTools(options.engineJobs, session, snapshot) : []),
       ...deckTools,
       ...(index ? indexedTools(index) : []),
       ...(options.tools ?? []),

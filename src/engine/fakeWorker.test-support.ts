@@ -28,7 +28,8 @@ export type FakeWorkerMode =
   | "stderr"
   | "rogue"
   | "quiet-exit"
-  | "decision";
+  | "decision"
+  | "balloon";
 
 const SOURCE = String.raw`
 const [mode, protocolVersion, engineVersion, schemaSha256, maxFrameBytes] = process.argv.slice(1);
@@ -36,10 +37,10 @@ const readline = require("node:readline");
 const zeros = "0".repeat(64);
 const write = (value) => process.stdout.write(JSON.stringify(value) + "\n");
 const outcome = (request_id, type, data) => write({ request_id, message: { type: "outcome", data: { type, data } } });
-let sequence = 0, live = null, timer = null;
+let sequence = 0, live = null, timer = null, balloon = null;
 if (mode.startsWith("immortal")) { process.on("SIGTERM", () => {}); process.on("SIGINT", () => {}); }
 // A hung worker must outlive its closed pipes; only a signal ends it.
-if (mode === "hang" || mode.startsWith("immortal")) setInterval(() => {}, 1000);
+if (mode === "hang" || mode === "balloon" || mode.startsWith("immortal")) setInterval(() => {}, 1000);
 const progress = (request_id, turns) => write({
   request_id,
   message: { type: "event", data: { event_id: "e" + sequence, sequence: sequence++, data: { type: "progress", data: { trial_index: 0, turns, actions: turns * 3 } } } },
@@ -74,6 +75,8 @@ rl.on("line", (line) => {
       switch (mode) {
         case "complete": progress(request_id, 1); progress(request_id, 2); live = null; return completed(request_id, 2);
         case "hang": case "immortal": return;
+        // Touch 96 MiB of resident memory and hang: only the parent's memory ceiling ends it.
+        case "balloon": balloon = Buffer.alloc(96 * 1024 * 1024, 1); return;
         case "crash": process.exit(3);
         case "malformed": return process.stdout.write("{not json\n");
         case "rogue": return progress("nobody-asked", 1);
@@ -125,7 +128,7 @@ rl.on("line", (line) => {
       return outcome(request_id, "invalid", { code: "unsupported_request", message: message.type });
   }
 });
-rl.on("close", () => { if (mode !== "flood" && !mode.startsWith("immortal") && mode !== "hang") setTimeout(() => process.exit(0), 5); });
+rl.on("close", () => { if (mode !== "flood" && !mode.startsWith("immortal") && mode !== "hang" && mode !== "balloon") setTimeout(() => process.exit(0), 5); });
 `;
 
 /** Argument array for `process.execPath` that runs the fake worker in `mode`. */
