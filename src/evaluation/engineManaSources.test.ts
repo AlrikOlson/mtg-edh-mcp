@@ -14,6 +14,8 @@ const fixture = z
         z
           .object({
             id: z.string().min(1),
+            sources: z.array(z.object({ contextual: z.string().nullable() }).passthrough()),
+            commander_identity: z.array(z.string()).nullable().optional(),
             expected: z.union([z.null(), z.object({ life: z.number() }).passthrough()]),
           })
           .passthrough(),
@@ -124,8 +126,42 @@ describe("independent canonical mana source evidence", () => {
       "life-sacrifice-rollback",
       "treasure-cannot-double-spend",
       "orchard-ungrounded-cycle",
+      "commander-identity-choice",
+      "commander-identity-outside-color",
+      "commander-identity-no-colorless",
+      "commander-identity-one-unit",
+      "commander-identity-not-from-lands",
+      "commander-identity-empty",
+      "commander-identity-undefined",
     ]) {
       expect(ids).toContain(id);
+    }
+  });
+
+  it("binds identity-dependent sources to a designated identity, never a supplied color list", () => {
+    // Every identity-bound case declares the established identity (an empty
+    // list is an empty identity; null or absent is a game with no commander).
+    const identityCases = fixture.cases.filter((row) =>
+      row.sources.some((source) => source.contextual === "CommanderIdentity"),
+    );
+    expect(identityCases.length).toBeGreaterThanOrEqual(7);
+    expect(identityCases.some((row) => row.commander_identity?.length === 0)).toBe(true);
+    expect(identityCases.some((row) => row.commander_identity == null)).toBe(true);
+    for (const row of identityCases) {
+      for (const source of row.sources) expect(source).not.toHaveProperty("outputs");
+    }
+    for (const name of ["Command Tower", "Arcane Signet"]) {
+      const card = coverage.cards.find((row) => row.name === name);
+      expect(card, name).toBeDefined();
+      for (const ref of card!.scenario_refs) {
+        expect(
+          identityCases.map((row) => row.id),
+          `${name}: ${ref}`,
+        ).toContain(ref);
+      }
+      expect(card!.remaining_bindings.map((row) => row.owner)).not.toContain(
+        "engine-mvp-commander",
+      );
     }
   });
 });

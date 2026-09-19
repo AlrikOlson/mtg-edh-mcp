@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "provenance": "Independent expected resources authored from frozen corpus-v1 Oracle clauses, existing MCP dual/Signet reference tests and CR 106/118/302/605. Primitive-only cases do not assert complete card binding.",
+  "provenance": "Independent expected resources authored from frozen corpus-v1 Oracle clauses, existing MCP dual/Signet reference tests and CR 106/118/302/605/903.4. Primitive-only cases do not assert complete card binding. Commander-identity cases establish the identity through the engine's setup owner (commander_identity), never from mana, printed colors or ownership.",
   "cases": [
     {
       "id": "basic-green",
@@ -1703,6 +1703,455 @@
         "production_events": 1,
         "activation_order": null
       }
+    },
+    {
+      "id": "commander-identity-choice",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Black", "Green", "Blue"],
+      "expected": {
+        "tapped": ["tower"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "commander-identity-outside-color",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{R}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Black", "Green", "Blue"],
+      "expected": null
+    },
+    {
+      "id": "commander-identity-rejects-white",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{W}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Black", "Green", "Blue"],
+      "expected": null
+    },
+    {
+      "id": "commander-identity-no-colorless",
+      "sources": [
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{C}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Black", "Green", "Blue"],
+      "expected": null
+    },
+    {
+      "id": "commander-identity-one-unit",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{B}{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Black", "Green", "Blue"],
+      "expected": null
+    },
+    {
+      "id": "commander-identity-tapped-tower",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": true,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Black", "Green", "Blue"],
+      "expected": null
+    },
+    {
+      "id": "commander-identity-signet-immediate",
+      "sources": [
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Black", "Green", "Blue"],
+      "expected": {
+        "tapped": ["signet"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 1,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "commander-identity-two-sources",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        },
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Green", "Blue"],
+      "expected": {
+        "tapped": ["tower", "signet"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 2,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "commander-identity-with-lands",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        },
+        {
+          "id": "island",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Green"],
+      "expected": {
+        "tapped": ["tower", "island"],
+        "graveyard": [],
+        "pool": [],
+        "life": 20,
+        "production_events": 2,
+        "activation_order": null
+      }
+    },
+    {
+      "id": "commander-identity-not-from-lands",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        },
+        {
+          "id": "island",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": [
+                {
+                  "mana": ["Blue"],
+                  "restriction": "Unrestricted"
+                }
+              ]
+            }
+          ],
+          "contextual": null
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{U}{U}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": ["Green"],
+      "expected": null
+    },
+    {
+      "id": "commander-identity-empty",
+      "sources": [
+        {
+          "id": "signet",
+          "card_type": "Artifact",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": [],
+      "expected": null
+    },
+    {
+      "id": "commander-identity-undefined",
+      "sources": [
+        {
+          "id": "tower",
+          "card_type": "Land",
+          "opponent": false,
+          "tapped": false,
+          "haste": false,
+          "modes": [
+            {
+              "fee": "{0}",
+              "life": 0,
+              "tap": true,
+              "sacrifice": false,
+              "outputs": []
+            }
+          ],
+          "contextual": "CommanderIdentity"
+        }
+      ],
+      "initial_pool": [],
+      "life": 20,
+      "next_turns": 0,
+      "cost": "{G}",
+      "spell_types": null,
+      "activation_payment": false,
+      "commander_identity": null,
+      "expected": null
     }
   ]
 }

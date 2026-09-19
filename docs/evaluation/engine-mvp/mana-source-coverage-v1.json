@@ -46,15 +46,22 @@
           "end": 66
         }
       ],
-      "scenario_refs": ["three-color-exclusive", "three-color-choice"],
+      "scenario_refs": [
+        "commander-identity-choice",
+        "commander-identity-outside-color",
+        "commander-identity-rejects-white",
+        "commander-identity-no-colorless",
+        "commander-identity-one-unit",
+        "commander-identity-tapped-tower",
+        "commander-identity-with-lands",
+        "commander-identity-not-from-lands",
+        "commander-identity-empty",
+        "commander-identity-undefined"
+      ],
       "remaining_bindings": [
         {
-          "owner": "engine-mvp-commander",
-          "requirement": "Supply established Commander color identity across zones; empty identity yields no colors."
-        },
-        {
           "owner": "engine-mvp-lands",
-          "requirement": "Bind the output choices to that identity; the supplied BGU fixture is not runtime Commander identity."
+          "requirement": "Bind the exact Oracle clause to the CommanderIdentity contextual output through the card factory; the runtime identity itself is established by the setup owner and read by the mana context."
         }
       ]
     },
@@ -69,15 +76,17 @@
           "end": 66
         }
       ],
-      "scenario_refs": ["three-color-exclusive", "three-color-choice", "one-colorless"],
+      "scenario_refs": [
+        "commander-identity-signet-immediate",
+        "commander-identity-no-colorless",
+        "commander-identity-two-sources",
+        "commander-identity-empty",
+        "commander-identity-undefined"
+      ],
       "remaining_bindings": [
         {
-          "owner": "engine-mvp-commander",
-          "requirement": "Supply established Commander color identity across zones."
-        },
-        {
           "owner": "engine-mvp-lands",
-          "requirement": "Bind identity-derived alternatives, casting cost and noncreature immediate eligibility; a generic Signet fee fixture is not Arcane Signet behavior."
+          "requirement": "Bind the exact Oracle clause to the CommanderIdentity contextual output, the two generic casting cost and noncreature immediate eligibility through the card factory and casting owners; the runtime identity itself is established by the setup owner and read by the mana context."
         }
       ]
     },
@@ -363,7 +372,7 @@
     {
       "oracle_id": "aef4ab0e-c81f-428c-ab23-64504a9fb989",
       "name": "Kheru Goldkeeper",
-      "oracle_text": "Flying\nWhenever one or more cards leave your graveyard during your turn, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nRenew — {2}{B}{G}{U}, Exile this card from your graveyard: Put two +1/+1 counters and a flying counter on target creature. Activate only as a sorcery.",
+      "oracle_text": "Flying\nWhenever one or more cards leave your graveyard during your turn, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nRenew \u2014 {2}{B}{G}{U}, Exile this card from your graveyard: Put two +1/+1 counters and a flying counter on target creature. Activate only as a sorcery.",
       "spans": [
         {
           "face_index": 0,
