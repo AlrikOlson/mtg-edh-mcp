@@ -1,4 +1,4 @@
-# Internal worker contract v5
+# Internal worker contract v6
 
 This package is the sole owner of the authored wire contract:
 `crates/mtg-worker/protocol/contract.json`. It uses a finite typed-source DSL,
@@ -42,11 +42,12 @@ delimited frame. The TypeScript response decoder treats malformed worker output
 as terminal; a worker producing invalid output is not compatible.
 
 Hello, capabilities, catalog_check, support_check, profile_preflight, admit,
-run and cancel succeed in this revision for the internal fixture only.
-Decision requests validate fully and then return `unsupported`; the
-`decisions` capability stays false. Unsupported does not mean admitted,
-completed or cancelled. There is no fallback gameplay. `--self-check` remains
-an independent build probe, outside protocol mode.
+run, decision and cancel succeed in this revision for the internal fixture
+only. A decision frame is meaningful only while a run is suspended on the
+request it answers (see protocol 6 below); otherwise it is `invalid`.
+Unsupported does not mean admitted, completed or cancelled. There is no
+fallback gameplay. `--self-check` remains an independent build probe, outside
+protocol mode.
 
 Version 2 rejects unknown fields, variants and wrong payload types. Optional
 fields accept omission or null; Rust reserialization omits absent/null fields.
@@ -254,8 +255,7 @@ the first refusal answers; nothing is allocated or retained on any of them.
 4. Qualification (`unsupported`). Every distinct Oracle identity of the deck
    is qualified through the core `cards::support` owner under the `commander`
    profile, exactly as `support_check` reports it; each refused identity is one
-   `card_unsupported` diagnostic carrying `oracle_id`, in deck order, at most
-   256. A stale `expected_implementation_digest` is
+   `card_unsupported` diagnostic carrying `oracle_id`, in deck order, at most 256. A stale `expected_implementation_digest` is
    `invalid/support_version_mismatch`. Today the qualifier refuses every card,
    so a real capture stops here with its exact per-card diagnostics.
 5. Setup blueprints. Each seat becomes the core's Commander seat blueprint:
@@ -313,12 +313,13 @@ and `oracle_id` are the setup inventory's identities of the object that
 carries the behavior (both absent for a generated object such as a token, or
 for an object outside the inventory; nothing is invented), `behavior_id` names
 the behavior, and the message says which seat's card or which token it is. An
-engine request none of the run's clients can answer (this worker relays no
-decisions) answers `unsupported/resolution_choice_unsupported` with the same
-identities for the resolving object and `behavior_id` `choice:<kind>`
-(`target`, `mode`, `order`, `optional`, `objects`). Neither carries a winner,
-a completed reason or an engine error; `engine_error/execution_error` is kept
-for rejected decisions and internal failures. The worker never constructs a
+engine request none of the run's engine-side clients can answer is relayed to
+the parent (protocol 6 below); when no parent can answer it, the run answers
+`unsupported/resolution_choice_unsupported` with the same identities for the
+resolving object and `behavior_id` `choice:<kind>` (`target`, `mode`, `order`,
+`optional`, `objects`). Neither carries a winner, a completed reason or an
+engine error; `engine_error/execution_error` is kept for rejected decisions
+and internal failures. The worker never constructs a
 card, a state or an identity itself: every object it runs is allocated by the
 core's setup owner after exact-source qualification, and `--self-check`
 initializes an empty two-seat core through that same owner.
@@ -333,3 +334,53 @@ them. Progress events are acknowledged before the run continues, and queued
 frames are handled before that acknowledgement, so output accounting and a
 cancel delivered before an acknowledgement are deterministic. Hard timeouts,
 memory limits and process termination remain the parent's responsibility.
+
+## Relayed decisions (protocol 6)
+
+The named client `parent-relay@1` (observation version `1`) makes no choice:
+every decision of its seat is presented to the parent. An engine-side client
+(`fixture-baseline@1`, `fixture-pass@1`) still answers its own priority
+decisions, and a pending request it cannot answer (a resolution or ward
+request, a command-zone offer, a waiting commander move) is presented the same
+way. Combat declarations are not on the decision surface yet: a relay seat
+attacks with every legal attacker and never blocks, exactly as the engine's
+default declarations.
+
+A presented decision suspends the run. The worker writes one
+`event/decision` under the run's request ID, numbered in the run's event
+sequence and charged against `max_output_bytes` like a progress event (a
+request that would not leave room for the outcome stops the run as
+`truncated/output_limit`). `DecisionRequest` carries an opaque `decision_id`,
+the `seat`, the `kind` (`priority`, `resolution`, `commander_return`,
+`commander_replacement`), the exact core `state_hash` the options were
+enumerated in, an `observation_digest` (SHA-256 of the encoded `options`
+array, exactly as sent), the resolving object's `physical_id` and `oracle_id`
+with `behavior_id` `choice:<kind>` for a pending request, and one to 1,024
+`options`. Each option is one legal action the canonical enumerator spelled:
+an opaque `option_id`, its `kind` (`pass_priority`, `concede`, `play_land`,
+`cast_spell`, `activate_ability`, `activate_mana_ability`, `special_action`,
+`resolution_answer`), the setup inventory's identities of the card it names
+(a land play names none: the engine chooses the land), and the engine's own
+one-line `summary`. The parent never sees or supplies a declaration, a target
+or a payment: it names an option, and the loop executes the action behind it
+through the canonical decision surface, or rejects it as it would any client's.
+A request with more legal options than the wire carries ends the run as
+`unsupported/decision_options_limit`.
+
+The parent answers with a `decision` frame naming the `decision_id`, `seat`
+and `state_hash` it was asked with and an `answer`: `option` with the
+`option_id`, or `decline`. The worker checks the frame against exactly the
+suspended request and answers `decided` (echoing `option_id`, null for a
+decline) once the answer is handed to the run. A frame that names no
+suspended request, or a request already answered, is
+`invalid/decision_unknown`; another seat is `invalid/decision_seat_mismatch`;
+another `state_hash` is `invalid/decision_stale`; an `option_id` that was not
+presented is `invalid/decision_option_unknown`. A rejection leaves the run
+suspended and the answer still owed. A `decline` ends the run as
+`unsupported/decision_declined` with the request's identities and
+`behavior_id` (`decision:priority` when nothing was pending), never as a loss,
+a pass or a cancellation. A `cancel` delivered while the run is suspended
+wakes it at once and is answered `cancelled` after the run's outcome, as for
+any checkpoint; the elapsed budget interrupts a suspended wait the same way.
+Decision frames are handled as they arrive, like `cancel`; every other
+request still waits behind the run.

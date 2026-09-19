@@ -1,7 +1,7 @@
 {
   "version": 1,
   "constants": {
-    "PROTOCOL_VERSION": 5,
+    "PROTOCOL_VERSION": 6,
     "ENGINE_VERSION": "0.1.0",
     "MAX_FRAME_BYTES": 2097152,
     "PREVIEW_FIXTURE_ID": "forest-bears-internal-v1",
@@ -303,6 +303,60 @@
         }
       }
     },
+    "DecisionKind": {
+      "kind": "enum",
+      "values": ["priority", "resolution", "commander_return", "commander_replacement"]
+    },
+    "DecisionOptionKind": {
+      "kind": "enum",
+      "values": [
+        "pass_priority",
+        "concede",
+        "play_land",
+        "cast_spell",
+        "activate_ability",
+        "activate_mana_ability",
+        "special_action",
+        "resolution_answer"
+      ]
+    },
+    "DecisionOption": {
+      "kind": "record",
+      "fields": {
+        "option_id": {
+          "type": "Id"
+        },
+        "kind": {
+          "type": "DecisionOptionKind"
+        },
+        "oracle_id": {
+          "type": "Id",
+          "optional": true
+        },
+        "physical_id": {
+          "type": "Id",
+          "optional": true
+        },
+        "summary": {
+          "type": "Text"
+        }
+      }
+    },
+    "DecisionChoice": {
+      "kind": "record",
+      "fields": {
+        "option_id": {
+          "type": "Id"
+        }
+      }
+    },
+    "DecisionAnswer": {
+      "kind": "union",
+      "variants": {
+        "option": "DecisionChoice",
+        "decline": "Empty"
+      }
+    },
     "Decision": {
       "kind": "record",
       "fields": {
@@ -315,8 +369,8 @@
         "state_hash": {
           "type": "Digest"
         },
-        "option_id": {
-          "type": "Id"
+        "answer": {
+          "type": "DecisionAnswer"
         }
       }
     },
@@ -1112,18 +1166,48 @@
         "seat": {
           "type": "Seat"
         },
+        "kind": {
+          "type": "DecisionKind"
+        },
         "state_hash": {
           "type": "Digest"
         },
         "observation_digest": {
           "type": "Digest"
         },
-        "options": {
+        "oracle_id": {
           "type": "Id",
+          "optional": true
+        },
+        "physical_id": {
+          "type": "Id",
+          "optional": true
+        },
+        "behavior_id": {
+          "type": "Id",
+          "optional": true
+        },
+        "options": {
+          "type": "DecisionOption",
           "array": {
             "min": 1,
             "max": 1024
           }
+        }
+      }
+    },
+    "Decided": {
+      "kind": "record",
+      "fields": {
+        "decision_id": {
+          "type": "Id"
+        },
+        "seat": {
+          "type": "Seat"
+        },
+        "option_id": {
+          "type": "Id",
+          "nullable": true
         }
       }
     },
@@ -1157,6 +1241,7 @@
         "admitted": "Admitted",
         "event": "Event",
         "outcome": "Outcome",
+        "decided": "Decided",
         "catalog_checked": "ProfileCatalog",
         "support_checked": "SupportReport",
         "profile_preflighted": "ProfilePreflightReport"

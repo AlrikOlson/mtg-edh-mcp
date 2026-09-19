@@ -1,10 +1,10 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-pub const SCHEMA_SHA256: &str = "8591a2f5430676584d69a280097b390a2830709e50fddb1e543df29482fa1120";
+pub const SCHEMA_SHA256: &str = "7ec144c0dd74115dea1eebfbc0170759ee7739077a3cabfd0f7fdf40ac26bc69";
 use serde::{Deserialize, Serialize};
 
 fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }
 
-pub const PROTOCOL_VERSION: u32 = 5;
+pub const PROTOCOL_VERSION: u32 = 6;
 
 pub const ENGINE_VERSION: &str = "0.1.0";
 
@@ -523,12 +523,135 @@ Ok(())
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+
+pub enum DecisionKind {
+#[serde(rename = "priority")]
+Priority,
+#[serde(rename = "resolution")]
+Resolution,
+#[serde(rename = "commander_return")]
+CommanderReturn,
+#[serde(rename = "commander_replacement")]
+CommanderReplacement,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_decision_kind(_value: &DecisionKind) -> Result<(), String> {
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+
+pub enum DecisionOptionKind {
+#[serde(rename = "pass_priority")]
+PassPriority,
+#[serde(rename = "concede")]
+Concede,
+#[serde(rename = "play_land")]
+PlayLand,
+#[serde(rename = "cast_spell")]
+CastSpell,
+#[serde(rename = "activate_ability")]
+ActivateAbility,
+#[serde(rename = "activate_mana_ability")]
+ActivateManaAbility,
+#[serde(rename = "special_action")]
+SpecialAction,
+#[serde(rename = "resolution_answer")]
+ResolutionAnswer,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_decision_option_kind(_value: &DecisionOptionKind) -> Result<(), String> {
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct DecisionOption {
+pub option_id: Id,
+pub kind: DecisionOptionKind,
+#[serde(default, skip_serializing_if = "Option::is_none")]
+pub oracle_id: Option<Id>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
+pub physical_id: Option<Id>,
+pub summary: Text,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_decision_option(value: &DecisionOption) -> Result<(), String> {
+let field = &value.option_id;
+validate_id(field).map_err(|e| format!("DecisionOption.option_id: {e}"))?;
+let field = &value.kind;
+validate_decision_option_kind(field).map_err(|e| format!("DecisionOption.kind: {e}"))?;
+if let Some(field) = &value.oracle_id {
+validate_id(field).map_err(|e| format!("DecisionOption.oracle_id: {e}"))?;
+}
+if let Some(field) = &value.physical_id {
+validate_id(field).map_err(|e| format!("DecisionOption.physical_id: {e}"))?;
+}
+let field = &value.summary;
+validate_text(field).map_err(|e| format!("DecisionOption.summary: {e}"))?;
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct DecisionChoice {
+pub option_id: Id,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_decision_choice(value: &DecisionChoice) -> Result<(), String> {
+let field = &value.option_id;
+validate_id(field).map_err(|e| format!("DecisionChoice.option_id: {e}"))?;
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", content = "data", deny_unknown_fields)]
+pub enum DecisionAnswer {
+#[serde(rename = "option")]
+Option(DecisionChoice),
+#[serde(rename = "decline")]
+Decline(Empty),
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_decision_answer(value: &DecisionAnswer) -> Result<(), String> {
+match value {
+DecisionAnswer::Option(data) => validate_decision_choice(data),
+DecisionAnswer::Decline(data) => validate_empty(data),
+}
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Decision {
 pub decision_id: Id,
 pub seat: Seat,
 pub state_hash: Digest,
-pub option_id: Id,
+pub answer: DecisionAnswer,
 }
 
 /// Validate the generated wire constraints.
@@ -543,8 +666,8 @@ let field = &value.seat;
 validate_seat(field).map_err(|e| format!("Decision.seat: {e}"))?;
 let field = &value.state_hash;
 validate_digest(field).map_err(|e| format!("Decision.state_hash: {e}"))?;
-let field = &value.option_id;
-validate_id(field).map_err(|e| format!("Decision.option_id: {e}"))?;
+let field = &value.answer;
+validate_decision_answer(field).map_err(|e| format!("Decision.answer: {e}"))?;
 Ok(())
 }
 
@@ -1817,9 +1940,16 @@ Ok(())
 pub struct DecisionRequest {
 pub decision_id: Id,
 pub seat: Seat,
+pub kind: DecisionKind,
 pub state_hash: Digest,
 pub observation_digest: Digest,
-pub options: Vec<Id>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
+pub oracle_id: Option<Id>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
+pub physical_id: Option<Id>,
+#[serde(default, skip_serializing_if = "Option::is_none")]
+pub behavior_id: Option<Id>,
+pub options: Vec<DecisionOption>,
 }
 
 /// Validate the generated wire constraints.
@@ -1832,16 +1962,52 @@ let field = &value.decision_id;
 validate_id(field).map_err(|e| format!("DecisionRequest.decision_id: {e}"))?;
 let field = &value.seat;
 validate_seat(field).map_err(|e| format!("DecisionRequest.seat: {e}"))?;
+let field = &value.kind;
+validate_decision_kind(field).map_err(|e| format!("DecisionRequest.kind: {e}"))?;
 let field = &value.state_hash;
 validate_digest(field).map_err(|e| format!("DecisionRequest.state_hash: {e}"))?;
 let field = &value.observation_digest;
 validate_digest(field).map_err(|e| format!("DecisionRequest.observation_digest: {e}"))?;
+if let Some(field) = &value.oracle_id {
+validate_id(field).map_err(|e| format!("DecisionRequest.oracle_id: {e}"))?;
+}
+if let Some(field) = &value.physical_id {
+validate_id(field).map_err(|e| format!("DecisionRequest.physical_id: {e}"))?;
+}
+if let Some(field) = &value.behavior_id {
+validate_id(field).map_err(|e| format!("DecisionRequest.behavior_id: {e}"))?;
+}
 let field = &value.options;
 if !(1..=1_024).contains(&field.len()) {
 return Err("DecisionRequest.options length outside contract bounds".to_owned());
 }
 for item in field {
-validate_id(item).map_err(|e| format!("DecisionRequest.options: {e}"))?;
+validate_decision_option(item).map_err(|e| format!("DecisionRequest.options: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Decided {
+pub decision_id: Id,
+pub seat: Seat,
+#[serde(deserialize_with = "required_nullable")]
+pub option_id: Option<Id>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_decided(value: &Decided) -> Result<(), String> {
+let field = &value.decision_id;
+validate_id(field).map_err(|e| format!("Decided.decision_id: {e}"))?;
+let field = &value.seat;
+validate_seat(field).map_err(|e| format!("Decided.seat: {e}"))?;
+if let Some(field) = &value.option_id {
+validate_id(field).map_err(|e| format!("Decided.option_id: {e}"))?;
 }
 Ok(())
 }
@@ -1906,6 +2072,8 @@ Admitted(Admitted),
 Event(Event),
 #[serde(rename = "outcome")]
 Outcome(Outcome),
+#[serde(rename = "decided")]
+Decided(Decided),
 #[serde(rename = "catalog_checked")]
 CatalogChecked(ProfileCatalog),
 #[serde(rename = "support_checked")]
@@ -1925,6 +2093,7 @@ ResponseMessage::Hello(data) | ResponseMessage::Capabilities(data) => validate_c
 ResponseMessage::Admitted(data) => validate_admitted(data),
 ResponseMessage::Event(data) => validate_event(data),
 ResponseMessage::Outcome(data) => validate_outcome(data),
+ResponseMessage::Decided(data) => validate_decided(data),
 ResponseMessage::CatalogChecked(data) => validate_profile_catalog(data),
 ResponseMessage::SupportChecked(data) => validate_support_report(data),
 ResponseMessage::ProfilePreflighted(data) => validate_profile_preflight_report(data),

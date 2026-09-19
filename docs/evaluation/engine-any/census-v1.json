@@ -1,7 +1,7 @@
 {
   "version": "legal-pool-census-v1",
   "snapshot": {
-    "version": "2026-09-19T04-52-07-192Z-69a6a10e-1cb0-458e-b344-4b9d15dfdb50",
+    "version": "2026-09-19T07-38-55-820Z-9142bcc7-1411-4031-8ca4-229b67fd42bc",
     "snapshot": "2026-09-18",
     "files": {
       "oracle_cards": {
@@ -63,7 +63,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+      "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
     },
     {
       "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
@@ -72,7 +72,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+      "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
     },
     {
       "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
@@ -81,10 +81,10 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+      "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
     }
   ],
-  "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c",
+  "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe",
   "totals": {
     "faces": 32655,
     "faceless_identities": 0,

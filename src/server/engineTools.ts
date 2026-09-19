@@ -90,6 +90,8 @@ function present(report: PreviewRunReport): Record<string, unknown> {
     admission: report.admission,
     events: report.events,
     events_total: report.events_total,
+    decisions: report.decisions,
+    decisions_total: report.decisions_total,
     supervision: report.supervision,
     max_duration_ms: PREVIEW_MAX_DURATION_MS,
   };

@@ -6,7 +6,7 @@
     "bindings": {
       "census_version": "legal-pool-census-v1",
       "snapshot": {
-        "version": "2026-09-19T04-52-07-192Z-69a6a10e-1cb0-458e-b344-4b9d15dfdb50",
+        "version": "2026-09-19T07-38-55-820Z-9142bcc7-1411-4031-8ca4-229b67fd42bc",
         "snapshot": "2026-09-18",
         "index_revision": "7a68d65c1dab356292d97adcc632423675b5df2d7f52a38b1e11c08f019f9d6f",
         "legal_identities": 31830,
@@ -32,7 +32,7 @@
           "ability_words": "f788e2f57d8c720b53dde6ea5ef5040879ae96ee7b2a9f87e6380e5465aed3ca"
         }
       },
-      "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c",
+      "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe",
       "ledger_digest": "4eaccf4ac7eca6bfed54c407822be42538cde27af9fadba2ef262e47e0bd812d",
       "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
       "qualified_evidence": [
@@ -40,19 +40,19 @@
           "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
           "name": "Swamp",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+          "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
         },
         {
           "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
           "name": "Island",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+          "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
         },
         {
           "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
           "name": "Forest",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+          "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
         }
       ],
       "baseline": {
@@ -1022,7 +1022,7 @@
     "bindings": {
       "census_version": "legal-pool-census-v1",
       "snapshot": {
-        "version": "2026-09-19T04-52-07-192Z-69a6a10e-1cb0-458e-b344-4b9d15dfdb50",
+        "version": "2026-09-19T07-38-55-820Z-9142bcc7-1411-4031-8ca4-229b67fd42bc",
         "snapshot": "2026-09-18",
         "index_revision": "7a68d65c1dab356292d97adcc632423675b5df2d7f52a38b1e11c08f019f9d6f",
         "legal_identities": 31830,
@@ -1048,7 +1048,7 @@
           "ability_words": "f788e2f57d8c720b53dde6ea5ef5040879ae96ee7b2a9f87e6380e5465aed3ca"
         }
       },
-      "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c",
+      "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe",
       "ledger_digest": "4eaccf4ac7eca6bfed54c407822be42538cde27af9fadba2ef262e47e0bd812d",
       "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
       "qualified_evidence": [
@@ -1056,19 +1056,19 @@
           "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
           "name": "Swamp",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+          "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
         },
         {
           "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
           "name": "Island",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+          "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
         },
         {
           "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
           "name": "Forest",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "618f006ac96b1f42386fbe9ccf25fc7ae2528a8c"
+          "engine_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe"
         }
       ],
       "baseline": {

@@ -1,7 +1,7 @@
 /**
  * The single TypeScript owner of the worker's trial-seed derivation.
  *
- * The canonical worker (crates/mtg-worker, protocol 5) derives each trial's
+ * The canonical worker (crates/mtg-worker, protocol 6) derives each trial's
  * seed as the first 16 hex digits of SHA-256 over the fixed domain string, the
  * scenario seed and the big-endian u32 trial index, and rejects a `run` whose
  * seed does not match. Seeds therefore depend only on the scenario and the

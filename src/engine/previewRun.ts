@@ -8,7 +8,7 @@
  *
  * Per request the service captures immutable inputs (the trusted fixture, a
  * declared seed, trial index and bounded limits), spawns exactly one native
- * worker, performs the protocol-5 handshake, admits the fixture scenario, runs
+ * worker, performs the protocol-6 handshake, admits the fixture scenario, runs
  * one trial with the worker-derived seed and returns the worker's own outcome
  * with versions, digests, limits, a bounded progress trace and the process
  * receipt. It plays no Magic: every rule, choice and outcome is the canonical
@@ -20,6 +20,7 @@ import { assertCompatibleHello } from "./protocol.js";
 import {
   AdmissionSchema,
   CountSchema,
+  DecisionAnswerSchema,
   ENGINE_VERSION,
   PositiveSchema,
   PROTOCOL_VERSION,
@@ -30,6 +31,9 @@ import {
   SeedSchema,
   type Admission,
   type Admitted,
+  type DecisionAnswer,
+  type DecisionKind,
+  type DecisionRequest,
   type Limits,
   type Outcome,
   type Progress,
@@ -52,9 +56,17 @@ interface BodyValue {
 
 /** The qualification implementation the worker must present for the fixture profile. */
 export const PREVIEW_IMPLEMENTATION_VERSION = "core-support-v1";
-/** The only decision clients the worker names for the fixture; nothing else is accepted. */
+/** The engine-side decision clients the MCP tool names for the fixture; nothing else is accepted there. */
 export const PREVIEW_POLICY_IDS = ["fixture-baseline", "fixture-pass"] as const;
 export type PreviewPolicyId = (typeof PREVIEW_POLICY_IDS)[number];
+/**
+ * The worker's relay client: every decision of its seat is presented to this
+ * parent, which relays it to the caller's {@link DecisionHandler}. A single MCP
+ * tool call has no decision client, so the tool does not name it.
+ */
+export const RELAY_POLICY_ID = "parent-relay";
+export const PREVIEW_CLIENT_IDS = [...PREVIEW_POLICY_IDS, RELAY_POLICY_ID] as const;
+export type PreviewClientId = (typeof PREVIEW_CLIENT_IDS)[number];
 /** Seat bounds of the generated preview scenario; the worker contract stays the authority. */
 export const PREVIEW_MIN_SEATS = 2;
 export const PREVIEW_MAX_SEATS = 4;
@@ -98,10 +110,45 @@ export const PREVIEW_RUN_INPUT_SHAPE = {
   max_elapsed_ms: z.number().int().min(100).max(PREVIEW_MAX_ELAPSED_MS_CEILING).default(5_000),
   max_output_bytes: z.number().int().min(4_096).max(1_000_000).default(262_144),
 };
-export const PreviewRunInputSchema = z.strictObject(PREVIEW_RUN_INPUT_SHAPE);
+/**
+ * What the service itself accepts: the tool's shape, with the relay client
+ * admitted for callers that supply a decision handler.
+ */
+export const PreviewRunInputSchema = z.strictObject({
+  ...PREVIEW_RUN_INPUT_SHAPE,
+  policies: z
+    .array(z.enum(PREVIEW_CLIENT_IDS))
+    .min(PREVIEW_MIN_SEATS)
+    .max(PREVIEW_MAX_SEATS)
+    .default(["fixture-baseline", "fixture-pass"]),
+});
 export type PreviewRunInput = z.infer<typeof PreviewRunInputSchema>;
 
-export type PreviewRunErrorCode = "invalid_input" | "worker_failure";
+export type PreviewRunErrorCode = "invalid_input" | "worker_failure" | "decision_failure";
+
+/**
+ * Answers one relayed engine decision. The request is the worker's own wire
+ * shape: opaque ids, the state guard and the finite options the canonical
+ * enumerator spelled. The answer names one of those options or declines; the
+ * service relays both ways without interpreting anything.
+ */
+export type DecisionHandler = (
+  request: DecisionRequest,
+) => DecisionAnswer | Promise<DecisionAnswer>;
+
+/** One relayed decision as it was answered; the bounded trace keeps these. */
+export interface DecisionRecord {
+  readonly decision_id: string;
+  readonly seat: number;
+  readonly kind: DecisionKind;
+  readonly state_hash: string;
+  /** How many options the engine presented. */
+  readonly options: number;
+  /** The option relayed back, or null for a decline. */
+  readonly option_id: string | null;
+  /** Whether the worker acknowledged the answer as the one it was waiting for. */
+  readonly accepted: boolean;
+}
 
 export class PreviewRunError extends Error {
   override readonly name = "PreviewRunError";
@@ -136,12 +183,21 @@ export interface PreviewRunReport {
   readonly outcome: Outcome;
   readonly events: readonly Progress[];
   readonly events_total: number;
+  /** Relayed decisions in order, bounded like the progress trace. */
+  readonly decisions: readonly DecisionRecord[];
+  readonly decisions_total: number;
   readonly supervision: WorkerReceipt;
 }
 
 export interface PreviewRunOptions {
   readonly signal?: AbortSignal;
   readonly onProgress?: (progress: Progress, sequence: number) => void;
+  /**
+   * Answers relayed decisions. Required for a `parent-relay` seat; without it
+   * every relayed request is declined, which the worker reports as
+   * `unsupported`, never as a result the parent made up.
+   */
+  readonly onDecision?: DecisionHandler;
 }
 
 export interface PreviewFixtureServiceOptions {
@@ -279,12 +335,53 @@ export class PreviewFixtureService {
         `trial_index ${input.trial_index} must be below trials ${input.trials}`,
         "trial_index",
       );
+    if (input.policies.includes(RELAY_POLICY_ID) && !options.onDecision)
+      throw new PreviewRunError(
+        "invalid_input",
+        `a ${RELAY_POLICY_ID} seat needs a decision handler to answer its relayed decisions`,
+        "decision_handler",
+      );
     const { admission } = await this.admission(input);
     const limits = admission.scenario.data.limits;
     const trialSeed = deriveTrialSeed(input.seed, input.trial_index);
     const frozenInput = Object.freeze({ ...input, trial_seed: trialSeed });
     const events: Progress[] = [];
     let eventsTotal = 0;
+    const decisions: DecisionRecord[] = [];
+    let decisionsTotal = 0;
+    /** The first handler failure; the request it failed on was declined. */
+    let handlerFailure: unknown = null;
+    const relay = async (session: WorkerSession, request: DecisionRequest): Promise<void> => {
+      const ordinal = decisionsTotal;
+      decisionsTotal += 1;
+      let answer: DecisionAnswer = { type: "decline", data: {} };
+      if (options.onDecision) {
+        try {
+          answer = DecisionAnswerSchema.parse(await options.onDecision(request));
+        } catch (error) {
+          handlerFailure ??= error;
+        }
+      }
+      const reply = await session.exchange(`run.decision.${ordinal}`, {
+        type: "decision",
+        data: {
+          decision_id: request.decision_id,
+          seat: request.seat,
+          state_hash: request.state_hash,
+          answer,
+        },
+      });
+      if (decisions.length < MAX_TRACE_EVENTS)
+        decisions.push({
+          decision_id: request.decision_id,
+          seat: request.seat,
+          kind: request.kind,
+          state_hash: request.state_hash,
+          options: request.options.length,
+          option_id: answer.type === "option" ? answer.data.option_id : null,
+          accepted: reply.message.type === "decided",
+        });
+    };
     const body = async (session: WorkerSession): Promise<BodyValue> => {
       assertCompatibleHello(
         await session.exchange("hello", {
@@ -304,6 +401,10 @@ export class PreviewFixtureService {
         return { stage: "admit", admission: null, outcome: admitted.message.data };
       }
       const record = admitted.message.data;
+      // Relays run while the stream waits for the outcome; each one settles
+      // here so a worker failure never leaves an unobserved rejection.
+      const relays: Promise<void>[] = [];
+      let relayFailure: unknown = null;
       const outcome = await session.stream(
         "run",
         {
@@ -320,6 +421,14 @@ export class PreviewFixtureService {
           if (reply.message.type !== "event")
             throw new Error(`unexpected ${reply.message.type} during run`);
           const event = reply.message.data;
+          if (event.data.type === "decision") {
+            relays.push(
+              relay(session, event.data.data).catch((error: unknown) => {
+                relayFailure ??= error;
+              }),
+            );
+            return false;
+          }
           if (event.data.type !== "progress")
             throw new Error(`unrelayable ${event.data.type} event during run`);
           eventsTotal += 1;
@@ -328,6 +437,8 @@ export class PreviewFixtureService {
           return false;
         },
       );
+      await Promise.all(relays);
+      if (relayFailure !== null) throw relayFailure;
       if (outcome.message.type !== "outcome")
         throw new WorkerFailure("protocol", `unexpected ${outcome.message.type} for run`);
       return { stage: "run", admission: record, outcome: outcome.message.data };
@@ -347,6 +458,12 @@ export class PreviewFixtureService {
       throw error;
     }
     this.notify(result.receipt);
+    if (handlerFailure !== null) {
+      // The caller's handler failed; its request was declined and the worker
+      // reported that honestly, but the caller must see its own failure.
+      const message = handlerFailure instanceof Error ? handlerFailure.message : "handler failed";
+      throw new PreviewRunError("decision_failure", message, "decision_handler", result.receipt);
+    }
     const { value } = result;
     return Object.freeze({
       fixture: {
@@ -369,6 +486,8 @@ export class PreviewFixtureService {
       outcome: value.outcome,
       events: Object.freeze([...events]),
       events_total: eventsTotal,
+      decisions: Object.freeze(decisions.map((decision) => Object.freeze(decision))),
+      decisions_total: decisionsTotal,
       supervision: result.receipt,
     });
   }

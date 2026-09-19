@@ -13,7 +13,7 @@ const binary = process.env.MTG_WORKER_BINARY;
 const native = it.skipIf(!binary);
 const input = { fixture_id: PREVIEW_FIXTURE_ID, seed: "0000000000000000" };
 
-/** The fake worker speaks protocol 5 through `node -e`; the service only sees an executable. */
+/** The fake worker speaks protocol 6 through `node -e`; the service only sees an executable. */
 function fakeService(mode: FakeWorkerMode): PreviewFixtureService {
   return new PreviewFixtureService({
     executable: process.execPath,
@@ -72,6 +72,16 @@ describe("PreviewFixtureService input boundary", () => {
     expect(service.active()).toBe(0);
   });
 
+  it("admits the relay client only with a decision handler, before any worker starts", async () => {
+    const relayed = { ...input, policies: ["parent-relay", "fixture-pass"] };
+    expect(PreviewRunInputSchema.parse(relayed).policies).toEqual(["parent-relay", "fixture-pass"]);
+    const service = fakeService("decision");
+    const error = await failure(service.run(relayed));
+    expect(error.code).toBe("invalid_input");
+    expect(error.reason).toBe("decision_handler");
+    expect(service.active()).toBe(0);
+  });
+
   it("declares a numeric maximum duration", () => {
     expect(fakeService("complete").describe()).toMatchObject({
       fixture_id: PREVIEW_FIXTURE_ID,
@@ -97,7 +107,7 @@ describe("PreviewFixtureService over a protocol-shaped fake worker", () => {
       stage: "run",
       status: "completed",
       fixture: { id: PREVIEW_FIXTURE_ID, digest: PREVIEW_FIXTURE_DIGEST },
-      engine: { protocol_version: 5, implementation_version: "core-support-v1" },
+      engine: { protocol_version: 6, implementation_version: "core-support-v1" },
       admission: { admission_id: "fake-admission" },
       events_total: 2,
       supervision: { termination: "closed", exit_code: 0 },
@@ -154,6 +164,71 @@ describe("PreviewFixtureService over a protocol-shaped fake worker", () => {
     expect(error.code).toBe("worker_failure");
     expect(error.reason).toBe("aborted");
     expect(error.receipt).toMatchObject({ termination: "aborted", hard_killed: true });
+  });
+
+  it("relays a decision event to the handler and its answer back as a decision frame", async () => {
+    const seen: unknown[] = [];
+    const report = await fakeService("decision").run(
+      { ...input, policies: ["parent-relay", "fixture-pass"] },
+      {
+        onDecision: (request) => {
+          seen.push(request);
+          // The parent names an option by its opaque id; it interprets nothing.
+          const option = request.options.find((o) => o.kind === "play_land");
+          if (!option) throw new Error("expected a land play");
+          return { type: "option", data: { option_id: option.option_id } };
+        },
+      },
+    );
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ decision_id: "dec-0", seat: 0, kind: "priority" });
+    expect(report.status).toBe("completed");
+    expect(report.decisions_total).toBe(1);
+    expect(report.decisions).toEqual([
+      {
+        decision_id: "dec-0",
+        seat: 0,
+        kind: "priority",
+        state_hash: "0".repeat(64),
+        options: 2,
+        option_id: "opt-0",
+        accepted: true,
+      },
+    ]);
+    expect(report.events_total).toBe(2);
+    expect(Object.isFrozen(report.decisions)).toBe(true);
+  });
+
+  it("declines a relayed decision without a handler and reports the worker's verdict", async () => {
+    // Engine-side clients only: the handler is optional, so the decline is honest.
+    const report = await fakeService("decision").run(input);
+    expect(report.status).toBe("unsupported");
+    expect(report.outcome).toMatchObject({
+      type: "unsupported",
+      data: { diagnostics: [{ code: "decision_declined" }] },
+    });
+    expect(report.decisions).toEqual([
+      expect.objectContaining({ option_id: null, accepted: true }),
+    ]);
+    const declined = await fakeService("decision").run(input, {
+      onDecision: () => ({ type: "decline", data: {} }),
+    });
+    expect(declined.status).toBe("unsupported");
+  });
+
+  it("declines when the handler fails, then reports the handler's failure, not a result", async () => {
+    const service = fakeService("decision");
+    const error = await failure(
+      service.run(input, {
+        onDecision: () => {
+          throw new Error("client went away");
+        },
+      }),
+    );
+    expect(error.code).toBe("decision_failure");
+    expect(error.message).toBe("client went away");
+    expect(error.receipt).toMatchObject({ termination: "closed" });
+    expect(service.active()).toBe(0);
   });
 
   it("refuses a second concurrent run as busy", async () => {
@@ -221,6 +296,72 @@ describe("PreviewFixtureService against the pinned native worker", () => {
     const two = await service.run(input);
     expect(two.admission?.scenario_digest).not.toBe(a.admission?.scenario_digest);
     expect(two.admission?.initial_state_hash).not.toBe(a.admission?.initial_state_hash);
+  });
+
+  native(
+    "relays a parent-relay seat's decisions and reproduces the engine-side outcome",
+    async () => {
+      const service = new PreviewFixtureService({ executable: binary as string });
+      const engineSide = await service.run(input);
+      const kinds = new Set<string>();
+      let requests = 0;
+      const relayed = await service.run(
+        { ...input, policies: ["parent-relay", "fixture-pass"] },
+        {
+          onDecision: (request) => {
+            requests += 1;
+            expect(request.seat).toBe(0);
+            expect(request.kind).toBe("priority");
+            expect(request.state_hash).toMatch(/^[0-9a-f]{64}$/);
+            for (const option of request.options) kinds.add(option.kind);
+            // What the engine-side baseline does, spelled only in option kinds:
+            // a land, else the first legal spell, else pass. Nothing else is read.
+            const chosen =
+              request.options.find((o) => o.kind === "play_land") ??
+              request.options.find((o) => o.kind === "cast_spell") ??
+              request.options.find((o) => o.kind === "pass_priority");
+            if (!chosen) throw new Error("no legal option presented");
+            return { type: "option", data: { option_id: chosen.option_id } };
+          },
+        },
+      );
+      expect(relayed.status).toBe("completed");
+      expect(relayed.outcome).toEqual(engineSide.outcome);
+      expect(relayed.events).toEqual(engineSide.events);
+      expect(relayed.decisions_total).toBe(requests);
+      expect(requests).toBeGreaterThan(5);
+      expect(relayed.decisions.every((d) => d.accepted && d.option_id !== null)).toBe(true);
+      // Concede is a legal action at every priority; the parent never picks it.
+      expect([...kinds].sort()).toEqual(["cast_spell", "concede", "pass_priority", "play_land"]);
+      expect(relayed.supervision).toMatchObject({
+        termination: "closed",
+        exit_code: 0,
+        stderr: "",
+      });
+      // The admission does not depend on which client relays; the scenario does.
+      expect(relayed.admission?.scenario_digest).not.toBe(engineSide.admission?.scenario_digest);
+    },
+  );
+
+  native("cancels a run suspended on a relayed decision", async () => {
+    const service = new PreviewFixtureService({ executable: binary as string });
+    const controller = new AbortController();
+    const report = await service.run(
+      { ...input, policies: ["parent-relay", "fixture-pass"] },
+      {
+        signal: controller.signal,
+        onDecision: async () => {
+          controller.abort();
+          // The worker is released by the cancel, not by this answer.
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return { type: "decline", data: {} };
+        },
+      },
+    );
+    expect(report.status).toBe("cancelled");
+    expect(report.decisions_total).toBe(1);
+    expect(report.decisions[0]?.accepted).toBe(false);
+    expect(report.supervision).toMatchObject({ termination: "closed", hard_killed: false });
   });
 
   native("truncates at the declared turn cap without naming a winner", async () => {

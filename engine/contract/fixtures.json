@@ -53,7 +53,31 @@
             "decision_id": "d-1",
             "seat": 0,
             "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "option_id": "o-1"
+            "answer": {
+              "type": "option",
+              "data": {
+                "option_id": "o-1"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision decline",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decision",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0,
+            "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "answer": {
+              "type": "decline",
+              "data": {}
+            }
           }
         }
       }
@@ -377,11 +401,200 @@
               "data": {
                 "decision_id": "d-1",
                 "seat": 3,
+                "kind": "priority",
                 "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "options": ["o-1"]
+                "options": [
+                  {
+                    "option_id": "o-1",
+                    "kind": "pass_priority",
+                    "summary": "pass priority"
+                  },
+                  {
+                    "option_id": "o-2",
+                    "kind": "concede",
+                    "summary": "concede"
+                  },
+                  {
+                    "option_id": "o-3",
+                    "kind": "play_land",
+                    "summary": "play land",
+                    "oracle_id": "oracle-1",
+                    "physical_id": "physical-1"
+                  },
+                  {
+                    "option_id": "o-4",
+                    "kind": "cast_spell",
+                    "summary": "cast spell",
+                    "oracle_id": "oracle-2",
+                    "physical_id": "physical-2"
+                  },
+                  {
+                    "option_id": "o-5",
+                    "kind": "activate_ability",
+                    "summary": "activate ability",
+                    "oracle_id": "oracle-2",
+                    "physical_id": "physical-2"
+                  },
+                  {
+                    "option_id": "o-6",
+                    "kind": "activate_mana_ability",
+                    "summary": "activate mana ability",
+                    "oracle_id": "oracle-1",
+                    "physical_id": "physical-1"
+                  },
+                  {
+                    "option_id": "o-7",
+                    "kind": "special_action",
+                    "summary": "special action"
+                  }
+                ]
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision resolution",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "kind": "resolution",
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "oracle_id": "oracle-2",
+                "physical_id": "physical-2",
+                "behavior_id": "choice:optional",
+                "options": [
+                  {
+                    "option_id": "o-1",
+                    "kind": "resolution_answer",
+                    "summary": "resolution answer"
+                  },
+                  {
+                    "option_id": "o-2",
+                    "kind": "concede",
+                    "summary": "concede"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision commander return",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "kind": "commander_return",
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "oracle_id": "oracle-3",
+                "physical_id": "physical-3",
+                "behavior_id": "choice:optional",
+                "options": [
+                  {
+                    "option_id": "o-1",
+                    "kind": "resolution_answer",
+                    "summary": "resolution answer"
+                  },
+                  {
+                    "option_id": "o-2",
+                    "kind": "resolution_answer",
+                    "summary": "resolution answer"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision commander replacement",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "kind": "commander_replacement",
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "oracle_id": "oracle-3",
+                "physical_id": "physical-3",
+                "behavior_id": "choice:optional",
+                "options": [
+                  {
+                    "option_id": "o-1",
+                    "kind": "resolution_answer",
+                    "summary": "resolution answer"
+                  },
+                  {
+                    "option_id": "o-2",
+                    "kind": "resolution_answer",
+                    "summary": "resolution answer"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decided",
+      "direction": "response",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decided",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0,
+            "option_id": "o-1"
+          }
+        }
+      }
+    },
+    {
+      "name": "decided declined",
+      "direction": "response",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decided",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0,
+            "option_id": null
           }
         }
       }
@@ -1144,7 +1357,12 @@
             "decision_id": "d-1",
             "seat": 4,
             "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            "option_id": "o-1"
+            "answer": {
+              "type": "option",
+              "data": {
+                "option_id": "o-1"
+              }
+            }
           }
         }
       }
@@ -1261,6 +1479,7 @@
               "data": {
                 "decision_id": "d-1",
                 "seat": 3,
+                "kind": "priority",
                 "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 "options": []
@@ -2086,6 +2305,202 @@
               "turns": 5,
               "actions": 40
             }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision without answer",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decision",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0,
+            "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    },
+    {
+      "name": "decision legacy option id",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decision",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0,
+            "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "option_id": "o-1"
+          }
+        }
+      }
+    },
+    {
+      "name": "decision unknown answer",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decision",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0,
+            "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "answer": {
+              "type": "random",
+              "data": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision option without id",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decision",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0,
+            "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "answer": {
+              "type": "option",
+              "data": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision unknown kind",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "kind": "trigger",
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "options": [
+                  {
+                    "option_id": "o-1",
+                    "kind": "pass_priority",
+                    "summary": "pass priority"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision unknown option kind",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "kind": "priority",
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "options": [
+                  {
+                    "option_id": "o-1",
+                    "kind": "attack",
+                    "summary": "attack"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision legacy options",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "kind": "priority",
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "options": ["o-1"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decision option without summary",
+      "direction": "response",
+      "value": {
+        "message": {
+          "type": "event",
+          "data": {
+            "event_id": "event-1",
+            "sequence": 0,
+            "data": {
+              "type": "decision",
+              "data": {
+                "decision_id": "d-1",
+                "seat": 3,
+                "kind": "priority",
+                "state_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "observation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "options": [
+                  {
+                    "option_id": "o-1",
+                    "kind": "pass_priority"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "decided without option",
+      "direction": "response",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "decided",
+          "data": {
+            "decision_id": "d-1",
+            "seat": 0
           }
         }
       }

@@ -270,6 +270,8 @@ describe("engine_preview_fixture over Streamable HTTP with protocol-shaped fake 
         [{ ...input, seed: "not-a-seed" }, "seed"],
         [{ ...input, deck_id: "authored-deck" }, 'Unrecognized key: "deck_id"'],
         [{ ...input, policies: ["fixture-baseline", "optimal"] }, "policies.1"],
+        // The relay client needs a decision client; a single tool call has none.
+        [{ ...input, policies: ["parent-relay", "fixture-pass"] }, "policies.0"],
         [{ ...input, max_elapsed_ms: 999_999 }, "max_elapsed_ms"],
       ] as const) {
         const refused = await c.callTool({ name: ENGINE_PREVIEW_TOOL, arguments: bad });
@@ -454,7 +456,7 @@ describe("engine_preview_fixture against the pinned native worker", () => {
           type: "completed",
           data: { winner_seats: [0], reason: "life_reached_zero", turns: 5 },
         },
-        engine: { protocol_version: 5, implementation_version: "core-support-v1" },
+        engine: { protocol_version: 6, implementation_version: "core-support-v1" },
         events_total: 4,
         supervision: { termination: "closed", exit_code: 0, stderr: "" },
       });

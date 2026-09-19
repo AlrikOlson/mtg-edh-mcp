@@ -1,10 +1,10 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-export const SCHEMA_SHA256 = "8591a2f5430676584d69a280097b390a2830709e50fddb1e543df29482fa1120";
+export const SCHEMA_SHA256 = "7ec144c0dd74115dea1eebfbc0170759ee7739077a3cabfd0f7fdf40ac26bc69";
 import { z } from "zod";
 
 const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });
 
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 export const ENGINE_VERSION = "0.1.0";
 
@@ -152,11 +152,37 @@ export const RunSchema = z.strictObject({
 });
 export type Run = z.infer<typeof RunSchema>;
 
+export const DecisionKindSchema = z.enum(["priority","resolution","commander_return","commander_replacement"]);
+export type DecisionKind = z.infer<typeof DecisionKindSchema>;
+
+export const DecisionOptionKindSchema = z.enum(["pass_priority","concede","play_land","cast_spell","activate_ability","activate_mana_ability","special_action","resolution_answer"]);
+export type DecisionOptionKind = z.infer<typeof DecisionOptionKindSchema>;
+
+export const DecisionOptionSchema = z.strictObject({
+"option_id": IdSchema,
+"kind": DecisionOptionKindSchema,
+"oracle_id": IdSchema.nullable().optional(),
+"physical_id": IdSchema.nullable().optional(),
+"summary": TextSchema,
+});
+export type DecisionOption = z.infer<typeof DecisionOptionSchema>;
+
+export const DecisionChoiceSchema = z.strictObject({
+"option_id": IdSchema,
+});
+export type DecisionChoice = z.infer<typeof DecisionChoiceSchema>;
+
+export const DecisionAnswerSchema = z.discriminatedUnion("type", [
+z.strictObject({type: z.literal("option"), data: DecisionChoiceSchema}),
+z.strictObject({type: z.literal("decline"), data: EmptySchema}),
+]);
+export type DecisionAnswer = z.infer<typeof DecisionAnswerSchema>;
+
 export const DecisionSchema = z.strictObject({
 "decision_id": IdSchema,
 "seat": SeatSchema,
 "state_hash": DigestSchema,
-"option_id": IdSchema,
+"answer": DecisionAnswerSchema,
 });
 export type Decision = z.infer<typeof DecisionSchema>;
 
@@ -471,11 +497,22 @@ export type Progress = z.infer<typeof ProgressSchema>;
 export const DecisionRequestSchema = z.strictObject({
 "decision_id": IdSchema,
 "seat": SeatSchema,
+"kind": DecisionKindSchema,
 "state_hash": DigestSchema,
 "observation_digest": DigestSchema,
-"options": z.array(IdSchema).min(1).max(1024),
+"oracle_id": IdSchema.nullable().optional(),
+"physical_id": IdSchema.nullable().optional(),
+"behavior_id": IdSchema.nullable().optional(),
+"options": z.array(DecisionOptionSchema).min(1).max(1024),
 });
 export type DecisionRequest = z.infer<typeof DecisionRequestSchema>;
+
+export const DecidedSchema = z.strictObject({
+"decision_id": IdSchema,
+"seat": SeatSchema,
+"option_id": IdSchema.nullable(),
+});
+export type Decided = z.infer<typeof DecidedSchema>;
 
 export const EventDataSchema = z.discriminatedUnion("type", [
 z.strictObject({type: z.literal("progress"), data: ProgressSchema}),
@@ -497,6 +534,7 @@ z.strictObject({type: z.literal("capabilities"), data: CapabilitiesSchema}),
 z.strictObject({type: z.literal("admitted"), data: AdmittedSchema}),
 z.strictObject({type: z.literal("event"), data: EventSchema}),
 z.strictObject({type: z.literal("outcome"), data: OutcomeSchema}),
+z.strictObject({type: z.literal("decided"), data: DecidedSchema}),
 z.strictObject({type: z.literal("catalog_checked"), data: ProfileCatalogSchema}),
 z.strictObject({type: z.literal("support_checked"), data: SupportReportSchema}),
 z.strictObject({type: z.literal("profile_preflighted"), data: ProfilePreflightReportSchema}),

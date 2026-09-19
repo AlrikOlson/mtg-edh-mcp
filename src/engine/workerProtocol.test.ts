@@ -119,15 +119,13 @@ native("exchanges real generated Rust replies with the TypeScript validator", as
   for (const [index, response] of replies.slice(1).entries()) {
     expect(response.request_id).toBe("req-1");
     expect(response.message.type).toBe("outcome");
-    // Schema-only fixtures never admit or execute: interactive decisions are
-    // an unsupported capability; the Commander admission's placeholder
-    // catalog, forged preview admissions, runs and cancels are refused as
-    // invalid.
-    const request = z
-      .object({ message: z.object({ type: z.string(), data: z.unknown() }) })
-      .parse(requests[index]?.value);
-    const expected = request.message.type === "decision" ? "unsupported" : "invalid";
-    if (response.message.type === "outcome") expect(response.message.data.type).toBe(expected);
+    // Schema-only fixtures never admit or execute: the Commander admission's
+    // placeholder catalog, forged preview admissions, runs, cancels and a
+    // decision while no run is suspended are all refused as invalid.
+    z.object({ message: z.object({ type: z.string(), data: z.unknown() }) }).parse(
+      requests[index]?.value,
+    );
+    if (response.message.type === "outcome") expect(response.message.data.type).toBe("invalid");
   }
 });
 native("rejects mismatched worker versions and drains only framed diagnostics", async () => {
@@ -171,7 +169,7 @@ native("round trips every frozen baseline gameplay record through the native wor
     expect(replies).toHaveLength(2);
     expect(replies[0]?.message).toMatchObject({
       type: "hello",
-      data: { admission: true, execution: true, decisions: false, cancellation: true },
+      data: { admission: true, execution: true, decisions: true, cancellation: true },
     });
     expect(replies[1]).toEqual({
       request_id: "catalog-baseline",
@@ -394,7 +392,7 @@ native("reports every frozen source obligation without granting play support", a
     expect(qualified).toBe(3);
     expect(replies[0]?.message).toMatchObject({
       type: "hello",
-      data: { admission: true, execution: true, decisions: false, cancellation: true },
+      data: { admission: true, execution: true, decisions: true, cancellation: true },
     });
   } finally {
     await f.close();
@@ -585,7 +583,7 @@ native(
     expect(replies).toHaveLength(3);
     expect(replies[0]?.message).toMatchObject({
       type: "hello",
-      data: { admission: true, execution: true, decisions: false, cancellation: true },
+      data: { admission: true, execution: true, decisions: true, cancellation: true },
     });
     const reply = replies[1]?.message;
     expect(reply?.type).toBe("profile_preflighted");
@@ -794,7 +792,7 @@ native(
     expect(a).toEqual(b);
     expect(a[0]?.message).toMatchObject({
       type: "hello",
-      data: { admission: true, execution: true, decisions: false, cancellation: true },
+      data: { admission: true, execution: true, decisions: true, cancellation: true },
     });
     expect(a[1]).toEqual({ request_id: "admit", message: admitted });
     expect(a[2]?.message).toMatchObject({
