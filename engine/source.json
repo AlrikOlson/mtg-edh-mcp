@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source_owner": "mtg-game-engine",
-  "revision": "c1ec236491b0564df200b7c4a6e706bc592d2fd9",
+  "revision": "9c85884856c9cefeb8c95b589a929ccfcc069521",
   "cargo_lock_sha256": "f90950b629f547226819e60588c44b00d329b0ff6ef1b5d96476f758e9ec7ee7",
   "core_package": "mtg-engine",
   "worker_package": "mtg-worker",
