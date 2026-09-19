@@ -300,9 +300,28 @@ Outcomes are distinct: `completed` carries `winner_seats` (empty for a draw),
 the rules `reason`, initial/final core hashes, `turns` and `actions`;
 `truncated` names `turn_limit`, `action_limit`, `actions_per_turn_limit`,
 `work_limit`, `elapsed_limit` or `output_limit`; `cancelled` follows a parent
-cancel; `unsupported` reports an engine request the worker cannot relay;
+cancel; `unsupported` reports semantics the run cannot continue through;
 `engine_error` reports a canonical failure. A cap or failure is never a loss
 or an implicit pass.
+
+Runtime support is enforced by the core, not inferred by the worker. When the
+canonical executor meets semantics it cannot carry out (an unrepresented
+spell or ability effect, a trigger it cannot announce, a choice shape or cost
+it cannot represent), the scheduler stops transactionally and the run answers
+`unsupported` with one `runtime_semantics_unsupported` diagnostic: `physical_id`
+and `oracle_id` are the setup inventory's identities of the object that
+carries the behavior (both absent for a generated object such as a token, or
+for an object outside the inventory; nothing is invented), `behavior_id` names
+the behavior, and the message says which seat's card or which token it is. An
+engine request none of the run's clients can answer (this worker relays no
+decisions) answers `unsupported/resolution_choice_unsupported` with the same
+identities for the resolving object and `behavior_id` `choice:<kind>`
+(`target`, `mode`, `order`, `optional`, `objects`). Neither carries a winner,
+a completed reason or an engine error; `engine_error/execution_error` is kept
+for rejected decisions and internal failures. The worker never constructs a
+card, a state or an identity itself: every object it runs is allocated by the
+core's setup owner after exact-source qualification, and `--self-check`
+initializes an empty two-seat core through that same owner.
 
 Input is read on a dedicated thread. While a run is live, `cancel` naming the
 run's request ID raises the stop token at once and is answered after the run's
