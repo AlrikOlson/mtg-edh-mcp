@@ -73,6 +73,8 @@ async function failure(promise: Promise<unknown>): Promise<WorkerFailure> {
 }
 
 const limits = { maxElapsedMs: 4000, maxOutputBytes: 1_000_000 };
+const binary = process.env.MTG_WORKER_BINARY;
+const native = it.skipIf(!binary);
 
 describe("WorkerSupervisor", () => {
   it("routes replies by request id, ends input cleanly and reports a closed receipt", async () => {
@@ -305,4 +307,36 @@ describe("WorkerSupervisor", () => {
       RangeError,
     );
   });
+
+  native(
+    "reports the real executable's usage error as crashed with its stderr in the receipt",
+    async () => {
+      if (!binary) throw new Error("MTG_WORKER_BINARY is required for native acceptance");
+      // A fixed argument array the worker refuses: it writes one usage line to
+      // stderr and exits 2 before any protocol output, while the parent still
+      // holds its input open. The parent reports what the process did, not a
+      // deadline of its own.
+      const sup = new WorkerSupervisor({
+        executable: binary,
+        args: ["--bogus"],
+        maxConcurrent: 1,
+        killGraceMs: 300,
+        maxStderrBytes: 4096,
+      });
+      const error = await failure(sup.run(async (session) => session.exchange("h", hello), limits));
+      expect(error.reason).toBe("crashed");
+      expect(error.receipt).toMatchObject({
+        termination: "crashed",
+        exit_code: 2,
+        exit_signal: null,
+        stdout_bytes: 0,
+        responses: 0,
+        hard_killed: false,
+      });
+      expect(error.receipt?.stderr).toContain("usage: mtg-worker --self-check|--protocol");
+      expect(error.receipt?.stderr_bytes).toBe(Buffer.byteLength(error.receipt?.stderr ?? ""));
+      expect(await gone(error.receipt?.pid ?? null)).toBe(true);
+      expect(sup.active()).toBe(0);
+    },
+  );
 });

@@ -1,7 +1,7 @@
 {
-  "source_revision": "7e740bc3dd51a7676d0e411e5a8bd54a3249c9fe",
+  "source_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b",
   "files": {
-    "engine/contract/README.md": "904467dd2b222c6b879d9b97011e6aea0bc8627cbae0bf23ed4d33e0f2a28f58",
+    "engine/contract/README.md": "a852e22ad4b73bf9c50fb32feddfa5f49b8f2321063742509fffb62352a582c9",
     "engine/contract/contract.json": "7ec144c0dd74115dea1eebfbc0170759ee7739077a3cabfd0f7fdf40ac26bc69",
     "engine/contract/generate.mjs": "92816dfc480324f0df632823165a12bb9faf41995d0d54ee5e58fdcb6e396f9b",
     "engine/contract/generate.test.mjs": "78b250ada303ba916ab8cf38914e1be5a87c65194b0062675481d8fae394713d",

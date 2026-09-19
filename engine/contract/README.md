@@ -324,6 +324,20 @@ card, a state or an identity itself: every object it runs is allocated by the
 core's setup owner after exact-source qualification, and `--self-check`
 initializes an empty two-seat core through that same owner.
 
+A run thread that panics still reaches an outcome: the run answers
+`engine_error/worker_panic` carrying the panic message, after the standard
+panic hook has written the panic to stderr, and the session goes on to answer
+what waited behind the run. The parent therefore never waits for its own
+deadline on a crashed run. stderr carries nothing else in normal operation;
+a transport failure (for example the parent closing the worker's stdout)
+ends the process with exit code 1 and one `mtg-worker: protocol I/O failed:`
+line on stderr, while framing failures (`malformed_frame`, `truncated_frame`,
+`oversized_frame`) are answered on stdout without a request ID and the
+process exits 0. The worker's selected dependency graph contains no GUI
+toolkit, HTTP client, async runtime, TLS stack or sibling front end; the
+engine is taken without its default features, and a test over
+`cargo tree -p mtg-worker` enforces both.
+
 Input is read on a dedicated thread. While a run is live, `cancel` naming the
 run's request ID raises the stop token at once and is answered after the run's
 outcome: `cancelled` when the stop was honored, `invalid/cancel_late` when the
