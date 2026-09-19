@@ -254,7 +254,12 @@ the first refusal answers; nothing is allocated or retained on any of them.
    so a real capture stops here with its exact per-card diagnostics.
 5. Setup blueprints. Each seat becomes the core's Commander seat blueprint:
    the commander apart in the command zone at 40 life (CR 903.6, 903.7), every
-   other physical card in the library in declared order, no opening hand.
+   other physical card in the library in declared order, no opening hand. Each
+   blueprint carries the scenario's `physical_id`, and the core's setup owner
+   keeps it in its physical inventory next to the allocated engine identity,
+   so that inventory is the one correspondence between scenario cards and
+   engine objects for diagnostics and replay; the core refuses a `physical_id`
+   used twice before allocating anything, after the binding stage already did.
    Shuffling, opening hands and mulligans (CR 103.3, 103.5, 903.7) have no
    owner yet, so a fully qualified pod answers
    `unsupported/starting_procedure_unavailable` at exactly that point instead
