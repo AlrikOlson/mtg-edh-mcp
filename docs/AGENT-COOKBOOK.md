@@ -809,7 +809,13 @@ and types do not establish a playable combination, and an absent face mana
 value does not inherit another face's value. `produced_mana` describes possible
 mana types, not how much mana is available or whether an ability can be used.
 Do not count alternative faces as simultaneous lands, spells, or mana sources.
-`face_relationship` labels the source layout; `playability: "not_evaluated"`
+`face_relationship` labels the source layout: `single` for a normal card,
+`modal` for a modal double-faced card, and the layout's own name for split,
+adventure, transform, meld, flip, prepare, leveler, class, saga, case,
+prototype and mutate cards; `unknown` means no layout was supplied and
+`unsupported` a layout the server does not classify yet. Every classified
+layout carries a face inventory: the supplied faces, or the root record as the
+one face for layouts Scryfall serves without faces. `playability: "not_evaluated"`
 means this evidence does not determine castability, activation conditions,
 zone-specific characteristics, alternative costs, or current mana availability.
 See Scryfall's [card objects](https://scryfall.com/docs/api/cards) and

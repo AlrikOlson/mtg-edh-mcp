@@ -1,5 +1,5 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-pub const SCHEMA_SHA256: &str = "dd9da7e06c94e764d8e0b17a09cd86ac8bc2ef1c485b6fe1db1b27e7d0632e6d";
+pub const SCHEMA_SHA256: &str = "8591a2f5430676584d69a280097b390a2830709e50fddb1e543df29482fa1120";
 use serde::{Deserialize, Serialize};
 
 fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }
@@ -653,6 +653,22 @@ Modal,
 Transform,
 #[serde(rename = "meld")]
 Meld,
+#[serde(rename = "flip")]
+Flip,
+#[serde(rename = "prepare")]
+Prepare,
+#[serde(rename = "leveler")]
+Leveler,
+#[serde(rename = "class")]
+Class,
+#[serde(rename = "saga")]
+Saga,
+#[serde(rename = "case")]
+Case,
+#[serde(rename = "prototype")]
+Prototype,
+#[serde(rename = "mutate")]
+Mutate,
 #[serde(rename = "unknown")]
 Unknown,
 #[serde(rename = "unsupported")]

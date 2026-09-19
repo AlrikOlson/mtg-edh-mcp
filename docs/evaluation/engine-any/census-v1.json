@@ -1,7 +1,7 @@
 {
   "version": "legal-pool-census-v1",
   "snapshot": {
-    "version": "2026-09-18T21-16-15-477Z-8e28e3d3-ae15-4636-b20c-85230da046e8",
+    "version": "2026-09-19T04-52-07-192Z-69a6a10e-1cb0-458e-b344-4b9d15dfdb50",
     "snapshot": "2026-09-18",
     "files": {
       "oracle_cards": {
@@ -17,7 +17,7 @@
         "source_uri": "https://data.scryfall.io/default-cards/default-cards-20260918210539.jsonl.gz"
       }
     },
-    "index_revision": "019a6fd8b1e0df0112be1e4e199a88c628f5f7ea130349675d8d09087c291b8b",
+    "index_revision": "7a68d65c1dab356292d97adcc632423675b5df2d7f52a38b1e11c08f019f9d6f",
     "identities_total": 38906,
     "legal_identities": 31830,
     "banned_identities": 83,
@@ -63,7 +63,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "84a73043f1f7034471e49098bb1533cc904a9a14"
+      "engine_revision": "52a93fa512672fd781bb5de8eb79ab64ed491588"
     },
     {
       "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
@@ -72,7 +72,7 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "84a73043f1f7034471e49098bb1533cc904a9a14"
+      "engine_revision": "52a93fa512672fd781bb5de8eb79ab64ed491588"
     },
     {
       "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
@@ -81,19 +81,19 @@
       "implementation": "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability",
       "evidence": "tests/strict_support.rs::intrinsic_basic_mana",
       "implementation_version": "core-support-v1",
-      "engine_revision": "84a73043f1f7034471e49098bb1533cc904a9a14"
+      "engine_revision": "52a93fa512672fd781bb5de8eb79ab64ed491588"
     }
   ],
-  "engine_revision": "84a73043f1f7034471e49098bb1533cc904a9a14",
+  "engine_revision": "52a93fa512672fd781bb5de8eb79ab64ed491588",
   "totals": {
-    "faces": 32350,
-    "faceless_identities": 305,
-    "rows_total": 1083764,
-    "rows_counted": 649207,
+    "faces": 32655,
+    "faceless_identities": 0,
+    "rows_total": 1088336,
+    "rows_counted": 648902,
     "clauses": 60408,
     "by_status": {
       "qualified": 3,
-      "owned": 649204,
+      "owned": 648899,
       "unresolved": 0
     },
     "by_shape": {
@@ -122,7 +122,7 @@
     },
     {
       "chunk": "engine-any-card-type-lifecycles",
-      "rows": 3319,
+      "rows": 3571,
       "cards": 2440
     },
     {
@@ -132,7 +132,7 @@
     },
     {
       "chunk": "engine-any-copy-composite-objects",
-      "rows": 4153,
+      "rows": 4187,
       "cards": 3898
     },
     {
@@ -264,11 +264,6 @@
       "chunk": "engine-mvp-zones",
       "rows": 4166,
       "cards": 4037
-    },
-    {
-      "chunk": "mcp-catalog-face-inventory",
-      "rows": 675,
-      "cards": 370
     }
   ],
   "families": [
@@ -401,19 +396,6 @@
         "Lurrus of the Dream-Den",
         "Obosh, the Preypiercer",
         "Umori, the Collector"
-      ]
-    },
-    {
-      "family": "faces:missing",
-      "rows": 305,
-      "cards": 305,
-      "owners": ["mcp-catalog-face-inventory"],
-      "samples": [
-        "Stormchaser's Talent",
-        "Long List of the Ents",
-        "Goring Warplow",
-        "Summon: Primal Odin",
-        "Nightmares and Daydreams"
       ]
     },
     {
@@ -5277,6 +5259,58 @@
       ]
     },
     {
+      "family": "relationship:case",
+      "rows": 13,
+      "cards": 13,
+      "owners": ["engine-any-card-type-lifecycles", "engine-any-layouts-special-actions"],
+      "samples": [
+        "Case of the Uneaten Feast",
+        "Case of the Locked Hothouse",
+        "Case of the Filched Falcon",
+        "Case of the Shifting Visage",
+        "Case of the Gateway Express"
+      ]
+    },
+    {
+      "family": "relationship:class",
+      "rows": 34,
+      "cards": 34,
+      "owners": ["engine-any-card-type-lifecycles", "engine-any-layouts-special-actions"],
+      "samples": [
+        "Stormchaser's Talent",
+        "Builder's Talent",
+        "Leader's Talent",
+        "Sorcerer Class",
+        "Fortune Teller's Talent"
+      ]
+    },
+    {
+      "family": "relationship:flip",
+      "rows": 19,
+      "cards": 19,
+      "owners": ["engine-any-layouts-special-actions"],
+      "samples": [
+        "Nezumi Graverobber // Nighteyes the Desecrator",
+        "Faithful Squire // Kaiso, Memory of Loyalty",
+        "Jushi Apprentice // Tomoya the Revealer",
+        "Cunning Bandit // Azamuki, Treachery Incarnate",
+        "Nezumi Shortfang // Stabwhisker the Odious"
+      ]
+    },
+    {
+      "family": "relationship:leveler",
+      "rows": 25,
+      "cards": 25,
+      "owners": ["engine-any-card-type-lifecycles", "engine-any-layouts-special-actions"],
+      "samples": [
+        "Zulaport Enforcer",
+        "Student of Warfare",
+        "Coralhelm Commander",
+        "Transcendent Master",
+        "Halimar Wavewatch"
+      ]
+    },
+    {
       "family": "relationship:meld",
       "rows": 21,
       "cards": 21,
@@ -5300,6 +5334,58 @@
         "Alrund, God of the Cosmos // Hakka, Whispering Raven",
         "Extus, Oriq Overlord // Awaken the Blood Avatar",
         "Kabira Takedown // Kabira Plateau"
+      ]
+    },
+    {
+      "family": "relationship:mutate",
+      "rows": 34,
+      "cards": 34,
+      "owners": ["engine-any-copy-composite-objects", "engine-any-layouts-special-actions"],
+      "samples": [
+        "Illuna, Apex of Wishes",
+        "Sea-Dasher Octopus",
+        "Vulpikeet",
+        "Dreamtail Heron",
+        "Pouncing Shoreshark"
+      ]
+    },
+    {
+      "family": "relationship:prepare",
+      "rows": 46,
+      "cards": 46,
+      "owners": ["engine-any-layouts-special-actions"],
+      "samples": [
+        "Adventurous Eater // Have a Bite",
+        "Maelstrom Artisan // Rocket Volley",
+        "Eiganjo Dynastorian // Replenish",
+        "Striding Shotcaller // Run the Play",
+        "Blazing Firesinger // Seething Song"
+      ]
+    },
+    {
+      "family": "relationship:prototype",
+      "rows": 19,
+      "cards": 19,
+      "owners": ["engine-any-layouts-special-actions"],
+      "samples": [
+        "Goring Warplow",
+        "Combat Thresher",
+        "Woodcaller Automaton",
+        "Blitz Automaton",
+        "Cradle Clearcutter"
+      ]
+    },
+    {
+      "family": "relationship:saga",
+      "rows": 180,
+      "cards": 180,
+      "owners": ["engine-any-card-type-lifecycles", "engine-any-layouts-special-actions"],
+      "samples": [
+        "Long List of the Ents",
+        "Summon: Primal Odin",
+        "Nightmares and Daydreams",
+        "Summon: Magus Sisters",
+        "Battle at the Helvault"
       ]
     },
     {
@@ -5339,19 +5425,6 @@
         "The Emperor of Palamecia // The Lord Master of Hell",
         "Westvale Abbey // Ormendahl, Profane Prince",
         "Lunarch Veteran // Luminous Phantom"
-      ]
-    },
-    {
-      "family": "relationship:unsupported",
-      "rows": 370,
-      "cards": 370,
-      "owners": ["engine-any-layouts-special-actions", "mcp-catalog-face-inventory"],
-      "samples": [
-        "Stormchaser's Talent",
-        "Long List of the Ents",
-        "Adventurous Eater // Have a Bite",
-        "Goring Warplow",
-        "Summon: Primal Odin"
       ]
     },
     {
@@ -10423,26 +10496,26 @@
     {
       "layout": "case",
       "cards": 13,
-      "face_relationship": "unsupported",
-      "faces_missing": 13
+      "face_relationship": "case",
+      "faces_missing": 0
     },
     {
       "layout": "class",
       "cards": 34,
-      "face_relationship": "unsupported",
-      "faces_missing": 34
+      "face_relationship": "class",
+      "faces_missing": 0
     },
     {
       "layout": "flip",
       "cards": 19,
-      "face_relationship": "unsupported",
+      "face_relationship": "flip",
       "faces_missing": 0
     },
     {
       "layout": "leveler",
       "cards": 25,
-      "face_relationship": "unsupported",
-      "faces_missing": 25
+      "face_relationship": "leveler",
+      "faces_missing": 0
     },
     {
       "layout": "meld",
@@ -10459,8 +10532,8 @@
     {
       "layout": "mutate",
       "cards": 34,
-      "face_relationship": "unsupported",
-      "faces_missing": 34
+      "face_relationship": "mutate",
+      "faces_missing": 0
     },
     {
       "layout": "normal",
@@ -10471,20 +10544,20 @@
     {
       "layout": "prepare",
       "cards": 46,
-      "face_relationship": "unsupported",
+      "face_relationship": "prepare",
       "faces_missing": 0
     },
     {
       "layout": "prototype",
       "cards": 19,
-      "face_relationship": "unsupported",
-      "faces_missing": 19
+      "face_relationship": "prototype",
+      "faces_missing": 0
     },
     {
       "layout": "saga",
       "cards": 180,
-      "face_relationship": "unsupported",
-      "faces_missing": 180
+      "face_relationship": "saga",
+      "faces_missing": 0
     },
     {
       "layout": "split",
@@ -10868,7 +10941,7 @@
   "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
   "ledger": {
     "rows": 31830,
-    "digest": "e6550340012b49df6b5f4a311833e1d6ff6ab53e86c080f6cf91f8016e885b45"
+    "digest": "4eaccf4ac7eca6bfed54c407822be42538cde27af9fadba2ef262e47e0bd812d"
   },
   "unresolved": [],
   "limitations": [

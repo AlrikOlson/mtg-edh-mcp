@@ -6,6 +6,14 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Carry a face inventory for every Commander-legal layout in the canonical
+  catalog record: saga, class, case, leveler, mutate and prototype cards now
+  carry their root face like normal cards, and `face_relationship` labels flip,
+  prepare, leveler, class, saga, case, prototype and mutate cards explicitly
+  instead of `unsupported`. The card index format is now version 2; an index
+  built by an earlier release must be rebuilt with `data_ingest`, which
+  publishes a new recoverable snapshot and preserves personal data.
+
 - Add five portable Agent Skills with a complete 56-tool router, self-contained
   workflow references and examples checked against live MCP schemas. Add an offline
   `mtg-edh-skills` installer (`node dist/skills.js`) and `mtg-edh-mcp skills` alias:

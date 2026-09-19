@@ -7,8 +7,12 @@
  * default_cards live in a joined `printings` table.
  */
 
-/** Mapped Card semantics as well as SQL shape; unversioned indexes predate gameplay fields. */
-export const CARD_INDEX_VERSION = 1;
+/**
+ * Mapped Card semantics as well as SQL shape; unversioned indexes predate gameplay
+ * fields. Version 2 carries a face inventory and an explicit relationship label for
+ * every Commander-legal layout; an older index must be rebuilt through `data_ingest`.
+ */
+export const CARD_INDEX_VERSION = 2;
 
 export const SCHEMA_SQL = `
 CREATE TABLE cards (

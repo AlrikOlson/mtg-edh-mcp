@@ -365,6 +365,14 @@
         "modal",
         "transform",
         "meld",
+        "flip",
+        "prepare",
+        "leveler",
+        "class",
+        "saga",
+        "case",
+        "prototype",
+        "mutate",
         "unknown",
         "unsupported"
       ]

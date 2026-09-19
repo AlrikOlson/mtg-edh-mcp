@@ -96,6 +96,23 @@ function sourceCharacteristics(raw: ScryfallCharacteristicsRaw): CardCharacteris
   };
 }
 
+/**
+ * Layouts Scryfall serves without `card_faces`: the whole card is its one face,
+ * so the inventory is the root record itself (source path ""). Every other
+ * Commander-legal layout supplies `card_faces`. A layout outside this set that
+ * arrives without faces keeps `faces: null`; nothing is invented for it.
+ */
+const ROOT_FACE_LAYOUTS: ReadonlySet<string> = new Set([
+  "normal",
+  "meld",
+  "saga",
+  "class",
+  "case",
+  "leveler",
+  "mutate",
+  "prototype",
+]);
+
 /** Layout labels describe relationships, not which faces can be played together. */
 function faceRelationship(layout: string | null): CardGameplay["face_relationship"] {
   switch (layout) {
@@ -103,16 +120,21 @@ function faceRelationship(layout: string | null): CardGameplay["face_relationshi
       return "unknown";
     case "normal":
       return "single";
-    case "split":
-      return "split";
-    case "adventure":
-      return "adventure";
     case "modal_dfc":
       return "modal";
+    case "split":
+    case "adventure":
     case "transform":
-      return "transform";
     case "meld":
-      return "meld";
+    case "flip":
+    case "prepare":
+    case "leveler":
+    case "class":
+    case "saga":
+    case "case":
+    case "prototype":
+    case "mutate":
+      return layout;
     default:
       return "unsupported";
   }
@@ -128,7 +150,7 @@ function mapGameplay(raw: ScryfallCardRaw): CardGameplay {
       oracle_id: face.oracle_id ?? null,
       characteristics: sourceCharacteristics(face),
     })) ??
-    (layout === "normal" || layout === "meld"
+    (layout !== null && ROOT_FACE_LAYOUTS.has(layout)
       ? [
           {
             face_index: 0,

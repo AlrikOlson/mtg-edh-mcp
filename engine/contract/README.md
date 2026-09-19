@@ -116,6 +116,12 @@ byte bounds; lone surrogate escapes reject. Mana value is finite and between
 on both sides. Integer fields retain the v1 numeric-spelling equivalence.
 Source nulls are preserved; null faces/identity do not imply usable runtime
 support. Future strict support admission must reject insufficient evidence.
+`face_relationship` labels the captured Scryfall layout, one value per layout
+MCP maps (`single` for normal, `modal` for modal_dfc, and the layout's own
+name for split, adventure, transform, meld, flip, prepare, leveler, class,
+saga, case, prototype and mutate); `unknown` is a record without a layout and
+`unsupported` a layout MCP does not map yet. The label classifies the face
+inventory's source; it never asserts which faces are playable.
 
 `catalog-fixture.json` is a synthetic boundary fixture, not a playable or legal
 deck. MCP acceptance additionally transfers all 77 frozen real corpus records.

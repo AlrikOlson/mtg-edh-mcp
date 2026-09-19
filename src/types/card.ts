@@ -146,13 +146,49 @@ export interface CardGameplay {
   layout: string | null;
   /** Supplied whole-card Commander identity; never copied to individual faces. */
   color_identity: readonly string[] | null;
-  /** Layout classification only. Split/Fuse, Adventure, transform and meld need rules/context. */
+  /**
+   * Layout classification only; which faces can be played, and how, needs rules and context.
+   * - single: a normal card, one face.
+   * - split / adventure: two spell halves on one face (CR 709, 715); Fuse and the
+   *   Adventure permission are rules, not asserted here.
+   * - modal / transform: a two-faced card cast as either face (modal_dfc) or with a
+   *   back face reached only by transforming (CR 712).
+   * - meld: one face here; the melded object is a related record (CR 701.42).
+   * - flip: two halves of one printed face; the flipped half's characteristics apply
+   *   only after flipping (CR 710).
+   * - prepare: a preparation card, whose inset prepare spell is a second face here
+   *   (CR 722).
+   * - leveler / class / saga / case: one face whose characteristics or abilities change
+   *   with level, class level, lore or the solved state (CR 711, 716, 714, 719).
+   * - prototype / mutate: one face with an alternative cost that changes the object
+   *   (CR 702.160, 702.140).
+   * - unknown: no layout supplied. unsupported: a layout this mapper does not classify.
+   */
   face_relationship:
-    "single" | "split" | "adventure" | "modal" | "transform" | "meld" | "unknown" | "unsupported";
+    | "single"
+    | "split"
+    | "adventure"
+    | "modal"
+    | "transform"
+    | "meld"
+    | "flip"
+    | "prepare"
+    | "leveler"
+    | "class"
+    | "saga"
+    | "case"
+    | "prototype"
+    | "mutate"
+    | "unknown"
+    | "unsupported";
   /** No face or combination is asserted to be currently playable. */
   playability: "not_evaluated";
   characteristics: CardCharacteristics;
-  /** Supplied ordered faces; one root-source face for normal/meld; null when unknown. */
+  /**
+   * Supplied ordered faces: `card_faces` when Scryfall supplies them, otherwise the
+   * root record as the one face (normal, meld, saga, class, case, leveler, mutate,
+   * prototype); null only for an unclassified layout served without faces.
+   */
   faces: readonly CardFace[] | null;
   related_cards: readonly RelatedCard[] | null;
 }

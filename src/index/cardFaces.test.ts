@@ -325,6 +325,55 @@ describe("canonical source gameplay", () => {
       characteristics: { cmc: 2, produced_mana: ["S", "C"], keywords: [] },
     });
     expect(mapScryfallCard({ ...raw, card_faces: [] }).gameplay?.faces).toEqual([]);
+    // A future layout Scryfall serves without card_faces keeps no inventory: nothing is invented.
+    const faceless = mapScryfallCard({
+      name: "Later",
+      oracle_id: "later",
+      layout: "future_layout",
+    });
+    expect(faceless.gameplay).toMatchObject({ face_relationship: "unsupported", faces: null });
+  });
+
+  it("carries a root face and an explicit label for every single-faced special layout", () => {
+    for (const layout of ["saga", "class", "case", "leveler", "mutate", "prototype"] as const) {
+      const mapped = mapScryfallCard({
+        name: `One ${layout}`,
+        oracle_id: `o-${layout}`,
+        layout,
+        mana_cost: "{1}{G}",
+        cmc: 2,
+        type_line: "Enchantment",
+        oracle_text: "Text.",
+      });
+      expect(mapped.gameplay?.face_relationship).toBe(layout);
+      expect(mapped.gameplay?.faces).toEqual([
+        {
+          face_index: 0,
+          source_path: "",
+          oracle_id: `o-${layout}`,
+          characteristics: mapped.gameplay?.characteristics,
+        },
+      ]);
+    }
+  });
+
+  it("labels flip and prepare cards by their layout and keeps both supplied faces", () => {
+    for (const layout of ["flip", "prepare"] as const) {
+      const mapped = mapScryfallCard({
+        name: "Front // Back",
+        oracle_id: `o-${layout}`,
+        layout,
+        card_faces: [
+          { name: "Front", mana_cost: "{1}{B}", type_line: "Creature — Rat", oracle_text: "A." },
+          { name: "Back", mana_cost: "", type_line: "Legendary Creature — Rat", oracle_text: "B." },
+        ],
+      });
+      expect(mapped.gameplay?.face_relationship).toBe(layout);
+      expect(mapped.gameplay?.faces?.map((face) => face.source_path)).toEqual([
+        "/card_faces/0",
+        "/card_faces/1",
+      ]);
+    }
   });
 });
 describe("Oracle source spans", () => {

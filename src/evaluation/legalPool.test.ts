@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/cardIndex.js";
+import { mapScryfallCard } from "../index/map.js";
 import { loadEngineBaseline } from "./engineBaseline.js";
 import {
   censusCard,
@@ -479,28 +480,49 @@ describe("card census rows", () => {
     ).toEqual(["field:type_line", "type:Creature", "type:Legendary"]);
   });
 
-  it("reports missing face inventories, layouts, chapters, loyalty, modes and generated objects", () => {
+  it("reports face inventories, layouts, chapters, loyalty, modes and generated objects", () => {
     const v = indexVocabulary(vocabulary);
     const saga = censusCard(index.getCard("o-saga")!, v);
-    expect(saga.faces).toBeNull();
-    expect(saga.rows.find((row) => row.id === "faces")).toMatchObject({
-      families: ["faces:missing"],
-      owners: ["mcp-catalog-face-inventory"],
-    });
+    expect(saga.faces).toBe(1);
+    expect(saga.rows.find((row) => row.id === "faces")).toBeUndefined();
     expect(saga.rows.find((row) => row.id === "/layout")?.families).toEqual(["layout:saga"]);
-    expect(saga.rows.find((row) => row.id === "/face_relationship")?.owners).toEqual([
-      "engine-any-layouts-special-actions",
-      "mcp-catalog-face-inventory",
-    ]);
-    expect(saga.rows.find((row) => row.id === "/characteristics/loyalty")?.families).toEqual([
-      "field:absent",
-    ]);
-    // Root rows count when no face inventory exists.
+    expect(saga.rows.find((row) => row.id === "/face_relationship")).toMatchObject({
+      families: ["relationship:saga"],
+      owners: ["engine-any-card-type-lifecycles", "engine-any-layouts-special-actions"],
+    });
+    expect(
+      saga.rows.find((row) => row.id === "/faces/0/characteristics/loyalty")?.families,
+    ).toEqual(["field:absent"]);
+    // Root rows never count once the record carries its face inventory.
+    expect(saga.rows.find((row) => row.id === "/characteristics/loyalty")?.counted).toBe(false);
     const chapter = saga.rows.find(
-      (row) => row.start !== null && row.families.includes("shape:chapter"),
+      (row) => row.counted && row.start !== null && row.families.includes("shape:chapter"),
     );
-    expect(chapter?.counted).toBe(true);
+    expect(chapter?.id).toMatch(/^\/faces\/0\/characteristics\/oracle_text:/);
     expect(chapter?.owners).toEqual(["engine-any-card-type-lifecycles"]);
+
+    // A layout the mapper does not know arrives without an inventory and has no owner:
+    // the row is unresolved so a new snapshot's layout must be filed as MCP work.
+    const future = censusCard(
+      mapScryfallCard({
+        name: "Later",
+        oracle_id: "o-later",
+        layout: "future_layout",
+        type_line: "Artifact",
+        oracle_text: "",
+      }),
+      v,
+    );
+    expect(future.faces).toBeNull();
+    expect(future.rows.find((row) => row.id === "faces")).toMatchObject({
+      families: ["faces:missing"],
+      owners: [],
+      status: "unresolved",
+    });
+    expect(future.rows.find((row) => row.id === "/face_relationship")).toMatchObject({
+      families: ["relationship:unsupported"],
+      status: "unresolved",
+    });
     expect(saga.rows.find((row) => row.id === "generated:token-text")?.families).toEqual([
       "generated:token_text_unlinked",
     ]);
@@ -590,7 +612,7 @@ describe("pool census", () => {
     expect(census.totals.by_status.qualified).toBe(1);
     expect(census.totals.by_status.unresolved).toBe(0);
     expect(census.unresolved).toEqual([]);
-    expect(census.totals.faceless_identities).toBe(1);
+    expect(census.totals.faceless_identities).toBe(0);
     expect(census.totals.rows_counted + 0).toBeLessThan(census.totals.rows_total);
     expect(census.keywords.unlisted).toEqual([
       { keyword: "Pick a Perk", cards: 1, batch: UNLISTED_KEYWORD_CHUNK },
@@ -600,8 +622,8 @@ describe("pool census", () => {
     expect(census.layouts.find((row) => row.layout === "saga")).toEqual({
       layout: "saga",
       cards: 1,
-      face_relationship: "unsupported",
-      faces_missing: 1,
+      face_relationship: "saga",
+      faces_missing: 0,
     });
     expect(census.families.find((f) => f.family === "commander:eligible")?.cards).toBe(4);
     expect(census.owners.every((owner) => owner.rows > 0 && owner.cards > 0)).toBe(true);

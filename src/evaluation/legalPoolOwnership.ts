@@ -13,9 +13,6 @@
 /** Chunk that owns keyword labels outside Scryfall's three catalogs (named abilities). */
 export const UNLISTED_KEYWORD_CHUNK = "engine-any-kw-named-abilities";
 
-/** Chunk that owns the MCP catalog gap: layouts whose stored record carries no face inventory. */
-export const MISSING_FACES_CHUNK = "mcp-catalog-face-inventory";
-
 export interface KeywordBatch {
   readonly chunk: string;
   readonly title: string;
@@ -481,9 +478,23 @@ export const FAMILY_OWNERS: Readonly<Record<string, readonly string[]>> = {
   "relationship:modal": ["engine-any-layouts-special-actions"],
   "relationship:transform": ["engine-any-layouts-special-actions"],
   "relationship:meld": ["engine-any-layouts-special-actions"],
-  "relationship:unsupported": ["engine-any-layouts-special-actions", MISSING_FACES_CHUNK],
-  "relationship:unknown": [MISSING_FACES_CHUNK],
-  "faces:missing": [MISSING_FACES_CHUNK],
+  "relationship:flip": ["engine-any-layouts-special-actions"],
+  "relationship:prepare": ["engine-any-layouts-special-actions"],
+  "relationship:leveler": ["engine-any-layouts-special-actions", "engine-any-card-type-lifecycles"],
+  "relationship:class": ["engine-any-layouts-special-actions", "engine-any-card-type-lifecycles"],
+  "relationship:saga": ["engine-any-layouts-special-actions", "engine-any-card-type-lifecycles"],
+  "relationship:case": ["engine-any-layouts-special-actions", "engine-any-card-type-lifecycles"],
+  "relationship:prototype": ["engine-any-layouts-special-actions"],
+  "relationship:mutate": [
+    "engine-any-layouts-special-actions",
+    "engine-any-copy-composite-objects",
+  ],
+  // A layout the ingest mapper does not classify, or a record served without faces,
+  // has no pending owner on purpose: the census row is unresolved and the test fails
+  // until the new MCP ingestion work is filed (the same mechanism as a new keyword).
+  "relationship:unsupported": [],
+  "relationship:unknown": [],
+  "faces:missing": [],
   // Source characteristic fields.
   "field:name": ["engine-mvp-catalog-objects"],
   "field:mana_cost": ["engine-mvp-catalog-objects", "engine-mvp-cost-choices"],
@@ -582,7 +593,7 @@ export interface QualifiedEvidence {
   readonly engine_revision: string;
 }
 
-const CORE_SUPPORT_REVISION = "84a73043f1f7034471e49098bb1533cc904a9a14";
+const CORE_SUPPORT_REVISION = "52a93fa512672fd781bb5de8eb79ab64ed491588";
 const BASIC_MANA_IMPLEMENTATION =
   "cards/card_factory.rs::basic_land_mana_ability + mana/mana_ability.rs::activate_mana_ability";
 const BASIC_MANA_EVIDENCE = "tests/strict_support.rs::intrinsic_basic_mana";

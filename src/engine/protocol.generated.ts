@@ -1,5 +1,5 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-export const SCHEMA_SHA256 = "dd9da7e06c94e764d8e0b17a09cd86ac8bc2ef1c485b6fe1db1b27e7d0632e6d";
+export const SCHEMA_SHA256 = "8591a2f5430676584d69a280097b390a2830709e50fddb1e543df29482fa1120";
 import { z } from "zod";
 
 const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });
@@ -180,7 +180,7 @@ export type ManaValue = z.infer<typeof ManaValueSchema>;
 export const CatalogVersionSchema = z.number().int().min(1).max(1);
 export type CatalogVersion = z.infer<typeof CatalogVersionSchema>;
 
-export const FaceRelationshipSchema = z.enum(["single","split","adventure","modal","transform","meld","unknown","unsupported"]);
+export const FaceRelationshipSchema = z.enum(["single","split","adventure","modal","transform","meld","flip","prepare","leveler","class","saga","case","prototype","mutate","unknown","unsupported"]);
 export type FaceRelationship = z.infer<typeof FaceRelationshipSchema>;
 
 export const PlayabilitySchema = z.enum(["not_evaluated"]);
