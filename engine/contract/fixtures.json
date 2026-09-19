@@ -197,11 +197,15 @@
             "catalog": {
               "type": "commander",
               "data": {
-                "payload_json": "{}",
-                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "expected_deck_id": "deck-1",
-                "expected_deck_version": 1
+                "decks": [
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  }
+                ]
               }
             },
             "expected_implementation_version": "core-support-v1",
@@ -1452,11 +1456,15 @@
             "catalog": {
               "type": "commander",
               "data": {
-                "payload_json": "{}",
-                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "expected_deck_id": "deck-1",
-                "expected_deck_version": 1
+                "decks": [
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  }
+                ]
               }
             },
             "expected_implementation_version": "core-support-v1",
@@ -1619,11 +1627,15 @@
             "catalog": {
               "type": "commander",
               "data": {
-                "payload_json": "{}",
-                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "expected_deck_id": "deck-1",
-                "expected_deck_version": 1
+                "decks": [
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  }
+                ]
               }
             },
             "expected_implementation_version": "core-support-v1",
@@ -1689,11 +1701,15 @@
             "catalog": {
               "type": "commander",
               "data": {
-                "payload_json": "{}",
-                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "expected_deck_id": "deck-1",
-                "expected_deck_version": 1
+                "decks": [
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  }
+                ]
               }
             },
             "expected_implementation_version": "core-support-v1",
@@ -2501,6 +2517,379 @@
           "data": {
             "decision_id": "d-1",
             "seat": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "admit five decks",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "scenario": {
+              "type": "commander",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-0"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-0",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-1"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-1",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 2,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-2"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-2",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 3,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-3"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-3",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                }
+              }
+            },
+            "catalog": {
+              "type": "commander",
+              "data": {
+                "decks": [
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  },
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  },
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  },
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  },
+                  {
+                    "payload_json": "{}",
+                    "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "expected_deck_id": "deck-1",
+                    "expected_deck_version": 1
+                  }
+                ]
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
+          }
+        }
+      }
+    },
+    {
+      "name": "admit no decks",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "scenario": {
+              "type": "commander",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-0"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-0",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-1"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-1",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 2,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-2"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-2",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 3,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-3"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-3",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                }
+              }
+            },
+            "catalog": {
+              "type": "commander",
+              "data": {
+                "decks": []
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
+          }
+        }
+      }
+    },
+    {
+      "name": "admit bare commander envelope",
+      "direction": "request",
+      "value": {
+        "request_id": "req-1",
+        "message": {
+          "type": "admit",
+          "data": {
+            "scenario": {
+              "type": "commander",
+              "data": {
+                "scenario_id": "scenario-1",
+                "engine_version": "0.1.0",
+                "snapshot_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "rules_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "seats": [
+                  {
+                    "seat": 0,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-0"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-0",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 1,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-1"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-1",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 2,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-2"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-2",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  },
+                  {
+                    "seat": 3,
+                    "deck_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "policy": {
+                      "id": "policy-1",
+                      "version": "1",
+                      "observation_version": "1",
+                      "search_nodes": 1
+                    },
+                    "commanders": ["physical-3"],
+                    "cards": [
+                      {
+                        "physical_id": "physical-3",
+                        "oracle_id": "oracle-1"
+                      }
+                    ]
+                  }
+                ],
+                "seed": "0123456789abcdef",
+                "limits": {
+                  "trials": 1,
+                  "concurrency": 1,
+                  "max_turns": 100,
+                  "max_actions": 1000,
+                  "max_actions_per_turn": 100,
+                  "max_work": 100000,
+                  "max_elapsed_ms": 10000,
+                  "max_memory_bytes": 100000000,
+                  "max_output_bytes": 100000
+                }
+              }
+            },
+            "catalog": {
+              "type": "commander",
+              "data": {
+                "payload_json": "{}",
+                "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_index_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "expected_deck_id": "deck-1",
+                "expected_deck_version": 1
+              }
+            },
+            "expected_implementation_version": "core-support-v1",
+            "expected_implementation_digest": null
           }
         }
       }

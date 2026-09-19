@@ -839,7 +839,7 @@ describe("engine_preview_fixture against the pinned native worker", () => {
           type: "completed",
           data: { winner_seats: [0], reason: "life_reached_zero", turns: 5 },
         },
-        engine: { protocol_version: 6, implementation_version: "core-support-v1" },
+        engine: { protocol_version: 7, implementation_version: "core-support-v1" },
         events_total: 4,
         supervision: { termination: "closed", exit_code: 0, stderr: "" },
       });

@@ -24,7 +24,7 @@ Clippy. Runtime dependencies reuse workspace Serde and the canonical core.
 
 Run `mtg-worker --protocol` with explicit arguments. stdin/stdout carry UTF-8
 JSON objects followed by LF. stderr is for process/I/O diagnostics. Each body is
-at most 2,097,152 bytes, excluding LF; CR before LF is JSON whitespace and counts
+at most 8,388,608 bytes, excluding LF; CR before LF is JSON whitespace and counts
 toward the body limit. No BOM is accepted. An empty stream closes cleanly;
 nonempty EOF before LF is `invalid/truncated_frame`. An oversized body emits
 `invalid/oversized_frame` and terminates immediately, without interpreting any
@@ -232,36 +232,44 @@ identities, versions or observation versions answer `unsupported` per seat.
 Stale rules, fixture, catalog, seat or implementation bindings answer
 `invalid` with the same codes as preflight. Nothing is retained on rejection.
 
-### Commander admission (schema unchanged)
+### Commander admission
 
 A `commander` scenario is admitted through the canonical owners in order, and
 the first refusal answers; nothing is allocated or retained on any of them.
+Since protocol 7 the admission's catalog is a pod of one to four captures
+(see below); each seat names its own capture through `deck_digest`.
 
 1. Binding (`invalid`). `support_version_mismatch`, `catalog_invalid` and
-   `profile_mismatch` as for the fixture. `commander_scenario_binding_mismatch`
+   `profile_mismatch` as for the fixture; `catalog_invalid` also covers a pod
+   whose captures do not agree (protocol 7). `commander_scenario_binding_mismatch`
    when `engine_version`, `rules_digest` (the engine's official rules snapshot),
-   `snapshot_digest` (the catalog envelope's `payload_digest`), seat order or
-   any seat's `deck_digest` (the same capture, so every seat plays the captured
-   deck) does not bind. `commander_scenario_deck_mismatch` when a seat's
-   `cards` are not exactly the captured deck's Oracle multiset (commanders and
-   main deck; a companion is outside the game), when a `physical_id` repeats
-   anywhere in the pod, or when a seat's `commanders` are not physical ids of
-   its own cards with the captured commanders' Oracle identities.
-2. Variants (`unsupported`, one diagnostic). `commander_variant_unsupported`
-   for a `command_zone_kind` other than `single`, more than one commander or a
-   meld commander (CR 903.3b); `companion_unsupported` for a captured
-   companion. Construction legality is MCP's verdict and never implies these
-   are executable.
+   `snapshot_digest` (the pod's catalog digest), seat order or any seat's
+   `deck_digest` (the `payload_digest` of one capture in the pod) does not
+   bind. `commander_scenario_deck_mismatch` when a seat's `cards` are not
+   exactly its own captured deck's Oracle multiset (commanders and main deck; a
+   companion is outside the game), when a `physical_id` repeats anywhere in the
+   pod, or when a seat's `commanders` are not physical ids of its own cards
+   with its deck's commanders' Oracle identities.
+2. Variants (`unsupported`, one diagnostic per refusing capture, naming the
+   deck id and version). `commander_variant_unsupported` for a
+   `command_zone_kind` other than `single`, more than one commander or a meld
+   commander (CR 903.3b); `companion_unsupported` for a captured companion.
+   Construction legality is MCP's verdict and never implies these are
+   executable.
 3. Policies (`unsupported`, one diagnostic per seat), as for the fixture.
-4. Qualification (`unsupported`). Every distinct Oracle identity of the deck
-   is qualified through the core `cards::support` owner under the `commander`
-   profile, exactly as `support_check` reports it; each refused identity is one
-   `card_unsupported` diagnostic carrying `oracle_id`, in deck order, at most 256. A stale `expected_implementation_digest` is
-   `invalid/support_version_mismatch`. Today the qualifier refuses every card,
-   so a real capture stops here with its exact per-card diagnostics.
+4. Qualification (`unsupported`). Every distinct Oracle identity of the pod
+   is qualified once through the core `cards::support` owner under the
+   `commander` profile, exactly as `support_check` reports it; each refused
+   identity is one `card_unsupported` diagnostic carrying `oracle_id`, in
+   capture order and then deck order (commanders, then main deck), at most
+   256, never repeated for an identity several decks share. A stale
+   `expected_implementation_digest` is `invalid/support_version_mismatch`.
+   Today the qualifier refuses every card, so a real capture stops here with
+   its exact per-card diagnostics.
 5. Setup blueprints. Each seat becomes the core's Commander seat blueprint:
    the commander apart in the command zone at 40 life (CR 903.6, 903.7), every
-   other physical card in the library in declared order, no opening hand. Each
+   other physical card in the library in declared order with the printing its
+   own captured deck chose, no opening hand. Each
    blueprint carries the scenario's `physical_id`, and the core's setup owner
    keeps it in its physical inventory next to the allocated engine identity,
    so that inventory is the one correspondence between scenario cards and
@@ -418,3 +426,35 @@ wakes it at once and is answered `cancelled` after the run's outcome, as for
 any checkpoint; the elapsed budget interrupts a suspended wait the same way.
 Decision frames are handled as they arrive, like `cancel`; every other
 request still waits behind the run.
+
+## Independent pod captures (protocol 7)
+
+`Admission.catalog` is an `AdmissionCatalog`: `preview_fixture` carries the
+one `PreviewCatalogEnvelope` as before, and `commander` carries a
+`CommanderCatalog` whose `decks` are one to four `CatalogEnvelope`s, each an
+immutable capture of one authored deck version exactly as `catalog_check`
+takes it (`ProfileCatalog` is unchanged for `catalog_check`, `support_check`
+and `profile_preflight`, which remain single-capture operations). A mirror pod
+lists one capture and every seat names it; a mixed pod lists one capture per
+distinct deck version and each seat's `deck_digest` names its own. The same
+authored deck at two versions may sit in one pod. The frame bound rises to
+8,388,608 bytes so four captures at the `CatalogJson` bound fit one `admit`.
+
+Each capture is verified exactly as a `catalog_check` would verify it; then
+the pod is verified before anything is bound: every capture names the same
+`data_snapshot` and `index_revision` (one served snapshot per pod, no
+competing lookup during a run), no `payload_digest` repeats (a capture is
+listed once and named by as many seats as play it), a record two captures
+both carry for one Oracle identity is byte-equal in both, and no printing is
+owned by two identities across captures. A pod that fails any of these is
+`invalid/catalog_invalid`, like a corrupt capture. The pod's catalog digest is
+SHA-256 over the captures' `payload_digest`s (each 64 hex characters,
+concatenated in declared order); it is what the scenario's `snapshot_digest`
+must equal, what `admitted.catalog_digest` reports and what `admission_id`
+derives from, so reordering the pod is a different admission. Seats bind to
+their captures as the Commander admission above describes; each seat's
+physical cards are its own, and two seats that share an Oracle identity, or a
+whole deck, hold distinct physical cards allocated by the core's setup owner.
+The worker never resolves a name, chooses a printing, merges decks or judges
+construction: MCP captured each deck through its own validation and index
+authority, and the pod only carries those captures together.

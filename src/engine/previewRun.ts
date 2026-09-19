@@ -341,7 +341,7 @@ export class PreviewFixtureService {
         `a ${RELAY_POLICY_ID} seat needs a decision handler to answer its relayed decisions`,
         "decision_handler",
       );
-    const { admission } = await this.admission(input);
+    const { admission, captured } = await this.admission(input);
     const limits = admission.scenario.data.limits;
     const trialSeed = deriveTrialSeed(input.seed, input.trial_index);
     const frozenInput = Object.freeze({ ...input, trial_seed: trialSeed });
@@ -480,7 +480,7 @@ export class PreviewFixtureService {
       },
       input: frozenInput,
       limits,
-      catalog_digest: admission.catalog.data.payload_digest,
+      catalog_digest: captured.catalog.data.payload_digest,
       admission: value.admission,
       stage: value.stage,
       status: value.outcome.type,

@@ -107,7 +107,7 @@ describe("PreviewFixtureService over a protocol-shaped fake worker", () => {
       stage: "run",
       status: "completed",
       fixture: { id: PREVIEW_FIXTURE_ID, digest: PREVIEW_FIXTURE_DIGEST },
-      engine: { protocol_version: 6, implementation_version: "core-support-v1" },
+      engine: { protocol_version: 7, implementation_version: "core-support-v1" },
       admission: { admission_id: "fake-admission" },
       events_total: 2,
       supervision: { termination: "closed", exit_code: 0 },

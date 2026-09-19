@@ -1,9 +1,9 @@
 {
   "version": 1,
   "constants": {
-    "PROTOCOL_VERSION": 6,
+    "PROTOCOL_VERSION": 7,
     "ENGINE_VERSION": "0.1.0",
-    "MAX_FRAME_BYTES": 2097152,
+    "MAX_FRAME_BYTES": 8388608,
     "PREVIEW_FIXTURE_ID": "forest-bears-internal-v1",
     "PREVIEW_FIXTURE_VERSION": 1,
     "PREVIEW_FIXTURE_DIGEST": "7692ad4aa8565a65754eedad937af1908afcbd20b5a940a62f9b8e43051042e4"
@@ -51,7 +51,7 @@
     "FrameLimit": {
       "kind": "integer",
       "min": 1,
-      "max": 2097152
+      "max": 8388608
     },
     "Flag": {
       "kind": "boolean"
@@ -305,7 +305,12 @@
     },
     "DecisionKind": {
       "kind": "enum",
-      "values": ["priority", "resolution", "commander_return", "commander_replacement"]
+      "values": [
+        "priority",
+        "resolution",
+        "commander_return",
+        "commander_replacement"
+      ]
     },
     "DecisionOptionKind": {
       "kind": "enum",
@@ -817,6 +822,25 @@
         "preview_fixture": "PreviewCatalogEnvelope"
       }
     },
+    "CommanderCatalog": {
+      "kind": "record",
+      "fields": {
+        "decks": {
+          "type": "CatalogEnvelope",
+          "array": {
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
+    },
+    "AdmissionCatalog": {
+      "kind": "union",
+      "variants": {
+        "commander": "CommanderCatalog",
+        "preview_fixture": "PreviewCatalogEnvelope"
+      }
+    },
     "SupportProfile": {
       "kind": "enum",
       "values": ["commander", "internal_fixture_v1"]
@@ -1003,7 +1027,7 @@
           "type": "Scenario"
         },
         "catalog": {
-          "type": "ProfileCatalog"
+          "type": "AdmissionCatalog"
         },
         "expected_implementation_version": {
           "type": "Id"

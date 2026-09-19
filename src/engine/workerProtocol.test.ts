@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { captureCatalog } from "./catalog.js";
+import { podDigest } from "./pod.js";
 import { capturePreviewFixture } from "./previewFixture.js";
 import {
   PreviewCatalogPayloadSchema,
@@ -848,7 +849,8 @@ native("refuses the real Muldrotha mirror pod per card before any Commander setu
       CommanderScenarioSchema.parse({
         scenario_id: "muldrotha-mirror-pod",
         engine_version: ENGINE_VERSION,
-        snapshot_digest: envelope.payload_digest,
+        // The scenario binds the ordered pod, not one capture (contract 7).
+        snapshot_digest: podDigest([envelope.payload_digest]),
         rules_digest: rulesDigest,
         seats: [0, 1, 2, 3].map((seat) => {
           const cards = entries.flatMap((entry) =>
@@ -889,7 +891,8 @@ native("refuses the real Muldrotha mirror pod per card before any Commander setu
         type: "admit",
         data: {
           scenario: { type: "commander", data: scenario },
-          catalog: commander(envelope),
+          // Contract 7: an admission carries a pod of captures; a mirror pod is one.
+          catalog: { type: "commander", data: { decks: [envelope] } },
           expected_implementation_version: "core-support-v1",
           expected_implementation_digest: null,
         },

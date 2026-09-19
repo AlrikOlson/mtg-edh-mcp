@@ -1,14 +1,14 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-export const SCHEMA_SHA256 = "7ec144c0dd74115dea1eebfbc0170759ee7739077a3cabfd0f7fdf40ac26bc69";
+export const SCHEMA_SHA256 = "34456f7370952a7e7edaba2c29dbe07c1f455e6e8b08df9adcb4701fa2d65a7b";
 import { z } from "zod";
 
 const isWellFormed = (value: string): boolean => Array.from(value).every((character) => { const point = character.codePointAt(0) ?? 0; return point < 0xd800 || point > 0xdfff; });
 
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 export const ENGINE_VERSION = "0.1.0";
 
-export const MAX_FRAME_BYTES = 2097152;
+export const MAX_FRAME_BYTES = 8388608;
 
 export const PREVIEW_FIXTURE_ID = "forest-bears-internal-v1";
 
@@ -37,7 +37,7 @@ export type Positive = z.infer<typeof PositiveSchema>;
 export const SeatSchema = z.number().int().min(0).max(3);
 export type Seat = z.infer<typeof SeatSchema>;
 
-export const FrameLimitSchema = z.number().int().min(1).max(2097152);
+export const FrameLimitSchema = z.number().int().min(1).max(8388608);
 export type FrameLimit = z.infer<typeof FrameLimitSchema>;
 
 export const FlagSchema = z.boolean();
@@ -347,6 +347,17 @@ z.strictObject({type: z.literal("preview_fixture"), data: PreviewCatalogEnvelope
 ]);
 export type ProfileCatalog = z.infer<typeof ProfileCatalogSchema>;
 
+export const CommanderCatalogSchema = z.strictObject({
+"decks": z.array(CatalogEnvelopeSchema).min(1).max(4),
+});
+export type CommanderCatalog = z.infer<typeof CommanderCatalogSchema>;
+
+export const AdmissionCatalogSchema = z.discriminatedUnion("type", [
+z.strictObject({type: z.literal("commander"), data: CommanderCatalogSchema}),
+z.strictObject({type: z.literal("preview_fixture"), data: PreviewCatalogEnvelopeSchema}),
+]);
+export type AdmissionCatalog = z.infer<typeof AdmissionCatalogSchema>;
+
 export const SupportProfileSchema = z.enum(["commander","internal_fixture_v1"]);
 export type SupportProfile = z.infer<typeof SupportProfileSchema>;
 
@@ -413,7 +424,7 @@ export type ProfilePreflightReport = z.infer<typeof ProfilePreflightReportSchema
 
 export const AdmissionSchema = z.strictObject({
 "scenario": ScenarioSchema,
-"catalog": ProfileCatalogSchema,
+"catalog": AdmissionCatalogSchema,
 "expected_implementation_version": IdSchema,
 "expected_implementation_digest": DigestSchema.nullable(),
 });

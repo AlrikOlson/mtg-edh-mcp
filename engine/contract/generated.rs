@@ -1,14 +1,14 @@
 // @generated from canonical mtg-worker/protocol/contract.json; do not edit.
-pub const SCHEMA_SHA256: &str = "7ec144c0dd74115dea1eebfbc0170759ee7739077a3cabfd0f7fdf40ac26bc69";
+pub const SCHEMA_SHA256: &str = "34456f7370952a7e7edaba2c29dbe07c1f455e6e8b08df9adcb4701fa2d65a7b";
 use serde::{Deserialize, Serialize};
 
 fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error> where D: serde::Deserializer<'de>, T: Deserialize<'de> { Option::<T>::deserialize(deserializer) }
 
-pub const PROTOCOL_VERSION: u32 = 6;
+pub const PROTOCOL_VERSION: u32 = 7;
 
 pub const ENGINE_VERSION: &str = "0.1.0";
 
-pub const MAX_FRAME_BYTES: usize = 2_097_152;
+pub const MAX_FRAME_BYTES: usize = 8_388_608;
 
 pub const PREVIEW_FIXTURE_ID: &str = "forest-bears-internal-v1";
 
@@ -131,7 +131,7 @@ pub type FrameLimit = u32;
 /// Returns the violated constraint.
 #[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
 pub fn validate_frame_limit(value: &FrameLimit) -> Result<(), String> {
-if !(1..=2_097_152).contains(value) {
+if !(1..=8_388_608).contains(value) {
 return Err("FrameLimit outside contract bounds".to_owned());
 }
 Ok(())
@@ -1398,6 +1398,49 @@ ProfileCatalog::PreviewFixture(data) => validate_preview_catalog_envelope(data),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CommanderCatalog {
+pub decks: Vec<CatalogEnvelope>,
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_commander_catalog(value: &CommanderCatalog) -> Result<(), String> {
+let field = &value.decks;
+if !(1..=4).contains(&field.len()) {
+return Err("CommanderCatalog.decks length outside contract bounds".to_owned());
+}
+for item in field {
+validate_catalog_envelope(item).map_err(|e| format!("CommanderCatalog.decks: {e}"))?;
+}
+Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "type", content = "data", deny_unknown_fields)]
+pub enum AdmissionCatalog {
+#[serde(rename = "commander")]
+Commander(CommanderCatalog),
+#[serde(rename = "preview_fixture")]
+PreviewFixture(PreviewCatalogEnvelope),
+}
+
+/// Validate the generated wire constraints.
+///
+/// # Errors
+/// Returns the violated constraint.
+#[allow(clippy::trivially_copy_pass_by_ref, clippy::unnecessary_wraps)]
+pub fn validate_admission_catalog(value: &AdmissionCatalog) -> Result<(), String> {
+match value {
+AdmissionCatalog::Commander(data) => validate_commander_catalog(data),
+AdmissionCatalog::PreviewFixture(data) => validate_preview_catalog_envelope(data),
+}
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 
 pub enum SupportProfile {
 #[serde(rename = "commander")]
@@ -1651,7 +1694,7 @@ Ok(())
 #[serde(deny_unknown_fields)]
 pub struct Admission {
 pub scenario: Scenario,
-pub catalog: ProfileCatalog,
+pub catalog: AdmissionCatalog,
 pub expected_implementation_version: Id,
 #[serde(deserialize_with = "required_nullable")]
 pub expected_implementation_digest: Option<Digest>,
@@ -1666,7 +1709,7 @@ pub fn validate_admission(value: &Admission) -> Result<(), String> {
 let field = &value.scenario;
 validate_scenario(field).map_err(|e| format!("Admission.scenario: {e}"))?;
 let field = &value.catalog;
-validate_profile_catalog(field).map_err(|e| format!("Admission.catalog: {e}"))?;
+validate_admission_catalog(field).map_err(|e| format!("Admission.catalog: {e}"))?;
 let field = &value.expected_implementation_version;
 validate_id(field).map_err(|e| format!("Admission.expected_implementation_version: {e}"))?;
 if let Some(field) = &value.expected_implementation_digest {
