@@ -1,14 +1,14 @@
 {
   "version": "evidence-requalification-v1",
-  "as_of": "2026-09-18",
+  "as_of": "2026-09-19",
   "status": "requalification_required",
   "previous": {
     "bindings": {
       "census_version": "legal-pool-census-v1",
       "snapshot": {
-        "version": "2026-09-19T07-38-55-820Z-9142bcc7-1411-4031-8ca4-229b67fd42bc",
-        "snapshot": "2026-09-18",
-        "index_revision": "7a68d65c1dab356292d97adcc632423675b5df2d7f52a38b1e11c08f019f9d6f",
+        "version": "2026-09-19T09-03-48-183Z-1ee39197-5abe-4b8d-957e-718fd3d12ef6",
+        "snapshot": "2026-09-19",
+        "index_revision": "2421b5bfdd8729edc55f1576f73d8776e3c244a0962243939909565f0f91eef3",
         "legal_identities": 31830,
         "banned_identities": 83
       },
@@ -32,27 +32,27 @@
           "ability_words": "f788e2f57d8c720b53dde6ea5ef5040879ae96ee7b2a9f87e6380e5465aed3ca"
         }
       },
-      "engine_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b",
-      "ledger_digest": "4eaccf4ac7eca6bfed54c407822be42538cde27af9fadba2ef262e47e0bd812d",
+      "engine_revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6",
+      "ledger_digest": "79c6fd39cebdb691ddcfafc15407c94a47d8b6adb40c1651d63ae74bc573e182",
       "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
       "qualified_evidence": [
         {
           "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
           "name": "Swamp",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b"
+          "engine_revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6"
         },
         {
           "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
           "name": "Island",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b"
+          "engine_revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6"
         },
         {
           "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
           "name": "Forest",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b"
+          "engine_revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6"
         }
       ],
       "baseline": {
@@ -1022,9 +1022,9 @@
     "bindings": {
       "census_version": "legal-pool-census-v1",
       "snapshot": {
-        "version": "2026-09-19T07-38-55-820Z-9142bcc7-1411-4031-8ca4-229b67fd42bc",
-        "snapshot": "2026-09-18",
-        "index_revision": "7a68d65c1dab356292d97adcc632423675b5df2d7f52a38b1e11c08f019f9d6f",
+        "version": "2026-09-19T09-03-48-183Z-1ee39197-5abe-4b8d-957e-718fd3d12ef6",
+        "snapshot": "2026-09-19",
+        "index_revision": "2421b5bfdd8729edc55f1576f73d8776e3c244a0962243939909565f0f91eef3",
         "legal_identities": 31830,
         "banned_identities": 83
       },
@@ -1048,27 +1048,27 @@
           "ability_words": "f788e2f57d8c720b53dde6ea5ef5040879ae96ee7b2a9f87e6380e5465aed3ca"
         }
       },
-      "engine_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b",
-      "ledger_digest": "4eaccf4ac7eca6bfed54c407822be42538cde27af9fadba2ef262e47e0bd812d",
+      "engine_revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6",
+      "ledger_digest": "79c6fd39cebdb691ddcfafc15407c94a47d8b6adb40c1651d63ae74bc573e182",
       "banned_digest": "f7fa28f203cde0316bf369042093417bc134c74d13f1ce25d327ff872c01b279",
       "qualified_evidence": [
         {
           "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
           "name": "Swamp",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b"
+          "engine_revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6"
         },
         {
           "oracle_id": "b2c6aa39-2d2a-459c-a555-fb48ba993373",
           "name": "Island",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b"
+          "engine_revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6"
         },
         {
           "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
           "name": "Forest",
           "requirement": "intrinsic-basic-mana",
-          "engine_revision": "34e82c78770a11f6ef659f25091f4d046f52d60b"
+          "engine_revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6"
         }
       ],
       "baseline": {

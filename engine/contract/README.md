@@ -225,8 +225,9 @@ core's `setup::prepare_preview_game`. `admitted` returns a deterministic
 `admission_id` derived from the scenario and catalog digests, both digests and
 the `initial_state_hash` of that proof. Identical admissions are idempotent; a
 worker retains at most eight distinct admissions (`invalid/admission_limit`).
-Only `preview_fixture` scenarios are retained; a `commander` scenario goes
-through the Commander admission owner described below. Unknown policy
+A `preview_fixture` scenario is retained with its fixture binding; a
+`commander` scenario goes through the Commander admission owner described
+below and is retained with its translated seats. Unknown policy
 identities, versions or observation versions answer `unsupported` per seat.
 Stale rules, fixture, catalog, seat or implementation bindings answer
 `invalid` with the same codes as preflight. Nothing is retained on rejection.
@@ -266,10 +267,29 @@ the first refusal answers; nothing is allocated or retained on any of them.
    so that inventory is the one correspondence between scenario cards and
    engine objects for diagnostics and replay; the core refuses a `physical_id`
    used twice before allocating anything, after the binding stage already did.
-   Shuffling, opening hands and mulligans (CR 103.3, 103.5, 903.7) have no
-   owner yet, so a fully qualified pod answers
-   `unsupported/starting_procedure_unavailable` at exactly that point instead
-   of being dealt by this adapter. `profile_preflight` still answers
+6. Starting procedure. The translated seats are started once through the
+   core's starting owner (`mtg_engine::starting::start_game`) from the
+   scenario seed: each library is shuffled from the game RNG (CR 103.3), each
+   seat draws seven (CR 103.5, 903.7), and mulligans run as CR 103.5 describes
+   them with each seat's named starting client (the starting player declares
+   first, then turn order; all mulligans of a round are taken after every
+   declaration; a mulligan shuffles the hand into the library, draws seven
+   and bottoms as many cards as counted mulligans; the first mulligan does
+   not count in a pod of three or more, CR 103.5c). A client is handed only
+   its own hand, its library size, its counts and the declarations already
+   made this round, never a library's order. `fixture-baseline@1` mulligans a
+   seven with fewer than two or more than five lands and keeps any smaller
+   hand, bottoming surplus lands or the most expensive nonlands;
+   `fixture-pass@1` and `parent-relay@1` keep every hand (a keep or bottom
+   decision is not on the relay's decision surface). The pod's exact core
+   hash after the procedure is the `admitted` `initial_state_hash`; a refusal
+   by the setup or starting owner is `engine_error/setup_failed`. Every
+   `run` starts the same seats again from its derived trial seed, so each
+   trial deals its own hands. The setup owner also decides the first draw
+   from the seat count: the starting player draws on turn one in a pod of
+   three or more (CR 103.8c) and skips it only in a two-player game (CR
+   103.8a). Mulligans taken and opening hand sizes are recorded in the core
+   and not yet reported on the wire. `profile_preflight` still answers
    `invalid/commander_preflight_unavailable`: its report shape is bound to the
    fixture, and per-card `support_check` is the Commander preflight.
 

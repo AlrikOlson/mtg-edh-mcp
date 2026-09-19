@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "source_owner": "mtg-game-engine",
-  "revision": "34e82c78770a11f6ef659f25091f4d046f52d60b",
-  "cargo_lock_sha256": "f90950b629f547226819e60588c44b00d329b0ff6ef1b5d96476f758e9ec7ee7",
+  "revision": "3049cf95d0ba2db5b10d9c2aedfd4feb2fa6dce6",
+  "cargo_lock_sha256": "c72e65332257a6a171a6e5899882726be1c3d1ab1d8a961cc70f33a9e984ec71",
   "core_package": "mtg-engine",
   "worker_package": "mtg-worker",
   "worker_manifest": "crates/mtg-worker/Cargo.toml",
