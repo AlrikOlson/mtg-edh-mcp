@@ -81,11 +81,12 @@ One row names exactly one tool. `facet:value` picks a selection (`mode`, `op`, `
 | rewriting a whole function body                                       | `edit` `op:replace_body` — replaces the addressed symbol's definition                                                                                                                                                                                                                                      | `file`, `symbol`, `content`                                      |
 | adding code right after a symbol                                      | `edit` `op:insert_after`                                                                                                                                                                                                                                                                                   | `file`, `symbol`, `content`                                      |
 | adding code right before a symbol                                     | `edit` `op:insert_before`                                                                                                                                                                                                                                                                                  | `file`, `symbol`, `content`                                      |
-| renaming a symbol across the repo                                     | `edit` `op:rename` — multi-file, so confirm-gated                                                                                                                                                                                                                                                          | `file`, `symbol`, `newName`, `confirm`                           |
+| renaming a symbol across the repo                                     | `edit` `op:rename` — follows the configured confirmation policy                                                                                                                                                                                                                                            | `file`, `symbol`, `newName`, `confirm`                           |
 | `sed -i` / `awk` across many files (a codemod)                        | `edit` `op:rewrite` — an ast-grep pattern → replacement over a glob scope; always dry-run first                                                                                                                                                                                                            | `pattern`, `rewritePattern`, `path`, `lang`, `dryRun`, `confirm` |
-| `mv`                                                                  | `files` `op:move` — import-aware: importer rewrites ride the same diff; always confirm-gated                                                                                                                                                                                                               | `from`, `to`, `confirm`, `dryRun`                                |
+| `mv`                                                                  | `files` `op:move` — import-aware: importer rewrites ride the same diff; follows the configured confirmation policy                                                                                                                                                                                         | `from`, `to`, `confirm`, `dryRun`                                |
 | `cp`                                                                  | `files` `op:copy`                                                                                                                                                                                                                                                                                          | `from`, `to`                                                     |
-| `touch`, creating a new file                                          | `files` `op:create`                                                                                                                                                                                                                                                                                        | `to`                                                             |
+| `touch`, an empty new file                                            | `files` `op:create`                                                                                                                                                                                                                                                                                        | `to`                                                             |
+| creating a file with content, `cat > file`, replacing a whole file    | `write` — exact bytes, parse-verified, journaled, undoable                                                                                                                                                                                                                                                 | `path`, `content`, `expectedHash`                                |
 | `mkdir -p`                                                            | `files` `op:mkdir`                                                                                                                                                                                                                                                                                         | `to`                                                             |
 | `rm`                                                                  | `files` `op:delete` — a journal-backed move to trash, undoable                                                                                                                                                                                                                                             | `from`, `expectedHash`                                           |
 | running the tests / build / lint                                      | `run` — one declared command from the [commands] table, parsed output, no shell                                                                                                                                                                                                                            | `command`, `args`, `timeout`                                     |
@@ -101,9 +102,13 @@ Start with `mode:auto`. Lexical runs at Tier 0 (no index), so you get an answer 
 cold start. When the query names a symbol and the index is warm, structural classification enriches
 and re-ranks the same results — you do not have to ask for it. Only `mode:references` _requires_ the
 warm index; until then it answers `INDEX_UNAVAILABLE` with `recovery:retry` and build progress in
-`notes`. Do not loop on it: poll `tasks/get` for the `index/build` task or do something else and
-come back; five identical retries in a row is the misuse pattern the flight recorder was built to
-catch.
+`notes`. The same refusal can follow a file change while its outline refreshes.
+If your client exposes MCP task polling, poll `tasks/get` for `index/build` using
+its returned interval and inspect failed builds. Otherwise use `read` without a
+symbol, then `edit(op:"replace_text")` with a current anchor and `expectedHash`.
+A completed build does not guarantee every file has an outline; inspect the reply's
+notes for excluded, oversized or changed files. Do not repeat an unchanged request
+or add arbitrary waits.
 
 References are tree-sitter fidelity (name-resolution-free) unless a resolver plugin upgraded them;
 each edge carries `confidence` and the envelope says so. Treat `high` as real, `medium` as "verify
@@ -169,12 +174,29 @@ apply → format → journal → atomic swap. A batch that would break syntax ro
   apply: `$$$` carries macro arguments, modifiers are part of the shape, attributes rewrite alone.
 - Use `replace_text` for non-code files or when you truly want a literal anchor; pass `expectedHash`
   from your `read` so a file changed under you answers `STALE_ANCHOR` instead of clobbering.
-- Single-file symbol/text edits auto-apply (parse-verify is the guard) and return the diff.
-  Multi-file ops (`rewrite`, `rename`, `move`) and anything large answer `CONFIRM_REQUIRED` with the
-  aggregated diff and a `confirmToken`. Read the diff. If it is right, re-issue the **identical**
-  call with `confirm` set to the token. If your harness supports elicitation the server may ask
-  you in-call instead; answering accept does the same thing.
-- `autoApply: true` skips the human-approvable diff. Do not set it unless the human told you to.
+- To write a new text file, call `files` with `op:create`, then `edit` with
+  `op:replace_text`, `old:""` and `new` set to the content. An empty `old` matches
+  only an existing zero-byte file; a populated file returns `STALE_ANCHOR` and a
+  missing file returns `FILE_NOT_FOUND`. Pass the returned `contentHash` as
+  `expectedHash`. `workspace.edit.queue` supports the same empty anchor and
+  optional `expectedHash`; create missing files in a separate call first.
+- `edit.confirm_mode = "token"` applies verified edits, writes, file operations and script
+  batches on the first call. The caller does not need to echo its own confirmation token.
+  Parse verification, path protection, staleness checks, journaling and undo still apply.
+- Human confirmation mode (`edit.confirm_mode = "elicit"`, the default) and
+  `edit.force_confirm = true` gate multi-file changes, rewrites, renames, moves, overwriting
+  copies, script batches and single-file writes over 200 changed lines. Review the returned
+  diff and re-issue the identical call with `confirm` set to `confirmToken`; elicitation-capable
+  clients can approve in-call. Token mode never opens an elicitation dialog.
+- Existing user authorization carries across calls. Do not ask the user to authorize the same
+  work again because the server returned `CONFIRM_REQUIRED`. For already-authorized work on a
+  running server, use `autoApply: true`; review broad or uncertain effects with `dryRun: true`
+  first. An operation outside the authorized task still needs its own scope decision.
+- `write` is how a new file gets its content and how a whole file is replaced: `path` plus
+  `content`, exact bytes, no formatter. Pass `expectedHash` from your `read` when replacing.
+  Prefer `edit` when only part of a file changes.
+- `autoApply: true` skips the additional confirmation round trip for authorized work. It does
+  not skip verification, path protection, staleness checks, journaling or returned applied diffs.
 - `dryRun: true` runs the whole pipeline through re-verify and applies nothing — use it liberally.
 
 ## Files, run, script, undo
@@ -214,32 +236,32 @@ answers `PLUGIN_CRASHED` and the core tools keep working at full fidelity.
 
 `recovery` is the taxonomy's; the last column is what it means for you.
 
-| Code                      | Recovery   | What to do                                                                                                                                                      |
-| ------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PATH_OUTSIDE_WORKSPACE`  | `abort`    | The path escapes the workspace root. Do not try `..` or absolute tricks; stay inside the root or ask the human.                                                 |
-| `PROTECTED_PATH`          | `escalate` | `.git/**`, `.workbench/**`, config layers and the `[commands]` table are read-only to every tool. A human edits those by hand; tell them what you wanted.       |
-| `AMBIGUOUS_SYMBOL`        | `narrow`   | Pick one of `candidates` (qualified, e.g. `UserService.authenticate`) and re-call.                                                                              |
-| `SYMBOL_NOT_FOUND`        | `narrow`   | `search` `mode:auto` (or `mode:references`) for the name, then use the file + address it returns.                                                               |
-| `FILE_NOT_FOUND`          | `narrow`   | The in-root path does not exist. `search` `mode:files` to find it; do not create it by accident.                                                                |
-| `PARSE_REJECTED`          | `narrow`   | Your edit would break syntax; nothing was applied. Read `parserMessage` and `rejectedDiff`, fix `content`/`new`, re-issue.                                      |
-| `STALE_ANCHOR`            | `retry`    | The file changed under you. `read` it again, take the fresh `contentHash` into `expectedHash` (or re-anchor `old`), re-issue once.                              |
-| `PATTERN_INVALID`         | `narrow`   | The ast-grep/glob pattern did not parse. Fix it (balanced `$VAR`s, valid glob) and re-issue.                                                                    |
-| `BUDGET_TOO_SMALL`        | `narrow`   | Raise `budget`, or narrow `path`/`kind` so the answer fits.                                                                                                     |
-| `COMMAND_NOT_DECLARED`    | `abort`    | Not in `[commands]`. Tell the human to declare it in `workbench.toml`; never route it through `script` or a shell.                                              |
-| `RUN_REDIRECTED`          | `abort`    | You tried text/file munging or a shell through `run`. Use `search`/`read`/`edit`/`files` for that job.                                                          |
-| `SANDBOX_FUEL_EXCEEDED`   | `narrow`   | The script did too much in one round. Scope fewer files (`path`) or split the work across calls.                                                                |
-| `SANDBOX_CAP_DENIED`      | `escalate` | The guest asked for a capability it does not have (network, ambient filesystem). By design; tell the human if the task truly needs it.                          |
-| `SANDBOX_MEMORY_EXCEEDED` | `narrow`   | Reduce the working set: process fewer files per call, stream instead of accumulating.                                                                           |
-| `INDEX_UNAVAILABLE`       | `retry`    | The index is not warm; `notes` carry progress. Use `mode:auto`/`mode:lexical` now, poll `tasks/get` for `index/build`, retry later — not five times in a row.   |
-| `CONFIRM_REQUIRED`        | `confirm`  | Review the dry-run diff in the envelope. Re-issue the identical call with `confirm` = `confirmToken` (or accept the elicitation). Do not reach for `autoApply`. |
-| `CONFIRM_MISMATCH`        | `confirm`  | The token is not for this exact call. Redo the dry-run to mint a fresh token; never reuse tokens across calls.                                                  |
-| `UNSUPPORTED_VERSION`     | `abort`    | Envelope or on-disk format mismatch. Do not retry; tell the human to upgrade the client/binary.                                                                 |
-| `ENGINE_UNAVAILABLE`      | `retry`    | The engine child is restarting. Retry after a short pause; lexical search still answers meanwhile.                                                              |
-| `ENGINE_BUSY`             | `retry`    | The bounded queue is full. Wait `backoffMs`, then retry.                                                                                                        |
-| `INPUT_QUARANTINED`       | `escalate` | This file repeatedly crashed the parser and is quarantined. Stop parse-verified verbs on it; point the human at `workbench-mcp doctor`.                         |
-| `PLUGIN_CAP_DENIED`       | `escalate` | A plugin exceeded its granted capabilities. Not yours to fix; tell the human which plugin.                                                                      |
-| `PLUGIN_CRASHED`          | `abort`    | The named plugin trapped or ran out of fuel. Do not retry the same plugin call; fall back to the core tools.                                                    |
-| `CONFIG_POLICY_DENIED`    | `abort`    | Org policy forbids it; the message names the layer. Tell the human; do not route around it.                                                                     |
+| Code                      | Recovery   | What to do                                                                                                                                                                                                                                                           |
+| ------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PATH_OUTSIDE_WORKSPACE`  | `abort`    | The path escapes the workspace root. Do not try `..` or absolute tricks; stay inside the root or ask the human.                                                                                                                                                      |
+| `PROTECTED_PATH`          | `escalate` | `.git/**`, `.workbench/**`, config layers and the `[commands]` table are read-only to every tool. A human edits those by hand; tell them what you wanted.                                                                                                            |
+| `AMBIGUOUS_SYMBOL`        | `narrow`   | Pick one of `candidates` (qualified, e.g. `UserService.authenticate`) and re-call.                                                                                                                                                                                   |
+| `SYMBOL_NOT_FOUND`        | `narrow`   | `search` `mode:auto` (or `mode:references`) for the name, then use the file + address it returns.                                                                                                                                                                    |
+| `FILE_NOT_FOUND`          | `narrow`   | The in-root path does not exist. `search` `mode:files` to find it; do not create it by accident.                                                                                                                                                                     |
+| `PARSE_REJECTED`          | `narrow`   | Your edit would break syntax; nothing was applied. Read `parserMessage` and `rejectedDiff`, fix `content`/`new`, re-issue.                                                                                                                                           |
+| `STALE_ANCHOR`            | `retry`    | The file changed under you. `read` it again, take the fresh `contentHash` into `expectedHash` (or re-anchor `old`), re-issue once.                                                                                                                                   |
+| `PATTERN_INVALID`         | `narrow`   | The ast-grep/glob pattern did not parse. Fix it (balanced `$VAR`s, valid glob) and re-issue.                                                                                                                                                                         |
+| `BUDGET_TOO_SMALL`        | `narrow`   | Raise `budget`, or narrow `path`/`kind` so the answer fits.                                                                                                                                                                                                          |
+| `COMMAND_NOT_DECLARED`    | `abort`    | Not in `[commands]`. Tell the human to declare it in `workbench.toml`; never route it through `script` or a shell.                                                                                                                                                   |
+| `RUN_REDIRECTED`          | `abort`    | You tried text/file munging or a shell through `run`. Use `search`/`read`/`edit`/`files` for that job.                                                                                                                                                               |
+| `SANDBOX_FUEL_EXCEEDED`   | `narrow`   | The script did too much in one round. Scope fewer files (`path`) or split the work across calls.                                                                                                                                                                     |
+| `SANDBOX_CAP_DENIED`      | `escalate` | The guest asked for a capability it does not have (network, ambient filesystem). By design; tell the human if the task truly needs it.                                                                                                                               |
+| `SANDBOX_MEMORY_EXCEEDED` | `narrow`   | Reduce the working set: process fewer files per call, stream instead of accumulating.                                                                                                                                                                                |
+| `INDEX_UNAVAILABLE`       | `retry`    | A current outline is unavailable; inspect `notes`. Use lexical search or plain `read` plus anchored `replace_text`. If exposed by the client, poll `tasks/get` for `index/build` at its returned interval; inspect failures and do not loop on an unchanged refusal. |
+| `CONFIRM_REQUIRED`        | `confirm`  | Review the returned diff and continue within existing authorization: use `autoApply: true` for already-authorized work, or re-issue the identical call with `confirm` = `confirmToken`. Do not ask the user to repeat authorization.                                 |
+| `CONFIRM_MISMATCH`        | `confirm`  | The token is not for this exact call. Redo the dry-run to mint a fresh token; never reuse tokens across calls.                                                                                                                                                       |
+| `UNSUPPORTED_VERSION`     | `abort`    | Envelope or on-disk format mismatch. Do not retry; tell the human to upgrade the client/binary.                                                                                                                                                                      |
+| `ENGINE_UNAVAILABLE`      | `retry`    | The engine child is restarting. Retry after a short pause; lexical search still answers meanwhile.                                                                                                                                                                   |
+| `ENGINE_BUSY`             | `retry`    | The bounded queue is full. Wait `backoffMs`, then retry.                                                                                                                                                                                                             |
+| `INPUT_QUARANTINED`       | `escalate` | This file repeatedly crashed the parser and is quarantined. Stop parse-verified verbs on it; point the human at `workbench-mcp doctor`.                                                                                                                              |
+| `PLUGIN_CAP_DENIED`       | `escalate` | A plugin exceeded its granted capabilities. Not yours to fix; tell the human which plugin.                                                                                                                                                                           |
+| `PLUGIN_CRASHED`          | `abort`    | The named plugin trapped or ran out of fuel. Do not retry the same plugin call; fall back to the core tools.                                                                                                                                                         |
+| `CONFIG_POLICY_DENIED`    | `abort`    | Org policy forbids it; the message names the layer. Tell the human; do not route around it.                                                                                                                                                                          |
 
 ## Worked examples
 
@@ -274,6 +296,10 @@ One per tool. Each block is a complete, valid call.
 
 ```json workbench:files
 { "op": "move", "from": "src/utils/date.ts", "to": "src/lib/date.ts", "dryRun": true }
+```
+
+```json workbench:write
+{ "path": "src/lib/clock.ts", "content": "export const now = (): number => Date.now();\n" }
 ```
 
 ```json workbench:run
