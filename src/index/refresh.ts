@@ -2,7 +2,7 @@
 import { mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { BulkClient, ingestBulk, VersionedStore } from "../ingest/index.js";
+import { BulkClient, ingestBulk, VersionedStore, type VersionCollection } from "../ingest/index.js";
 import { StructuredError } from "../types/errors.js";
 import { buildIndex, CardIndex, DEFAULT_INDEX_NAME } from "./cardIndex.js";
 
@@ -13,6 +13,12 @@ export interface RefreshSnapshotResult {
   cards: number;
   printings: number;
   skipped: boolean;
+  /**
+   * The collection pass that followed this run while the lease was still held:
+   * every version directory other than the pointer's current and previous is
+   * removed. Absent only when the pass itself failed, which never fails the run.
+   */
+  collection?: VersionCollection;
 }
 
 /** Preparation may fail; commit must synchronously install already prepared state. */
@@ -97,33 +103,95 @@ export async function openCurrentSnapshot(store: VersionedStore): Promise<OpenSn
 }
 
 /**
- * One refresh per data root, across processes. SQLite owns the OS lock and
+ * Take the one-per-data-root refresh lease. SQLite owns the OS lock and
  * releases it on process death, so there are no stale PID files to reclaim.
  * The coordination database must stay at this stable path and is never deleted.
+ * Closing the returned handle releases the lease.
  */
+async function acquireLease(store: VersionedStore): Promise<Database.Database> {
+  await mkdir(store.root, { recursive: true });
+  const lease = new Database(path.join(store.root, ".refresh-lock.sqlite"), { timeout: 0 });
+  try {
+    lease.exec("BEGIN IMMEDIATE");
+  } catch (err) {
+    lease.close();
+    if ((err as { code?: string }).code === "SQLITE_BUSY") {
+      throw new StructuredError(
+        "UPSTREAM_UNAVAILABLE",
+        "A card-data refresh is already running for this data directory",
+        {
+          reason: "The refresh coordination lock is held by another run; retry after it finishes.",
+        },
+      );
+    }
+    throw err;
+  }
+  return lease;
+}
+
+/**
+ * Remove every version directory the published pointer does not name as
+ * current or previous. Must run under the lease: no other process can then be
+ * staging a new directory, so anything unnamed is either superseded or an
+ * abandoned stage. With no readable pointer nothing is removed. A refresh also
+ * keeps the version that was published when it started (`alsoKeep`), so a
+ * rebuild of an unusable current version leaves its files for one more
+ * generation instead of deleting them in the same run that replaced them.
+ */
+async function collectUnderLease(
+  store: VersionedStore,
+  alsoKeep: string | null = null,
+): Promise<VersionCollection> {
+  const pointer = await store.readPointer();
+  const keep = new Set<string>();
+  if (alsoKeep) keep.add(alsoKeep);
+  if (!pointer) {
+    return {
+      retained: await store.listVersions(),
+      removed: [],
+      skipped: [],
+      reclaimed_bytes: 0,
+      pointer_temps_removed: 0,
+    };
+  }
+  keep.add(pointer.version);
+  if (pointer.previous) keep.add(pointer.previous);
+  return store.collect(keep);
+}
+
+/**
+ * Collect stale versions on demand (the `prune` command) without ingesting.
+ * Refuses while a refresh holds the lease, exactly like a competing refresh.
+ */
+export async function collectStaleVersions(store: VersionedStore): Promise<VersionCollection> {
+  const lease = await acquireLease(store);
+  try {
+    return await collectUnderLease(store);
+  } finally {
+    lease.close();
+  }
+}
+
+/** The collection pass that ends every refresh; its failure never fails a committed run. */
+async function collectAfterRun(
+  store: VersionedStore,
+  result: RefreshSnapshotResult,
+  startedWith: string | null,
+): Promise<RefreshSnapshotResult> {
+  try {
+    return { ...result, collection: await collectUnderLease(store, startedWith) };
+  } catch {
+    return result;
+  }
+}
+
+/** One refresh per data root, across processes; see {@link acquireLease}. */
 export async function refreshSnapshot(
   options: RefreshSnapshotOptions,
 ): Promise<RefreshSnapshotResult> {
   const { store, client, checkpoint, prepareActivation } = options;
-  await mkdir(store.root, { recursive: true });
-  const lease = new Database(path.join(store.root, ".refresh-lock.sqlite"), { timeout: 0 });
+  const lease = await acquireLease(store);
   try {
-    try {
-      lease.exec("BEGIN IMMEDIATE");
-    } catch (err) {
-      if ((err as { code?: string }).code === "SQLITE_BUSY") {
-        throw new StructuredError(
-          "UPSTREAM_UNAVAILABLE",
-          "A card-data refresh is already running for this data directory",
-          {
-            reason:
-              "The refresh coordination lock is held by another run; retry after it finishes.",
-          },
-        );
-      }
-      throw err;
-    }
-
     const pointerVersion = await store.readCurrent();
     const current = await openCurrentSnapshot(store);
     let previous: string | null = null;
@@ -143,7 +211,7 @@ export async function refreshSnapshot(
     if (staged.skipped && existing) {
       const prepared = await prepareActivation?.(existing);
       prepared?.commit();
-      return existing;
+      return collectAfterRun(store, existing, pointerVersion);
     }
 
     await checkpoint?.("after-download");
@@ -177,7 +245,7 @@ export async function refreshSnapshot(
     } catch {
       /* Already committed. */
     }
-    return result;
+    return collectAfterRun(store, result, pointerVersion);
   } finally {
     // Closing also rolls back an active coordination transaction. This database
     // carries no card data; rollback is only the release of the writer lease.

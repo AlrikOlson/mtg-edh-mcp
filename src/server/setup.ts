@@ -6,7 +6,7 @@ import Database from "better-sqlite3";
 import { z } from "zod";
 import { CardIndex, DEFAULT_INDEX_NAME } from "../index/cardIndex.js";
 import { DEFAULT_DATA_ROOT, freshnessConfigFromEnv } from "../index/freshness.js";
-import { VersionedStore } from "../ingest/store.js";
+import { VersionedStore, type CurrentPointer } from "../ingest/store.js";
 import { RULES_STALE_AFTER_MS, RulesStore, openCurrentRules } from "../rules/index.js";
 import {
   USER_DATA_DATABASE_NAME,
@@ -346,6 +346,52 @@ async function inspectVersion(
   }
 }
 
+/**
+ * Disk held by version directories. Every refresh retains only the pointer's
+ * current and previous versions; anything else is a leftover from an older
+ * release or a directory another process still held open, and `prune`
+ * reclaims it. Read-only: sizes are measured, nothing is removed here.
+ */
+async function inspectVersionRetention(
+  report: DiagnosticReport,
+  store: VersionedStore,
+  pointer: CurrentPointer,
+): Promise<void> {
+  const retained = new Set([pointer.version, ...(pointer.previous ? [pointer.previous] : [])]);
+  const versions = await store.listVersions();
+  let retainedBytes = 0;
+  let staleBytes = 0;
+  let staleCount = 0;
+  for (const version of versions) {
+    const bytes = await store.versionBytes(version);
+    if (retained.has(version)) retainedBytes += bytes;
+    else {
+      staleBytes += bytes;
+      staleCount += 1;
+    }
+  }
+  const megabytes = (bytes: number) => `${Math.round(bytes / 1_048_576)} MB`;
+  report.checks.push({
+    name: "card_versions",
+    status: staleCount > 0 ? "action" : "ok",
+    message:
+      staleCount > 0
+        ? `${versions.length} version directories; ${staleCount} stale (${megabytes(staleBytes)}) beyond the retained current/previous (${megabytes(retainedBytes)}).`
+        : `${versions.length} version directories, all retained (${megabytes(retainedBytes)}).`,
+    ...(staleCount > 0
+      ? {
+          fix: "Run `mtg-edh-mcp prune` with the same MCP_DATA_DIR to remove stale version directories; the next refresh also removes them.",
+        }
+      : {}),
+    details: {
+      versions_on_disk: versions.length,
+      stale_versions: staleCount,
+      stale_bytes: staleBytes,
+      retained_bytes: retainedBytes,
+    },
+  });
+}
+
 async function inspectCards(report: DiagnosticReport, options: SetupOptions): Promise<void> {
   const store = new VersionedStore(report.paths.dataRoot);
   try {
@@ -381,6 +427,7 @@ async function inspectCards(report: DiagnosticReport, options: SetupOptions): Pr
           }
         : {}),
     });
+    await inspectVersionRetention(report, store, pointer);
   } catch (error) {
     report.checks.push(
       databaseFailure(

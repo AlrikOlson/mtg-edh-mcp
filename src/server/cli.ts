@@ -4,6 +4,7 @@ export type CliOptions =
   | { mode: "version" }
   | { mode: "setup" }
   | { mode: "doctor" }
+  | { mode: "prune" }
   | { mode: "restore-user-data"; backupPath: string }
   | { mode: "serve"; transport: "stdio" | "http"; port: number; host: string };
 
@@ -13,7 +14,7 @@ export function parseCli(
 ): CliOptions {
   if (argv.includes("--help") || argv.includes("-h")) return { mode: "help" };
   if (argv.includes("--version") || argv.includes("-v")) return { mode: "version" };
-  if (argv[0] === "setup" || argv[0] === "doctor") {
+  if (argv[0] === "setup" || argv[0] === "doctor" || argv[0] === "prune") {
     if (argv.length !== 1) throw new Error(`Usage: mtg-edh-mcp ${argv[0]}`);
     if (env.MCP_DATA_DIR !== undefined && env.MCP_DATA_DIR.trim() === "") {
       throw new Error("MCP_DATA_DIR must be a non-empty directory path.");
@@ -73,6 +74,7 @@ Usage: mtg-edh-mcp [--stdio | --http]
        mtg-edh-mcp --version
        mtg-edh-mcp setup
        mtg-edh-mcp doctor
+       mtg-edh-mcp prune
        mtg-edh-mcp skills --help
        mtg-edh-mcp restore-user-data <backup-path>
 
@@ -110,6 +112,10 @@ Diagnostics:
   client configuration JSON. Existing data and client settings are preserved.
   doctor prints a read-only JSON report; it never downloads, migrates or repairs.
   Doctor exit codes: 0 ready, 2 action needed (setup/ingest/refresh), 1 broken.
+  prune removes card-data version directories other than the published current
+  and previous versions and prints what it reclaimed. Every refresh already
+  does this; prune only catches up a directory left by an older release. It
+  refuses while a refresh is running and never touches user data or backups.
 
 Start this process from your MCP client's configuration. Server diagnostics go
 to stderr; stdout is reserved for MCP messages. HTTP is unauthenticated and

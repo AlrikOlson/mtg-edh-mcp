@@ -23,10 +23,22 @@ import { VersionedStore } from "../ingest/index.js";
 import { DEFAULT_FRESHNESS, type FreshnessConfig } from "../index/index.js";
 import type { IngestRunner } from "./dataTools.js";
 
+/** How often a serving process looks for a version another process published. */
+export const ADOPT_INTERVAL_MS = 5 * 60_000;
+
 export interface SchedulerOptions {
   runner: IngestRunner;
   store: VersionedStore;
   config?: FreshnessConfig;
+  /**
+   * Adopt the published pointer when it names a newer validated version than
+   * this process serves (no lease, no network). Runs before every staleness
+   * check and on its own short interval, so one refresh per shared data root
+   * reaches every process without each of them competing for the lease.
+   */
+  adopt?: () => Promise<unknown>;
+  /** Interval for the adoption poll; defaults to {@link ADOPT_INTERVAL_MS}. */
+  adoptIntervalMs?: number;
   /** Age of this process's served generation; defaults to the store pointer for standalone callers. */
   bulkAge?: (now: number) => Promise<number | null>;
   /** Injectable clock for tests. */
@@ -71,7 +83,20 @@ export async function startScheduler(options: SchedulerOptions): Promise<Running
   const now = options.now ?? (() => Date.now());
   const setIntervalFn = options.setIntervalFn ?? setInterval;
 
+  const adopt = async (): Promise<void> => {
+    if (!options.adopt) return;
+    try {
+      await options.adopt();
+    } catch (err) {
+      console.error(
+        "published snapshot adoption failed:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  };
+
   const check = async (): Promise<void> => {
+    await adopt();
     try {
       const age = options.bulkAge ? await options.bulkAge(now()) : await bulkAgeMs(store, now());
       // No manifest = first run never happened; that is the GUI-onboarding
@@ -86,5 +111,14 @@ export async function startScheduler(options: SchedulerOptions): Promise<Running
   await check();
   const timer = setIntervalFn(() => void check(), config.bulkIntervalMs);
   timer.unref?.();
-  return { stop: () => clearInterval(timer) };
+  const adoptTimer = options.adopt
+    ? setIntervalFn(() => void adopt(), options.adoptIntervalMs ?? ADOPT_INTERVAL_MS)
+    : undefined;
+  adoptTimer?.unref?.();
+  return {
+    stop: () => {
+      clearInterval(timer);
+      if (adoptTimer) clearInterval(adoptTimer);
+    },
+  };
 }

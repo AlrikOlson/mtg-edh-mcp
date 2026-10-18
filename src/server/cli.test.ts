@@ -28,6 +28,12 @@ describe("command-line configuration", () => {
     expect(() => parseCli(argv, {})).toThrow("restore-user-data");
   });
 
+  it("selects the offline prune command and rejects extra arguments", () => {
+    expect(parseCli(["prune"], {})).toEqual({ mode: "prune" });
+    expect(() => parseCli(["prune", "--force"], {})).toThrow(/Usage: mtg-edh-mcp prune/);
+    expect(() => parseCli(["prune"], { MCP_DATA_DIR: " " })).toThrow(/MCP_DATA_DIR/);
+  });
+
   it("rejects an empty restore data directory", () => {
     expect(() => parseCli(["restore-user-data", "backup.sqlite"], { MCP_DATA_DIR: " " })).toThrow(
       "MCP_DATA_DIR",

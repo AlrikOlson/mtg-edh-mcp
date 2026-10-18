@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/client";
@@ -239,8 +239,66 @@ describe("served card-data activation", () => {
       data.ingest.start(false);
       await vi.waitFor(() => expect(data.ingest.status().phase).toBe("done"));
       expect(data.ingest.status().skipped).toBe(true);
+      expect(data.ingest.status().collection).toMatchObject({ removed: 0, reclaimed_bytes: 0 });
+      expect(data.ingest.status().collection?.retained).toHaveLength(2);
       expect(data.index?.getCard("oracle")?.name).toBe("New Card");
       expect(data.snapshot.get()).toBe("2026-09-02");
+    } finally {
+      data.index?.close();
+    }
+  });
+});
+
+describe("published pointer adoption", () => {
+  it("adopts a version another process published without ingesting or taking the lease", async () => {
+    const data = await openCardData(store, client);
+    try {
+      expect(await data.adoptPublished()).toBe("current");
+      day = "2026-09-02";
+      name = "New Card";
+      const published = await refreshSnapshot({ store, client: client() });
+      expect(data.snapshot.get()).toBe("2026-09-01");
+      expect(await data.adoptPublished()).toBe("adopted");
+      expect(data.index?.getCard("oracle")?.name).toBe("New Card");
+      expect(data.snapshot.get()).toBe("2026-09-02");
+      expect(data.ingest.status()).toMatchObject({ running: false, phase: "idle" });
+      expect(await data.bulkAge(Date.parse("2026-09-02T06:00:00Z"))).toBe(6 * 3_600_000);
+      expect(await data.adoptPublished()).toBe("current");
+      // A later collection removed nothing this process still needs.
+      expect(published.collection?.retained).toContain(published.version);
+    } finally {
+      data.index?.close();
+    }
+  });
+
+  it("never performs first-run activation and reports an unusable pointer", async () => {
+    const cold = await openCardData(new VersionedStore(join(root, "empty")), client);
+    expect(await cold.adoptPublished()).toBe("cold");
+    const data = await openCardData(store, client);
+    try {
+      await writeFile(
+        store.pointerPath,
+        JSON.stringify({ version: "2026-09-09T00-00-00-000Z-missing" }),
+      );
+      expect(await data.adoptPublished()).toBe("unavailable");
+      expect(data.snapshot.get()).toBe("2026-09-01");
+    } finally {
+      data.index?.close();
+    }
+  });
+
+  it("measures staleness from the published generation once its own directory was collected", async () => {
+    const data = await openCardData(store, client);
+    try {
+      day = "2026-09-02";
+      await refreshSnapshot({ store, client: client() });
+      day = "2026-09-03";
+      const third = await refreshSnapshot({ store, client: client() });
+      expect(third.collection?.removed.map((entry) => entry.version)).toHaveLength(1);
+      const age = await data.bulkAge(Date.parse("2026-09-03T06:00:00Z"));
+      expect(age).toBe(6 * 3_600_000);
+      expect(await data.adoptPublished()).toBe("adopted");
+      expect(data.snapshot.get()).toBe("2026-09-03");
     } finally {
       data.index?.close();
     }

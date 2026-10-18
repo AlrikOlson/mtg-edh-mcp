@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { BulkClient, VersionedStore, type FetchFn } from "../ingest/index.js";
 import { UserDataStore } from "../storage/userData.js";
-import { openCurrentSnapshot, refreshSnapshot } from "./refresh.js";
+import { collectStaleVersions, openCurrentSnapshot, refreshSnapshot } from "./refresh.js";
 
 const CARD = {
   oracle_id: "oracle-sol",
@@ -315,6 +315,68 @@ describe("refreshSnapshot", () => {
     await expect(refreshSnapshot({ store, client: source().client })).resolves.toMatchObject({
       cards: 1,
     });
+  });
+
+  it("retains only the pointer's current and previous versions after a publish", async () => {
+    const first = await refreshSnapshot({ store, client: source("2026-09-01").client });
+    const second = await refreshSnapshot({ store, client: source("2026-09-02").client });
+    expect(second.collection).toMatchObject({ retained: [first.version, second.version] });
+    const third = await refreshSnapshot({ store, client: source("2026-09-03").client });
+    expect(third.collection?.retained).toEqual([second.version, third.version]);
+    expect(third.collection?.removed.map((entry) => entry.version)).toEqual([first.version]);
+    expect(third.collection?.removed[0]?.bytes).toBeGreaterThan(0);
+    expect(third.collection?.reclaimed_bytes).toBe(third.collection?.removed[0]?.bytes);
+    expect((await readdir(store.versionsDir)).sort()).toEqual([second.version, third.version]);
+    expect(await store.readPointer()).toEqual({ version: third.version, previous: second.version });
+    const recovered = await openCurrentSnapshot(store);
+    expect(recovered?.version).toBe(third.version);
+    recovered?.index.close();
+  });
+
+  it("collects abandoned stages and pointer temps even when upstream is unchanged", async () => {
+    const first = await refreshSnapshot({ store, client: source().client });
+    await mkdir(store.versionDir("2026-08-01T00-00-00-000Z-abandoned"));
+    await writeFile(
+      store.filePath("2026-08-01T00-00-00-000Z-abandoned", "oracle_cards.jsonl"),
+      "x",
+    );
+    await writeFile(`${store.pointerPath}.dead.tmp`, "{}");
+    const same = source();
+    const second = await refreshSnapshot({ store, client: same.client });
+    expect(second.skipped).toBe(true);
+    expect(same.downloads).not.toHaveBeenCalled();
+    expect(second.collection).toMatchObject({
+      retained: [first.version],
+      removed: [{ version: "2026-08-01T00-00-00-000Z-abandoned", bytes: 1 }],
+      reclaimed_bytes: 1,
+      pointer_temps_removed: 1,
+    });
+    expect(await readdir(store.versionsDir)).toEqual([first.version]);
+    expect(await readdir(root)).not.toContain("current.json.dead.tmp");
+  });
+
+  it("prunes on demand under the lease and removes nothing without a pointer", async () => {
+    const stray = "2026-08-01T00-00-00-000Z-stray";
+    await mkdir(store.versionsDir, { recursive: true });
+    await mkdir(store.versionDir(stray));
+    expect(await collectStaleVersions(store)).toMatchObject({ retained: [stray], removed: [] });
+    expect(await readdir(store.versionsDir)).toEqual([stray]);
+    const first = await refreshSnapshot({ store, client: source().client });
+    expect(await readdir(store.versionsDir)).toEqual([first.version]);
+    await mkdir(store.versionDir(stray));
+    const lease = new Database(path.join(root, ".refresh-lock.sqlite"));
+    lease.exec("BEGIN IMMEDIATE");
+    try {
+      await expect(collectStaleVersions(store)).rejects.toThrow(/already running/i);
+      expect(await readdir(store.versionsDir)).toContain(stray);
+    } finally {
+      lease.close();
+    }
+    expect(await collectStaleVersions(store)).toMatchObject({
+      retained: [first.version],
+      removed: [{ version: stray, bytes: 0 }],
+    });
+    expect(await readdir(store.versionsDir)).toEqual([first.version]);
   });
 
   it("recovers the explicit previous version when the current database is unusable", async () => {

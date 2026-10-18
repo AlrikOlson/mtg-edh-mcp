@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DeckStore } from "../deck/deckStore.js";
-import { UserDataStore } from "./userData.js";
+import { UserDataStore, retainedBackups } from "./userData.js";
 
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
@@ -236,6 +236,42 @@ describe("backup and explicit recovery", () => {
     const restored = UserDataStore.restore(root, backupPath);
     expect(restored.preservedPath && existsSync(restored.preservedPath)).toBe(true);
     expect(open().deckStore.get(deck.deck_id)?.name).toBe("Version 4");
+  });
+
+  it("keeps the newest hourly and daily backups so a burst cannot erase older history", () => {
+    const start = Date.parse("2026-10-01T10:00:00.000Z");
+    let clock = start;
+    const store = open({ backupRetention: 2, now: () => new Date(clock) });
+    const deck = store.deckStore.create({ name: "Start" });
+    const backups = () =>
+      readdirSync(join(root, "backups"))
+        .filter((name) => name.endsWith(".sqlite"))
+        .sort();
+    const stampOf = (ms: number) => new Date(ms).toISOString().replace(/\D/g, "");
+    for (const hours of [1, 2, 3]) {
+      clock = start + hours * 3_600_000;
+      store.deckStore.setName(deck.deck_id, `Hour ${hours}`);
+    }
+    // Four distinct hours inside a day: every one is the newest of its hour.
+    expect(backups()).toHaveLength(4);
+    clock = start + 30 * 3_600_000;
+    store.deckStore.setName(deck.deck_id, "Next day");
+    // The three older ones share a day bucket; only their newest survives.
+    expect(backups().map((name) => name.slice(10, 27))).toEqual([
+      stampOf(start + 3 * 3_600_000),
+      stampOf(start + 30 * 3_600_000),
+    ]);
+    for (let burst = 1; burst <= 5; burst += 1) {
+      clock = start + 30 * 3_600_000 + burst;
+      store.deckStore.setName(deck.deck_id, `Burst ${burst}`);
+    }
+    // The burst keeps its newest two (count + hour bucket collapse to the same
+    // hour) and the day-old recovery point survives it.
+    const names = backups();
+    expect(names.map((name) => name.slice(10, 27))).toContain(stampOf(start + 3 * 3_600_000));
+    expect(names).toHaveLength(3);
+    expect(retainedBackups([], Date.now(), 5)).toEqual(new Set());
+    expect(retainedBackups(["user-data-junk.sqlite"], Date.now(), 5)).toEqual(new Set());
   });
 
   it("backup failure prevents write and success notifications", () => {

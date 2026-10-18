@@ -24,7 +24,12 @@ import {
   type KeywordVocabulary,
 } from "./legalPool.js";
 import { QUALIFIED_EVIDENCE } from "./legalPoolOwnership.js";
-import { readLegalPoolReport, servedDataRoot, type LegalPoolReport } from "./legalPoolReport.js";
+import {
+  censusComparisonEnabled,
+  readLegalPoolReport,
+  servedDataRoot,
+  type LegalPoolReport,
+} from "./legalPoolReport.js";
 import { loadRulesExcerpt } from "./rulesAudit.js";
 
 interface RawCard {
@@ -449,7 +454,9 @@ describe("committed requalification", () => {
 });
 
 const dataRoot = await servedDataRoot();
-const served = describe.skipIf(dataRoot === null);
+// Compares against the live served snapshot only when it is the census's own
+// version (or MTG_LEGAL_POOL_CENSUS=1 opts in); a refreshed data root skips.
+const served = describe.skipIf(dataRoot === null || !(await censusComparisonEnabled(dataRoot)));
 
 served("committed requalification against the served snapshot", () => {
   it("matches the current evidence state of the served data root", async () => {

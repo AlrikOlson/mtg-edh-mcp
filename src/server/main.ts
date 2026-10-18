@@ -9,6 +9,7 @@
 import { fileURLToPath } from "node:url";
 import { VersionedStore } from "../ingest/index.js";
 import { DEFAULT_DATA_ROOT, freshnessConfigFromEnv } from "../index/index.js";
+import { collectStaleVersions } from "../index/refresh.js";
 import { UserDataStore } from "../storage/userData.js";
 import { RulesService, RulesStore } from "../rules/index.js";
 import { openCardData } from "./cardData.js";
@@ -98,6 +99,12 @@ async function main(): Promise<void> {
     process.exitCode = report.exitCode;
     return;
   }
+  if (config.mode === "prune") {
+    const root = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
+    const collection = await collectStaleVersions(new VersionedStore(root));
+    process.stdout.write(`${JSON.stringify({ dataRoot: root, ...collection })}\n`);
+    return;
+  }
   if (config.mode === "restore-user-data") {
     const root = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
     const result = UserDataStore.restore(root, config.backupPath);
@@ -133,7 +140,19 @@ async function main(): Promise<void> {
   // Freshness scheduler (spec §3): staleness check now + every bulk interval.
   // Idempotent upstream check; opt out with MCP_AUTO_REFRESH=0.
   if (!autoRefreshDisabled()) {
-    await startScheduler({ runner: ingest, store, config: freshness, bulkAge });
+    await startScheduler({
+      runner: ingest,
+      store,
+      config: freshness,
+      bulkAge,
+      adopt: cardData.adoptPublished,
+    });
+  }
+  // A termination signal (launchd, a container runtime, Ctrl-C) takes the same
+  // path as a closed transport: running engine jobs stop first, then the
+  // process exits and the exit hook closes the user-data store.
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    process.once(signal, () => exitAfterJobs(engineJobs));
   }
   if (config.transport === "http") {
     const { port, host } = config;

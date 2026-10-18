@@ -37,8 +37,57 @@ const collectionRow = z.object({
 export interface UserDataStoreOptions {
   /** Failure injection at the final pre-commit boundary, for durability tests. */
   beforeCommit?: () => void;
-  /** Number of automatic pre-operation snapshots to retain (default 5, minimum 2). */
+  /**
+   * Minimum number of automatic pre-operation snapshots to retain by recency
+   * (default 5, minimum 2). Older snapshots also survive while they are the
+   * newest of their hour (for a day) or of their day (for a week), so a burst
+   * of mutations cannot erase every recovery point from before the burst.
+   */
   backupRetention?: number;
+  /** Injectable clock for the backup stamps and retention buckets (tests). */
+  now?: () => Date;
+}
+
+const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
+
+/** Epoch ms of a backup file name's 17-digit UTC stamp, or null for a foreign name. */
+function backupStampMs(name: string): number | null {
+  const digits = name.slice("user-data-".length, "user-data-".length + 17);
+  if (!/^\d{17}$/.test(digits)) return null;
+  const n = (from: number, length: number) => Number(digits.slice(from, from + length));
+  return Date.UTC(n(0, 4), n(4, 2) - 1, n(6, 2), n(8, 2), n(10, 2), n(12, 2), n(14, 3));
+}
+
+/**
+ * The backups to keep out of `names`: the newest `minimum` by stamp, plus the
+ * newest of each hour bucket younger than a day and of each day bucket younger
+ * than a week. Deterministic given the clock, so two processes agree.
+ */
+export function retainedBackups(
+  names: readonly string[],
+  nowMs: number,
+  minimum: number,
+): Set<string> {
+  const stamped = names
+    .map((name) => ({ name, at: backupStampMs(name) }))
+    .filter((entry): entry is { name: string; at: number } => entry.at !== null)
+    .sort((a, b) => b.at - a.at || b.name.localeCompare(a.name));
+  const keep = new Set<string>(stamped.slice(0, Math.max(0, minimum)).map((entry) => entry.name));
+  const buckets = new Set<string>();
+  for (const entry of stamped) {
+    const age = nowMs - entry.at;
+    const bucket =
+      age < DAY_MS
+        ? `hour:${Math.floor(entry.at / HOUR_MS)}`
+        : age < 7 * DAY_MS
+          ? `day:${Math.floor(entry.at / DAY_MS)}`
+          : null;
+    if (bucket === null || buckets.has(bucket)) continue;
+    buckets.add(bucket);
+    keep.add(entry.name);
+  }
+  return keep;
 }
 
 export interface RestoreUserDataResult {
@@ -210,7 +259,8 @@ class SqliteUserDataDriver implements UserDataDriver {
         .filter((name) => BACKUP_PATTERN.test(name))
         .sort();
       const last = names.at(-1)?.slice("user-data-".length, "user-data-".length + 17);
-      const now = new Date().toISOString().replace(/\D/g, "");
+      const clock = this.options.now?.() ?? new Date();
+      const now = clock.toISOString().replace(/\D/g, "");
       // Monotonic across processes under BEGIN IMMEDIATE, even within one millisecond.
       const stamp = last && last >= now ? String(BigInt(last) + 1n) : now;
       const target = join(directory, `user-data-${stamp}-${randomUUID()}.sqlite`);
@@ -219,9 +269,9 @@ class SqliteUserDataDriver implements UserDataDriver {
       // set remains bounded; an interrupted .pending image is never auto-restored.
       try {
         writeAtomic(pending, this.db.serialize());
-        while (names.length >= this.retention) {
-          const name = names.shift();
-          if (name) unlinkSync(join(directory, name));
+        const keep = retainedBackups(names, clock.getTime(), this.retention - 1);
+        for (const name of names) {
+          if (!keep.has(name)) unlinkSync(join(directory, name));
         }
         renameSync(pending, target);
         syncDirectory(directory);

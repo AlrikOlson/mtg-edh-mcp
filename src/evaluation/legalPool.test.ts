@@ -26,6 +26,7 @@ import {
   encodeLedger,
   generateLegalPoolReport,
   readLegalPoolReport,
+  censusComparisonEnabled,
   servedDataRoot,
 } from "./legalPoolReport.js";
 import { digestEvaluation } from "./registration.js";
@@ -656,7 +657,9 @@ describe("pool census", () => {
 });
 
 const dataRoot = await servedDataRoot();
-const served = describe.skipIf(dataRoot === null);
+// Compares against the live served snapshot only when it is the census's own
+// version (or MTG_LEGAL_POOL_CENSUS=1 opts in); a refreshed data root skips.
+const served = describe.skipIf(dataRoot === null || !(await censusComparisonEnabled(dataRoot)));
 
 served("committed census against the served snapshot", () => {
   it("matches the committed summary and ledger byte for byte", async () => {

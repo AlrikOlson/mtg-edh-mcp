@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { chmod, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -158,6 +158,28 @@ describe("doctor", () => {
     const report = await runDoctor(options());
     expect(report.exitCode).toBe(0);
     expect(report.checks.find((check) => check.name === "card_data")?.status).toBe("ok");
+    expect(await files()).toEqual(before);
+  });
+
+  it("reports stale version directories read-only and points at prune", async () => {
+    const store = await seed();
+    const fresh = await runDoctor(options());
+    expect(fresh.checks.find((check) => check.name === "card_versions")).toMatchObject({
+      status: "ok",
+      details: { versions_on_disk: 1, stale_versions: 0, stale_bytes: 0 },
+    });
+    const stale = "2026-08-01T00-00-00-000Z-stale";
+    await mkdir(store.versionDir(stale));
+    await writeFile(store.filePath(stale, "oracle_cards.jsonl"), "abandoned");
+    const before = await files();
+    const report = await runDoctor(options());
+    expect(report.exitCode).toBe(2);
+    const check = report.checks.find((entry) => entry.name === "card_versions");
+    expect(check).toMatchObject({
+      status: "action",
+      details: { versions_on_disk: 2, stale_versions: 1, stale_bytes: 9 },
+    });
+    expect(check?.fix).toContain("prune");
     expect(await files()).toEqual(before);
   });
 

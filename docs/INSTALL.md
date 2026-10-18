@@ -50,7 +50,8 @@ node dist/main.js setup
 node dist/main.js doctor
 ```
 
-An installed executable accepts `mtg-edh-mcp setup` and `mtg-edh-mcp doctor`.
+An installed executable accepts `mtg-edh-mcp setup`, `mtg-edh-mcp doctor` and
+`mtg-edh-mcp prune`.
 Setup initializes local user storage and prints JSON containing a client
 configuration with absolute Node, executable, and data paths. Copy that entry
 into your client's configuration, preserving its other entries. Setup is safe
@@ -232,13 +233,13 @@ directory. Add `-- --force` to `npm run ingest` to force another download.
 Unchanged upstream data reuses a validated index without downloading or rebuilding it.
 An incomplete legacy index causes a fresh version to be built instead.
 
-| Data                                | Location and lifetime                                                                   |
-| ----------------------------------- | --------------------------------------------------------------------------------------- |
-| Card exports and SQLite index       | Versioned directories under `MCP_DATA_DIR`.                                             |
-| Comprehensive Rules and rulings     | Versioned directories under `MCP_DATA_DIR/rules/`; published only by `rules_refresh`.   |
-| Decks, snapshots and role overrides | `MCP_DATA_DIR/user-data.sqlite`; committed before successful mutation responses.        |
-| Owned-card collections              | The same user-data database, scoped by principal; membership, not inventory quantities. |
-| User-data backups                   | `MCP_DATA_DIR/backups/`; automatic snapshots taken before mutations.                    |
+| Data                                | Location and lifetime                                                                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Card exports and SQLite index       | Versioned directories under `MCP_DATA_DIR`.                                                                                                |
+| Comprehensive Rules and rulings     | Versioned directories under `MCP_DATA_DIR/rules/`; published only by `rules_refresh`.                                                      |
+| Decks, snapshots and role overrides | `MCP_DATA_DIR/user-data.sqlite`; committed before successful mutation responses.                                                           |
+| Owned-card collections              | The same user-data database, scoped by principal; membership, not inventory quantities.                                                    |
+| User-data backups                   | `MCP_DATA_DIR/backups/`; automatic snapshots before mutations: the newest five, plus the newest per hour for a day and per day for a week. |
 
 Use `deck_set_roles` to replace a card's advisory labels within one deck.
 An empty array suppresses all inferred labels; `roles: null` removes the
@@ -344,12 +345,26 @@ explicit `previous` version. It never promotes an abandoned directory based
 on its timestamp. When neither version is usable, card tools remain unavailable;
 retry ingestion to build a fresh snapshot.
 
-Old and interrupted directories are intentionally retained. A retry uses a new
-directory and needs no manual cleanup. Allow enough disk space for the old
-snapshot, replacement exports/index, and retained attempts. To reclaim space,
-stop **all** processes using the directory, back up `current.json` and both
-versions it references, then remove only other version directories and abandoned
-`current.json.*.tmp` files. Never remove user-data databases, `user-data.initialized`, lock/journal files, legacy JSON or backups as part of card cleanup.
+Every refresh ends with a collection pass under the same lock: version
+directories other than the published `current` and `previous` (and the version
+that was current when the run started) are removed, together with abandoned
+`current.json.*.tmp` files, and `data_status` reports the pass as
+`ingest.collection` (retained versions, removed count, reclaimed bytes). A
+directory another process still holds open on a platform that forbids
+unlinking open files is skipped and collected by a later pass. Allow disk
+space for two complete versions plus one replacement in flight. To reclaim
+space left by an older release without waiting for a refresh, run
+`mtg-edh-mcp prune` with the same `MCP_DATA_DIR`; it takes the refresh lock,
+refuses while a refresh is running, and never touches user-data databases,
+`user-data.initialized`, lock/journal files, legacy JSON, rules versions or
+backups. `doctor` reports stale version directories as `card_versions`.
+
+Processes sharing a data directory adopt a version another process published:
+every five minutes, and before each staleness check, a serving process reads
+`current.json` and, when it names a newer validated version, reopens it through
+the same activation path a refresh uses, without downloading or taking the
+lock. With `MCP_AUTO_REFRESH=0` a process keeps the snapshot it opened at
+start.
 
 For a manual rollback, stop all processes, back up the full data directory, and
 replace `current.json` with `{"version":"<known-good-version-id>"}` naming a
@@ -362,8 +377,8 @@ rename. Tests kill real refresh processes after download, during a build,
 before publication, and after publication, then verify complete startup reads
 and unchanged previous files. These checks establish process-crash recovery;
 they do not establish power-loss guarantees on every filesystem or network drive.
-There is no automatic garbage collection or coordination with older server
-versions that still use the old publication path; stop those before upgrading.
+Collection does not coordinate with older server versions that still use the
+old publication path; stop those before upgrading.
 
 ## Troubleshooting
 

@@ -34,11 +34,16 @@ authorization and resource limits.
 
 ## Local data and external services
 
-- Decks and snapshots are stored as local JSON under `MCP_DATA_DIR`; they are
-  not encrypted by the server. Protect and back up this directory using your
-  operating system's controls.
-- Use one server process per data directory. Independent processes do not
-  coordinate writes to the deck file.
+- Decks, snapshots and owned-card collections are stored in
+  `MCP_DATA_DIR/user-data.sqlite`, with automatic pre-mutation backups under
+  `MCP_DATA_DIR/backups/`; none of it is encrypted by the server. Protect and
+  back up this directory using your operating system's controls.
+- Several local processes of the same release may share one data directory:
+  each mutation is one SQLite transaction behind a coordination lease, card
+  refreshes are serialized by a separate lease, and a refresh published by one
+  process is adopted by the others. Every process sharing the directory runs
+  with the same local permissions; the directory is not a boundary between
+  users.
 - The background scheduler downloads Scryfall card updates. Set
   `MCP_AUTO_REFRESH=0` to disable automatic refresh; explicit data ingestion
   and live enrichment remain available.

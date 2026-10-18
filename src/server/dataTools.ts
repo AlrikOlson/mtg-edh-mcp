@@ -14,7 +14,7 @@
  * reporting success; clients can discover the indexed tools without restarting.
  */
 import { z } from "zod";
-import { BulkClient, VersionedStore } from "../ingest/index.js";
+import { BulkClient, VersionedStore, type VersionCollection } from "../ingest/index.js";
 import { DEFAULT_DATA_ROOT } from "../index/index.js";
 import { refreshSnapshot } from "../index/refresh.js";
 import { READS_LOCAL, mutates } from "./registry.js";
@@ -33,8 +33,31 @@ export interface IngestStatus {
   cards?: number;
   /** True when a complete unchanged snapshot was reused without rebuilding. */
   skipped?: boolean;
+  /**
+   * Present when phase is "done": the collection pass that ended the run.
+   * Only the pointer's current and previous versions are retained on disk.
+   */
+  collection?: IngestCollection;
   /** Present when phase is "error". */
   error?: string;
+}
+
+/** Pollable summary of one version-collection pass. */
+export interface IngestCollection {
+  retained: string[];
+  removed: number;
+  skipped: number;
+  reclaimed_bytes: number;
+}
+
+/** Project the store's collection record to the pollable summary. */
+export function summarizeCollection(collection: VersionCollection): IngestCollection {
+  return {
+    retained: collection.retained,
+    removed: collection.removed.length,
+    skipped: collection.skipped.length,
+    reclaimed_bytes: collection.reclaimed_bytes,
+  };
 }
 
 /** The real download+build pipeline; injectable so tests never hit the network. */
@@ -42,7 +65,12 @@ export type IngestPipeline = (
   root: string,
   force: boolean,
   onPhase: (phase: IngestPhase) => void,
-) => Promise<{ snapshot: string; cards: number; skipped: boolean }>;
+) => Promise<{
+  snapshot: string;
+  cards: number;
+  skipped: boolean;
+  collection?: IngestCollection;
+}>;
 
 const realPipeline: IngestPipeline = async (root, force, onPhase) => {
   const store = new VersionedStore(root);
@@ -56,6 +84,7 @@ const realPipeline: IngestPipeline = async (root, force, onPhase) => {
     snapshot: result.snapshot,
     cards: result.cards,
     skipped: result.skipped,
+    ...(result.collection ? { collection: summarizeCollection(result.collection) } : {}),
   };
 };
 
@@ -164,7 +193,8 @@ export function makeDataTools(options: DataToolsOptions): ToolDefinition[] {
         "FLOW: ping -> data_status -> card_search.\n" +
         "ARGS: none.\n" +
         "RETURNS: has_index; bulk_age_hours + stale (age of the served bulk data vs the refresh " +
-        "interval); ingest {running, phase download|build|done|error, snapshot, cards, error}. " +
+        "interval); ingest {running, phase download|build|done|error, snapshot, cards, error, " +
+        "collection {retained, removed, reclaimed_bytes} — only current+previous versions stay on disk}. " +
         "After ingest completes, refresh tools/list to discover the card tools; " +
         "the running server activates the index without a restart.",
       inputSchema: {},

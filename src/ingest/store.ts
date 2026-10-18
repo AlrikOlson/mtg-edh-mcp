@@ -14,7 +14,17 @@
  */
 import { createWriteStream } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { access, mkdir, open, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -42,8 +52,56 @@ export interface CurrentPointer {
   previous?: string;
 }
 
+/** One version directory the collector removed, with the bytes it held. */
+export interface CollectedVersion {
+  version: string;
+  bytes: number;
+}
+
+/** A version directory the collector left in place although it was not retained. */
+export interface SkippedVersion {
+  version: string;
+  reason: string;
+}
+
+/**
+ * Outcome of one collection pass over `versions/`: what stayed, what went,
+ * what could not be removed, and the abandoned pointer temp files cleared.
+ */
+export interface VersionCollection {
+  retained: string[];
+  removed: CollectedVersion[];
+  skipped: SkippedVersion[];
+  /** Bytes freed by the removed directories (sizes measured before removal). */
+  reclaimed_bytes: number;
+  /** Abandoned `current.json.*.tmp` files removed. */
+  pointer_temps_removed: number;
+}
+
 function safeVersion(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+}
+
+async function directoryBytes(directory: string): Promise<number> {
+  let total = 0;
+  let entries: import("node:fs").Dirent[];
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const entry of entries) {
+    const filename = path.join(directory, entry.name);
+    if (entry.isDirectory()) total += await directoryBytes(filename);
+    else if (entry.isFile()) {
+      try {
+        total += (await stat(filename)).size;
+      } catch {
+        /* Removed concurrently; nothing to count. */
+      }
+    }
+  }
+  return total;
 }
 
 export class VersionedStore {
@@ -175,6 +233,77 @@ export class VersionedStore {
   /** Delete a version directory (best-effort), e.g. to clean up a failed build. */
   async removeVersion(id: string): Promise<void> {
     await rm(this.versionDir(id), { recursive: true, force: true });
+  }
+
+  /** Every version directory name that is a valid version id, oldest first. */
+  async listVersions(): Promise<string[]> {
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = await readdir(this.versionsDir, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+    return entries
+      .filter((entry) => entry.isDirectory() && safeVersion(entry.name))
+      .map((entry) => entry.name)
+      .sort();
+  }
+
+  /** Total bytes of the regular files under one version directory. */
+  async versionBytes(id: string): Promise<number> {
+    return directoryBytes(this.versionDir(id));
+  }
+
+  /**
+   * Remove every version directory not named in `keep`, measuring each before
+   * it goes, and clear abandoned pointer temp files. A directory that cannot be
+   * removed (held open on a platform that forbids unlinking open files) is
+   * reported as skipped, never retried destructively. Callers hold the refresh
+   * lease so no concurrent run can be staging into one of these directories.
+   */
+  async collect(keep: ReadonlySet<string>): Promise<VersionCollection> {
+    const result: VersionCollection = {
+      retained: [],
+      removed: [],
+      skipped: [],
+      reclaimed_bytes: 0,
+      pointer_temps_removed: 0,
+    };
+    for (const id of await this.listVersions()) {
+      if (keep.has(id)) {
+        result.retained.push(id);
+        continue;
+      }
+      const bytes = await this.versionBytes(id);
+      try {
+        await rm(this.versionDir(id), { recursive: true });
+      } catch (error) {
+        result.skipped.push({
+          version: id,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+        continue;
+      }
+      result.removed.push({ version: id, bytes });
+      result.reclaimed_bytes += bytes;
+    }
+    let names: string[];
+    try {
+      names = await readdir(this.root);
+    } catch {
+      names = [];
+    }
+    const pointerName = path.basename(this.pointerPath);
+    for (const name of names) {
+      if (!name.startsWith(`${pointerName}.`) || !name.endsWith(".tmp")) continue;
+      try {
+        await rm(path.join(this.root, name), { force: true });
+        result.pointer_temps_removed += 1;
+      } catch {
+        /* Left for the next pass. */
+      }
+    }
+    return result;
   }
 
   /** Drop all versions except the current one and the most recent `keep-1` others. */

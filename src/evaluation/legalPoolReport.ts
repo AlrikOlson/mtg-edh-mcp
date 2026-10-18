@@ -47,6 +47,29 @@ export async function servedDataRoot(env: NodeJS.ProcessEnv = process.env): Prom
   return null;
 }
 
+/** Environment flag that forces the served-snapshot comparison suites to run. */
+export const LEGAL_POOL_CENSUS_ENV = "MTG_LEGAL_POOL_CENSUS";
+
+/**
+ * Whether the committed census may be compared byte for byte against the data
+ * root's served snapshot: always with the opt-in flag, otherwise only while the
+ * published version is the one the census was generated from. A developer
+ * machine whose background scheduler refreshed overnight then skips the
+ * comparison instead of failing on data it did not change; requalification is
+ * an explicit step (`scripts/legal-pool-census.mjs --check`).
+ */
+export async function censusComparisonEnabled(
+  dataRoot: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<boolean> {
+  if (env[LEGAL_POOL_CENSUS_ENV] === "1") return true;
+  const [pointer, committed] = await Promise.all([
+    new VersionedStore(dataRoot).readPointer(),
+    readLegalPoolReport().catch(() => null),
+  ]);
+  return pointer !== null && pointer.version === committed?.census.snapshot.version;
+}
+
 /** Run the census against the served snapshot and rules of a data root. */
 export async function generateLegalPoolReport(dataRoot: string): Promise<LegalPoolReport> {
   const store = new VersionedStore(dataRoot);

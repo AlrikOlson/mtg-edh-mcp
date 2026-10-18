@@ -15,7 +15,15 @@ export {
   type ResolvedBulkDownload,
   type FetchFn,
 } from "./scryfall.js";
-export { VersionedStore, type Manifest, type ManifestFile } from "./store.js";
+export {
+  VersionedStore,
+  type Manifest,
+  type ManifestFile,
+  type CurrentPointer,
+  type VersionCollection,
+  type CollectedVersion,
+  type SkippedVersion,
+} from "./store.js";
 export { ingestBulk, type IngestOptions, type IngestResult } from "./ingest.js";
 export { streamCards, streamCardArray, readCardArray } from "./stream.js";
 export { Throttle, type ThrottleOptions } from "./throttle.js";

@@ -5,7 +5,7 @@ import path from "node:path";
 import { VersionedStore, type Manifest } from "../ingest/index.js";
 import { DEFAULT_FRESHNESS } from "../index/index.js";
 import { IngestRunner, type IngestPipeline } from "./dataTools.js";
-import { autoRefreshDisabled, bulkAgeMs, startScheduler } from "./scheduler.js";
+import { ADOPT_INTERVAL_MS, autoRefreshDisabled, bulkAgeMs, startScheduler } from "./scheduler.js";
 
 const NOW = Date.parse("2026-08-16T12:00:00.000Z");
 
@@ -83,6 +83,68 @@ describe("startScheduler", () => {
       expect(observedTimes).toEqual([NOW]);
     } finally {
       sched.stop();
+    }
+  });
+
+  it("adopts the published pointer before each staleness check and on its own poll", async () => {
+    await stageVersion(store, 1_000);
+    const { runner, starts } = countingRunner();
+    const order: string[] = [];
+    const timers: Array<{ fn: () => void; ms: number }> = [];
+    const sched = await startScheduler({
+      runner,
+      store,
+      now: () => NOW,
+      adopt: async () => {
+        order.push("adopt");
+      },
+      bulkAge: async () => {
+        order.push("age");
+        return 1_000;
+      },
+      setIntervalFn: (fn, ms) => {
+        timers.push({ fn, ms });
+        return { unref: () => undefined } as unknown as NodeJS.Timeout;
+      },
+    });
+    try {
+      expect(order).toEqual(["adopt", "age"]);
+      expect(timers.map((timer) => timer.ms)).toEqual([
+        DEFAULT_FRESHNESS.bulkIntervalMs,
+        ADOPT_INTERVAL_MS,
+      ]);
+      timers[1]!.fn();
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(order).toEqual(["adopt", "age", "adopt"]);
+      expect(starts()).toBe(0);
+    } finally {
+      sched.stop();
+    }
+  });
+
+  it("logs and continues when adoption fails", async () => {
+    await stageVersion(store, DEFAULT_FRESHNESS.bulkIntervalMs + 1);
+    const { runner, starts } = countingRunner();
+    const errors: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
+    };
+    try {
+      const sched = await startScheduler({
+        runner,
+        store,
+        now: () => NOW,
+        adopt: async () => {
+          throw new Error("pointer unreadable");
+        },
+        setIntervalFn: () => ({ unref: () => undefined }) as unknown as NodeJS.Timeout,
+      });
+      sched.stop();
+      expect(starts()).toBe(1);
+      expect(JSON.stringify(errors)).toContain("pointer unreadable");
+    } finally {
+      console.error = original;
     }
   });
 

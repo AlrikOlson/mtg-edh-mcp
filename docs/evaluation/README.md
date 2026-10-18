@@ -1,5 +1,13 @@
 # Protocol workflow evaluation
 
+The suites that compare the committed legal-pool census and requalification
+state against the data root a developer actually serves (`MCP_DATA_DIR` or
+`~/.mtg-edh-mcp/cards`) run only while that root's published version is the one
+the census was generated from; after a background refresh they skip instead of
+failing on data no change produced. Set `MTG_LEGAL_POOL_CENSUS=1` to force the
+comparison, and use `scripts/legal-pool-census.mjs --check` for deliberate
+requalification.
+
 Run `npm run test:workflows` after `npm ci`. The same suites run in `npm test`
 and the existing Linux, macOS, and Windows CI matrix. They build a temporary
 SQLite index and connect a real MCP SDK client to the production server using

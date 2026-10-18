@@ -6,6 +6,27 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Collect stale card-data versions. Every refresh now ends, under the refresh
+  lock, by removing version directories other than the published `current`,
+  `previous` and the version that was current when the run started, plus
+  abandoned pointer temp files; `data_status` reports the pass as
+  `ingest.collection`. A new `mtg-edh-mcp prune` command runs the same pass
+  without ingesting and refuses while a refresh is running; `doctor` reports
+  stale directories as `card_versions`. Migration: a data directory no longer
+  accumulates one ~1 GB directory per refresh (the previous policy retained
+  all of them); manual rollback is limited to the published `previous`.
+  Processes sharing a data directory adopt a version another process published
+  (every five minutes and before each staleness check) through the existing
+  activation path instead of competing for the refresh lock, and a process
+  whose served directory was collected measures staleness from the published
+  generation. Automatic user-data backups keep the newest five plus the newest
+  per hour for a day and per day for a week, so a burst of mutations no longer
+  erases every older recovery point. `SIGTERM`/`SIGINT` stop running engine
+  jobs and close the user-data store before exit. The served-snapshot census
+  suites run only when the served version is the committed census's own, or
+  with `MTG_LEGAL_POOL_CENSUS=1`. SECURITY.md now describes the SQLite
+  shared-directory model.
+
 - Consolidate deck-construction legality into the public validator. `validate_deck`
   (and every composition of the core, commander and companion rules: `deck_status`,
   `analyze_deck` vitals, the deck plan, construction and engine capture) now reports
