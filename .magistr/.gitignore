@@ -2,4 +2,7 @@
 *
 !.gitignore
 !project.json
-!roadmap.yaml
+!workspace.toml
+!agents.toml
+!conventions.md
+!instructions.md

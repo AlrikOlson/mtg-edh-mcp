@@ -2,7 +2,8 @@
   "project": {
     "name": "mtg-edh-mcp",
     "description": "",
-    "type": ""
+    "type": "",
+    "id": "mtg-edh-mcp-4d66ba"
   },
   "stack": {
     "language": "typescript",
@@ -18,7 +19,15 @@
     "lint": "npm run lint"
   },
   "format": {
-    "extensions": ["ts", "tsx", "js", "jsx", "json", "css", "md"],
+    "extensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "css",
+      "md"
+    ],
     "command": "npx prettier --write --ignore-path .gitignore {file}"
   },
   "spec": {
@@ -41,7 +50,7 @@
       "description": "Run linter before verification"
     }
   ],
-  "roadmap_backend": "think-and-ship",
+  "roadmap_backend": "native",
   "archetypes": [
     {
       "id": "mtg-edh-mcp",
@@ -55,7 +64,15 @@
         "lint": "npm run lint"
       },
       "format": {
-        "extensions": ["ts", "tsx", "js", "jsx", "json", "css", "md"],
+        "extensions": [
+          "ts",
+          "tsx",
+          "js",
+          "jsx",
+          "json",
+          "css",
+          "md"
+        ],
         "command": "npx prettier --write --ignore-path .gitignore {file}",
         "exclusions": [
           "node_modules",
@@ -71,8 +88,15 @@
         "companion_pattern": "{name}.test.{ext}",
         "test_dir": "alongside"
       },
-      "source_patterns": ["src/**/*.ts", "src/**/*.tsx"],
-      "test_patterns": ["**/*.test.ts", "**/*.spec.ts", "__tests__/**/*.ts"],
+      "source_patterns": [
+        "src/**/*.ts",
+        "src/**/*.tsx"
+      ],
+      "test_patterns": [
+        "**/*.test.ts",
+        "**/*.spec.ts",
+        "__tests__/**/*.ts"
+      ],
       "naming_convention": "camelCase"
     }
   ],
