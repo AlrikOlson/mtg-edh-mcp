@@ -29,16 +29,22 @@ build/
 !/src/build/
 
 # ── magistr managed ── DO NOT EDIT between markers ──
-.workbench/
+.magistr/workspace/
 .magistr/scope/
-.magistr/current-plan.md
-.magistr/current-task.md
 .magistr/loop-state.json
+.DS_Store
 Thumbs.db
 *.swp
 *.swo
 *~
+node_modules/
+dist/
+build/
 .next/
 .nuxt/
+*.tsbuildinfo
+.env
 .env.local
 # ── end magistr ──
+
+.workbench/
