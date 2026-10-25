@@ -34,4 +34,6 @@ export {
   SEARCH_SPACING_MS,
   CARD_SPACING_MS,
   type LiveClientOptions,
+  type ScryfallImageFace,
+  type ScryfallImageVersion,
 } from "./live.js";

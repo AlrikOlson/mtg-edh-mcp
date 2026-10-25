@@ -17,6 +17,6 @@ export default defineConfig({
   dts: { entry: { index: "src/server/index.ts" } },
   clean: true,
   sourcemap: true,
-  // better-sqlite3 is a native addon — never bundle it.
-  external: ["better-sqlite3"],
+  // better-sqlite3 and sharp are native addons — never bundle them.
+  external: ["better-sqlite3", "sharp"],
 });

@@ -62,13 +62,14 @@
     "@modelcontextprotocol/node": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
     "better-sqlite3": "^12.11.1",
+    "sharp": "^0.35.5",
     "stream-chain": "^3.6.3",
     "stream-json": "^3.6.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "2.0.0",
     "@eslint/js": "^10.0.1",
+    "@modelcontextprotocol/client": "2.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.0.1",
     "eslint": "^10.6.0",

@@ -18,7 +18,7 @@ Accepted for `print-job-store` under the [engine charter](../ENGINE-CHARTER.md).
 | Drift              | `deckDrift(job, liveDeck)` reports `current`, `moved_on` (with the live version) or `deleted`; the stored job never changes when the deck does                                                                                                                                                                                                                  |
 | Preset             | `getPreset` and `setPreset` keep preferred printings per oracle id (a `null` forgets one), the card back, stock and foil; the default is Standard Smooth, no foil, printer card back                                                                                                                                                                            |
 
-Job directories are `<data root>/print-jobs/<job_id>`; the printer project name is `mtg-edh-print-<first eight characters of the job id>`. Both are stored on the record and never recomputed. The store records the directory; the project-file owner creates and writes into it.
+Job directories are `<data root>/print-jobs/<job_id>`; the printer project name is `mtg-edh-print-<first eight characters of the job id>`. Both are stored on the record and never recomputed. The store records the directory; the image selector (`print-image-selector`) creates it on the first prepare and the project-file owner writes into it.
 
 ## Ownership and reuse review
 

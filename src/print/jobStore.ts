@@ -79,10 +79,15 @@ export const PRINT_STOCKS = [
 ] as const;
 export type PrintStock = (typeof PRINT_STOCKS)[number];
 
-/** Where a printed image comes from: a catalog printing by Scryfall id, or a user-supplied file. */
+/**
+ * Where a printed image comes from: a catalog printing by Scryfall id, a
+ * user-supplied file, or a community image by its MPC Autofill identifier
+ * (a Google Drive file id). The image selector resolves each to a file.
+ */
 export const PrintImageRefSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("printing"), scryfall_id: z.string().min(1) }),
   z.strictObject({ kind: z.literal("file"), path: z.string().min(1) }),
+  z.strictObject({ kind: z.literal("community"), id: z.string().min(1) }),
 ]);
 export type PrintImageRef = z.infer<typeof PrintImageRefSchema>;
 

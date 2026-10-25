@@ -1,0 +1,6 @@
+{
+  "_recorded": "Shape of POST 3/editorSearch/ from the MPC Autofill frontend (frontend/src/common/schema_types.ts EditorSearchRequest/EditorSearchResponse), read 2026-10-25. The response echoes the caller's query keys; each value lists card identifiers (Google Drive file ids) in source priority order.",
+  "results": {
+    "sol ring": ["1AbCdEfGhIjKlMnOpQrStUvWxYz0123456", "1ZyXwVuTsRqPoNmLkJiHgFeDcBa9876543"]
+  }
+}

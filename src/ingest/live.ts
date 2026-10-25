@@ -22,6 +22,11 @@ export const SEARCH_SPACING_MS = 500;
 /** Card-class endpoints (single-card lookups). */
 export const CARD_SPACING_MS = 100;
 
+/** Image versions Scryfall serves for `format=image` (docs/api/images). */
+export type ScryfallImageVersion =
+  "small" | "normal" | "large" | "png" | "art_crop" | "border_crop";
+export type ScryfallImageFace = "front" | "back";
+
 export interface LiveClientOptions {
   fetch?: FetchFn;
   userAgent?: string;
@@ -59,13 +64,17 @@ export class LiveScryfallClient {
     });
   }
 
-  private async request(path: string, throttle: Throttle): Promise<Response> {
+  private async request(
+    path: string,
+    throttle: Throttle,
+    accept = "application/json",
+  ): Promise<Response> {
     await throttle.wait();
     const url = `${this.baseUrl}${path}`;
     let response: Response;
     try {
       response = await this.fetchFn(url, {
-        headers: { "User-Agent": this.userAgent, Accept: "application/json" },
+        headers: { "User-Agent": this.userAgent, Accept: accept },
         signal: AbortSignal.timeout(this.requestTimeoutMs),
       });
     } catch (cause) {
@@ -97,6 +106,32 @@ export class LiveScryfallClient {
       this.cardThrottle,
     );
     return (await readScryfallJson(response)) as ScryfallCardRaw;
+  }
+
+  /**
+   * Fetch the image file of one face of a printing (`/cards/:id?format=image`).
+   * Scryfall answers with a redirect to the image host, which fetch follows;
+   * the bytes come back as served. Card-class throttle, user agent, timeout
+   * and error mapping are the ones every other lookup uses: a 404 is
+   * UNKNOWN_CARD and any other non-2xx (including the documented 422 for a
+   * face the card does not have) is UPSTREAM_UNAVAILABLE with its status.
+   */
+  async getCardImage(
+    scryfallId: string,
+    options: { face?: ScryfallImageFace; version?: ScryfallImageVersion } = {},
+  ): Promise<Uint8Array> {
+    const params = new URLSearchParams({ format: "image", version: options.version ?? "png" });
+    if (options.face === "back") params.set("face", "back");
+    const path = `/cards/${encodeURIComponent(scryfallId)}?${params.toString()}`;
+    const response = await this.request(path, this.cardThrottle, "image/*");
+    try {
+      return new Uint8Array(await response.arrayBuffer());
+    } catch (cause) {
+      throw new StructuredError("UPSTREAM_UNAVAILABLE", "Scryfall image response failed", {
+        url: `${this.baseUrl}${path}`,
+        reason: cause instanceof Error ? cause.message : String(cause),
+      });
+    }
   }
 
   /** Resolve a card by name (`/cards/named`), exact or fuzzy. */

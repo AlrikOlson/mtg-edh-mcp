@@ -1,0 +1,20 @@
+{
+  "_recorded": "Shape of GET 2/sources/ from the MPC Autofill frontend (frontend/src/common/schema_types.ts SourcesResponse, Source), read 2026-10-25. Values are illustrative.",
+  "results": {
+    "1": {
+      "pk": 1,
+      "key": "chilli_axe",
+      "name": "Chilli_Axe's Proxies",
+      "description": "Community proxy drive",
+      "sourceType": "Google Drive",
+      "externalLink": "https://example.invalid/chilli_axe"
+    },
+    "2": {
+      "pk": 2,
+      "key": "other_drive",
+      "name": "Other Drive",
+      "description": "",
+      "sourceType": "Google Drive"
+    }
+  }
+}

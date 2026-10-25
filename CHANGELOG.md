@@ -6,6 +6,24 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Select and prepare print images. For every face a print manifest names, the
+  image selector honours the job's recorded choice, falls back to the newest
+  catalog printing (then set code, then collector number, so the default is
+  stable for a data snapshot), uses the back of the same printing for a
+  two-sided card, and otherwise asks the optional MPC Autofill community
+  source for an image carrying exactly the card's name. Scryfall face images
+  are fetched through the existing live client (`/cards/:id?format=image`,
+  same throttle and user agent), cached per printing in the job directory and
+  brought to the MakePlayingCards poker template (822 x 1122 at 300 DPI) by
+  flattening the rounded corners, resampling to the 750 x 1050 trim and
+  extending the border by 36 px of bleed. User files are copied unchanged after
+  a dimension check. Every face without an image is an attention item (no
+  printing, printing not of this card, no image, undersized or unreadable
+  file, Scryfall unreachable, community unavailable, ambiguous community
+  match); no card is ever replaced by another. New dependency: `sharp` 0.35
+  (prebuilt libvips binaries; see INSTALL). The `print_*` tools that call the
+  selector are not registered yet.
+
 - Persist print jobs and the user's print preset. The user-data store moves to
   schema version 2 with `print_jobs` and `print_presets`; a version-1 database
   migrates once on open after the usual pre-operation backup, a version-1 backup

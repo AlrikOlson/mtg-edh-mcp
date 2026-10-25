@@ -122,3 +122,83 @@ describe("LiveScryfallClient rate limiting", () => {
     expect(calls.every((c) => c.ua === USER_AGENT)).toBe(true);
   });
 });
+
+describe("LiveScryfallClient face images", () => {
+  const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+  function imageFetch(calls: Call[], headers: Record<string, string>[], status = 200): FetchFn {
+    return ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      const url = typeof input === "string" ? input : input.toString();
+      const sent = init?.headers as Record<string, string> | undefined;
+      calls.push({ url, ua: sent?.["User-Agent"] });
+      headers.push(sent ?? {});
+      if (status !== 200) return Promise.resolve(new Response("{}", { status }));
+      return Promise.resolve(
+        new Response(PNG_HEADER, { status, headers: { "Content-Type": "image/png" } }),
+      );
+    }) as FetchFn;
+  }
+
+  it("requests the png image of a printing's front face by Scryfall id with the shared User-Agent", async () => {
+    const calls: Call[] = [];
+    const headers: Record<string, string>[] = [];
+    const client = new LiveScryfallClient({
+      fetch: imageFetch(calls, headers),
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    const bytes = await client.getCardImage("p-x");
+    expect(Array.from(bytes)).toEqual(Array.from(PNG_HEADER));
+    expect(calls[0]?.url).toBe("https://api.scryfall.com/cards/p-x?format=image&version=png");
+    expect(calls[0]?.ua).toBe(USER_AGENT);
+    expect(headers[0]?.Accept).toBe("image/*");
+  });
+
+  it("asks for the back face and other versions through the documented parameters", async () => {
+    const calls: Call[] = [];
+    const client = new LiveScryfallClient({
+      fetch: imageFetch(calls, []),
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    await client.getCardImage("p-x", { face: "back" });
+    await client.getCardImage("p-x", { version: "large" });
+    expect(calls[0]?.url).toBe(
+      "https://api.scryfall.com/cards/p-x?format=image&version=png&face=back",
+    );
+    expect(calls[1]?.url).toBe("https://api.scryfall.com/cards/p-x?format=image&version=large");
+  });
+
+  it("shares the card-class throttle with other card lookups", async () => {
+    const sleeps: number[] = [];
+    const client = new LiveScryfallClient({
+      fetch: imageFetch([], []),
+      sleep: (ms) => {
+        sleeps.push(ms);
+        return Promise.resolve();
+      },
+      now: () => 1000,
+    });
+    await client.getCardImage("a");
+    await client.getCardImage("b");
+    expect(sleeps).toEqual([CARD_SPACING_MS]);
+  });
+
+  it("maps a missing printing to UNKNOWN_CARD and a face Scryfall cannot serve to UPSTREAM_UNAVAILABLE with its status", async () => {
+    const missing = new LiveScryfallClient({
+      fetch: imageFetch([], [], 404),
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    await expect(missing.getCardImage("gone")).rejects.toMatchObject({ code: "UNKNOWN_CARD" });
+    const noBack = new LiveScryfallClient({
+      fetch: imageFetch([], [], 422),
+      sleep: () => Promise.resolve(),
+      now: () => 0,
+    });
+    await expect(noBack.getCardImage("single", { face: "back" })).rejects.toMatchObject({
+      code: "UPSTREAM_UNAVAILABLE",
+      details: { status: 422 },
+    });
+  });
+});

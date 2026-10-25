@@ -12,9 +12,13 @@ contains the MCP server and its development and verification tooling.
 - Several GB of free disk space for downloaded exports, the SQLite index, and
   retained versions. Download size and build time vary with the upstream data.
 
-The server uses a native SQLite dependency (`better-sqlite3`). If a prebuilt
-binary is unavailable for your Node version and platform, installation needs
-Python and a C/C++ build toolchain.
+The server uses two native dependencies: SQLite through `better-sqlite3`, and
+image processing for the print helper through `sharp` (libvips). Both ship
+prebuilt binaries for common platforms as optional dependencies, so keep
+optional dependencies enabled in your package manager. If no prebuilt
+`better-sqlite3` binary exists for your Node version and platform, installation
+needs Python and a C/C++ build toolchain; for `sharp`, install
+`@img/sharp-wasm32` alongside it to use the WebAssembly build instead.
 
 ## 1. Build the server
 
@@ -382,15 +386,16 @@ old publication path; stop those before upgrading.
 
 ## Troubleshooting
 
-| Symptom                                         | Check                                                                                                                                      |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `node` not found in the client                  | Use an absolute Node executable path. On macOS / Linux, `command -v node` prints it. GUI applications may not inherit your shell's PATH.   |
-| Missing card tools or `has_index: false`        | Run `doctor`, confirm `data_status` reports readiness and the same absolute `MCP_DATA_DIR`, then request `tools/list` again.               |
-| SQLite native-module installation or ABI error  | Use Node 24 and run `npm ci` again after changing Node versions. Install a native build toolchain if your platform has no prebuilt binary. |
-| Download failure                                | Check network access, writable storage, and free disk space; retry ingestion and inspect stderr for the upstream error.                    |
-| A deck disappears after restarting              | Verify the data directory and principal namespace; inspect `STORAGE_ERROR` guidance and the user-data restore procedure above.             |
-| Community recommendations or combos unavailable | Check the tool's upstream error. Local search, validation, and analysis remain available.                                                  |
-| HTTP port already in use                        | Choose another `MCP_HTTP_PORT` or stop the existing server.                                                                                |
+| Symptom                                               | Check                                                                                                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `node` not found in the client                        | Use an absolute Node executable path. On macOS / Linux, `command -v node` prints it. GUI applications may not inherit your shell's PATH.                     |
+| Missing card tools or `has_index: false`              | Run `doctor`, confirm `data_status` reports readiness and the same absolute `MCP_DATA_DIR`, then request `tools/list` again.                                 |
+| SQLite native-module installation or ABI error        | Use Node 24 and run `npm ci` again after changing Node versions. Install a native build toolchain if your platform has no prebuilt binary.                   |
+| `sharp` fails to load (missing `@img/sharp-*` binary) | Run `npm ci` with optional dependencies enabled, or `npm install sharp @img/sharp-wasm32` for the WebAssembly build. Only the `print_*` image steps need it. |
+| Download failure                                      | Check network access, writable storage, and free disk space; retry ingestion and inspect stderr for the upstream error.                                      |
+| A deck disappears after restarting                    | Verify the data directory and principal namespace; inspect `STORAGE_ERROR` guidance and the user-data restore procedure above.                               |
+| Community recommendations or combos unavailable       | Check the tool's upstream error. Local search, validation, and analysis remain available.                                                                    |
+| HTTP port already in use                              | Choose another `MCP_HTTP_PORT` or stop the existing server.                                                                                                  |
 
 For unresolved issues, include your OS, Node version, project revision,
 transport, reproduction steps, and redacted stderr in a

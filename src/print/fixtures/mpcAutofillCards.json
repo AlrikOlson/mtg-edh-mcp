@@ -1,0 +1,47 @@
+{
+  "_recorded": "Shape of POST 2/cards/ from the MPC Autofill frontend (frontend/src/common/schema_types.ts CardsRequest/CardsResponse/Card), read 2026-10-25. Values are illustrative.",
+  "results": {
+    "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456": {
+      "identifier": "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456",
+      "cardType": "CARD",
+      "name": "Sol Ring",
+      "searchq": "sol ring",
+      "dpi": 800,
+      "size": 4821337,
+      "extension": "png",
+      "language": "EN",
+      "priority": 2,
+      "source": "chilli_axe",
+      "sourceId": 1,
+      "sourceName": "Chilli_Axe's Proxies",
+      "sourceType": "Google Drive",
+      "sourceVerbose": "Chilli_Axe's Proxies",
+      "tags": [],
+      "dateCreated": "2024-01-01T00:00:00Z",
+      "dateModified": "2024-01-01T00:00:00Z",
+      "smallThumbnailUrl": "https://example.invalid/thumb/small/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456",
+      "mediumThumbnailUrl": "https://example.invalid/thumb/medium/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456"
+    },
+    "1ZyXwVuTsRqPoNmLkJiHgFeDcBa9876543": {
+      "identifier": "1ZyXwVuTsRqPoNmLkJiHgFeDcBa9876543",
+      "cardType": "CARD",
+      "name": "Sol Ring (Extended)",
+      "searchq": "sol ring extended",
+      "dpi": 600,
+      "size": 3100000,
+      "extension": "jpg",
+      "language": "EN",
+      "priority": 1,
+      "source": "other_drive",
+      "sourceId": 2,
+      "sourceName": "Other Drive",
+      "sourceType": "Google Drive",
+      "sourceVerbose": "Other Drive",
+      "tags": ["Extended"],
+      "dateCreated": "2024-02-01T00:00:00Z",
+      "dateModified": "2024-02-01T00:00:00Z",
+      "smallThumbnailUrl": "https://example.invalid/thumb/small/1ZyXwVuTsRqPoNmLkJiHgFeDcBa9876543",
+      "mediumThumbnailUrl": "https://example.invalid/thumb/medium/1ZyXwVuTsRqPoNmLkJiHgFeDcBa9876543"
+    }
+  }
+}
