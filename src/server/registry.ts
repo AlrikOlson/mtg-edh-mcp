@@ -98,15 +98,17 @@ export function stampSnapshot(result: CallToolResult, snapshot: string): CallToo
 /**
  * Per-server request cancellation registry (MCP 2026-07-28 cancellation).
  *
- * The installed SDK (2.0.0) aborts a handler's `mcpReq.signal` on transport
- * close and on `notifications/cancelled`, but its notification handler drops
- * request id 0 (`if (!requestId) return`), which is the first request of every
- * modern stdio connection. Tool handlers therefore receive a signal combined
- * from the SDK's own and one this registry aborts itself on the notification,
- * for any id. Replacing the SDK handler is safe here because every tool goes
- * through this registry and no other request handler in this server consumes
- * an abort signal. Remove once the SDK honors id 0 (engineTools.test.ts pins
- * the first-request cancellation).
+ * SDK 2.0.0 aborted a handler's `mcpReq.signal` on transport close and on
+ * `notifications/cancelled`, but its notification handler dropped request id 0
+ * (`if (!requestId) return`), which is the first request of every modern stdio
+ * connection. Tool handlers therefore receive a signal combined from the SDK's
+ * own and one this registry aborts itself on the notification, for any id.
+ * Replacing the SDK handler is safe here because every tool goes through this
+ * registry and no other request handler in this server consumes an abort
+ * signal. SDK 2.4.0's `_oncancel` checks `requestId === undefined` and so
+ * honors id 0; retiring this shim against the SDK alone is the roadmap chunk
+ * engine-mvp-sdk-cancel-shim-retire (engineTools.test.ts pins the
+ * first-request cancellation).
  */
 const cancellations = new WeakMap<McpServer, Map<string | number, AbortController>>();
 

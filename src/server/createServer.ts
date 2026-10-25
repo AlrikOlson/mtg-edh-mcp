@@ -131,11 +131,26 @@ export interface CreateServerOptions {
   print?: PrintOrderService;
 }
 
+/**
+ * Largest combined number of array elements and object members one
+ * `tools/call` argument payload may carry (SDK 2.3.0 `maxToolInputElements`,
+ * off by default; GHSA-46jr-4wx8-v453). The SDK counts elements before zod
+ * validation, so an oversized call is refused instead of being materialised.
+ * The largest legitimate inputs here are a deck list, a collection batch or
+ * the print slot patches of a 612-card order: a few hundred elements each,
+ * so this cap is an order of magnitude above real use and far below what the
+ * 1 MiB HTTP body bound (http.ts) could otherwise hold.
+ */
+export const MAX_TOOL_INPUT_ELEMENTS = 10_000;
+
 /** Construct a fully wired (but not yet connected) MCP server. */
 export function createServer(options: CreateServerOptions = {}): McpServer {
   const snapshot = options.snapshot ?? staticSnapshotProvider();
   const session = options.session ?? "local";
-  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  const server = new McpServer(
+    { name: SERVER_NAME, version: SERVER_VERSION },
+    { maxToolInputElements: MAX_TOOL_INPUT_ELEMENTS },
+  );
   const source = options.cardData;
   const index = source ? source.index : options.index;
   const collection = options.collection ?? new CollectionStore();

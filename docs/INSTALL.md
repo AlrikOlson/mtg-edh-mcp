@@ -208,7 +208,8 @@ boundary; see [Security](../SECURITY.md).
 
 ### Protocol compatibility
 
-The server uses the stable [TypeScript SDK v2.0.0](https://ts.sdk.modelcontextprotocol.io/v2/).
+The server uses the stable [TypeScript SDK v2](https://ts.sdk.modelcontextprotocol.io/v2/)
+(`@modelcontextprotocol/server` 2.4.0, `@modelcontextprotocol/node` 2.1.2).
 Both stdio and HTTP accept the **2026-07-28** protocol and legacy initialization.
 Regression checks include 2024-11-05 clients and an actual Rust rmcp 3.2.0 client
 negotiating 2025-11-25. Your existing launch configuration is unchanged.

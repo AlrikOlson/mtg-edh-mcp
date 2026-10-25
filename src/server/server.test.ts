@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { createServer } from "./createServer.js";
+import { z } from "zod";
+import { MAX_TOOL_INPUT_ELEMENTS, createServer } from "./createServer.js";
 import { startHttp } from "./http.js";
 import { stampSnapshot, type ToolDefinition } from "./registry.js";
 import { staticSnapshotProvider } from "./snapshot.js";
@@ -98,6 +99,46 @@ describe("server core over in-memory transport", () => {
     const payload = JSON.parse(content[0]?.text ?? "{}") as { code: string };
     expect(payload.code).toBe("DECK_NOT_FOUND");
     await client.close();
+  });
+});
+
+describe("tool input element cap", () => {
+  /** A tool that accepts an unbounded list, as the deck and collection tools do. */
+  const listTool: ToolDefinition = {
+    name: "count_items",
+    config: {
+      description: "Counts the supplied items.",
+      inputSchema: { items: z.array(z.string()) },
+    },
+    handler: (args) => {
+      const count = (args.items as string[]).length;
+      return { content: [{ type: "text", text: String(count) }], structuredContent: { count } };
+    },
+  };
+
+  it("refuses a tools/call whose arguments exceed the cap and keeps serving afterwards", async () => {
+    const client = await connectInMemory([listTool]);
+    try {
+      const oversized = Array.from({ length: MAX_TOOL_INPUT_ELEMENTS + 1 }, () => "x");
+      const refused = await client.callTool({
+        name: "count_items",
+        arguments: { items: oversized },
+      });
+      expect(refused.isError).toBe(true);
+      const text = (refused.content as Array<{ type: string; text?: string }>)
+        .map((block) => block.text ?? "")
+        .join(" ");
+      expect(text).toMatch(/maximum of 10000 elements/);
+
+      const fitting = await client.callTool({
+        name: "count_items",
+        arguments: { items: ["a", "b", "c"] },
+      });
+      expect(fitting.isError).toBeFalsy();
+      expect(fitting.structuredContent).toMatchObject({ count: 3 });
+    } finally {
+      await client.close();
+    }
   });
 });
 

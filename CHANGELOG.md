@@ -6,6 +6,28 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Move the runtime dependencies past their published advisories so
+  `npm audit --omit=dev --audit-level=moderate` passes again:
+  `@modelcontextprotocol/server` 2.0.0 → 2.4.0 (with `core` 2.4.0; fixes
+  GHSA-jm63-cq47-j5jp, GHSA-46jr-4wx8-v453 and GHSA-rvq5-wwqv-78pq),
+  `@modelcontextprotocol/node` 2.0.0 → 2.1.2 (its own version line; brings
+  `hono` 4.13.14, fixing GHSA-5r4p-p66f-jhc7), `zod` 4.4.3 → 4.6.7
+  (GHSA-mrhx-c7xc-m3w5), `stream-json` 3.6.0 → 3.7.0 (GHSA-jj87-hc4r-jwfw)
+  with `stream-chain` 3.6.3 → 4.2.6 so one copy serves both. The test client
+  (`@modelcontextprotocol/client` 2.4.0) and `vitest` 4.1.12 move in step.
+  Behaviour changes carried by the SDK releases: a server instance now serves
+  one connection and a stateless Streamable HTTP transport one request (this
+  server already builds both per POST and per stdio connection, so nothing
+  changes for clients); `prompts/get` without `arguments` is validated as an
+  empty object; the SDK client follows redirects only within the same origin;
+  `notifications/cancelled` for JSON-RPC request id 0 is honored by the SDK
+  itself (the server's own cancellation shim remains until it is retired
+  separately). New in this server: each `tools/call` may carry at most 10,000
+  combined array elements and object members (SDK `maxToolInputElements`);
+  a larger call is answered with an `isError` result instead of being
+  validated, an order of magnitude above any real deck, collection or print
+  order payload.
+
 - Add the Proxy Order Helper tools: `print_prepare` turns a saved deck
   version into a reviewable print job (physical cards counted, an image
   fetched and prepared per face, the attention list), `print_update` changes a
