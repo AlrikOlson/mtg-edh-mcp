@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { DeckStore } from "../deck/deckStore.js";
 import { UserDataStore, retainedBackups } from "./userData.js";
 
@@ -356,5 +357,111 @@ describe("backup and explicit recovery", () => {
     expect(() => open()).toThrow(/missing/);
     UserDataStore.restore(root, external);
     expect(open().deckStore.get(deck.deck_id)?.name).toBe("Saved");
+  });
+});
+
+describe("schema version 2 migration", () => {
+  const V1_SCHEMA =
+    "CREATE TABLE deck_state (id INTEGER PRIMARY KEY CHECK(id = 1), payload TEXT NOT NULL); CREATE TABLE collections (session_id TEXT PRIMARY KEY, payload TEXT NOT NULL); CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)";
+
+  /** A user-data.sqlite exactly as the version-1 store wrote it. */
+  function writeVersionOneFixture(): { deckId: string; snapshotId: string } {
+    const legacy = new DeckStore();
+    const deck = legacy.create({ name: "Kept across migration" }, "alice");
+    const snapshot = legacy.snapshot(deck.deck_id, "alice");
+    legacy.create({ name: "Bob's deck" }, "bob");
+    const db = new Database(join(root, "user-data.sqlite"));
+    db.pragma("journal_mode = WAL");
+    db.exec(V1_SCHEMA);
+    db.prepare("INSERT INTO deck_state (id, payload) VALUES (1, ?)").run(
+      JSON.stringify(legacy.dump()),
+    );
+    db.prepare("INSERT INTO collections (session_id, payload) VALUES (?, ?)").run(
+      "alice",
+      JSON.stringify(["owned-a", "owned-b"]),
+    );
+    db.prepare(
+      "INSERT INTO metadata (key, value) VALUES ('initialized', '1'), ('legacy_decks_imported', '0')",
+    ).run();
+    db.pragma("user_version = 1");
+    db.close();
+    writeFileSync(join(root, "user-data.initialized"), "1\n");
+    return { deckId: deck.deck_id, snapshotId: snapshot.snapshot_id };
+  }
+
+  function userVersion(path: string): number {
+    const db = new Database(path, { readonly: true });
+    try {
+      return z.number().parse(db.pragma("user_version", { simple: true }));
+    } finally {
+      db.close();
+    }
+  }
+
+  const backups = () =>
+    readdirSync(join(root, "backups"))
+      .filter((name) => name.endsWith(".sqlite"))
+      .sort();
+
+  it("migrates a version-1 database once, after a backup, keeping decks and collections", () => {
+    const { deckId, snapshotId } = writeVersionOneFixture();
+    const first = open();
+    expect(first.deckStore.get(deckId, "alice")?.name).toBe("Kept across migration");
+    expect(first.deckStore.getSnapshot(deckId, snapshotId, "alice")?.deck.deck_id).toBe(deckId);
+    expect(first.deckStore.list("bob").map((deck) => deck.name)).toEqual(["Bob's deck"]);
+    expect(first.collection.get("alice")).toEqual(new Set(["owned-a", "owned-b"]));
+    expect(userVersion(join(root, "user-data.sqlite"))).toBe(2);
+    // The pre-migration image is a restorable version-1 backup.
+    expect(backups()).toHaveLength(1);
+    expect(userVersion(join(root, "backups", backups()[0] ?? ""))).toBe(1);
+    expect(first.print.list("alice")).toEqual([]);
+    first.close();
+    const second = open();
+    expect(backups()).toHaveLength(1);
+    expect(second.deckStore.get(deckId, "alice")?.name).toBe("Kept across migration");
+    expect(second.print.getPreset("alice").stock).toBe("(S30) Standard Smooth");
+  });
+
+  it("restores a version-1 backup and migrates it again on the next open", () => {
+    const { deckId } = writeVersionOneFixture();
+    const store = open();
+    store.deckStore.setName(deckId, "Changed after migration", "alice");
+    store.close();
+    const versionOne = backups()[0];
+    if (!versionOne) throw new Error("missing pre-migration backup");
+    const report = UserDataStore.restore(root, join(root, "backups", versionOne));
+    expect(report.preservedPath && existsSync(report.preservedPath)).toBe(true);
+    const restored = open();
+    expect(restored.deckStore.get(deckId, "alice")?.name).toBe("Kept across migration");
+    expect(userVersion(join(root, "user-data.sqlite"))).toBe(2);
+  });
+
+  it("creates a new database at version 2 with the print tables", () => {
+    open().close();
+    const db = new Database(join(root, "user-data.sqlite"), { readonly: true });
+    try {
+      expect(db.pragma("user_version", { simple: true })).toBe(2);
+      const tables = db
+        .prepare("SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name")
+        .all()
+        .map((row) => z.object({ name: z.string() }).parse(row).name);
+      expect(tables).toEqual([
+        "collections",
+        "deck_state",
+        "metadata",
+        "print_jobs",
+        "print_presets",
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("refuses a database from a newer schema", () => {
+    open().close();
+    const db = new Database(join(root, "user-data.sqlite"));
+    db.pragma("user_version = 3");
+    db.close();
+    expect(() => open()).toThrowError(expect.objectContaining({ code: "STORAGE_ERROR" }));
   });
 });

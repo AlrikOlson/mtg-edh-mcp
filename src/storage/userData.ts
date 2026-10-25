@@ -20,12 +20,35 @@ import { DeckStore } from "../deck/deckStore.js";
 import type { DeckStoreDump } from "../deck/deckStore.js";
 import { parseDeckStoreDump } from "../deck/persistence.js";
 import { CollectionStore } from "../collection/collectionStore.js";
+import {
+  OPEN_PRINT_JOB_STATUSES,
+  PrintJobRecordSchema,
+  PrintJobStore,
+  PrintPresetSchema,
+} from "../print/jobStore.js";
 import { StructuredError } from "../types/errors.js";
-import type { UserDataDriver } from "./driver.js";
+import type { PrintDataDriver, PrintJobRow, UserDataDriver } from "./driver.js";
 
 export const USER_DATA_DATABASE_NAME = "user-data.sqlite";
 const DATABASE_NAME = USER_DATA_DATABASE_NAME;
-const SCHEMA_VERSION = 1;
+/**
+ * Schema history. Version 1: deck_state, collections, metadata. Version 2 adds
+ * print_jobs and print_presets (chunk print-job-store). A version-1 database or
+ * backup still validates and migrates once on open, after a pre-migration
+ * backup; a database from a newer schema is refused.
+ */
+const SCHEMA_VERSION = 2;
+const SUPPORTED_SCHEMA_VERSIONS: ReadonlySet<number> = new Set([1, 2]);
+const VERSION_1_SCHEMA_SQL =
+  "CREATE TABLE deck_state (id INTEGER PRIMARY KEY CHECK(id = 1), payload TEXT NOT NULL); CREATE TABLE collections (session_id TEXT PRIMARY KEY, payload TEXT NOT NULL); CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)";
+const OPEN_STATUS_LIST = OPEN_PRINT_JOB_STATUSES.map((status) => `'${status}'`).join(", ");
+/** Version 2: one open job per principal, deck and version is a database invariant. */
+const VERSION_2_SCHEMA_SQL =
+  "CREATE TABLE print_jobs (job_id TEXT PRIMARY KEY, principal TEXT NOT NULL, deck_id TEXT NOT NULL, deck_version INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload TEXT NOT NULL); " +
+  "CREATE INDEX print_jobs_principal ON print_jobs (principal, created_at, job_id); " +
+  `CREATE UNIQUE INDEX print_jobs_open ON print_jobs (principal, deck_id, deck_version) WHERE status IN (${OPEN_STATUS_LIST}); ` +
+  "CREATE TABLE print_presets (principal TEXT PRIMARY KEY, payload TEXT NOT NULL)";
+const PRINT_JOBS_DIRECTORY = "print-jobs";
 const BACKUP_PATTERN = /^user-data-\d{17}-[\da-f-]+\.sqlite$/;
 const collectionSchema = z.array(z.string().min(1));
 const textRow = z.object({ payload: z.string() });
@@ -171,8 +194,17 @@ function loadDecks(db: Database.Database): DeckStoreDump {
   return parseDeckStoreDump(JSON.parse(row.payload));
 }
 
+function schemaVersion(db: Database.Database): number {
+  return z
+    .number()
+    .int()
+    .parse(db.pragma("user_version", { simple: true }));
+}
+
+/** Accepts every supported schema version so a version-1 backup can still be selected. */
 export function validateUserDataDatabase(db: Database.Database): void {
-  if (db.pragma("user_version", { simple: true }) !== SCHEMA_VERSION)
+  const version = schemaVersion(db);
+  if (!SUPPORTED_SCHEMA_VERSIONS.has(version))
     throw new Error("unsupported or incomplete user-data schema; select a backup to restore");
   if (db.pragma("integrity_check", { simple: true }) !== "ok")
     throw new Error("SQLite integrity check failed");
@@ -184,9 +216,15 @@ export function validateUserDataDatabase(db: Database.Database): void {
   z.object({ value: z.literal("1") }).parse(
     db.prepare("SELECT value FROM metadata WHERE key = 'initialized'").get(),
   );
+  if (version >= 2) {
+    for (const value of db.prepare("SELECT payload FROM print_jobs").all())
+      PrintJobRecordSchema.parse(JSON.parse(textRow.parse(value).payload));
+    for (const value of db.prepare("SELECT payload FROM print_presets").all())
+      PrintPresetSchema.parse(JSON.parse(textRow.parse(value).payload));
+  }
 }
 
-class SqliteUserDataDriver implements UserDataDriver {
+class SqliteUserDataDriver implements UserDataDriver, PrintDataDriver {
   private active = false;
   private changed = false;
   private notifications: Array<() => void> = [];
@@ -329,11 +367,138 @@ class SqliteUserDataDriver implements UserDataDriver {
       throw storageError("Cannot save collection; no changes saved", error);
     }
   }
+
+  /** Raise a version-1 database to version 2 inside one transaction, after the usual backup. */
+  migrate(): void {
+    this.transaction(() => {
+      if (schemaVersion(this.db) !== 1) return;
+      try {
+        this.beforeWrite();
+        this.db.exec(VERSION_2_SCHEMA_SQL);
+        this.db.pragma(`user_version = ${SCHEMA_VERSION}`);
+      } catch (error) {
+        if (error instanceof StructuredError) throw error;
+        throw storageError("User-data schema migration failed; the database is unchanged", error);
+      }
+    });
+  }
+
+  getPrintJob(principal: string, jobId: string): unknown {
+    return this.readPrint("Cannot read print job", () =>
+      this.payloadOf(
+        this.db
+          .prepare("SELECT payload FROM print_jobs WHERE job_id = ? AND principal = ?")
+          .get(jobId, principal),
+      ),
+    );
+  }
+
+  findOpenPrintJob(principal: string, deckId: string, deckVersion: number): unknown {
+    return this.readPrint("Cannot read print job", () =>
+      this.payloadOf(
+        this.db
+          .prepare(
+            `SELECT payload FROM print_jobs WHERE principal = ? AND deck_id = ? AND deck_version = ? AND status IN (${OPEN_STATUS_LIST})`,
+          )
+          .get(principal, deckId, deckVersion),
+      ),
+    );
+  }
+
+  listPrintJobs(principal: string, limit: number): unknown[] {
+    return this.readPrint("Cannot list print jobs", () =>
+      this.db
+        .prepare(
+          "SELECT payload FROM print_jobs WHERE principal = ? ORDER BY created_at DESC, job_id DESC LIMIT ?",
+        )
+        .all(principal, z.number().int().positive().parse(limit))
+        .map((value) => this.payloadOf(value)),
+    );
+  }
+
+  insertPrintJob(row: PrintJobRow): void {
+    try {
+      this.beforeWrite();
+      this.db
+        .prepare(
+          "INSERT INTO print_jobs (job_id, principal, deck_id, deck_version, status, created_at, updated_at, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(
+          row.job_id,
+          row.principal,
+          row.deck_id,
+          row.deck_version,
+          row.status,
+          row.created_at,
+          row.updated_at,
+          JSON.stringify(row.payload),
+        );
+    } catch (error) {
+      if (error instanceof StructuredError) throw error;
+      throw storageError("Cannot create print job; nothing was saved", error);
+    }
+  }
+
+  updatePrintJob(
+    principal: string,
+    jobId: string,
+    status: string,
+    updatedAt: string,
+    payload: unknown,
+  ): boolean {
+    try {
+      this.beforeWrite();
+      const result = this.db
+        .prepare(
+          "UPDATE print_jobs SET status = ?, updated_at = ?, payload = ? WHERE job_id = ? AND principal = ?",
+        )
+        .run(status, updatedAt, JSON.stringify(payload), jobId, principal);
+      return result.changes === 1;
+    } catch (error) {
+      if (error instanceof StructuredError) throw error;
+      throw storageError("Cannot save print job; the previous state is kept", error);
+    }
+  }
+
+  getPrintPreset(principal: string): unknown {
+    return this.readPrint("Cannot read print preset", () =>
+      this.payloadOf(
+        this.db.prepare("SELECT payload FROM print_presets WHERE principal = ?").get(principal),
+      ),
+    );
+  }
+
+  setPrintPreset(principal: string, payload: unknown): void {
+    try {
+      this.beforeWrite();
+      this.db
+        .prepare(
+          "INSERT INTO print_presets (principal, payload) VALUES (?, ?) ON CONFLICT(principal) DO UPDATE SET payload = excluded.payload",
+        )
+        .run(principal, JSON.stringify(payload));
+    } catch (error) {
+      if (error instanceof StructuredError) throw error;
+      throw storageError("Cannot save print preset; no changes saved", error);
+    }
+  }
+
+  private payloadOf(value: unknown): unknown {
+    return value === undefined ? null : JSON.parse(textRow.parse(value).payload);
+  }
+
+  private readPrint<T>(context: string, body: () => T): T {
+    try {
+      return body();
+    } catch (error) {
+      throw storageError(context, error);
+    }
+  }
 }
 
 export class UserDataStore {
   readonly deckStore: DeckStore;
   readonly collection: CollectionStore;
+  readonly print: PrintJobStore;
   private readonly db: Database.Database;
   private readonly coordination: Database.Database;
 
@@ -383,9 +548,7 @@ export class UserDataStore {
         db.pragma("synchronous = FULL");
         db.transaction(() => {
           if (db?.pragma("user_version", { simple: true }) === SCHEMA_VERSION) return;
-          db?.exec(
-            "CREATE TABLE deck_state (id INTEGER PRIMARY KEY CHECK(id = 1), payload TEXT NOT NULL); CREATE TABLE collections (session_id TEXT PRIMARY KEY, payload TEXT NOT NULL); CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
-          );
+          db?.exec(`${VERSION_1_SCHEMA_SQL}; ${VERSION_2_SCHEMA_SQL}`);
           db?.prepare("INSERT INTO deck_state (id, payload) VALUES (1, ?)").run(
             JSON.stringify(legacy ?? { decks: [], snapshots: [] }),
           );
@@ -400,10 +563,15 @@ export class UserDataStore {
       db.pragma("journal_mode = WAL");
       db.pragma("synchronous = FULL");
       const driver = new SqliteUserDataDriver(db, root, options);
+      if (schemaVersion(db) < SCHEMA_VERSION) {
+        driver.migrate();
+        validateUserDataDatabase(db);
+      }
       this.db = db;
       this.coordination = coordination;
       this.deckStore = new DeckStore({ driver });
       this.collection = new CollectionStore(driver);
+      this.print = new PrintJobStore(driver, { jobRoot: join(root, PRINT_JOBS_DIRECTORY) });
     } catch (error) {
       db?.close();
       coordination.close();

@@ -6,6 +6,18 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Persist print jobs and the user's print preset. The user-data store moves to
+  schema version 2 with `print_jobs` and `print_presets`; a version-1 database
+  migrates once on open after the usual pre-operation backup, a version-1 backup
+  still restores, and a newer schema is refused. Each job pins the reviewed deck
+  version and manifest, keeps the chosen image per slot, stock, foil and card
+  back, its job directory and printer project name, and moves through
+  prepared, reviewed, starting, filling, filled, failed and cancelled; preparing
+  the same deck version again returns the open job instead of a duplicate, and
+  jobs are invisible across principals. Migration: an older release refuses the
+  upgraded database; restore the pre-migration backup to go back. The `print_*`
+  tools that use the store are not registered yet.
+
 - Collect stale card-data versions. Every refresh now ends, under the refresh
   lock, by removing version directories other than the published `current`,
   `previous` and the version that was current when the run started, plus
