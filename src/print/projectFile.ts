@@ -28,12 +28,8 @@ import { mkdir } from "node:fs/promises";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import type { ScryfallImageFace } from "../ingest/live.js";
-import {
-  writeFileAtomically,
-  type ImageAttentionItem,
-  type PreparedFace,
-  type PrintImageResolution,
-} from "./imageSelector.js";
+import { writeFileAtomically } from "./atomicWrite.js";
+import type { ImageAttentionItem, PreparedFace, PrintImageResolution } from "./imageSelector.js";
 import { PRINT_STOCKS, type PrintImageRef, type PrintJobRecord } from "./jobStore.js";
 import type { PrintCard, PrintManifest } from "./manifest.js";
 

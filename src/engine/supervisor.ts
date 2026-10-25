@@ -15,6 +15,12 @@
  * unrouted reply, a framing failure, an early exit) ends the session with a
  * typed {@link WorkerFailure} instead of a guess.
  *
+ * The frame vocabulary is a {@link WorkerWire}: the engine worker speaks the
+ * generated protocol ({@link ENGINE_WIRE}); the print helper's browser filler
+ * speaks its own small frames through the same process discipline. The wire
+ * only encodes, decodes and names request ids; every limit, timer and kill
+ * path below is shared.
+ *
  * Reference: https://nodejs.org/api/child_process.html (spawn with explicit
  * argv, `stdio: "pipe"`, `kill`, and the `close` event that follows every pipe).
  */
@@ -23,6 +29,42 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { encodeRequestFrame, WorkerFrameDecoder } from "./protocol.js";
 import type { RequestMessage, Response } from "./protocol.generated.js";
+
+/** Bounded LF-frame decoder for one process's stdout; once it throws it must be discarded. */
+export interface WorkerFrameReader<Res> {
+  push(chunk: Uint8Array): Res[];
+  /** End of stream: throws when a partial frame is left behind. */
+  finish(): void;
+}
+
+/**
+ * The frame vocabulary a worker speaks. Every method is pure apart from
+ * `createDecoder`, which returns a fresh reader per process.
+ */
+export interface WorkerWire<Req, Res> {
+  createDecoder(): WorkerFrameReader<Res>;
+  /** One request as bytes including its LF delimiter; throws on an invalid or oversized frame. */
+  encodeRequest(frame: { request_id: string; message: Req }): Buffer;
+  /** The request id a reply answers, or null for an unattributed reply. */
+  replyRequestId(reply: Res): string | null;
+  /** True for the request whose replies stream until an outcome and which `cancel` targets. */
+  isRun(message: Req): boolean;
+  /** The out-of-band cancel for the live run with that request id. */
+  cancelMessage(runRequestId: string): Req;
+}
+
+/** The canonical engine worker's protocol-6 frames. */
+export const ENGINE_WIRE: WorkerWire<RequestMessage, Response> = Object.freeze({
+  createDecoder: (): WorkerFrameReader<Response> => new WorkerFrameDecoder(),
+  encodeRequest: (frame: { request_id: string; message: RequestMessage }): Buffer =>
+    encodeRequestFrame(frame),
+  replyRequestId: (reply: Response): string | null => reply.request_id ?? null,
+  isRun: (message: RequestMessage): boolean => message.type === "run",
+  cancelMessage: (runRequestId: string): RequestMessage => ({
+    type: "cancel",
+    data: { run_request_id: runRequestId },
+  }),
+});
 
 /**
  * How the parent measured the worker's resident size. Node exposes no API for
@@ -90,11 +132,13 @@ export function defaultMemoryProbe(): MemoryProbe {
   return existsSync("/proc/self/status") ? procStatusProbe : psRssProbe;
 }
 
-export interface SupervisorOptions {
+export interface SupervisorOptions<Req = RequestMessage, Res = Response> {
   /** Absolute path of the worker executable. Fixed for the supervisor's lifetime. */
   readonly executable: string;
   /** Fixed argument array; nothing from a request is ever appended. */
   readonly args: readonly string[];
+  /** The worker's frame vocabulary; the engine worker passes {@link ENGINE_WIRE}. */
+  readonly wire: WorkerWire<Req, Res>;
   /** Maximum simultaneously live workers; further runs are refused as `busy`. */
   readonly maxConcurrent?: number;
   /** Milliseconds between a cooperative cancel or SIGTERM and SIGKILL. */
@@ -166,18 +210,14 @@ export class WorkerFailure extends Error {
   }
 }
 
-export interface WorkerSession {
+export interface WorkerSession<Req = RequestMessage, Res = Response> {
   /** Send one request and resolve with the single reply carrying its id. */
-  exchange(requestId: string, message: RequestMessage): Promise<Response>;
+  exchange(requestId: string, message: Req): Promise<Res>;
   /**
    * Send one request whose replies stream under its id; `onReply` returns true
    * for the terminal reply. A `run` is terminal on its `outcome`.
    */
-  stream(
-    requestId: string,
-    message: RequestMessage,
-    onReply: (reply: Response) => boolean,
-  ): Promise<Response>;
+  stream(requestId: string, message: Req, onReply: (reply: Res) => boolean): Promise<Res>;
   /**
    * Out-of-band cancel of the live run. The worker acknowledges after the run's
    * outcome; the acknowledgement is consumed here and never surfaced.
@@ -192,9 +232,9 @@ export interface RunResult<T> {
   readonly receipt: WorkerReceipt;
 }
 
-interface Waiter {
-  readonly onReply: (reply: Response) => boolean;
-  readonly resolve: (reply: Response) => void;
+interface Waiter<Res> {
+  readonly onReply: (reply: Res) => boolean;
+  readonly resolve: (reply: Res) => void;
   readonly reject: (error: WorkerFailure) => void;
 }
 
@@ -203,19 +243,21 @@ const DEFAULT_KILL_GRACE_MS = 1000;
 const DEFAULT_MAX_STDERR_BYTES = 16 * 1024;
 const DEFAULT_MEMORY_POLL_MS = 250;
 
-export class WorkerSupervisor {
+export class WorkerSupervisor<Req = RequestMessage, Res = Response> {
   private readonly executable: string;
   private readonly args: readonly string[];
   private readonly maxConcurrent: number;
+  readonly wire: WorkerWire<Req, Res>;
   readonly killGraceMs: number;
   readonly maxStderrBytes: number;
   readonly memoryProbe: MemoryProbe;
   readonly memoryPollMs: number;
   private live = 0;
 
-  constructor(options: SupervisorOptions) {
+  constructor(options: SupervisorOptions<Req, Res>) {
     this.executable = options.executable;
     this.args = Object.freeze([...options.args]);
+    this.wire = options.wire;
     this.maxConcurrent = options.maxConcurrent ?? DEFAULT_MAX_CONCURRENT;
     this.killGraceMs = options.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
     this.maxStderrBytes = options.maxStderrBytes ?? DEFAULT_MAX_STDERR_BYTES;
@@ -235,7 +277,7 @@ export class WorkerSupervisor {
    * session first. Either way the worker is gone when the promise settles.
    */
   async run<T>(
-    body: (session: WorkerSession) => Promise<T>,
+    body: (session: WorkerSession<Req, Res>) => Promise<T>,
     options: RunOptions,
   ): Promise<RunResult<T>> {
     if (!Number.isInteger(options.maxElapsedMs) || options.maxElapsedMs <= 0)
@@ -253,7 +295,7 @@ export class WorkerSupervisor {
       throw new WorkerFailure("aborted", "cancelled before the worker started");
     this.live += 1;
     try {
-      return await new Lifetime(this, options).execute(body);
+      return await new Lifetime<Req, Res>(this, options).execute(body);
     } finally {
       this.live -= 1;
     }
@@ -273,9 +315,9 @@ export class WorkerSupervisor {
 }
 
 /** One worker process from spawn to close. */
-class Lifetime {
-  private readonly decoder = new WorkerFrameDecoder();
-  private readonly waiters = new Map<string, Waiter>();
+class Lifetime<Req, Res> {
+  private readonly decoder: WorkerFrameReader<Res>;
+  private readonly waiters = new Map<string, Waiter<Res>>();
   private readonly abort = new AbortController();
   private readonly started = Date.now();
   private child: ChildProcess | null = null;
@@ -301,11 +343,13 @@ class Lifetime {
   private memoryEnforcement: MemoryEnforcement = "none";
 
   constructor(
-    private readonly supervisor: WorkerSupervisor,
+    private readonly supervisor: WorkerSupervisor<Req, Res>,
     private readonly options: RunOptions,
-  ) {}
+  ) {
+    this.decoder = supervisor.wire.createDecoder();
+  }
 
-  async execute<T>(body: (session: WorkerSession) => Promise<T>): Promise<RunResult<T>> {
+  async execute<T>(body: (session: WorkerSession<Req, Res>) => Promise<T>): Promise<RunResult<T>> {
     const child = this.supervisor.spawnWorker();
     this.child = child;
     const closed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
@@ -333,7 +377,7 @@ class Lifetime {
     const onAbort = () => this.onAbort();
     this.options.signal?.addEventListener("abort", onAbort, { once: true });
 
-    const session: WorkerSession = {
+    const session: WorkerSession<Req, Res> = {
       exchange: (requestId, message) => this.stream(requestId, message, () => true),
       stream: (requestId, message, onReply) => this.stream(requestId, message, onReply),
       cancel: (runRequestId) => this.cancel(runRequestId),
@@ -402,12 +446,8 @@ class Lifetime {
     this.rejectAll(this.termination === "closed" ? "crashed" : this.termination);
   }
 
-  private stream(
-    requestId: string,
-    message: RequestMessage,
-    onReply: (reply: Response) => boolean,
-  ): Promise<Response> {
-    return new Promise<Response>((resolve, reject) => {
+  private stream(requestId: string, message: Req, onReply: (reply: Res) => boolean): Promise<Res> {
+    return new Promise<Res>((resolve, reject) => {
       if (this.termination !== null) {
         reject(new WorkerFailure(this.termination, `worker ${this.termination}`));
         return;
@@ -418,7 +458,7 @@ class Lifetime {
       }
       let frame: Buffer;
       try {
-        frame = encodeRequestFrame({ request_id: requestId, message });
+        frame = this.supervisor.wire.encodeRequest({ request_id: requestId, message });
       } catch (error) {
         reject(new WorkerFailure("protocol", error instanceof Error ? error.message : "encode"));
         return;
@@ -440,7 +480,7 @@ class Lifetime {
       });
       this.requests += 1;
       this.child?.stdin?.write(frame);
-      if (message.type === "run") {
+      if (this.supervisor.wire.isRun(message)) {
         this.liveRun = requestId;
         this.cancelSent = false;
         // Parent cancelled between the decision to run and the send: honor it
@@ -462,9 +502,9 @@ class Lifetime {
     });
     this.requests += 1;
     this.child?.stdin?.write(
-      encodeRequestFrame({
+      this.supervisor.wire.encodeRequest({
         request_id: cancelRequestId,
-        message: { type: "cancel", data: { run_request_id: runRequestId } },
+        message: this.supervisor.wire.cancelMessage(runRequestId),
       }),
     );
   }
@@ -476,7 +516,7 @@ class Lifetime {
       this.fail("output_limit");
       return;
     }
-    let replies: Response[];
+    let replies: Res[];
     try {
       replies = this.decoder.push(chunk);
     } catch {
@@ -485,7 +525,7 @@ class Lifetime {
     }
     for (const reply of replies) {
       this.responses += 1;
-      const id = reply.request_id ?? null;
+      const id = this.supervisor.wire.replyRequestId(reply);
       const waiter = id === null ? undefined : this.waiters.get(id);
       if (id === null || !waiter) {
         // A reply nothing asked for (including an unattributed malformed_frame

@@ -8,6 +8,7 @@ import {
   type Response,
 } from "./protocol.generated.js";
 import {
+  ENGINE_WIRE,
   WorkerFailure,
   WorkerSupervisor,
   type MemoryProbe,
@@ -39,6 +40,7 @@ function supervisor(
   return new WorkerSupervisor({
     executable: process.execPath,
     args: fakeWorkerArgs(mode),
+    wire: ENGINE_WIRE,
     maxConcurrent: extra.maxConcurrent ?? 1,
     killGraceMs: extra.grace ?? 300,
     maxStderrBytes: 4096,
@@ -379,6 +381,7 @@ describe("WorkerSupervisor", () => {
     const sup = new WorkerSupervisor({
       executable: "/nonexistent/mtg-worker",
       args: ["--protocol"],
+      wire: ENGINE_WIRE,
     });
     const error = await failure(sup.run(async (session) => session.exchange("h", hello), limits));
     expect(error.reason).toBe("spawn_failed");
@@ -407,6 +410,7 @@ describe("WorkerSupervisor", () => {
       const sup = new WorkerSupervisor({
         executable: binary,
         args: ["--bogus"],
+        wire: ENGINE_WIRE,
         maxConcurrent: 1,
         killGraceMs: 300,
         maxStderrBytes: 4096,

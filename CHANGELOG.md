@@ -6,6 +6,23 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Fill MakePlayingCards projects with our own supervised browser worker. A
+  reviewed print job is placed into a printer project named after the job: the
+  worker opens a headed browser on a persistent profile under the data
+  directory (sign in once; the filler never handles a password), reopens the
+  saved project of that name or defines a new one with the order's stock,
+  bracket and foil, uploads each image once and places it on its slots,
+  skipping slots the printer already shows filled, sets the card back and the
+  double-faced backs, saves the project to the account, and stops on the
+  preview page for you to review and pay. Progress and failures are recorded
+  on the job (`starting`, `filling`, `filled`, `failed` with the step name,
+  `cancelled`); a failure also leaves a screenshot and `fill-state.json` in
+  the job directory next to the retained `project.json` and `cards.xml`. The
+  worker is spawned through the same supervisor as the engine worker and the
+  server never loads Playwright itself. New dependency: `playwright` 1.64
+  (no browser is downloaded at install; see INSTALL). The `print_*` tools that
+  start the filler are not registered yet.
+
 - Write the print project file. A reviewed print job whose images are all
   resolved is frozen into `project.json` in the job directory (zero-based
   contiguous slots in manifest order, fronts and backs grouped by image, the

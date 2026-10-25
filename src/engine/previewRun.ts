@@ -40,6 +40,7 @@ import {
   type Response,
 } from "./protocol.generated.js";
 import {
+  ENGINE_WIRE,
   WorkerFailure,
   WorkerSupervisor,
   type RunResult,
@@ -236,6 +237,7 @@ export class PreviewFixtureService {
     this.supervisor = new WorkerSupervisor({
       executable: options.executable,
       args: options.args ?? ["--protocol"],
+      wire: ENGINE_WIRE,
       maxConcurrent: options.maxConcurrent ?? 2,
       killGraceMs: PREVIEW_KILL_GRACE_MS,
     });

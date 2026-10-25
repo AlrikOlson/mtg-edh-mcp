@@ -22,12 +22,13 @@
  * `<job_dir>/images/slot-<nnn>-<face>.<ext>` and `card-back.<ext>` are what
  * the project file will reference. The selector creates the job directory.
  */
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { ScryfallImageFace } from "../ingest/live.js";
 import { StructuredError } from "../types/errors.js";
 import type { Card, Printing } from "../types/index.js";
 import type { CardLookup } from "../validate/index.js";
+import { writeFileAtomically } from "./atomicWrite.js";
 import { communityQuery, type CommunityCandidate, type CommunityImageSource } from "./community.js";
 import {
   MPC_POKER_HEIGHT_PX,
@@ -527,13 +528,6 @@ class Resolver {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-/** Write `bytes` through a temporary file and rename, so a reader never sees a partial file. */
-export async function writeFileAtomically(path: string, bytes: Uint8Array): Promise<void> {
-  const temporary = `${path}.tmp-${process.pid}`;
-  await writeFile(temporary, bytes);
-  await rename(temporary, path);
 }
 
 /**

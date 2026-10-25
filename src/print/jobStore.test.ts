@@ -284,6 +284,21 @@ describe("print job store", () => {
       kind: "locked",
       status: "filling",
     });
+    // The filler reports progress while filling without a status change; filling -> filling is not a transition.
+    expect(store.print.transition("alice", id, "filling")).toEqual({
+      kind: "invalid_transition",
+      from: "filling",
+      to: "filling",
+    });
+    expect(
+      store.print.recordProgress("alice", id, { slots_filled: 3, slots_total: 4 }),
+    ).toMatchObject({
+      kind: "updated",
+      job: { status: "filling", progress: { slots_filled: 3, slots_total: 4 } },
+    });
+    expect(store.print.recordProgress("bob", id, { slots_filled: 4, slots_total: 4 })).toEqual({
+      kind: "not_found",
+    });
     expect(
       store.print.transition("alice", id, "failed", {
         failure: { step: "upload", message: "selector not found" },
@@ -307,6 +322,10 @@ describe("print job store", () => {
       });
     }
     expect(store.print.update("alice", id, { settings: { foil: true } })).toEqual({
+      kind: "locked",
+      status: "filled",
+    });
+    expect(store.print.recordProgress("alice", id, { slots_filled: 4, slots_total: 4 })).toEqual({
       kind: "locked",
       status: "filled",
     });

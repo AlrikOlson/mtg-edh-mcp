@@ -414,6 +414,21 @@ export class PrintJobStore {
     });
   }
 
+  /** Record the filler's progress on a job that is starting or filling, without a status change. */
+  recordProgress(
+    principal: string,
+    jobId: string,
+    progress: PrintJobProgress,
+  ): PrintJobUpdateResult {
+    return this.driver.transaction(() => {
+      const job = this.get(principal, jobId);
+      if (!job) return { kind: "not_found" };
+      if (job.status !== "starting" && job.status !== "filling")
+        return { kind: "locked", status: job.status };
+      return this.save({ ...job, progress });
+    });
+  }
+
   /** Move a job along its status machine, recording fill progress or the failure. */
   transition(
     principal: string,

@@ -20,6 +20,14 @@ optional dependencies enabled in your package manager. If no prebuilt
 needs Python and a C/C++ build toolchain; for `sharp`, install
 `@img/sharp-wasm32` alongside it to use the WebAssembly build instead.
 
+The print helper's browser filler drives makeplayingcards.com through
+Playwright in a separate worker process. Installing the server downloads no
+browser: the filler uses Playwright's bundled Chromium when
+`npx playwright install chromium` has been run (about 150 MB, kept in
+Playwright's cache directory), or an installed Google Chrome otherwise. With
+neither, `print_status` reports a `browser_missing` attention item with the
+install command; the server itself starts and serves every other tool.
+
 ## 1. Build the server
 
 ```sh
@@ -386,16 +394,17 @@ old publication path; stop those before upgrading.
 
 ## Troubleshooting
 
-| Symptom                                               | Check                                                                                                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `node` not found in the client                        | Use an absolute Node executable path. On macOS / Linux, `command -v node` prints it. GUI applications may not inherit your shell's PATH.                     |
-| Missing card tools or `has_index: false`              | Run `doctor`, confirm `data_status` reports readiness and the same absolute `MCP_DATA_DIR`, then request `tools/list` again.                                 |
-| SQLite native-module installation or ABI error        | Use Node 24 and run `npm ci` again after changing Node versions. Install a native build toolchain if your platform has no prebuilt binary.                   |
-| `sharp` fails to load (missing `@img/sharp-*` binary) | Run `npm ci` with optional dependencies enabled, or `npm install sharp @img/sharp-wasm32` for the WebAssembly build. Only the `print_*` image steps need it. |
-| Download failure                                      | Check network access, writable storage, and free disk space; retry ingestion and inspect stderr for the upstream error.                                      |
-| A deck disappears after restarting                    | Verify the data directory and principal namespace; inspect `STORAGE_ERROR` guidance and the user-data restore procedure above.                               |
-| Community recommendations or combos unavailable       | Check the tool's upstream error. Local search, validation, and analysis remain available.                                                                    |
-| HTTP port already in use                              | Choose another `MCP_HTTP_PORT` or stop the existing server.                                                                                                  |
+| Symptom                                               | Check                                                                                                                                                                                                          |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node` not found in the client                        | Use an absolute Node executable path. On macOS / Linux, `command -v node` prints it. GUI applications may not inherit your shell's PATH.                                                                       |
+| Missing card tools or `has_index: false`              | Run `doctor`, confirm `data_status` reports readiness and the same absolute `MCP_DATA_DIR`, then request `tools/list` again.                                                                                   |
+| SQLite native-module installation or ABI error        | Use Node 24 and run `npm ci` again after changing Node versions. Install a native build toolchain if your platform has no prebuilt binary.                                                                     |
+| `sharp` fails to load (missing `@img/sharp-*` binary) | Run `npm ci` with optional dependencies enabled, or `npm install sharp @img/sharp-wasm32` for the WebAssembly build. Only the `print_*` image steps need it.                                                   |
+| `print_status` reports `browser_missing`              | Run `npx playwright install chromium` in the server's checkout, or install Google Chrome; the filler needs one of them. `worker_missing` means `dist/print-filler.js` is absent: rebuild with `npm run build`. |
+| Download failure                                      | Check network access, writable storage, and free disk space; retry ingestion and inspect stderr for the upstream error.                                                                                        |
+| A deck disappears after restarting                    | Verify the data directory and principal namespace; inspect `STORAGE_ERROR` guidance and the user-data restore procedure above.                                                                                 |
+| Community recommendations or combos unavailable       | Check the tool's upstream error. Local search, validation, and analysis remain available.                                                                                                                      |
+| HTTP port already in use                              | Choose another `MCP_HTTP_PORT` or stop the existing server.                                                                                                                                                    |
 
 For unresolved issues, include your OS, Node version, project revision,
 transport, reproduction steps, and redacted stderr in a
