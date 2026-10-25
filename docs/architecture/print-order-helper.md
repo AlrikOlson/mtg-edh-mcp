@@ -7,7 +7,7 @@ The Proxy Order Helper turns a saved Commander deck into a MakePlayingCards orde
 | Which physical cards a deck needs                              | `src/print/manifest.ts`                                      | [print-card-manifest](print-card-manifest.md)   |
 | Durable jobs and the user's print preset                       | `src/print/jobStore.ts` (user-data schema version 2)         | [print-job-store](print-job-store.md)           |
 | Image choice, fetch, cache and preparation                     | `src/print/imageSelector.ts`, `imagePrep.ts`, `community.ts` | [print-image-selector](print-image-selector.md) |
-| The project document and the MPC Autofill `cards.xml`          | pending (`print-project-file`)                               |                                                 |
+| The project document and the MPC Autofill `cards.xml`          | `src/print/projectFile.ts`                                   | [print-project-file](print-project-file.md)     |
 | The supervised browser filler                                  | pending (`print-mpc-filler`)                                 |                                                 |
 | `print_prepare`, `print_update`, `print_start`, `print_status` | pending (`print-mcp-tools`)                                  |                                                 |
 
@@ -39,4 +39,8 @@ Wizards of the Coast's Fan Content Policy does not cover proxies and some print 
 
 ## Manual checkpoints
 
-Evidence from manual runs against the real printer belongs here as the later units land (`print-project-file` names a checkpoint run with MPC Autofill 4.7 against the exported `cards.xml`). None recorded yet.
+Evidence from manual runs against the real printer belongs here as the later units land.
+
+| Checkpoint                                                                                               | Status                                                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MPC Autofill 4.7 fills the expected slots and backs on makeplayingcards.com from an exported `cards.xml` | **Pending.** Needs the user's printer login in a real browser. The export was instead checked against the schema's example, the frontend exporter and the desktop tool's parser ([print-project-file](print-project-file.md), 2026-10-25) |

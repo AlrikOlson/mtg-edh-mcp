@@ -6,6 +6,18 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Write the print project file. A reviewed print job whose images are all
+  resolved is frozen into `project.json` in the job directory (zero-based
+  contiguous slots in manifest order, fronts and backs grouped by image, the
+  global card back, quantity, the MakePlayingCards bracket, stock, foil and the
+  printer project name) and into an MPC Autofill `cards.xml` with absolute
+  `Local File` paths, so the order can be finished with the community desktop
+  tool if the browser filler is unavailable. Stock and foil are validated
+  against the schema before writing, both files are written atomically and
+  retained, and a resolution with any unresolved face is refused rather than
+  written with holes. `mtg-edh-mcp doctor` now checks the `print-jobs`
+  directory's permissions.
+
 - Select and prepare print images. For every face a print manifest names, the
   image selector honours the job's recorded choice, falls back to the newest
   catalog printing (then set code, then collector number, so the default is

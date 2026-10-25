@@ -9,6 +9,7 @@ import { DEFAULT_DATA_ROOT, freshnessConfigFromEnv } from "../index/freshness.js
 import { VersionedStore, type CurrentPointer } from "../ingest/store.js";
 import { RULES_STALE_AFTER_MS, RulesStore, openCurrentRules } from "../rules/index.js";
 import {
+  PRINT_JOBS_DIRECTORY,
   USER_DATA_DATABASE_NAME,
   UserDataStore,
   validateUserDataDatabase,
@@ -541,6 +542,7 @@ export async function runDoctor(options: SetupOptions): Promise<DiagnosticReport
       [`${USER_DATA_DATABASE_NAME}-journal`, false],
       ["versions", true],
       ["backups", true],
+      [PRINT_JOBS_DIRECTORY, true],
     ] as const) {
       const filename = join(report.paths.dataRoot, name);
       if (!(await exists(filename))) continue;
@@ -552,14 +554,14 @@ export async function runDoctor(options: SetupOptions): Promise<DiagnosticReport
       name: "storage_permissions",
       status: "ok",
       message:
-        "Existing writable user storage, coordination files, backup and version directories pass permission checks.",
+        "Existing writable user storage, coordination files, backup, version and print-job directories pass permission checks.",
     });
   } catch {
     report.checks.push({
       name: "storage_permissions",
       status: "error",
       message: "An existing storage path has the wrong type or lacks required permissions.",
-      fix: "Grant this user read/write access to user-data.sqlite and coordination files, and read/write/traversal access to backups and versions directories; rerun doctor.",
+      fix: "Grant this user read/write access to user-data.sqlite and coordination files, and read/write/traversal access to the backups, versions and print-jobs directories; rerun doctor.",
     });
   }
   await inspectUserData(report);

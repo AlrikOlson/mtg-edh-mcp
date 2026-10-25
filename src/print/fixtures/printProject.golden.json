@@ -1,0 +1,36 @@
+{
+  "format": "mtg-edh-print-project",
+  "version": 1,
+  "job_id": "0f1e2d3c-4b5a-4978-8a9b-0c1d2e3f4a5b",
+  "project_name": "mtg-edh-print-0f1e2d3c",
+  "deck": {
+    "deck_id": "deck-1",
+    "deck_name": "Print me",
+    "version": 3,
+    "data_snapshot": "snap-1"
+  },
+  "quantity": 6,
+  "bracket": 18,
+  "stock": "(S33) Superior Smooth",
+  "foil": true,
+  "card_back": "images/card-back.png",
+  "slots": [
+    { "slot": 0, "name": "Commander", "oracle_id": "cmd", "source": "commander" },
+    { "slot": 1, "name": "Alpha", "oracle_id": "alpha", "source": "library" },
+    { "slot": 2, "name": "Alpha", "oracle_id": "alpha", "source": "library" },
+    { "slot": 3, "name": "Alpha", "oracle_id": "alpha", "source": "library" },
+    { "slot": 4, "name": "Alpha", "oracle_id": "alpha", "source": "library" },
+    {
+      "slot": 5,
+      "name": "Delver of Secrets // Insectile Aberration",
+      "oracle_id": "dfc",
+      "source": "library"
+    }
+  ],
+  "fronts": [
+    { "path": "images/slot-001-front.png", "name": "slot-001-front.png", "slots": [0] },
+    { "path": "images/slot-002-front.png", "name": "slot-002-front.png", "slots": [1, 2, 3, 4] },
+    { "path": "images/slot-006-front.png", "name": "slot-006-front.png", "slots": [5] }
+  ],
+  "backs": [{ "path": "images/slot-006-back.png", "name": "slot-006-back.png", "slots": [5] }]
+}

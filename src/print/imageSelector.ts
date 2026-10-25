@@ -382,7 +382,7 @@ class Resolver {
       } catch (error) {
         return this.scryfallFailure(error, ref.scryfall_id, target);
       }
-      await writeAtomically(cachePath, bytes);
+      await writeFileAtomically(cachePath, bytes);
     }
     try {
       return await this.prepared(bytes, ref, target);
@@ -463,7 +463,7 @@ class Resolver {
     }
     const extension = extname(ref.path).toLowerCase() || ".png";
     const path = join(this.imagesDir, `${target.stem}${extension}`);
-    await writeAtomically(path, bytes);
+    await writeFileAtomically(path, bytes);
     return {
       kind: "ready",
       face: {
@@ -513,7 +513,7 @@ class Resolver {
   ): Promise<FaceOutcome> {
     const image = await prepareCardImage(bytes);
     const path = join(this.imagesDir, `${target.stem}.png`);
-    await writeAtomically(path, image.bytes);
+    await writeFileAtomically(path, image.bytes);
     return {
       kind: "ready",
       face: { path, width: image.width, height: image.height, treatment: image.treatment, source },
@@ -529,7 +529,8 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function writeAtomically(path: string, bytes: Uint8Array): Promise<void> {
+/** Write `bytes` through a temporary file and rename, so a reader never sees a partial file. */
+export async function writeFileAtomically(path: string, bytes: Uint8Array): Promise<void> {
   const temporary = `${path}.tmp-${process.pid}`;
   await writeFile(temporary, bytes);
   await rename(temporary, path);

@@ -48,7 +48,8 @@ const VERSION_2_SCHEMA_SQL =
   "CREATE INDEX print_jobs_principal ON print_jobs (principal, created_at, job_id); " +
   `CREATE UNIQUE INDEX print_jobs_open ON print_jobs (principal, deck_id, deck_version) WHERE status IN (${OPEN_STATUS_LIST}); ` +
   "CREATE TABLE print_presets (principal TEXT PRIMARY KEY, payload TEXT NOT NULL)";
-const PRINT_JOBS_DIRECTORY = "print-jobs";
+/** Per-job directories (`<root>/print-jobs/<job_id>`) hold print images, the project file and filler evidence. */
+export const PRINT_JOBS_DIRECTORY = "print-jobs";
 const BACKUP_PATTERN = /^user-data-\d{17}-[\da-f-]+\.sqlite$/;
 const collectionSchema = z.array(z.string().min(1));
 const textRow = z.object({ payload: z.string() });

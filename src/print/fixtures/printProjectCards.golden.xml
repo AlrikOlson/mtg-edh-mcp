@@ -1,0 +1,36 @@
+<order>
+    <details>
+        <quantity>6</quantity>
+        <stock>(S33) Superior Smooth</stock>
+        <foil>true</foil>
+    </details>
+    <fronts>
+        <card>
+            <id>/data/print-jobs/0f1e2d3c-4b5a-4978-8a9b-0c1d2e3f4a5b/images/slot-001-front.png</id>
+            <sourceType>Local File</sourceType>
+            <slots>0</slots>
+            <name>slot-001-front.png</name>
+        </card>
+        <card>
+            <id>/data/print-jobs/0f1e2d3c-4b5a-4978-8a9b-0c1d2e3f4a5b/images/slot-002-front.png</id>
+            <sourceType>Local File</sourceType>
+            <slots>1,2,3,4</slots>
+            <name>slot-002-front.png</name>
+        </card>
+        <card>
+            <id>/data/print-jobs/0f1e2d3c-4b5a-4978-8a9b-0c1d2e3f4a5b/images/slot-006-front.png</id>
+            <sourceType>Local File</sourceType>
+            <slots>5</slots>
+            <name>slot-006-front.png</name>
+        </card>
+    </fronts>
+    <backs>
+        <card>
+            <id>/data/print-jobs/0f1e2d3c-4b5a-4978-8a9b-0c1d2e3f4a5b/images/slot-006-back.png</id>
+            <sourceType>Local File</sourceType>
+            <slots>5</slots>
+            <name>slot-006-back.png</name>
+        </card>
+    </backs>
+    <cardback>/data/print-jobs/0f1e2d3c-4b5a-4978-8a9b-0c1d2e3f4a5b/images/card-back.png</cardback>
+</order>

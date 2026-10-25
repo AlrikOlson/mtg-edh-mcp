@@ -352,12 +352,14 @@ describe("doctor", () => {
       "versions",
       "user-data-lock.sqlite",
       ".refresh-lock.sqlite",
+      "print-jobs",
     ])("reports actual denied write permissions for %s without writing a probe", async (target) => {
     await seed();
     const storage = new UserDataStore(root);
     storage.deckStore.create({ name: "Backup required" });
     storage.close();
     const filename = target === "root" ? root : join(root, target);
+    if (target === "print-jobs") await mkdir(filename, { mode: 0o700 });
     const originalMode = (await stat(filename)).mode;
     await chmod(filename, 0o500);
     try {
