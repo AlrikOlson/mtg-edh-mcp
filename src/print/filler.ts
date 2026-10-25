@@ -109,6 +109,12 @@ export interface PrintFillerServiceOptions {
 export interface FillerRunOptions {
   signal?: AbortSignal;
   onProgress?: (update: FillerProgressUpdate) => void;
+  /**
+   * Called once the job is `starting`, before the worker is spawned, so a
+   * caller that does not want to wait for the outcome (print_start) can
+   * answer as soon as the fill is under way. Refusals never reach it.
+   */
+  onStarted?: (job: PrintJobRecord) => void;
 }
 
 /** The default worker entry: the `print-filler.js` bundle next to the running bundle. */
@@ -252,6 +258,7 @@ export class PrintFillerService {
     const started = this.transition(principal, jobId, "starting");
     if (!started) return { kind: "not_found" };
     let current = started;
+    options.onStarted?.(started);
     const hold = new AbortController();
     this.holds.add(hold);
     const abort = () => hold.abort();

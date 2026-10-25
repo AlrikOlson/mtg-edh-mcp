@@ -19,7 +19,20 @@
  * decision and its footprint are recorded in
  * docs/architecture/print-order-helper.md.
  */
-import sharp, { type Sharp } from "sharp";
+import type { Sharp } from "sharp";
+
+type SharpFactory = (typeof import("sharp"))["default"];
+let sharpModule: Promise<SharpFactory> | undefined;
+
+/**
+ * sharp loads on first use, not at module load: the server registers the
+ * print tools at startup, and a missing native binary must surface when a
+ * print image step runs, never as a startup failure (print-order-helper.md).
+ */
+function loadSharp(): Promise<SharpFactory> {
+  sharpModule ??= import("sharp").then((module) => module.default);
+  return sharpModule;
+}
 
 /** MakePlayingCards poker template at 300 DPI. */
 export const MPC_POKER_WIDTH_PX = 822;
@@ -54,6 +67,7 @@ export interface PreparedImage {
 
 /** The pixel dimensions of an encoded image; throws when the bytes are not an image sharp can read. */
 export async function readImageDimensions(bytes: Uint8Array): Promise<ImageDimensions> {
+  const sharp = await loadSharp();
   const metadata = await sharp(bytes).metadata();
   const { width, height } = metadata;
   if (!width || !height) throw new Error("The image has no readable dimensions.");
@@ -121,6 +135,7 @@ export async function prepareCardImage(bytes: Uint8Array): Promise<PreparedImage
   if (source.width === MPC_POKER_WIDTH_PX && source.height === MPC_POKER_HEIGHT_PX) {
     return { bytes, width: source.width, height: source.height, treatment: "passthrough", source };
   }
+  const sharp = await loadSharp();
   const image = sharp(bytes).rotate();
   const border = await sampleBorderColour(image, source);
   const prepared = await image

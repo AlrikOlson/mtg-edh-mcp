@@ -6,6 +6,21 @@ The project is pre-1.0; minor releases may include breaking changes.
 
 ## 0.3.0 (unreleased)
 
+- Add the Proxy Order Helper tools: `print_prepare` turns a saved deck
+  version into a reviewable print job (physical cards counted, an image
+  fetched and prepared per face, the attention list), `print_update` changes a
+  slot's artwork, the card back, stock or foil and optionally remembers the
+  choices as the preset, `print_start` writes the project file and fills it
+  into the user's MakePlayingCards account in a browser they can watch
+  (refused while faces lack images or the filler cannot run; a failed fill
+  resumes the same project), and `print_status` reports the job, deck version
+  drift, progress, failure evidence and the retained `project.json` and
+  `cards.xml`. Jobs are private to the caller. The server registers 60 tools;
+  `print_status` is read-only and the three others reach Scryfall or the
+  printer. `MTG_PRINT_COMMUNITY_URL` optionally enables the MPC Autofill
+  community image source. The `mtg-edh-decks` skill documents the prepare,
+  review, start and finish flow; payment is always done by the user.
+
 - Fill MakePlayingCards projects with our own supervised browser worker. A
   reviewed print job is placed into a printer project named after the job: the
   worker opens a headed browser on a persistent profile under the data
@@ -20,8 +35,7 @@ The project is pre-1.0; minor releases may include breaking changes.
   the job directory next to the retained `project.json` and `cards.xml`. The
   worker is spawned through the same supervisor as the engine worker and the
   server never loads Playwright itself. New dependency: `playwright` 1.64
-  (no browser is downloaded at install; see INSTALL). The `print_*` tools that
-  start the filler are not registered yet.
+  (no browser is downloaded at install; see INSTALL).
 
 - Write the print project file. A reviewed print job whose images are all
   resolved is frozen into `project.json` in the job directory (zero-based

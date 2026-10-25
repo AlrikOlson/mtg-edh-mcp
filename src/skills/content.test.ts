@@ -14,6 +14,9 @@ import { AjvJsonSchemaValidator } from "@modelcontextprotocol/client/validators/
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
+import { PrintFillerService } from "../print/filler.js";
+import { PrintOrderService } from "../print/service.js";
+import { UserDataStore } from "../storage/userData.js";
 import { createServer } from "../server/createServer.js";
 import { staticSnapshotProvider } from "../server/snapshot.js";
 import { manageSkills, SKILL_NAMES } from "./install.js";
@@ -22,6 +25,7 @@ const sourceRoot = await realpath(fileURLToPath(new URL("../../skills/", import.
 const payloads = new Map<string, Map<string, string>>();
 let root: string;
 let index: CardIndex;
+let userData: UserDataStore;
 let client: Client;
 let tools: Tool[];
 
@@ -113,9 +117,20 @@ beforeAll(async () => {
   await writeFile(store.filePath("v1", "default_cards.json"), "[]");
   await store.publish("v1");
   index = CardIndex.open((await buildIndex({ store })).dbPath);
+  // The print tools exist only with a print order service, as main.ts wires one.
+  userData = new UserDataStore(path.join(root, "user-data"));
+  const print = new PrintOrderService({
+    jobs: userData.print,
+    filler: new PrintFillerService({
+      jobs: userData.print,
+      dataRoot: path.join(root, "user-data"),
+    }),
+    images: { scryfall: { getCardImage: () => Promise.reject(new Error("offline")) } },
+  });
   const server = createServer({
     index,
     deckStore: new DeckStore(),
+    print,
     snapshot: staticSnapshotProvider("2026-09-09"),
   });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -127,6 +142,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await client?.close();
+  userData?.close();
   index?.close();
   if (root) await rm(root, { recursive: true, force: true });
 });
@@ -135,7 +151,7 @@ describe("shipped portable skill content", () => {
   it("routes every actual registered tool exactly once without invented tools", () => {
     const router = payloads.get("mtg-edh")?.get("references/tools.md") ?? "";
     const documented = [...router.matchAll(/^\| `([a-z_]+)`\s*\|/gm)].map((m) => m[1]);
-    expect(tools).toHaveLength(56);
+    expect(tools).toHaveLength(60);
     expect(new Set(documented).size).toBe(documented.length);
     expect(documented.sort()).toEqual(tools.map((tool) => tool.name).sort());
   });

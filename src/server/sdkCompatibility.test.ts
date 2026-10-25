@@ -11,6 +11,9 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
+import { PrintFillerService } from "../print/filler.js";
+import { PrintOrderService } from "../print/service.js";
+import { UserDataStore } from "../storage/userData.js";
 import { PRINCIPAL_HEADER, startHttp } from "./http.js";
 import { staticSnapshotProvider } from "./snapshot.js";
 
@@ -42,11 +45,23 @@ beforeAll(async () => {
       contents: `
         import { startStdio } from "./stdio.js";
         import { CardIndex } from "../index/index.js";
-        import { DeckStore } from "../deck/index.js";
+        import { LiveScryfallClient } from "../ingest/index.js";
+        import { PrintFillerService } from "../print/filler.js";
+        import { PrintOrderService } from "../print/service.js";
+        import { UserDataStore } from "../storage/userData.js";
         import { staticSnapshotProvider } from "./snapshot.js";
+        // The full catalog, as main.ts serves it: durable user data and the print order service.
+        const userData = new UserDataStore(process.argv[3]);
+        const print = new PrintOrderService({
+          jobs: userData.print,
+          filler: new PrintFillerService({ jobs: userData.print, dataRoot: process.argv[3] }),
+          images: { scryfall: new LiveScryfallClient() },
+        });
+        process.stdin.on("end", () => void print.shutdown().finally(() => process.exit(0)));
         await startStdio({
           index: CardIndex.open(process.argv[2]),
-          deckStore: new DeckStore(),
+          deckStore: userData.deckStore,
+          print,
           snapshot: staticSnapshotProvider(${JSON.stringify(SNAPSHOT)}),
         });
       `,
@@ -66,7 +81,7 @@ beforeAll(async () => {
       {
         name: "external-native-sqlite",
         setup(builder) {
-          builder.onResolve({ filter: /^better-sqlite3$/ }, ({ path: specifier }) => ({
+          builder.onResolve({ filter: /^(?:better-sqlite3|sharp)$/ }, ({ path: specifier }) => ({
             path: pathToFileURL(require.resolve(specifier)).href,
             external: true,
           }));
@@ -112,14 +127,14 @@ function compatibilityClient(revision: (typeof revisions)[number]): Client {
 function stdioTransport(): StdioClientTransport {
   return new StdioClientTransport({
     command: process.execPath,
-    args: [path.join(fixtureDir, "main.mjs"), dbPath],
+    args: [path.join(fixtureDir, "main.mjs"), dbPath, path.join(root, "user-data")],
     stderr: "pipe",
   });
 }
 
 async function verifyCatalogAndResults(client: Client): Promise<void> {
   const { tools } = await client.listTools();
-  expect(tools).toHaveLength(56);
+  expect(tools).toHaveLength(60);
   expect(tools.find((tool) => tool.name === "deck_set_roles")?.annotations).toMatchObject({
     readOnlyHint: false,
     openWorldHint: false,
@@ -269,9 +284,20 @@ describe("SDK v2 protocol compatibility", () => {
   it.each(revisions)(
     "serves the full catalog and stamped results over HTTP %s",
     async (revision) => {
+      // The full catalog, as main.ts serves it: durable user data and the print order service.
+      const userData = new UserDataStore(path.join(root, "user-data-http"));
+      const print = new PrintOrderService({
+        jobs: userData.print,
+        filler: new PrintFillerService({
+          jobs: userData.print,
+          dataRoot: path.join(root, "user-data-http"),
+        }),
+        images: { scryfall: { getCardImage: () => Promise.reject(new Error("offline")) } },
+      });
       const running = await startHttp({
         index,
-        deckStore: new DeckStore(),
+        deckStore: userData.deckStore,
+        print,
         snapshot: staticSnapshotProvider(SNAPSHOT),
       });
       const client = compatibilityClient(revision);
@@ -294,6 +320,8 @@ describe("SDK v2 protocol compatibility", () => {
       } finally {
         await client.close();
         await running.close();
+        await print.shutdown();
+        userData.close();
       }
     },
   );

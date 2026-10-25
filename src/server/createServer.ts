@@ -34,8 +34,10 @@ import type { CardDataSource } from "./cardData.js";
 import { registerResources } from "./resources.js";
 import { registerPrompts } from "./prompts.js";
 import { makeEngineJobTools, makeEnginePreviewTools } from "./engineTools.js";
+import { makePrintTools } from "./printTools.js";
 import type { PreviewFixtureService } from "../engine/previewRun.js";
 import type { EngineJobService } from "../engine/jobs.js";
+import type { PrintOrderService } from "../print/service.js";
 
 export const SERVER_NAME = "mtg-edh-mcp";
 
@@ -120,6 +122,13 @@ export interface CreateServerOptions {
    * this is provided, and every job is scoped to the server's `session`.
    */
   engineJobs?: EngineJobService;
+  /**
+   * Proxy Order Helper (print-mcp-tools). One shared instance per process,
+   * like the engine jobs; the print_* tools exist only when this is provided
+   * together with a deck store and an index, and every job is scoped to the
+   * server's `session`.
+   */
+  print?: PrintOrderService;
 }
 
 /** Construct a fully wired (but not yet connected) MCP server. */
@@ -173,6 +182,9 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
             session,
             snapshot,
           ),
+          ...(options.print
+            ? makePrintTools(options.print, options.deckStore, current, session)
+            : []),
         ]
       : []),
   ];

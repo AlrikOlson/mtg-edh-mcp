@@ -21,23 +21,36 @@ import { SERVER_VERSION } from "./createServer.js";
 import { runDoctor, runSetup } from "./setup.js";
 import { runSkillsCli } from "../skills/cli.js";
 import { engineJobsFor, enginePreviewFromEnv } from "./engineTools.js";
-import type { EngineJobService } from "../engine/jobs.js";
+import { LiveScryfallClient } from "../ingest/index.js";
+import { MpcAutofillCommunitySource } from "../print/community.js";
+import { PrintFillerService } from "../print/filler.js";
+import { PrintOrderService } from "../print/service.js";
 
-/** Grace for running engine jobs to stop before the process exits regardless. */
+/** Grace for running engine jobs and held print browsers to stop before the process exits regardless. */
 const JOB_SHUTDOWN_GRACE_MS = 10_000;
 
+/** Optional MPC Autofill community image backend for the print helper; no default. */
+export const PRINT_COMMUNITY_URL_ENV = "MTG_PRINT_COMMUNITY_URL";
+
+/** A per-process service that owns child processes the server must not outlive. */
+interface Shutdownable {
+  shutdown(): Promise<void>;
+}
+
 /**
- * Exit once the transport is gone: running engine jobs are cancelled first so
- * no worker outlives the server, bounded by the supervisor's kill grace.
+ * Exit once the transport is gone: running engine jobs are cancelled and held
+ * print browsers released first so no worker outlives the server, bounded by
+ * the supervisors' kill grace.
  */
-function exitAfterJobs(jobs: EngineJobService | undefined): void {
-  if (!jobs) {
+function exitAfterJobs(services: ReadonlyArray<Shutdownable | undefined>): void {
+  const live = services.filter((service): service is Shutdownable => service !== undefined);
+  if (live.length === 0) {
     process.exit(0);
     return;
   }
   const fallback = setTimeout(() => process.exit(0), JOB_SHUTDOWN_GRACE_MS);
   fallback.unref();
-  void jobs.shutdown().finally(() => process.exit(0));
+  void Promise.allSettled(live.map((service) => service.shutdown())).finally(() => process.exit(0));
 }
 
 /**
@@ -64,6 +77,7 @@ async function boot() {
       bulkAge: data.bulkAge,
       deckStore: userData.deckStore,
       collection: userData.collection,
+      userData,
       store,
     };
   } catch (error) {
@@ -116,6 +130,7 @@ async function main(): Promise<void> {
     cardData,
     deckStore,
     collection,
+    userData,
     store,
     ingest,
     staleness,
@@ -136,6 +151,20 @@ async function main(): Promise<void> {
     if (interrupted > 0)
       console.error(`engine jobs: ${interrupted} unfinished job(s) marked interrupted`);
   }
+  // The Proxy Order Helper: one order service per process over the durable
+  // print jobs, Scryfall images through the shared live client, the optional
+  // community image backend, and the supervised browser filler (which loads
+  // nothing until a print_* call needs it).
+  const dataRoot = process.env.MCP_DATA_DIR ?? DEFAULT_DATA_ROOT;
+  const communityUrl = process.env[PRINT_COMMUNITY_URL_ENV]?.trim();
+  const print = new PrintOrderService({
+    jobs: userData.print,
+    filler: new PrintFillerService({ jobs: userData.print, dataRoot }),
+    images: {
+      scryfall: new LiveScryfallClient(),
+      community: communityUrl ? new MpcAutofillCommunitySource({ baseUrl: communityUrl }) : null,
+    },
+  });
 
   // Freshness scheduler (spec §3): staleness check now + every bulk interval.
   // Idempotent upstream check; opt out with MCP_AUTO_REFRESH=0.
@@ -152,7 +181,7 @@ async function main(): Promise<void> {
   // path as a closed transport: running engine jobs stop first, then the
   // process exits and the exit hook closes the user-data store.
   for (const signal of ["SIGTERM", "SIGINT"] as const) {
-    process.once(signal, () => exitAfterJobs(engineJobs));
+    process.once(signal, () => exitAfterJobs([engineJobs, print]));
   }
   if (config.transport === "http") {
     const { port, host } = config;
@@ -168,6 +197,7 @@ async function main(): Promise<void> {
       rules,
       enginePreview,
       engineJobs,
+      print,
     });
     console.error(
       `mtg-edh-mcp listening on http://${host.includes(":") ? `[${host}]` : host}:${running.port}/mcp (streamable HTTP)`,
@@ -176,8 +206,8 @@ async function main(): Promise<void> {
     // GUI dies, stdin closes and we exit — orphan-proof without process groups.
     if (process.env.MCP_WATCH_STDIN === "1") {
       process.stdin.resume();
-      process.stdin.on("end", () => exitAfterJobs(engineJobs));
-      process.stdin.on("close", () => exitAfterJobs(engineJobs));
+      process.stdin.on("end", () => exitAfterJobs([engineJobs, print]));
+      process.stdin.on("close", () => exitAfterJobs([engineJobs, print]));
     }
   } else {
     await startStdio({
@@ -190,13 +220,14 @@ async function main(): Promise<void> {
       rules,
       enginePreview,
       engineJobs,
+      print,
     });
     console.error("mtg-edh-mcp serving on stdio");
     // A closed stdin means the client (and the transport) is gone; exit even if
     // background timers would otherwise keep the event loop alive — orphan-proof.
     // Running engine jobs are stopped first so no worker outlives the server.
-    process.stdin.on("end", () => exitAfterJobs(engineJobs));
-    process.stdin.on("close", () => exitAfterJobs(engineJobs));
+    process.stdin.on("end", () => exitAfterJobs([engineJobs, print]));
+    process.stdin.on("close", () => exitAfterJobs([engineJobs, print]));
   }
 }
 

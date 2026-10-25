@@ -1,6 +1,6 @@
 # Complete tool router
 
-This catalog covers the 56 tools in the source release that ships these skills. Actual availability, input bounds and schemas come from the connected server's `tools/list`; names below are symbolic and have no required host prefix. The catalog is routing guidance, not a replacement schema. Refresh discovery after data installation or an upgrade.
+This catalog covers the 60 tools in the source release that ships these skills. Actual availability, input bounds and schemas come from the connected server's `tools/list`; names below are symbolic and have no required host prefix. The catalog is routing guidance, not a replacement schema. Refresh discovery after data installation or an upgrade.
 
 ## Session and data — 3
 
@@ -82,3 +82,12 @@ This catalog covers the 56 tools in the source release that ships these skills. 
 | `collection_get`    | Review current owned membership                          | Paginated; read `next_cursor`.                                        |
 | `collection_clear`  | Empty owned membership                                   | Destructive replacement with an empty set.                            |
 | `meta_check_policy` | Evaluate declared playgroup and construction constraints | Separate from legality and bracket estimation; unknown is meaningful. |
+
+## Print orders — 4
+
+| Tool            | Use when                                            | Consequence or boundary                                                                  |
+| --------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `print_prepare` | Turn a saved deck version into a reviewable order   | Fetches card images from Scryfall; the same deck version returns its open job.           |
+| `print_update`  | Change a slot's artwork, the card back, stock, foil | Only before the fill starts; `remember:true` saves the choices as the preset.            |
+| `print_start`   | Fill the reviewed order into the printer's account  | Opens a browser the user signs into; refused while `attention[]` is non-empty.           |
+| `print_status`  | Review, poll a fill, or find the retained files     | Read-only; without `job_id` lists the caller's jobs. Payment is always done by the user. |

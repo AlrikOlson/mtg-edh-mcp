@@ -87,7 +87,7 @@ beforeAll(async () => {
       {
         name: "external-native-sqlite",
         setup(builder) {
-          builder.onResolve({ filter: /^better-sqlite3$/ }, ({ path: specifier }) => ({
+          builder.onResolve({ filter: /^(?:better-sqlite3|sharp)$/ }, ({ path: specifier }) => ({
             path: pathToFileURL(require.resolve(specifier)).href,
             external: true,
           }));

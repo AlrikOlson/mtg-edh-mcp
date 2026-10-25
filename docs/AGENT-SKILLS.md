@@ -4,9 +4,9 @@ The package includes five portable Agent Skills that explain how to use the MTG 
 
 | Skill              | Use it for                                                                                                               |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `mtg-edh`          | Starting a session, choosing a workflow, checking data readiness, recovering from tool errors, and routing all 56 tools. |
+| `mtg-edh`          | Starting a session, choosing a workflow, checking data readiness, recovering from tool errors, and routing all 60 tools. |
 | `mtg-edh-cards`    | Card search and discovery, exact cards and faces, mechanics, rulings, and rules evidence.                                |
-| `mtg-edh-decks`    | Building decks, preserving intent, reviewing proposed changes, and applying incremental edits.                           |
+| `mtg-edh-decks`    | Building decks, preserving intent, reviewing proposed changes, applying incremental edits, and preparing a print order.  |
 | `mtg-edh-analysis` | Deck statistics, strategy, mana sequencing, legality, combos, and policy checks.                                         |
 | `mtg-edh-budget`   | Printing selection, deck value, acquisition estimates, budget swaps, and owned-card membership.                          |
 
@@ -129,7 +129,7 @@ The checks below address different claims. On 2026-09-09, all 38 installer tests
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
 | 38 installer tests in `src/skills/`                 | Real filesystem preview/apply, idempotency, subsets, ownership and conflict preservation, scoped removal, locks, and fault-injected rollback.                      | Native host discovery, activation quality, and all possible process or filesystem failures. |
 | 29 CLI function tests in `src/skills/`              | All eight client presets in both scopes, paths with spaces, arguments and conflict exit status; actual copies to an explicit destination and OpenCode user preset. | Shell executable launch or native host discovery.                                           |
-| Skill bundle validation and tool catalog comparison | Valid metadata, contained relative references, and coverage of the server's 56 registered tool names.                                                              | Agent judgment or the correctness of an arbitrary future server schema.                     |
+| Skill bundle validation and tool catalog comparison | Valid metadata, contained relative references, and coverage of the server's 60 registered tool names.                                                              | Agent judgment or the correctness of an arbitrary future server schema.                     |
 | Local package smoke test (`npm run test:package`)   | The built package contains the expected runtime and bundled artifacts, as checked by that test.                                                                    | A registry publication or remote installation; neither is required for this workflow.       |
 | Dated official host documentation above             | The documented discovery paths and host-specific limitations used for the presets.                                                                                 | Native discovery tests in all listed applications.                                          |
 | A discovery check in your chosen host               | That this installed revision is visible in that host and environment.                                                                                              | Availability of the MCP connection until separately checked.                                |

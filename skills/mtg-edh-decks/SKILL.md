@@ -1,6 +1,6 @@
 ---
 name: mtg-edh-decks
-description: Build, import, revise or restore Commander decks with mtg-edh-mcp, preserving authored intent and using reviewed atomic plans for complete builds and multi-card revisions.
+description: Build, import, revise, restore or print Commander decks with mtg-edh-mcp, preserving authored intent, using reviewed atomic plans for complete builds and multi-card revisions, and preparing reviewable print orders.
 license: MIT
 ---
 
@@ -10,7 +10,7 @@ Resolve symbolic tool names against the connected server and consult live `tools
 
 Resume an existing build with `deck_list`, `deck_get` and `deck_get_intent`. Preserve its current cards, hard constraints, chosen command zone and user preferences. Do not create another deck merely because the conversation resumed. One designated commander leaves 99 library slots, a legal pair 98; a companion is outside the 100.
 
-Read [construction and intent](references/construction.md) for a new build, partial list, generated proposal or constraint change. Read [safe state changes](references/edits.md) for exact revisions, incremental edits, imports, snapshots, version conflicts or retries.
+Read [construction and intent](references/construction.md) for a new build, partial list, generated proposal or constraint change. Read [safe state changes](references/edits.md) for exact revisions, incremental edits, imports, snapshots, version conflicts or retries. Read [printing a deck](references/print.md) when the user wants physical proxies of a saved deck: prepare, review, start the browser fill, then finish checkout by hand.
 
 For a selected multi-card transition, prefer a complete `deck_plan_preview` and atomic `deck_plan_apply`. For generated builds, `deck_construct` already returns a reviewed plan when it finds a valid candidate. Inspect the complete desired deck, diff and validation before applying. A request to propose or compare stays read-only; a request to carry out the specific build/edit can authorize its application without a redundant confirmation. Ask only when a material choice or destructive step falls outside that authorization.
 

@@ -21,6 +21,9 @@ import { InMemoryTransport } from "@modelcontextprotocol/client";
 import { VersionedStore } from "../ingest/index.js";
 import { buildIndex, CardIndex } from "../index/index.js";
 import { DeckStore } from "../deck/index.js";
+import { PrintFillerService } from "../print/filler.js";
+import { PrintOrderService } from "../print/service.js";
+import { UserDataStore } from "../storage/userData.js";
 import { createServer } from "./createServer.js";
 import { staticSnapshotProvider } from "./snapshot.js";
 
@@ -39,7 +42,7 @@ const ORACLE = [
   },
 ];
 
-const EXPECTED_TOOL_COUNT = 56;
+const EXPECTED_TOOL_COUNT = 60;
 const MAX_DESCRIPTION_CHARS = 700;
 
 const TEMPLATE =
@@ -47,7 +50,7 @@ const TEMPLATE =
 
 /** Tool-name-shaped tokens inside a FLOW line. */
 const FLOW_TOOL_TOKEN =
-  /\b(?:ping|construction_spec|budget_plan|simulate_deck|(?:card|deck|meta|analyze|validate|collection|data|rules)_[a-z_]+)\b/g;
+  /\b(?:ping|construction_spec|budget_plan|simulate_deck|(?:card|deck|meta|analyze|validate|collection|data|rules|print)_[a-z_]+)\b/g;
 
 /** The lint-pinned read-only set (ergo-protocol): drift in either direction fails. */
 const READ_ONLY_TOOLS = [
@@ -89,6 +92,7 @@ const READ_ONLY_TOOLS = [
   "meta_combos",
   "meta_classify_bracket",
   "meta_check_policy",
+  "print_status",
 ].sort();
 
 /** Tools that reach the network (openWorldHint: true). */
@@ -101,6 +105,10 @@ const OPEN_WORLD_TOOLS = [
   "meta_combos",
   "meta_classify_bracket",
   "meta_check_policy",
+  // print_prepare and print_update fetch card images from Scryfall; print_start drives the printer's site.
+  "print_prepare",
+  "print_update",
+  "print_start",
 ].sort();
 
 // Keep the established catalog contract: no advertised outputSchema. Earlier
@@ -121,6 +129,7 @@ interface WireTool {
 
 let root: string;
 let index: CardIndex;
+let userData: UserDataStore;
 let client: Client;
 let tools: WireTool[];
 
@@ -133,10 +142,21 @@ beforeAll(async () => {
   await store.publish("v1");
   index = CardIndex.open((await buildIndex({ store })).dbPath);
   const deckStore = new DeckStore();
+  // The print tools exist only with a print order service, as main.ts wires one.
+  userData = new UserDataStore(path.join(root, "user-data"));
+  const print = new PrintOrderService({
+    jobs: userData.print,
+    filler: new PrintFillerService({
+      jobs: userData.print,
+      dataRoot: path.join(root, "user-data"),
+    }),
+    images: { scryfall: { getCardImage: () => Promise.reject(new Error("offline")) } },
+  });
 
   const server = createServer({
     index,
     deckStore,
+    print,
     snapshot: staticSnapshotProvider("2026-06-27"),
   });
   const [ct, st] = InMemoryTransport.createLinkedPair();
@@ -147,6 +167,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await client.close();
+  userData.close();
   index.close();
   await rm(root, { recursive: true, force: true });
 });
