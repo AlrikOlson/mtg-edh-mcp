@@ -8,8 +8,8 @@
  * id/c (subset/superset/exact), set:/e: (code or full name), rarity:/r: (full
  * word or c/u/r/m/s/b letter), is:commander, is:gamechanger, inline regex,
  * order:name/mv/price/released (released = first printing date, oldest first).
- * Printing-level predicates (set/rarity/year) compile to an EXISTS over the
- * printings table; several of them under one AND merge into a single EXISTS,
+ * Printing-level predicates (set/rarity/year) select matching Oracle IDs from
+ * the printings table; several under one AND share a single subquery,
  * so `set:lea year<=1994` needs ONE printing satisfying both (Scryfall's
  * semantics for oracle-level results). Deferred (→ INVALID_QUERY): other is:
  * values, order:edhrec_rank.
@@ -35,7 +35,7 @@ const NUMERIC_COLUMN: Record<NumericField, string> = {
   usd: "price_usd",
   eur: "price_eur",
   tix: "price_tix",
-  year: "", // printing-level; compiled via an EXISTS over printings
+  year: "", // printing-level; compiled via a subquery over printings
 };
 
 const ORDER_COLUMN: Record<string, string> = {
@@ -62,11 +62,14 @@ interface PrintingCondition {
   params: SqlParam[];
 }
 
-/** Wrap printing-row conditions in an EXISTS: ANY single printing satisfies ALL of them. */
-function printingExists(conditions: readonly PrintingCondition[]): CompiledWhere {
+/** Match ANY single printing satisfying ALL conditions, without a scan per card. */
+function matchingPrintings(conditions: readonly PrintingCondition[]): CompiledWhere {
   const combined = conditions.map((c) => c.condition).join(" AND ");
   return {
-    sql: `EXISTS (SELECT 1 FROM printings p WHERE p.oracle_id = cards.oracle_id AND ${combined})`,
+    // A correlated EXISTS can choose the rarity index and rescan every common
+    // printing for every card. IN evaluates the printing filter independently;
+    // its non-null Oracle IDs also preserve negation and duplicate semantics.
+    sql: `cards.oracle_id IN (SELECT p.oracle_id FROM printings p WHERE ${combined})`,
     params: conditions.flatMap((c) => c.params),
   };
 }
@@ -74,7 +77,7 @@ function printingExists(conditions: readonly PrintingCondition[]): CompiledWhere
 /**
  * The printing-row condition for a printing-level leaf (set:/rarity:/year), or
  * null for any other node. Kept separate from compileNode so an AND of several
- * printing predicates can merge them into ONE EXISTS — Scryfall semantics: a
+ * printing predicates can share ONE subquery — Scryfall semantics: a
  * card matches `set:lea year<=1994` only if a SINGLE printing satisfies both,
  * not one printing each.
  */
@@ -163,7 +166,7 @@ function colorPredicate(column: string, op: ComparisonOp, raw: string): Compiled
 export function compileNode(node: QueryNode): CompiledWhere {
   // A lone printing-level leaf: ANY printing satisfying it matches the card.
   const printing = printingCondition(node);
-  if (printing) return printingExists([printing]);
+  if (printing) return matchingPrintings([printing]);
 
   switch (node.kind) {
     case "and":
@@ -173,13 +176,13 @@ export function compileNode(node: QueryNode): CompiledWhere {
       let clauses = node.clauses;
       const parts: CompiledWhere[] = [];
       if (node.kind === "and") {
-        // Merge the AND's printing-level leaves into ONE EXISTS (see
+        // Merge the AND's printing-level leaves into ONE subquery (see
         // printingCondition); the remaining clauses compile normally.
         const merged = node.clauses
           .map(printingCondition)
           .filter((c): c is PrintingCondition => c !== null);
         if (merged.length > 1) {
-          parts.push(printingExists(merged));
+          parts.push(matchingPrintings(merged));
           clauses = node.clauses.filter((c) => printingCondition(c) === null);
         }
       }

@@ -199,7 +199,7 @@ describe("query evaluation — printing-level predicates", () => {
     expect(ids("year=2009")).toEqual(["o-llan"]);
   });
 
-  it("ANDed printing predicates must hit a SINGLE printing (merged EXISTS)", () => {
+  it("ANDed printing predicates must hit a SINGLE printing", () => {
     // Sol Ring has 1993 and 2023 printings but none inside [2016, 2020]:
     // separate EXISTS per predicate would wrongly match it via different rows.
     expect(ids("year>=2016 year<=2020")).toEqual(["o-atra"]);
@@ -210,6 +210,26 @@ describe("query evaluation — printing-level predicates", () => {
   it("cards with no printings never match a printing-level predicate", () => {
     expect(ids("set:lea or set:m10 or set:c16 or set:cmm")).toEqual(["o-atra", "o-llan", "o-sol"]);
     expect(ids("year>=1900")).toEqual(["o-atra", "o-llan", "o-sol"]); // bolt/cult excluded
+  });
+
+  it("negated printing filters include cards with no matching printing", () => {
+    expect(ids("-(set:cmm r:u)")).toEqual(["o-atra", "o-bolt", "o-cult", "o-llan"]);
+    expect(ids("-r:u")).toEqual(["o-atra", "o-bolt", "o-cult", "o-llan"]);
+  });
+
+  it("multiple matching printings count once across pages and owned filters", () => {
+    const query = parseQuery("r:u or r:c");
+    const first = index.evaluate(query, { limit: 1 });
+    const second = index.evaluate(query, { limit: 1, cursor: first.nextCursor });
+    expect(first.total).toBe(2);
+    expect([...first.results, ...second.results].map((card) => card.oracle_id)).toEqual([
+      "o-llan",
+      "o-sol",
+    ]);
+    expect(second.nextCursor).toBeUndefined();
+    const owned = index.evaluate(query, { oracleIds: ["o-sol"] });
+    expect(owned.total).toBe(1);
+    expect(owned.results.map((card) => card.oracle_id)).toEqual(["o-sol"]);
   });
 
   it("order:released sorts by first-printing date, oldest first", () => {
